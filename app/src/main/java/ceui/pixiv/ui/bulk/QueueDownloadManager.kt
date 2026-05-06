@@ -55,6 +55,12 @@ object QueueDownloadManager {
     private val tickle = Channel<Unit>(Channel.CONFLATED)
     private var loopJob: Job? = null
     @Volatile private var paused: Boolean = false
+    /**
+     * Reactive 暂停状态：UI 端 collect 这个 StateFlow 让"暂停 / 继续"按钮文案
+     * 自动跟随真实状态；任何 tab 调 pause() / resume() 都会即时同步。
+     */
+    private val _pausedFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val pausedFlow: kotlinx.coroutines.flow.StateFlow<Boolean> get() = _pausedFlow
 
     // —— 调度参数 ——
     private const val MAX_RETRY = 3
@@ -98,12 +104,14 @@ object QueueDownloadManager {
             val pending = runCatching { dao.countByStatus(QueueStatus.PENDING) }.getOrDefault(0)
             if (pending > 0) {
                 paused = true   // 默认暂停；等用户在第一个 Activity 弹窗里决定
+                _pausedFlow.value = true
                 (appContext as? Application)?.let { app ->
                     promptResumeOnFirstActivity(app, pending)
                 }
                 Timber.tag(TAG).i("cold start: $pending pending items, awaiting user decision")
             } else {
                 paused = false
+                _pausedFlow.value = false
                 tickle.trySend(Unit)
             }
 
@@ -171,8 +179,8 @@ object QueueDownloadManager {
     }
 
     fun notifyNewItems() { tickle.trySend(Unit) }
-    fun pause() { paused = true }
-    fun resume() { paused = false; tickle.trySend(Unit) }
+    fun pause() { paused = true; _pausedFlow.value = true }
+    fun resume() { paused = false; _pausedFlow.value = false; tickle.trySend(Unit) }
     fun isPaused(): Boolean = paused
 
     private suspend fun consumeUntilEmpty() {

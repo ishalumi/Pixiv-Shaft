@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DownloadQueueDao {
@@ -37,6 +38,13 @@ interface DownloadQueueDao {
     @Query("SELECT COUNT(*) FROM download_queue WHERE status = :status")
     fun observeCountByStatus(status: String): LiveData<Int>
 
+    /**
+     * Reactive 计数：Room InvalidationTracker 在 download_queue 表 INSERT/UPDATE/DELETE
+     * 时自动 emit 新值。配合 [combine] / [Flow.collect] 替代原来的 timer 轮询。
+     */
+    @Query("SELECT COUNT(*) FROM download_queue WHERE status = :status")
+    fun flowCountByStatus(status: String): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM download_queue WHERE status = :status")
     suspend fun countByStatus(status: String): Int
 
@@ -55,6 +63,14 @@ interface DownloadQueueDao {
      */
     @Query("SELECT * FROM download_queue WHERE status != '${QueueStatus.SUCCESS}' ORDER BY seq ASC LIMIT :limit OFFSET :offset")
     suspend fun pageActive(limit: Int, offset: Int): List<DownloadQueueEntity>
+
+    /**
+     * Reactive 队列：UI 端直接 collect 这个 Flow，Room 在 download_queue 表
+     * 任何变更时自动重新 emit 完整快照。替代原来的 1.5s 轮询 + pageActive 翻页拼装。
+     * 上限 [limit] 控制 RecyclerView 一次渲染的最大行数；consumer 不受此限。
+     */
+    @Query("SELECT * FROM download_queue WHERE status != '${QueueStatus.SUCCESS}' ORDER BY seq ASC LIMIT :limit")
+    fun flowActive(limit: Int): Flow<List<DownloadQueueEntity>>
 
     @Query("SELECT COUNT(*) FROM download_queue WHERE status != '${QueueStatus.SUCCESS}'")
     suspend fun countActive(): Int

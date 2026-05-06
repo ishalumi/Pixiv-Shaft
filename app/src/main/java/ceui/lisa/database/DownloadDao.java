@@ -9,6 +9,7 @@ import androidx.room.Query;
 import java.util.List;
 
 import ceui.lisa.feature.FeatureEntity;
+import kotlinx.coroutines.flow.Flow;
 
 //保存下载历史记录
 @Dao
@@ -45,6 +46,14 @@ public interface DownloadDao {
      */
     @Query("SELECT * FROM illust_download_table ORDER BY downloadTime DESC LIMIT :limit OFFSET :offset")
     List<DownloadEntity> getAll(int limit, int offset);
+
+    /**
+     * Reactive 列表：Room InvalidationTracker 在 illust_download_table 任意
+     * 变更时自动 emit 新快照。已完成 tab 用这个替代 1.5s 轮询 + DOWNLOAD_FINISH
+     * 广播兜底 —— Manager 写 DownloadEntity 时 Room 自己就会通知 collector。
+     */
+    @Query("SELECT * FROM illust_download_table ORDER BY downloadTime DESC LIMIT :limit")
+    Flow<List<DownloadEntity>> flowAll(int limit);
 
     /**
      * 判断是否存在指定插画 id 的下载记录（通过 illustGson 中的 "id":xxx 片段匹配）。

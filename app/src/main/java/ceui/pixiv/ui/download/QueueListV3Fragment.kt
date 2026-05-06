@@ -34,7 +34,9 @@ import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
@@ -123,36 +125,33 @@ class QueueListV3Fragment : Fragment() {
             }
         }
 
-        // 仅 STARTED 时刷新；只显示活跃项（PENDING / DOWNLOADING / FAILED），
-        // SUCCESS 完成后自动从队列视图消失，让队列真正"越来越短"。
+        // Reactive 数据源 = 队列行 (Room Flow) + 暂停态 (StateFlow) 合并。
+        // Room InvalidationTracker 在 download_queue 表任意 INSERT/UPDATE/DELETE
+        // 时自动 emit；任何 tab 切换 pause/resume 都会让 pausedFlow 即时翻转。
+        // 完全替代之前的 1.5s 轮询 —— 0 timer，纯事件驱动。
+        // collectLatest：上一轮还在 prefetch 时新 emit 来了就取消旧的，
+        // 避免 prefetch 任务堆积。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                while (true) {
-                    val rows = withContext(Dispatchers.IO) {
-                        runCatching { loadAllActive() }.getOrDefault(emptyList())
+                combine(
+                    dao.flowActive(MAX_DISPLAY_ROWS),
+                    QueueDownloadManager.pausedFlow,
+                ) { rows, paused -> rows to paused }
+                    .flowOn(Dispatchers.IO)
+                    .collectLatest { (rows, paused) ->
+                        adapter.submitList(rows)
+                        empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+                        val hasWork = rows.isNotEmpty()
+                        btnPause.isEnabled = hasWork
+                        btnPause.alpha = if (hasWork) 1f else 0.4f
+                        btnClearAll.isEnabled = hasWork
+                        btnClearAll.alpha = if (hasWork) 1f else 0.4f
+                        btnPause.text = getString(
+                            if (paused) R.string.dlmgr_queue_action_resume
+                            else R.string.dlmgr_queue_action_pause
+                        )
+                        prefetchVisibleIllusts(rows)
                     }
-                    adapter.submitList(rows)
-                    empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
-                    // 空队列时禁用 暂停/继续 + 清空全部 —— 避免用户在没事可做时反复点
-                    val hasWork = rows.isNotEmpty()
-                    btnPause.isEnabled = hasWork
-                    btnPause.alpha = if (hasWork) 1f else 0.4f
-                    btnClearAll.isEnabled = hasWork
-                    btnClearAll.alpha = if (hasWork) 1f else 0.4f
-                    // 同步 暂停/继续 文案：用户可能从其它 tab（active）触发了 pause，
-                    // 此时本 tab 的按钮文案要跟着变，否则显示"暂停"但实际已 paused 是误导。
-                    btnPause.text = getString(
-                        if (QueueDownloadManager.isPaused()) R.string.dlmgr_queue_action_resume
-                        else R.string.dlmgr_queue_action_pause
-                    )
-                    // 让看得见的几条 item 把缩略图/标题加载出来：ObjectPool cache miss 的
-                    // illustId 触发后台拉取，下一轮 polling DiffUtil 会自动重 bind 那些行。
-                    prefetchVisibleIllusts(rows)
-                    // 自适应：队列里有活就 1.5s 跟新增 / 状态变化；空队列拉到 5s
-                    // 节能。consumer 拉新任务进队列时会改 DB，下一次 polling 自然
-                    // 会切回 busy 节奏。
-                    delay(if (hasWork) BUSY_INTERVAL_MS else IDLE_INTERVAL_MS)
-                }
             }
         }
     }
@@ -229,41 +228,17 @@ class QueueListV3Fragment : Fragment() {
         cont.invokeOnCancellation { d.dispose() }
     }
 
-    /**
-     * issue #858：旧代码直接 `pageActive(limit=200, offset=0)`，导致用户批量下载
-     * 487p 暂停重启后，只显示前 200 条 —— 用户感觉"中间 300 张丢了"。实际数据
-     * 都在 DB 里，consumer 会按 seq ASC 顺序消费完，只是 UI 没翻页就把后面的
-     * 截掉了。
-     *
-     * 改成"分页拉到为止"，硬上限 [MAX_DISPLAY_ROWS] 防极端用例（5 万项时
-     * RecyclerView 不至于卡死）。487 项这种正常规模一次性全显示。
-     */
-    private suspend fun loadAllActive(): List<DownloadQueueEntity> {
-        val all = ArrayList<DownloadQueueEntity>()
-        var offset = 0
-        while (offset < MAX_DISPLAY_ROWS) {
-            val page = dao.pageActive(limit = PAGE_SIZE, offset = offset)
-            if (page.isEmpty()) break
-            all.addAll(page)
-            if (page.size < PAGE_SIZE) break
-            offset += PAGE_SIZE
-        }
-        return all
-    }
-
     companion object {
-        private const val PAGE_SIZE = 200
         /**
          * UI 一次最多加载这么多条 —— 5000 条 RecyclerView 仍然流畅。
          * consumer 不受此限，会把 DB 里全部 PENDING 都消费掉，所以即使有
          * 几万条也只是前 5000 个可见，后续随消费完成自动滚出来。
+         *
+         * 解决 issue #858（旧代码 pageActive 只拿前 200 条让用户感觉"中间丢了"）：
+         * Room flowActive 一次拉 5000 条带 LIMIT，覆盖正常规模，不再分页。
          */
         private const val MAX_DISPLAY_ROWS = 5000
-        /** 队列有活：跟新增 / 状态翻转的快节奏 */
-        private const val BUSY_INTERVAL_MS = 1500L
-        /** 队列空：节能慢节奏，consumer 入队会让下轮自然切回 busy */
-        private const val IDLE_INTERVAL_MS = 5000L
-        /** 每轮 polling 最多触发的 illust 详情 prefetch 数量 */
+        /** 每次列表更新最多触发的 illust 详情 prefetch 数量 */
         private const val PREFETCH_MAX_VISIBLE = 30
         /** prefetch 并发上限 —— 太多会把 pixiv API 打急 */
         private const val PREFETCH_MAX_CONCURRENCY = 4

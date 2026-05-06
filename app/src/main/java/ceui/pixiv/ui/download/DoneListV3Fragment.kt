@@ -1,7 +1,6 @@
 package ceui.pixiv.ui.download
 
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +13,6 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -35,8 +33,8 @@ import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.Serializable
@@ -54,9 +52,10 @@ import java.util.Locale
  *   保留最新 entity（按 downloadTime 取最大）作为代表，点击进图详情时
  *   传入该 illust 全部 page 的 filePath 数组，左右滑可看完整本。
  *
- * 触发刷新策略：
- *   - 1.5s 周期 polling（仅 STARTED）
- *   - DOWNLOAD_FINISH 广播 → conflated channel 合并 → 单次防抖 reload
+ * 数据源：[DownloadDao.flowAll] 是 Room reactive Flow ——
+ * Manager 写 DownloadEntity 到 illust_download_table 时 InvalidationTracker
+ * 自动 emit 新快照，UI 端 collect 即可。完全替代旧的 1.5s polling +
+ * DOWNLOAD_FINISH 广播兜底架构（0 timer、0 broadcast receiver）。
  */
 class DoneListV3Fragment : Fragment() {
 
@@ -71,9 +70,6 @@ class DoneListV3Fragment : Fragment() {
             DoneAction.DELETE -> deleteOne(group)
         }
     }
-    private val refreshTickle = Channel<Unit>(Channel.CONFLATED)
-
-    private var receiver: android.content.BroadcastReceiver? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -119,58 +115,28 @@ class DoneListV3Fragment : Fragment() {
                 showClearDoneConfirmDialog {
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { dao.deleteAllDownload() }
-                        refreshTickle.trySend(Unit)
+                        // Room InvalidationTracker 会在 deleteAllDownload 之后
+                        // 自动通知 flowAll，UI 即时刷新空状态，不需要手动 tickle
                     }
                 }
             }
         }
 
-        // 周期 + 触发型 reload
+        // Reactive: Room 监听 illust_download_table 变更后自动 emit 新快照。
+        // Manager 写完 DownloadEntity / 用户按"清空记录" / 单条删除都会触发
+        // collector 重新 bind。0 timer、0 broadcast。
+        // groupByIllust 在 IO 线程跑（fromJson 解 illustGson 不卡 main）。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                reload()
-                empty.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.GONE
-                while (true) {
-                    // 谁先：tickle / 5s 超时（兜底）；CONFLATED channel 把多次广播合并成一次唤醒。
-                    // 已完成 tab 几乎全靠 DOWNLOAD_FINISH 广播即时唤醒，超时只是
-                    // fallback 防遗漏；从 1.5s 拉到 5s 节能且不影响实际响应。
-                    try {
-                        kotlinx.coroutines.withTimeout(REFRESH_INTERVAL_MS) {
-                            refreshTickle.receive()
-                        }
-                    } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-                        /* 超时 = 周期性刷新 */
+                dao.flowAll(PAGE_SIZE)
+                    .map { groupByIllust(it) }
+                    .flowOn(Dispatchers.IO)
+                    .collect { groups ->
+                        adapter.submitList(groups)
+                        empty.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE
                     }
-                    reload()
-                    empty.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.GONE
-                }
             }
         }
-
-        // DOWNLOAD_FINISH 广播 → 合并到 tickle channel（不直接 reload，避免 N 页 N 次查询）
-        receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(c: android.content.Context?, intent: Intent?) {
-                refreshTickle.trySend(Unit)
-            }
-        }
-        LocalBroadcastManager.getInstance(requireContext())
-            .registerReceiver(receiver!!, IntentFilter(Params.DOWNLOAD_FINISH))
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        receiver?.let {
-            LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(it)
-        }
-        receiver = null
-    }
-
-    private suspend fun reload() {
-        val groups = withContext(Dispatchers.IO) {
-            val rows = runCatching { dao.getAll(PAGE_SIZE, 0) }.getOrDefault(emptyList())
-            groupByIllust(rows)
-        }
-        adapter.submitList(groups)
     }
 
     private fun openDetail(group: DownloadGroup) {
@@ -251,20 +217,17 @@ class DoneListV3Fragment : Fragment() {
     }
 
     private fun deleteOne(group: DownloadGroup) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                // 删除该 illust 下所有 page 的记录
-                runCatching {
-                    group.allEntities.forEach { dao.delete(it) }
-                }
+        // Room InvalidationTracker 会在 dao.delete 之后通知 flowAll collect
+        // 端，UI 自动刷新；不需要手动 reload。
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                group.allEntities.forEach { dao.delete(it) }
             }
-            reload()
         }
     }
 
     companion object {
         private const val PAGE_SIZE = 600   // 一次取多点；分组后实际卡片数会少
-        private const val REFRESH_INTERVAL_MS = 1500L
         /** 导出时一次拉的硬上限 —— 5w 行 ≈ 2MB 文本，正常用户都装不了这么多 */
         private const val EXPORT_HARD_CAP = 50000
     }
