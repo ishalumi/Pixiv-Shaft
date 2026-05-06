@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material Icons "disabled_by_default" — 实心方块带 X，表达"取消全选" -->
+<!--
+  Material Icons "check_box" — 实心方框带白勾 (☑)。
+  作为"取消全选"按钮：表达"已全部勾选 · 点击 → 去勾"，跟 ☐ → ☑ 形成
+  一对自然的对偶（master-checkbox 模式）。
+  原 disabled_by_default（实心方框带 X）视觉太像"禁止"标志，被用户指出"丑"。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -7,5 +12,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FF000000"
-        android:pathData="M19,3H5c-1.11,0 -2,0.9 -2,2v14c0,1.1 0.89,2 2,2h14c1.11,0 2,-0.9 2,-2V5C21,3.9 20.11,3 19,3zM17,15.59L15.59,17 12,13.41 8.41,17 7,15.59 10.59,12 7,8.41 8.41,7 12,10.59 15.59,7 17,8.41 13.41,12 17,15.59z" />
+        android:pathData="M19,3H5c-1.11,0 -2,0.9 -2,2v14c0,1.1 0.89,2 2,2h14c1.11,0 2,-0.9 2,-2V5C21,3.9 20.11,3 19,3zM10,17l-5,-5 1.41,-1.41L10,14.17l7.59,-7.59L19,8L10,17z" />
 </vector>
