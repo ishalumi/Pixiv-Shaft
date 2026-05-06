@@ -215,21 +215,40 @@ object QueueDownloadManager {
                 continue
             }
 
+            // [QUEUE-CONSUMER] 醒目日志：每个 illust 进出整个生命周期都有标记，
+            // 用户在 logcat 里 grep "QUEUE-CONSUMER" 能一眼看出 consumer 是不是
+            // 真在推进、停在哪一环。
+            Timber.tag(TAG).i("[QUEUE-CONSUMER] TAKE id=${item.id} illustId=${item.illustId}")
+
             try {
-                dao.updateStatus(item.id, QueueStatus.DOWNLOADING)
+                runCatching { dao.updateStatus(item.id, QueueStatus.DOWNLOADING) }
+                    .onFailure { Timber.tag(TAG).e(it, "[QUEUE-CONSUMER] mark DOWNLOADING failed id=${item.id}") }
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] PROCESS-START id=${item.id} illustId=${item.illustId}")
                 processOne(item)
-                dao.updateStatus(item.id, QueueStatus.SUCCESS, finishedAt = System.currentTimeMillis())
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] PROCESS-DONE id=${item.id} illustId=${item.illustId} → mark SUCCESS")
+                runCatching {
+                    dao.updateStatus(item.id, QueueStatus.SUCCESS, finishedAt = System.currentTimeMillis())
+                }.onFailure {
+                    // 哪怕标 SUCCESS 这条 SQL 自己 throw 也不能让 consumer 死掉；
+                    // 下次 polling 仍会看到这条是 DOWNLOADING（resurrectInProgress 会
+                    // 把它复位 PENDING），最坏情况是下载一遍但能恢复；最重要的是
+                    // 这次 consumer 还活着继续去拿下一条 PENDING。
+                    Timber.tag(TAG).e(it, "[QUEUE-CONSUMER] mark SUCCESS failed id=${item.id} (consumer continues)")
+                }
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] DONE id=${item.id}")
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 runCatching { dao.updateStatus(item.id, QueueStatus.PENDING) }
                 throw cancellation
             } catch (e: Exception) {
-                Timber.tag(TAG).w(e, "process failed illustId=${item.illustId} retry=${item.retryCount}")
+                Timber.tag(TAG).w(e, "[QUEUE-CONSUMER] process failed illustId=${item.illustId} retry=${item.retryCount}")
                 if (item.retryCount + 1 < MAX_RETRY) {
-                    dao.bumpRetry(item.id)
-                    dao.updateStatus(item.id, QueueStatus.PENDING, err = e.message)
+                    runCatching { dao.bumpRetry(item.id) }
+                    runCatching { dao.updateStatus(item.id, QueueStatus.PENDING, err = e.message) }
                     delay(POST_FAIL_BACKOFF_MS)
                 } else {
-                    dao.updateStatus(item.id, QueueStatus.FAILED, err = e.message, finishedAt = System.currentTimeMillis())
+                    runCatching {
+                        dao.updateStatus(item.id, QueueStatus.FAILED, err = e.message, finishedAt = System.currentTimeMillis())
+                    }
                 }
             }
         }

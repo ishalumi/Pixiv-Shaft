@@ -137,6 +137,12 @@ class QueueListV3Fragment : Fragment() {
                 ) { rows, paused -> rows to paused }
                     .flowOn(Dispatchers.IO)
                     .collectLatest { (rows, paused) ->
+                        // [QUEUE-LIST] 醒目日志：每次 dao.flowActive 重新 emit 都打印
+                        // 行数 + 各自 status。用户 grep "QUEUE-LIST" 能直接看到 Room
+                        // 是不是在 emit、SQL 是否过滤了 SUCCESS 的行。
+                        Timber.tag("QueueListV3").i(
+                            "[QUEUE-LIST] flow emit rows=${rows.size} statuses=[${rows.joinToString(",") { "${it.id}:${it.status}" }}]"
+                        )
                         adapter.submitList(rows)
                         empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
                         val hasWork = rows.isNotEmpty()
