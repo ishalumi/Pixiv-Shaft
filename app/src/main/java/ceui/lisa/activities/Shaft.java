@@ -118,6 +118,17 @@ public class Shaft extends Application implements ServicesProvider {
                         Timber.w(t, "Suppressed oversized bitmap draw on main thread");
                         continue;
                     }
+                    // android.app.RemoteServiceException$CrashedByAdbException：adb 的
+                    // `am crash <pkg>` 或某些 OEM 侧 shell-induced 信号会通过
+                    // ActivityThread$H 投递。这条异常的 class 是 @hide，没法 instanceof，
+                    // 用 message 文本判定（"shell-induced crash" 是 AOSP 写死的）。
+                    // 不能拿 RemoteServiceException 类型粗筛 —— 它的兄弟类
+                    // ForegroundServiceDidNotStartInTimeException 等是真 bug，必须照常崩。
+                    if (t.getMessage() != null
+                            && t.getMessage().contains("shell-induced crash")) {
+                        Timber.w(t, "Suppressed shell-induced crash on main thread");
+                        continue;
+                    }
                     Thread.UncaughtExceptionHandler h =
                             Thread.getDefaultUncaughtExceptionHandler();
                     if (h != null) {
