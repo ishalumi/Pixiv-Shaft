@@ -127,10 +127,18 @@ object QueueDownloadManager {
                 tickle.trySend(Unit)
             }
 
+            Timber.tag(TAG).i("[QUEUE-CONSUMER] entering for-loop, paused=$paused")
             for (signal in tickle) {
-                if (paused) continue
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] tickle received, paused=$paused")
+                if (paused) {
+                    Timber.tag(TAG).i("[QUEUE-CONSUMER] paused=true, skipping consumeUntilEmpty")
+                    continue
+                }
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] >>> consumeUntilEmpty start")
                 consumeUntilEmpty()
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] <<< consumeUntilEmpty returned")
             }
+            Timber.tag(TAG).w("[QUEUE-CONSUMER] for-loop EXITED — channel closed?")
         }
         Timber.tag(TAG).d("QueueDownloadManager initialized")
     }
@@ -191,20 +199,33 @@ object QueueDownloadManager {
     }
 
     fun notifyNewItems() { tickle.trySend(Unit) }
-    fun pause() { paused = true; _pausedFlow.value = true }
-    fun resume() { paused = false; _pausedFlow.value = false; tickle.trySend(Unit) }
+    fun pause() {
+        paused = true
+        _pausedFlow.value = true
+        Timber.tag(TAG).i("[QUEUE-CONSUMER] pause() called")
+    }
+    fun resume() {
+        paused = false
+        _pausedFlow.value = false
+        val sent = tickle.trySend(Unit).isSuccess
+        Timber.tag(TAG).i("[QUEUE-CONSUMER] resume() called, tickle.trySend=$sent")
+    }
     fun isPaused(): Boolean = paused
 
     private suspend fun consumeUntilEmpty() {
         while (!paused) {
             // 网关：用户配置不允许下载（如 wifi-only 但当前是蜂窝），睡一会再看
             if (!DownloadLimitTypeUtil.canDownloadNow()) {
-                Timber.tag(TAG).i("canDownloadNow=false, holding consumer")
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] canDownloadNow=false, holding")
                 delay(NETWORK_GATE_SLEEP_MS)
                 continue
             }
 
-            val item = runCatching { dao.nextByStatus(QueueStatus.PENDING) }.getOrNull() ?: break
+            val item = runCatching { dao.nextByStatus(QueueStatus.PENDING) }.getOrNull()
+            if (item == null) {
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] no PENDING items left, exiting consumeUntilEmpty")
+                break
+            }
 
             // 不变量：mark DOWNLOADING 之前必须没有任何 DOWNLOADING；防御性，正常 0
             val activeCount = runCatching { dao.countByStatus(QueueStatus.DOWNLOADING) }.getOrDefault(0)
