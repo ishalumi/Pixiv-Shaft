@@ -181,6 +181,10 @@ class BulkSelectV3Fragment : Fragment() {
         val allSelected = selectableCount > 0 && selectedCount == selectableCount
         item.setIcon(if (allSelected) R.drawable.ic_deselect_24 else R.drawable.ic_select_all_24)
         item.setTitle(if (allSelected) R.string.bulk_select_clear_all else R.string.bulk_select_select_all)
+        // 防止 Toolbar / theme overlay 给菜单 icon 套统一 tint，把
+        // ic_deselect_24 内部写死的 v3_blue 压成灰色。每次 setIcon 后清掉
+        // iconTintList，让 drawable 自己的 fillColor 说了算。
+        item.iconTintList = null
     }
 }
 
