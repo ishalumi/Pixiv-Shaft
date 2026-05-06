@@ -1,6 +1,5 @@
 package ceui.pixiv.ui.download
 
-import android.content.IntentFilter
 import android.graphics.Color
 import android.os.Bundle
 import android.text.TextUtils
@@ -15,7 +14,6 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -24,11 +22,10 @@ import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.core.DownloadItem
 import ceui.lisa.core.Manager
+import ceui.lisa.core.ManagerReactive
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.download.FileSizeUtil
-import ceui.lisa.notification.DownloadReceiver
 import ceui.lisa.utils.GlideUtil
-import ceui.lisa.utils.Params
 import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.bumptech.glide.Glide
@@ -36,15 +33,18 @@ import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 
 /**
- * V3 风格 "正在下载" — 监听 Manager.content。
+ * V3 风格 "正在下载" —— 订阅 [ManagerReactive.contentFlow]。
+ *
+ * 数据源是 reactive 的：Manager 任何 mutation（addTask / state 翻转 /
+ * progress 1% / complete / clearAll / pumpAvailableSlots / ...）后都会
+ * `invalidate()`，本 fragment 的 collector 立刻拿到当前 snapshot。
+ * 完全替代旧的 1s 轮询 + DOWNLOAD_ING 广播 + tickle channel 三层架构 ——
+ * 0 timer、0 broadcast。
  *
  * 并发下载（Settings.maxConcurrentDownloads，默认 1，上限 5）：
  *   - 任意时刻 DOWNLOADING 数量 ≤ 用户配置的并发数
@@ -57,13 +57,10 @@ import timber.log.Timber
 class ActiveListV3Fragment : Fragment() {
 
     private val adapter = ActiveAdapterV3()
-    private var receiver: DownloadReceiver<*>? = null
     private var statusHeader: TextView? = null
     private val queueDao: DownloadQueueDao by lazy {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
-    /** 唤醒 polling 立刻刷一次 —— 按钮点击 / DOWNLOAD_ING 广播都 tickle 它 */
-    private val refreshTickle = Channel<Unit>(Channel.CONFLATED)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -88,24 +85,20 @@ class ActiveListV3Fragment : Fragment() {
             setTextColor(Color.parseColor("#7CB668"))
         }
 
-        // 操作 bar
+        // 操作 bar —— mutation 后 Manager 内部会 invalidate，contentFlow
+        // 自动 emit 新快照，UI 即时刷新；不需要业务层手动 tickle / 刷 UI。
         val btnResume = view.findViewById<Button>(R.id.btn1).apply {
             text = getString(R.string.dlmgr_active_action_resume_all)
-            // 联动：恢复 active 同时恢复批量队列；点完立刻 tickle 唤醒 polling
-            // 让 UI 即时反映 "INIT → DOWNLOADING" 翻转，不要等 5s idle delay。
             setOnClickListener {
                 Manager.get().startAll()
                 QueueDownloadManager.resume()
-                refreshTickle.trySend(Unit)
             }
         }
         val btnPause = view.findViewById<Button>(R.id.btn2).apply {
             text = getString(R.string.dlmgr_active_action_pause_all)
-            // 联动：暂停 active 同时暂停批量队列消费者；同样 tickle
             setOnClickListener {
                 Manager.get().stopAll()
                 QueueDownloadManager.pause()
-                refreshTickle.trySend(Unit)
             }
         }
         val btnClear = view.findViewById<Button>(R.id.btn4).apply {
@@ -120,86 +113,58 @@ class ActiveListV3Fragment : Fragment() {
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { queueDao.deleteAll() }
                     }
-                    refreshTickle.trySend(Unit)
                 }
             }
         }
 
-        // Snapshot polling（1s）
+        // Reactive: ManagerReactive.contentFlow 在 Manager 任何 mutation 后
+        // 自动推一帧（progress / state / add / remove / clearAll 全覆盖）。
+        // 0 timer，0 broadcast，纯事件驱动。
+        // flowOn(Default)：snapshot copy + count 计算放后台线程，UI 不挡帧。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                while (true) {
-                    val snapshot = runCatching {
-                        ArrayList(Manager.get().content)
-                    }.getOrDefault(arrayListOf())
+                ManagerReactive.contentFlow
+                    .flowOn(Dispatchers.Default)
+                    .collect { snapshot ->
+                        val downloadingCount = snapshot.count { it.state == DownloadItem.DownloadState.DOWNLOADING }
+                        val initCount = snapshot.count { it.state == DownloadItem.DownloadState.INIT }
+                        val pausedCount = snapshot.count { it.state == DownloadItem.DownloadState.PAUSED }
+                        val failedCount = snapshot.count { it.state == DownloadItem.DownloadState.FAILED }
 
-                    val downloadingCount = snapshot.count {
-                        it.state == DownloadItem.DownloadState.DOWNLOADING
-                    }
-                    val initCount = snapshot.count {
-                        it.state == DownloadItem.DownloadState.INIT
-                    }
-                    val pausedCount = snapshot.count {
-                        it.state == DownloadItem.DownloadState.PAUSED
-                    }
-                    val failedCount = snapshot.count {
-                        it.state == DownloadItem.DownloadState.FAILED
-                    }
+                        // 运行时不变量：DOWNLOADING 数量永远不应该超过绝对上限 5。
+                        // 注意不要拿当前 maxConcurrent 比 —— 用户从 5 调到 2 后那 5 条
+                        // 在传的不会立即被掐，会自然消化，期间 downloadingCount > 2
+                        // 是正常现象，不能误报。
+                        if (downloadingCount > 5) {
+                            Timber.tag(TAG).w(
+                                "INVARIANT: ${downloadingCount} DOWNLOADING > absolute max 5! " +
+                                    snapshot.filter { it.state == DownloadItem.DownloadState.DOWNLOADING }
+                                        .joinToString { "${it.uuid}/${it.illust?.id}" }
+                            )
+                        }
 
-                    // 运行时不变量：DOWNLOADING 数量永远不应该超过绝对上限 5。
-                    // 注意不要拿当前 maxConcurrent 比 —— 用户从 5 调到 2 后那 5 条
-                    // 在传的不会立即被掐，会自然消化，期间 downloadingCount > 2
-                    // 是正常现象，不能误报。
-                    if (downloadingCount > 5) {
-                        Timber.tag(TAG).w(
-                            "INVARIANT: ${downloadingCount} DOWNLOADING > absolute max 5! " +
-                                snapshot.filter { it.state == DownloadItem.DownloadState.DOWNLOADING }
-                                    .joinToString { "${it.uuid}/${it.illust?.id}" }
-                        )
-                    }
+                        // 顶部状态行
+                        val parts = buildList {
+                            if (downloadingCount > 0) add(getString(R.string.dlmgr_active_status_downloading_n, downloadingCount))
+                            if (initCount > 0) add(getString(R.string.dlmgr_active_status_waiting_n, initCount))
+                            if (pausedCount > 0) add(getString(R.string.dlmgr_active_status_paused_n, pausedCount))
+                            if (failedCount > 0) add(getString(R.string.dlmgr_active_status_failed_n, failedCount))
+                        }
+                        statusHeader?.text = if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 
-                    // 顶部状态行
-                    val parts = buildList {
-                        if (downloadingCount > 0) add(getString(R.string.dlmgr_active_status_downloading_n, downloadingCount))
-                        if (initCount > 0) add(getString(R.string.dlmgr_active_status_waiting_n, initCount))
-                        if (pausedCount > 0) add(getString(R.string.dlmgr_active_status_paused_n, pausedCount))
-                        if (failedCount > 0) add(getString(R.string.dlmgr_active_status_failed_n, failedCount))
+                        adapter.submit(snapshot)
+                        empty.visibility = if (snapshot.isEmpty()) View.VISIBLE else View.GONE
+                        // 没有任何活跃任务时把操作按钮置灰，避免用户在空列表上反复点
+                        val hasWork = snapshot.isNotEmpty()
+                        btnResume.isEnabled = hasWork
+                        btnResume.alpha = if (hasWork) 1f else 0.4f
+                        btnPause.isEnabled = hasWork
+                        btnPause.alpha = if (hasWork) 1f else 0.4f
+                        btnClear.isEnabled = hasWork
+                        btnClear.alpha = if (hasWork) 1f else 0.4f
                     }
-                    statusHeader?.text = if (parts.isEmpty()) "—" else parts.joinToString(" · ")
-
-                    adapter.submit(snapshot.toList())
-                    empty.visibility = if (snapshot.isEmpty()) View.VISIBLE else View.GONE
-                    // 没有任何活跃任务时把操作按钮置灰，避免用户在空列表上反复点
-                    val hasWork = snapshot.isNotEmpty()
-                    btnResume.isEnabled = hasWork
-                    btnResume.alpha = if (hasWork) 1f else 0.4f
-                    btnPause.isEnabled = hasWork
-                    btnPause.alpha = if (hasWork) 1f else 0.4f
-                    btnClear.isEnabled = hasWork
-                    btnClear.alpha = if (hasWork) 1f else 0.4f
-                    // 自适应：有 page 真在传 → 1s 跟进度；其它（全空 / 全暂停 /
-                    // 全失败 / 全等待）→ 5s 节能。idle 延迟内若有事件
-                    // （按钮点击 / DOWNLOAD_ING 广播）会通过 refreshTickle 提前
-                    // 唤醒，避免用户感觉"按钮点了等几秒才有反应"。
-                    val hasActiveTransfer = downloadingCount > 0
-                    val nextDelay = if (hasActiveTransfer) BUSY_INTERVAL_MS else IDLE_INTERVAL_MS
-                    try {
-                        withTimeout(nextDelay) { refreshTickle.receive() }
-                    } catch (_: TimeoutCancellationException) {
-                        /* 超时 = 周期性轮询触发下一轮 */
-                    }
-                }
             }
         }
-
-        // 监听 DOWNLOAD_ING 广播 —— 完成 / 失败事件触发 tickle 立刻刷新，
-        // 不让 idle 节奏的 5s 间隔拖慢 UI 反馈
-        val intentFilter = IntentFilter(Params.DOWNLOAD_ING)
-        receiver = DownloadReceiver<Any>(
-            { refreshTickle.trySend(Unit) },
-            DownloadReceiver.NOTIFY_FRAGMENT_DOWNLOADING,
-        )
-        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiver!!, intentFilter)
     }
 
     private fun showClearConfirmDialog(onConfirm: () -> Unit) {
@@ -219,19 +184,11 @@ class ActiveListV3Fragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        receiver?.let {
-            LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(it)
-        }
-        receiver = null
         // ⚠️ 不调 Manager.clearCallback() —— 那会清掉别的页面（如 ArtworkV3Fragment）的回调。
         //    我们 setCallback 用的 key=item.uuid，新 bind 会覆盖旧的，无需主动清。
     }
 
     companion object {
-        /** 有 page 真在传输 → 跟进度的快节奏 */
-        private const val BUSY_INTERVAL_MS = 1000L
-        /** 全空 / 全暂停 / 全失败 → 节能慢节奏，等用户操作或 broadcast 唤醒 */
-        private const val IDLE_INTERVAL_MS = 5000L
         private const val TAG = "ActiveListV3"
     }
 }

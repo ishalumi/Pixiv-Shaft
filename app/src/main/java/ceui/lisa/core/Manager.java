@@ -96,6 +96,7 @@ public class Manager {
                 synchronized (this) {
                     content = restored;
                 }
+                ManagerReactive.invalidate();
                 AndroidSchedulers.mainThread().scheduleDirect(() ->
                         Common.showToast("下载记录恢复成功"));
             } catch (Throwable t) {
@@ -138,6 +139,18 @@ public class Manager {
                 startAll();
             }
         }
+        ManagerReactive.invalidate();
+    }
+
+    /**
+     * 给 [ManagerReactive.contentFlow] 用：返回 [content] 当前的浅拷贝快照。
+     * synchronized 跟 addTask / safeAdd / clearAll 等写入路径互斥，避免拷贝
+     * 时撞上 ConcurrentModificationException。
+     */
+    public List<DownloadItem> contentSnapshot() {
+        synchronized (this) {
+            return new ArrayList<>(content);
+        }
     }
 
     private void safeAdd(DownloadItem item) {
@@ -177,6 +190,7 @@ public class Manager {
             item.setNonius(0);
             item.setState(DownloadItem.DownloadState.FAILED);
         }
+        ManagerReactive.invalidate();
     }
 
     public void addTasks(List<DownloadItem> list) {
@@ -205,6 +219,9 @@ public class Manager {
             long totalMs = (System.nanoTime() - t0) / 1_000_000;
             Common.showLog("[PERF] addTasks total=" + list.size()
                     + " items, totalMs=" + totalMs);
+            // batch 完一次 invalidate 即可（DROP_OLDEST 保证多次 tryEmit 自动合并，
+            // 但仍是最佳实践：每个语义批次 emit 一次而不是每条 safeAdd 都 emit）
+            ManagerReactive.invalidate();
             AndroidSchedulers.mainThread().scheduleDirect(() -> {
                 if (DownloadLimitTypeUtil.startTaskWhenCreate()) {
                     startAll();
@@ -227,6 +244,7 @@ public class Manager {
         // 之前 isRunning=true 时会 short-circuit return，假设单线程串行用 doFinally
         // 自动驱动下一条；并发模式下需要每次都 pumpAvailableSlots() 来填满空闲槽位。
         pumpAvailableSlots();
+        ManagerReactive.invalidate();
     }
 
     public void startOne(String uuid) {
@@ -245,6 +263,7 @@ public class Manager {
 
         isRunning = true;
         pumpAvailableSlots();
+        ManagerReactive.invalidate();
     }
 
     public void stopAll() {
@@ -258,6 +277,7 @@ public class Manager {
         }
         handles.clear();
         Common.showLog("已经停止");
+        ManagerReactive.invalidate();
     }
 
     public void stopOne(String uuid){
@@ -272,12 +292,14 @@ public class Manager {
         if (d != null) {
             try { d.dispose(); } catch (Exception ignored) {}
         }
+        ManagerReactive.invalidate();
     }
 
     public void clearAll() {
         stopAll();
         AppDatabase.getAppDatabase(mContext).downloadDao().deleteAllDownloading();
         content.clear();
+        ManagerReactive.invalidate();
     }
 
     public void clearOne(String uuid) {
@@ -291,6 +313,7 @@ public class Manager {
             entity.setTaskGson(Shaft.sGson.toJson(downloadItem));
             AppDatabase.getAppDatabase(mContext).downloadDao().deleteDownloading(entity);
             content.remove(downloadItem);
+            ManagerReactive.invalidate();
         }
     }
 
@@ -340,6 +363,10 @@ public class Manager {
             isRunning = false;
             Common.showLog("Manager 已经全部下载完成");
         }
+        // dispatched > 0 说明刚刚把若干条 INIT 翻成 DOWNLOADING；invalidate 让
+        // UI 立刻看到状态翻转（badge / 进度条）。哪怕 dispatched==0 也无所谓，
+        // tryEmit 是 cheap idempotent 操作。
+        ManagerReactive.invalidate();
     }
 
     /** 兼容老调用点：等价于 pumpAvailableSlots()。 */
@@ -402,6 +429,7 @@ public class Manager {
                 complete(downloadItem, true);
                 AndroidSchedulers.mainThread().scheduleDirect(() -> {
                     content.remove(downloadItem);
+                    ManagerReactive.invalidate();
                     pumpAvailableSlots();
                 });
                 return;
@@ -548,6 +576,10 @@ public class Manager {
                                 downloadItem.setTotalSize(finalTotal);
                                 downloadItem.setState(DownloadItem.DownloadState.DOWNLOADING);
                                 Common.showLog("currentProgress " + progress);
+                                // 进度变了 → 让 ManagerReactive.contentFlow 推一帧。
+                                // tryEmit 是 cheap，DROP_OLDEST 让高频 progress（5
+                                // 并发 ~500/s）自动合并成 collector 能跟上的速率。
+                                ManagerReactive.invalidate();
                                 try {
                                     // 用 item 自己的 uuid 查 callback —— 之前用 Manager 的静态
                                     // uuid 字段，并发模式下会拿错（被后启动的覆盖了）。
@@ -616,6 +648,7 @@ public class Manager {
             AndroidSchedulers.mainThread().scheduleDirect(() -> {
                 int sizeBefore = content.size();
                 boolean removed = content.remove(downloadItem);
+                if (removed) ManagerReactive.invalidate();
                 Common.showLog("[DL-REMOVE] remove=" + removed + " sizeBefore=" + sizeBefore
                         + " sizeAfter=" + content.size() + " name=" + downloadItem.getName());
                 if (Shaft.sSettings.isToastDownloadResult()) {
