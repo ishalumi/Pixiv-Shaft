@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  批量选择页。toolbar 右上挂 menu_bulk_select_v3（全选 / 反选），
+  底部 bar 只剩 hint + 确认按钮。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -48,7 +52,7 @@
         android:paddingBottom="80dp"
         tools:listitem="@layout/cell_bulk_select_v3" />
 
-    <!-- 底部操作 bar -->
+    <!-- 底部确认 bar：全选 / 反选 已挪到 toolbar 右上，这里只剩 CTA -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -58,47 +62,16 @@
         app:cardCornerRadius="14dp"
         app:cardElevation="0dp">
 
-        <LinearLayout
+        <Button
+            android:id="@+id/btnConfirm"
+            style="?attr/borderlessButtonStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="6dp">
-
-            <Button
-                android:id="@+id/btnSelectAll"
-                style="?attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="@string/bulk_select_select_all"
-                android:textColor="@color/v3_text_2"
-                android:textSize="12sp" />
-
-            <Button
-                android:id="@+id/btnInvert"
-                style="?attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="@string/bulk_select_invert"
-                android:textColor="@color/v3_text_2"
-                android:textSize="12sp" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <Button
-                android:id="@+id/btnConfirm"
-                style="?attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:textColor="#5EB3FF"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                tools:text="加入下载队列 (32) →" />
-        </LinearLayout>
+            android:fontFamily="monospace"
+            android:paddingVertical="12dp"
+            android:textColor="@color/v3_blue"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="加入下载队列 (32 项 / 87 张图) →" />
     </androidx.cardview.widget.CardView>
 </LinearLayout>

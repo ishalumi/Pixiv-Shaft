@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  批量选择 cell。选中态视觉做三层差：
+   1. 整张卡 scaleX/Y=0.94（adapter 在 bind 时改）让选中项明显"凹"进去
+   2. 一圈 3dp v3_blue 实心边框（selectedBorder 覆盖整 cell）
+   3. 右上角 32dp 实心 v3_blue 圆形勾标（checkBadge）
+
+  原方案：33% 半透蓝色叠加 + 28dp 角标，对比不够，被用户指出"选中态不明显"。
+  新方案对齐 Google Photos / Telegram 多选 UI 的现代规范。
+-->
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -23,12 +32,12 @@
             android:contentDescription="@null"
             android:scaleType="centerCrop" />
 
-        <!-- 选中遮罩（半透明 + 边框） -->
+        <!-- 选中边框：3dp v3_blue stroke，14dp 圆角对齐 card -->
         <View
-            android:id="@+id/selectOverlay"
+            android:id="@+id/selectedBorder"
             android:layout_width="match_parent"
             android:layout_height="140dp"
-            android:background="#5512A4FF"
+            android:background="@drawable/bulk_select_border"
             android:visibility="gone"
             tools:visibility="visible" />
 
@@ -42,27 +51,27 @@
             tools:text="3P"
             tools:visibility="visible" />
 
-        <!-- GIF 徽章 -->
+        <!-- GIF 徽章（左下，避开右上 checkBadge 的位置；GIF 不可选所以也不会有 checkBadge） -->
         <TextView
             android:id="@+id/gifBadge"
             style="@style/V3StatusBadge"
-            android:layout_gravity="top|end"
+            android:layout_gravity="bottom|start"
             android:layout_margin="6dp"
             android:textColor="#FFB454"
             android:visibility="gone"
             tools:text="GIF" />
 
-        <!-- 选中圆角勾 -->
+        <!-- 选中勾标：32dp v3_blue 实心圆 + 白勾，右上角，只在选中时显示 -->
         <ImageView
-            android:id="@+id/checkMark"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_gravity="bottom|end"
+            android:id="@+id/checkBadge"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="top|end"
             android:layout_margin="6dp"
-            android:background="@drawable/v3_nav_btn_bg"
+            android:background="@drawable/bulk_select_check_bg"
             android:contentDescription="@null"
             android:padding="4dp"
-            android:src="@drawable/ic_file_download_done_24dp"
+            android:src="@drawable/ic_check_24dp"
             android:visibility="gone"
             app:tint="#FFFFFF"
             tools:visibility="visible" />

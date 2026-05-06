@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  批量选择 cell 选中态边框：3dp v3_blue 描边，14dp 圆角（贴 cell_bulk_select_v3 的 cardCornerRadius）。
+  作为 FrameLayout 子 View 覆盖整张 cell，不挡内容。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <stroke
+        android:width="3dp"
+        android:color="@color/v3_blue" />
+    <corners android:radius="14dp" />
+</shape>

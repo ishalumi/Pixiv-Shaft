@@ -1,5 +1,6 @@
 package ceui.pixiv.ui.bulk
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
+import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import com.bumptech.glide.Glide
@@ -28,8 +30,10 @@ import kotlinx.coroutines.withContext
  *
  * 行为：
  *  - 默认全选（除 GIF —— GIF 走单独 ugoira 管线，本队列不接）
- *  - 全选 / 反选 按钮
- *  - 确认按钮：把选中的灌入 download_queue（走 LegacyBatchEnqueue），完成后 finish
+ *  - 全选 / 反选 在 toolbar 右上 menu（不再占用底部 bar）
+ *  - 选中态：粗 v3_blue 边框 + 实色圆形勾标 + 微缩小 0.94，三层视觉差
+ *  - 确认按钮：把选中的灌入 download_queue（走 LegacyBatchEnqueue），完成后跳转
+ *    "下载管理" V3 总览页让用户看到入队进度，然后 finish 当前页
  */
 class BulkSelectV3Fragment : Fragment() {
 
@@ -55,9 +59,24 @@ class BulkSelectV3Fragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        view.findViewById<Toolbar>(R.id.toolbar).setNavigationOnClickListener {
-            requireActivity().finish()
+        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
+        toolbar.setNavigationOnClickListener { requireActivity().finish() }
+        // 全选 / 反选 挂 toolbar menu —— 让操作区跟内容区清晰分层
+        toolbar.inflateMenu(R.menu.menu_bulk_select_v3)
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_select_all -> {
+                    selectAllToggle()
+                    true
+                }
+                R.id.action_invert -> {
+                    invertSelection()
+                    true
+                }
+                else -> false
+            }
         }
+
         hint = view.findViewById(R.id.hint)
         btnConfirm = view.findViewById(R.id.btnConfirm)
 
@@ -71,6 +90,9 @@ class BulkSelectV3Fragment : Fragment() {
             hint.text = getString(R.string.bulk_select_no_items)
             btnConfirm.isEnabled = false
             btnConfirm.text = "—"
+            // 没东西可选，菜单也禁用了避免误导
+            toolbar.menu.findItem(R.id.action_select_all)?.isEnabled = false
+            toolbar.menu.findItem(R.id.action_invert)?.isEnabled = false
             return
         }
         hint.text = getString(R.string.bulk_select_loading)
@@ -88,31 +110,6 @@ class BulkSelectV3Fragment : Fragment() {
             refreshHeaderAndCta()
         }
 
-        view.findViewById<Button>(R.id.btnSelectAll).setOnClickListener {
-            // 大列表（10000+）的 N 次 copy 移到 IO，避免 5-20ms 主线程停顿
-            val anyUnselected = items.any { it.selectable && !it.selected }
-            val target = anyUnselected // 有未选 → 全选；否则 → 全不选
-            viewLifecycleOwner.lifecycleScope.launch {
-                val rebuilt = withContext(Dispatchers.IO) {
-                    items.map { if (it.selectable) it.copy(selected = target) else it }
-                }
-                items.clear()
-                items.addAll(rebuilt)
-                adapter.notifyDataSetChanged()
-                refreshHeaderAndCta()
-            }
-        }
-        view.findViewById<Button>(R.id.btnInvert).setOnClickListener {
-            viewLifecycleOwner.lifecycleScope.launch {
-                val rebuilt = withContext(Dispatchers.IO) {
-                    items.map { if (it.selectable) it.copy(selected = !it.selected) else it }
-                }
-                items.clear()
-                items.addAll(rebuilt)
-                adapter.notifyDataSetChanged()
-                refreshHeaderAndCta()
-            }
-        }
         btnConfirm.setOnClickListener {
             // 大列表（10000+）的 filter/map 也走 IO 防卡帧；快照后立刻禁用按钮防双击。
             btnConfirm.isEnabled = false
@@ -127,9 +124,40 @@ class BulkSelectV3Fragment : Fragment() {
                 }
                 if (picked.isNotEmpty()) {
                     LegacyBatchEnqueue.enqueueAndToast(ctx, picked)
+                    // 入队完成立刻跳转下载管理 V3 总览，让用户能看到队列动起来 ——
+                    // 否则用户点完确认眼前一黑（finish）只看到 toast，不知道东西去哪了。
+                    val intent = Intent(ctx, TemplateActivity::class.java)
+                        .putExtra(TemplateActivity.EXTRA_FRAGMENT, "下载管理") // route key, not UI text
+                    ctx.startActivity(intent)
                 }
                 requireActivity().finish()
             }
+        }
+    }
+
+    private fun selectAllToggle() {
+        val anyUnselected = items.any { it.selectable && !it.selected }
+        val target = anyUnselected // 有未选 → 全选；否则 → 全不选
+        viewLifecycleOwner.lifecycleScope.launch {
+            val rebuilt = withContext(Dispatchers.IO) {
+                items.map { if (it.selectable) it.copy(selected = target) else it }
+            }
+            items.clear()
+            items.addAll(rebuilt)
+            adapter.notifyDataSetChanged()
+            refreshHeaderAndCta()
+        }
+    }
+
+    private fun invertSelection() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val rebuilt = withContext(Dispatchers.IO) {
+                items.map { if (it.selectable) it.copy(selected = !it.selected) else it }
+            }
+            items.clear()
+            items.addAll(rebuilt)
+            adapter.notifyDataSetChanged()
+            refreshHeaderAndCta()
         }
     }
 
@@ -194,13 +222,17 @@ private class BulkSelectAdapter(
             h.pBadge.visibility = View.GONE
         }
 
-        // GIF 徽章
+        // GIF 徽章（不可选项才显示，跟 checkBadge 互斥）
         h.gifBadge.visibility = if (illust.isGif) View.VISIBLE else View.GONE
 
-        // 选中状态
-        val show = item.selected && item.selectable
-        h.selectOverlay.visibility = if (show) View.VISIBLE else View.GONE
-        h.checkMark.visibility = if (show) View.VISIBLE else View.GONE
+        // —— 选中态：边框 + 圆形勾标 + 微缩小 ——
+        val isSelected = item.selected && item.selectable
+        h.selectedBorder.visibility = if (isSelected) View.VISIBLE else View.GONE
+        h.checkBadge.visibility = if (isSelected) View.VISIBLE else View.GONE
+        // 微缩小 0.94 让选中项相对未选明显"凹"进去；非选中保持 1.0
+        val targetScale = if (isSelected) SELECTED_SCALE else 1.0f
+        h.itemView.scaleX = targetScale
+        h.itemView.scaleY = targetScale
 
         // 不可选项视觉弱化
         h.itemView.alpha = if (item.selectable) 1f else 0.45f
@@ -214,7 +246,12 @@ private class BulkSelectAdapter(
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val pBadge: TextView = v.findViewById(R.id.pBadge)
         val gifBadge: TextView = v.findViewById(R.id.gifBadge)
-        val selectOverlay: View = v.findViewById(R.id.selectOverlay)
-        val checkMark: ImageView = v.findViewById(R.id.checkMark)
+        val selectedBorder: View = v.findViewById(R.id.selectedBorder)
+        val checkBadge: ImageView = v.findViewById(R.id.checkBadge)
+    }
+
+    companion object {
+        /** 选中时整张卡缩到 94% —— 让选中项明显"凹"进去，跟未选的 100% 形成对比 */
+        private const val SELECTED_SCALE = 0.94f
     }
 }

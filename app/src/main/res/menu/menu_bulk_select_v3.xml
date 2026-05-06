@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  批量选择 toolbar 菜单：右上角放 全选 + 反选 两个 action。
+  showAsAction=always 让两个都常驻显示（icon-only），text 作为 a11y / long-press tooltip。
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_select_all"
+        android:icon="@drawable/ic_select_all_24"
+        android:title="@string/bulk_select_select_all"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_invert"
+        android:icon="@drawable/ic_select_invert_24"
+        android:title="@string/bulk_select_invert"
+        app:showAsAction="always" />
+</menu>
