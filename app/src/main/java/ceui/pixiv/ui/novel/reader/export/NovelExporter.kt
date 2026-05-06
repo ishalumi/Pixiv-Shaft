@@ -4,12 +4,14 @@ import android.content.Context
 import android.net.Uri
 import ceui.loxia.Novel
 import ceui.loxia.WebNovel
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
 
 /**
  * Shared contract for export formats. Each exporter turns a parsed novel (+
  * tokens from the reader's own ContentParser) into a file dropped into the
- * public Downloads/ShaftNovels folder via MediaStore.
+ * Novel bucket via MediaStore — directory layout governed by the user's
+ * active naming preset, never hardcoded.
  *
  * Exporters run on [kotlinx.coroutines.Dispatchers.IO]; they own any network
  * I/O they trigger (e.g. Glide sync bitmap loads for embedded images) and
@@ -23,7 +25,7 @@ interface NovelExporter {
         novel: Novel?,
         webNovel: WebNovel,
         tokens: List<ContentToken>,
-        fileName: String,
+        destination: RelativePath,
     ): ExportResult
 }
 

@@ -3,6 +3,7 @@ package ceui.pixiv.ui.novel.reader.export
 import android.content.Context
 import ceui.loxia.Novel
 import ceui.loxia.WebNovel
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
 import ceui.pixiv.ui.novel.reader.paginate.ImageResolver
 
@@ -20,7 +21,7 @@ class MarkdownExporter : NovelExporter {
         novel: Novel?,
         webNovel: WebNovel,
         tokens: List<ContentToken>,
-        fileName: String,
+        destination: RelativePath,
     ): ExportResult {
         val resolver = ImageResolver.of(webNovel)
         val title = novel?.title ?: webNovel.title.orEmpty()
@@ -86,10 +87,10 @@ class MarkdownExporter : NovelExporter {
                 }
             }
         }
-        val uri = ExportUtils.saveToDownloads(context, fileName, format.mimeType) {
+        val uri = ExportUtils.saveToDownloads(context, destination, format.mimeType) {
             it.write(text.toByteArray(Charsets.UTF_8))
         } ?: return ExportResult.Failure("无法写入 Downloads")
-        return ExportResult.Success(uri, fileName, format)
+        return ExportResult.Success(uri, destination.filename, format)
     }
 
     /** Minimal Markdown escaping — just the metacharacters that break inline structures. */

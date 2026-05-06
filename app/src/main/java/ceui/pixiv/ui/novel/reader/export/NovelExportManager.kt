@@ -7,14 +7,20 @@ import ceui.lisa.database.DownloadEntity
 import ceui.lisa.utils.Params
 import ceui.loxia.Novel
 import ceui.loxia.WebNovel
+import ceui.pixiv.download.config.DownloadItems
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * Entry point for export actions. Picks an exporter by [ExportFormat], wraps
- * filename sanitisation, and shuffles the call off the main thread.
+ * Entry point for export actions. Picks an exporter by [ExportFormat],
+ * resolves the destination path through the user's active naming preset
+ * (via [DownloadItems.novelDestinationFromLoxia]), and shuffles the call
+ * off the main thread. The directory + filename layout is the same one the
+ * queued downloader uses — there must not be a separate "reader export"
+ * naming scheme.
  */
 object NovelExportManager {
 
@@ -32,14 +38,22 @@ object NovelExportManager {
         webNovel: WebNovel,
         tokens: List<ContentToken>,
     ): ExportResult = withContext(Dispatchers.IO) {
-        val baseName = ExportUtils.sanitize(
-            novel?.title ?: webNovel.title?.takeIf { it.isNotBlank() } ?: "novel_${novel?.id ?: webNovel.id ?: "x"}",
-        )
-        val fileName = "$baseName.${format.extension}"
+        val destination: RelativePath = if (novel != null) {
+            DownloadItems.novelDestinationFromLoxia(novel, extOverride = format.extension)
+        } else {
+            // No loxia Novel — only the web payload. Best-effort meta;
+            // templates that lean on author/created get blanks, but the
+            // path still respects the user's preset.
+            DownloadItems.novelDestinationFromWeb(
+                webNovelId = webNovel.id,
+                webNovelTitle = webNovel.title,
+                extOverride = format.extension,
+            )
+        }
         val exporter = exporters[format]
             ?: return@withContext ExportResult.Failure(context.getString(ceui.lisa.R.string.msg_unknown_format, context.getString(format.displayNameResId)))
         val result = runCatching {
-            exporter.export(context, novel, webNovel, tokens, fileName)
+            exporter.export(context, novel, webNovel, tokens, destination)
         }.getOrElse { ExportResult.Failure(it.message ?: "导出失败", it) }
         if (result is ExportResult.Success) {
             recordDownload(novel, result)

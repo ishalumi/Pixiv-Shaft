@@ -120,11 +120,22 @@ fun deleteImageById(context: Context, imageId: Long): Boolean {
 
 
 
-fun saveToDownloadsScopedStorage(context: Context, fileName: String, content: String): Boolean {
+/**
+ * Writes [content] to the Novel bucket at [path] (full directory + filename
+ * relative to the bucket root). The path comes from the active naming preset —
+ * see [ceui.pixiv.download.config.DownloadItems.novelDestinationFromLoxia] —
+ * so callers must not strip the directory portion or the user's chosen folder
+ * structure (`byAuthor`, `byDate`, `detailed`, …) is silently lost.
+ */
+fun saveToDownloadsScopedStorage(
+    context: Context,
+    path: ceui.pixiv.download.model.RelativePath,
+    content: String,
+): Boolean {
     return try {
         val handle = ceui.pixiv.download.DownloadsRegistry.downloads.openRaw(
             ceui.pixiv.download.model.Bucket.Novel,
-            ceui.pixiv.download.model.RelativePath.parse("ShaftNovels/$fileName"),
+            path,
             "text/plain",
         ) ?: return false
         handle.stream.use { it.write(content.toByteArray()) }
@@ -134,7 +145,7 @@ fun saveToDownloadsScopedStorage(context: Context, fileName: String, content: St
         // Low-level helper — never crashes, just reports failure to caller via
         // `false`. Caller decides whether/how to surface the error (e.g. single
         // download path toasts; batch path collects into a failures dialog).
-        Timber.e(e, "saveToDownloadsScopedStorage failed for $fileName")
+        Timber.e(e, "saveToDownloadsScopedStorage failed for ${path.joinTo()}")
         false
     }
 }

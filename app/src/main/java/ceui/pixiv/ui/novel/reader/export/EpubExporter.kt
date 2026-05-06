@@ -3,6 +3,7 @@ package ceui.pixiv.ui.novel.reader.export
 import android.content.Context
 import ceui.loxia.Novel
 import ceui.loxia.WebNovel
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
 import ceui.pixiv.ui.novel.reader.paginate.ImageResolver
 import java.util.zip.CRC32
@@ -31,7 +32,7 @@ class EpubExporter : NovelExporter {
         novel: Novel?,
         webNovel: WebNovel,
         tokens: List<ContentToken>,
-        fileName: String,
+        destination: RelativePath,
     ): ExportResult {
         val resolver = ImageResolver.of(webNovel)
         val title = (novel?.title ?: webNovel.title.orEmpty()).ifEmpty { "novel" }
@@ -60,7 +61,7 @@ class EpubExporter : NovelExporter {
         val opf = buildContentOpf(novelId, title, author, images)
         val ncx = buildTocNcx(novelId, title, tokens)
 
-        val uri = ExportUtils.saveToDownloads(context, fileName, format.mimeType) { out ->
+        val uri = ExportUtils.saveToDownloads(context, destination, format.mimeType) { out ->
             ZipOutputStream(out).use { zip ->
                 // mimetype must be the first entry and STORED (uncompressed).
                 storeEntry(zip, "mimetype", "application/epub+zip".toByteArray(Charsets.US_ASCII))
@@ -74,7 +75,7 @@ class EpubExporter : NovelExporter {
             }
         } ?: return ExportResult.Failure("无法写入 Downloads")
 
-        return ExportResult.Success(uri, fileName, format)
+        return ExportResult.Success(uri, destination.filename, format)
     }
 
     private fun buildChapterXhtml(

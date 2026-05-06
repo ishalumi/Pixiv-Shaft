@@ -5,6 +5,7 @@ import ceui.loxia.Novel
 import ceui.loxia.WebNovel
 import ceui.pixiv.download.header.HeaderConfigRepo
 import ceui.pixiv.download.header.NovelHeaderRenderer
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
 
 /**
@@ -21,7 +22,7 @@ class TxtExporter : NovelExporter {
         novel: Novel?,
         webNovel: WebNovel,
         tokens: List<ContentToken>,
-        fileName: String,
+        destination: RelativePath,
     ): ExportResult {
         val text = buildString {
             if (novel != null) {
@@ -75,9 +76,9 @@ class TxtExporter : NovelExporter {
                 }
             }
         }
-        val uri = ExportUtils.saveToDownloads(context, fileName, format.mimeType) {
+        val uri = ExportUtils.saveToDownloads(context, destination, format.mimeType) {
             it.write(text.toByteArray(Charsets.UTF_8))
         } ?: return ExportResult.Failure("无法写入 Downloads")
-        return ExportResult.Success(uri, fileName, format)
+        return ExportResult.Success(uri, destination.filename, format)
     }
 }

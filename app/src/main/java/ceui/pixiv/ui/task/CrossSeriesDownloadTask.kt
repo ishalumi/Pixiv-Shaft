@@ -8,6 +8,7 @@ import ceui.lisa.fragments.WebNovelParser
 import ceui.lisa.models.NovelSeriesItem
 import ceui.loxia.Client
 import ceui.loxia.Novel
+import ceui.pixiv.download.config.DownloadItems
 import ceui.pixiv.ui.common.saveToDownloadsScopedStorage
 import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.Dispatchers
@@ -176,13 +177,18 @@ object CrossSeriesDownloadTask {
                     }
                 }
 
-                val fileName = buildMergedFileName(authorName, authorId)
+                val mergeName = buildMergedFileName(authorName, authorId)
+                val destination = DownloadItems.novelMergeDestinationForAuthor(
+                    authorId = authorId,
+                    authorName = authorName,
+                    mergeFileName = mergeName,
+                )
                 val ok = withContext(Dispatchers.IO) {
-                    saveToDownloadsScopedStorage(ctx, fileName, out.toString())
+                    saveToDownloadsScopedStorage(ctx, destination, out.toString())
                 }
                 if (ok) {
                     ToastUtils.show(
-                        ctx.getString(R.string.cross_series_download_merge_finished, fileName)
+                        ctx.getString(R.string.cross_series_download_merge_finished, destination.filename)
                     )
                 } else {
                     ToastUtils.show(
@@ -246,9 +252,10 @@ object CrossSeriesDownloadTask {
         }
 
         val ctx = Shaft.getContext()
-        val fileName = buildPerSeriesFileName(detail.title.orEmpty(), detail.id)
+        val mergeName = buildPerSeriesFileName(detail.title.orEmpty(), detail.id)
+        val destination = DownloadItems.novelMergeDestination(detail, mergeName)
         val content = header + body.toString()
-        val ok = saveToDownloadsScopedStorage(ctx, fileName, content)
+        val ok = saveToDownloadsScopedStorage(ctx, destination, content)
         if (!ok) throw RuntimeException("saveToDownloadsScopedStorage returned false")
     }
 

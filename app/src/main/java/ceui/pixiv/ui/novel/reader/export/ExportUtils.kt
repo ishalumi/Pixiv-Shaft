@@ -18,23 +18,24 @@ import java.util.concurrent.TimeUnit
  */
 internal object ExportUtils {
 
-    fun sanitize(name: String): String =
-        ceui.pixiv.download.sanitize.FsSanitizer.cleanSegment(name, preserveExtension = true).take(80)
-
     /**
-     * Insert a fresh entry under the active Novel bucket, run [writer] with its
-     * OutputStream, and return the entry's Uri. Caller is responsible for
-     * closing/flushing its own zip / bitmap / whatever wrappers.
+     * Insert a fresh entry under the active Novel bucket at [destination]
+     * (full directory + filename, already rendered through the user's active
+     * naming preset — see
+     * [ceui.pixiv.download.config.DownloadItems.novelDestinationFromLoxia]),
+     * run [writer] with its OutputStream, and return the entry's Uri. Caller
+     * is responsible for closing/flushing its own zip / bitmap / whatever
+     * wrappers.
      */
     fun saveToDownloads(
         context: Context,
-        fileName: String,
+        destination: RelativePath,
         mimeType: String,
         writer: (OutputStream) -> Unit,
     ): Uri? = runCatching {
         val handle = DownloadsRegistry.downloads.openRaw(
             Bucket.Novel,
-            RelativePath.parse("ShaftNovels/$fileName"),
+            destination,
             mimeType,
         ) ?: return@runCatching null
         handle.stream.use { writer(it) }

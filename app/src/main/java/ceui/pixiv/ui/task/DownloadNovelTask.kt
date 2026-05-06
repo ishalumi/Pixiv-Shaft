@@ -12,6 +12,7 @@ import ceui.pixiv.ui.common.getImageIdInGallery
 import ceui.pixiv.ui.common.getTxtFileIdInDownloads
 import ceui.pixiv.ui.common.saveToDownloadsScopedStorage
 import ceui.pixiv.download.config.DownloadItems
+import ceui.pixiv.download.model.RelativePath
 import com.blankj.utilcode.util.PathUtils
 import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.CoroutineScope
@@ -31,7 +32,8 @@ class DownloadNovelTask(
     private val webNovel: WebNovel? = null,
 ) : QueuedRunnable<Unit>() {
 
-    private val fileName = DownloadItems.novelFileNameFromLoxia(novel)
+    private val destination: RelativePath = DownloadItems.novelDestinationFromLoxia(novel)
+    private val fileName: String = destination.filename
 
     override fun start(onNext: () -> Unit) {
         super.start(onNext)
@@ -100,7 +102,7 @@ class DownloadNovelTask(
             stringBuffer.append("<===== Shaft Novel End =====>")
             stringBuffer.append("\n\n")
 
-            val b = saveToDownloadsScopedStorage(context, fileName, stringBuffer.toString())
+            val b = saveToDownloadsScopedStorage(context, destination, stringBuffer.toString())
             if (b) {
                 ToastUtils.show(context.getString(R.string.string_181))
                 _status.value = TaskStatus.Finished

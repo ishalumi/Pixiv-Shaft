@@ -2,13 +2,16 @@ package ceui.pixiv.download.config
 
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.NovelBean
+import ceui.lisa.models.NovelSeriesItem
 import ceui.loxia.Novel
+import ceui.loxia.NovelSeriesDetail
 import ceui.pixiv.download.DownloadsRegistry
 import ceui.pixiv.download.model.Author
 import ceui.pixiv.download.model.Bucket
 import ceui.pixiv.download.model.DownloadItem
 import ceui.pixiv.download.model.Flag
 import ceui.pixiv.download.model.ItemMeta
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.download.sanitize.FsSanitizer
 import ceui.pixiv.download.template.Template
 import java.time.Instant
@@ -93,39 +96,240 @@ object DownloadItems {
      * Use this everywhere instead of the legacy `buildPixivNovelFileName`.
      */
     @JvmStatic
-    fun novelFileName(novelBean: NovelBean): String {
-        val item = novel(novelBean)
-        val config = DownloadsRegistry.store.loadOrFallback()
-        val resolved = config.resolve(item.bucket)
-        val template = Template.compile(resolved.template)
-        val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
-        return FsSanitizer.clean(rendered).filename
-    }
+    fun novelFileName(novelBean: NovelBean): String =
+        novelDestination(novel(novelBean), extOverride = null).filename
+
+    /**
+     * Full sanitized [RelativePath] (directory + filename) for a novel
+     * from the legacy [NovelBean] model. Mirrors [novelDestinationFromLoxia]
+     * but for the Java-era download path that still flows through
+     * [ceui.lisa.download.IllustDownload]. Without this, the Java side
+     * would have to keep hardcoding `ShaftNovels/{Novel_id_title}.txt` and
+     * sidestep the user's naming preset entirely.
+     */
+    @JvmStatic
+    fun novelDestinationFromBean(novelBean: NovelBean): RelativePath =
+        novelDestination(novel(novelBean), extOverride = null)
 
     /**
      * Novel from the loxia [Novel] model (used by V3 novel detail).
+     * Returns just the basename — for MediaStore DISPLAY_NAME lookups.
      */
     @JvmStatic
-    fun novelFileNameFromLoxia(novel: Novel): String {
-        val meta = ItemMeta(
-            id = novel.id?.toLong() ?: 0L,
-            title = novel.title.orEmpty(),
-            author = Author(novel.user?.id?.toLong() ?: 0L, novel.user?.name.orEmpty()),
-            createdAt = parseInstant(novel.create_date),
+    fun novelFileNameFromLoxia(novel: Novel): String =
+        novelDestinationFromLoxia(novel).filename
+
+    /**
+     * Full sanitized [RelativePath] (directory + filename) for a novel from
+     * the loxia [Novel] model, rendered through the user's active naming
+     * preset. Use this — not [novelFileNameFromLoxia] — when you actually
+     * want to write the file: callers that only pass the filename strip the
+     * directory portion of the user's template, which silently breaks
+     * `byAuthor` / `byDate` / `detailed` presets.
+     *
+     * All four ReaderV3 export formats funnel through this method: TXT
+     * passes `extOverride = "txt"` (a no-op swap, since the bundled novel
+     * templates already end in `.txt`); MD / EPUB / PDF pass their own
+     * extension to swap the trailing `.txt` of the rendered template.
+     * Default `null` means «keep whatever the template rendered» (used by
+     * the queued downloader, which only writes TXT).
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun novelDestinationFromLoxia(novel: Novel, extOverride: String? = null): RelativePath =
+        novelDestination(
+            novelItem(
+                ItemMeta(
+                    id = novel.id?.toLong() ?: 0L,
+                    title = novel.title.orEmpty(),
+                    author = Author(novel.user?.id?.toLong() ?: 0L, novel.user?.name.orEmpty()),
+                    createdAt = parseInstant(novel.create_date),
+                ),
+            ),
+            extOverride = extOverride,
         )
-        val item = DownloadItem(
-            bucket = Bucket.Novel,
-            ext = "txt",
-            mime = "text/plain",
-            sourceUrl = "",
-            meta = meta,
-        )
+
+    /**
+     * For ReaderV3 export when only the WebNovel payload is known (rare —
+     * the loxia [Novel] is usually present). Best-effort meta: author/created
+     * are unavailable, so templates that lean on them get blank values, but
+     * the path is still rendered through the active preset so the file lands
+     * in the user's chosen folder.
+     */
+    @JvmStatic
+    fun novelDestinationFromWeb(
+        webNovelId: String?,
+        webNovelTitle: String?,
+        extOverride: String,
+    ): RelativePath = novelDestination(
+        novelItem(
+            ItemMeta(
+                id = webNovelId?.toLongOrNull() ?: 0L,
+                title = webNovelTitle.orEmpty(),
+                author = Author(0L, ""),
+                createdAt = Instant.now(),
+            ),
+        ),
+        extOverride = extOverride,
+    )
+
+    /**
+     * Resolve the directory portion (everything except the filename) of the
+     * user's Novel-bucket template, evaluated against [seriesDetail]. Series
+     * merges (合集) don't fit per-novel templates — they have their own
+     * filename — but the user still wants them next to their other novels,
+     * so we render the template and keep only the directory.
+     *
+     * Returned path's filename is the caller-supplied [mergeFileName].
+     *
+     * Caveat — the meta passed in uses [Instant.now] for `createdAt`,
+     * because [NovelSeriesDetail] does not expose a publication / last-
+     * updated timestamp. Date-bucketing presets (`byDate`,
+     * `byAuthorAndDate`) therefore file the merge under the **download
+     * day's** year/month, not the series' true publication month.
+     */
+    @JvmStatic
+    fun novelMergeDestination(
+        seriesDetail: NovelSeriesDetail,
+        mergeFileName: String,
+    ): RelativePath = novelDestinationWithName(
+        novelItem(
+            ItemMeta(
+                id = seriesDetail.id,
+                title = seriesDetail.title.orEmpty(),
+                author = Author(
+                    seriesDetail.user?.id ?: 0L,
+                    seriesDetail.user?.name.orEmpty(),
+                ),
+                createdAt = Instant.now(),
+            ),
+        ),
+        mergeFileName,
+    )
+
+    /**
+     * Java-side variant of [novelMergeDestination] taking the legacy
+     * [NovelSeriesItem] model. Same semantics: directory from the user's
+     * Novel-bucket template, filename from [mergeFileName]. Same
+     * `createdAt = Instant.now()` caveat as [novelMergeDestination].
+     */
+    @JvmStatic
+    fun novelMergeDestinationForSeriesItem(
+        seriesItem: NovelSeriesItem,
+        mergeFileName: String,
+    ): RelativePath = novelDestinationWithName(
+        novelItem(
+            ItemMeta(
+                id = seriesItem.id.toLong(),
+                title = seriesItem.title.orEmpty(),
+                author = Author(
+                    seriesItem.user?.id?.toLong() ?: 0L,
+                    seriesItem.user?.name.orEmpty(),
+                ),
+                createdAt = Instant.now(),
+            ),
+        ),
+        mergeFileName,
+    )
+
+    /**
+     * Variant of [novelMergeDestination] for paths where no series detail
+     * is available (e.g. cross-series "all merged into one" output keyed
+     * only by author). The directory is resolved from the active Novel-
+     * bucket template and [mergeFileName] is used verbatim as the
+     * filename.
+     *
+     * Same `createdAt = Instant.now()` caveat as [novelMergeDestination]
+     * — date-bucketing presets file under the download day. `title` is
+     * left blank: the rendered filename is discarded anyway by
+     * [novelDestinationWithName], and any custom template that includes
+     * `{title}` in its **directory** part would otherwise produce a
+     * nonsensical folder named after the merge filename.
+     */
+    @JvmStatic
+    fun novelMergeDestinationForAuthor(
+        authorId: Int,
+        authorName: String?,
+        mergeFileName: String,
+    ): RelativePath = novelDestinationWithName(
+        novelItem(
+            ItemMeta(
+                id = 0L,
+                title = "",
+                author = Author(authorId.toLong(), authorName.orEmpty()),
+                createdAt = Instant.now(),
+            ),
+        ),
+        mergeFileName,
+    )
+
+    /**
+     * Boilerplate factory: every novel write path needs the same
+     * `(Bucket.Novel, ext="txt", mime="text/plain", sourceUrl="")`
+     * envelope. Wrapped here so the per-call sites only have to express
+     * the parts that actually vary (the [meta]).
+     */
+    private fun novelItem(meta: ItemMeta): DownloadItem = DownloadItem(
+        bucket = Bucket.Novel,
+        ext = "txt",
+        mime = "text/plain",
+        sourceUrl = "",
+        meta = meta,
+    )
+
+    /**
+     * Render → sanitize → optionally swap extension on the last segment.
+     * Centralised so every novel write path goes through the same template
+     * resolution; presets cannot accidentally apply to one path and not
+     * another.
+     */
+    private fun novelDestination(item: DownloadItem, extOverride: String?): RelativePath {
         val config = DownloadsRegistry.store.loadOrFallback()
         val resolved = config.resolve(item.bucket)
-        val template = Template.compile(resolved.template)
+        val template = templateFor(resolved.template)
         val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
-        return FsSanitizer.clean(rendered).filename
+        val cleaned = FsSanitizer.clean(rendered)
+        if (extOverride.isNullOrEmpty()) return cleaned
+        val newName = swapExtension(cleaned.filename, extOverride)
+        return RelativePath(cleaned.directory + newName)
     }
+
+    /**
+     * Render the template just to extract the directory, then attach
+     * [overrideName] (already-sanitized callsite filename) as the basename.
+     * Used by series-merge tasks that need to honour the user's folder
+     * choice while keeping their own filename convention.
+     */
+    private fun novelDestinationWithName(
+        item: DownloadItem,
+        overrideName: String,
+    ): RelativePath {
+        val config = DownloadsRegistry.store.loadOrFallback()
+        val resolved = config.resolve(item.bucket)
+        val template = templateFor(resolved.template)
+        val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
+        val cleaned = FsSanitizer.clean(rendered)
+        val finalName = FsSanitizer.cleanSegment(overrideName, preserveExtension = true)
+        return RelativePath(cleaned.directory + finalName)
+    }
+
+    private fun swapExtension(filename: String, newExt: String): String {
+        val dot = filename.lastIndexOf('.')
+        val stem = if (dot in 1 until filename.length) filename.substring(0, dot) else filename
+        return "$stem.$newExt"
+    }
+
+    /**
+     * Compiled-template cache, keyed by source string. Mirrors the cache in
+     * [ceui.pixiv.download.Downloads] so batch downloads (100 novels in a
+     * series) don't pay parse cost N times. The cache is process-lifetime
+     * — entries never need invalidation since every distinct template
+     * source is its own key.
+     */
+    private val templateCache = java.util.concurrent.ConcurrentHashMap<String, Template>()
+
+    private fun templateFor(source: String): Template =
+        templateCache.getOrPut(source) { Template.compile(source) }
 
     private fun metaOf(illust: IllustsBean, pageIndex: Int?): ItemMeta = ItemMeta(
         id = illust.id.toLong(),

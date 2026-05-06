@@ -8,6 +8,7 @@ import android.text.Layout
 import android.text.TextPaint
 import ceui.loxia.Novel
 import ceui.loxia.WebNovel
+import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
 import ceui.pixiv.ui.novel.reader.paginate.TextMeasurer
 
@@ -37,7 +38,7 @@ class PdfExporter : NovelExporter {
         novel: Novel?,
         webNovel: WebNovel,
         tokens: List<ContentToken>,
-        fileName: String,
+        destination: RelativePath,
     ): ExportResult {
         val title = novel?.title ?: webNovel.title.orEmpty()
         val author = novel?.user?.name.orEmpty()
@@ -163,12 +164,12 @@ class PdfExporter : NovelExporter {
         }
         state.finish(document)
 
-        val uri = ExportUtils.saveToDownloads(context, fileName, format.mimeType) { out ->
+        val uri = ExportUtils.saveToDownloads(context, destination, format.mimeType) { out ->
             document.writeTo(out)
         }
         document.close()
         if (uri == null) return ExportResult.Failure("无法写入 Downloads")
-        return ExportResult.Success(uri, fileName, format)
+        return ExportResult.Success(uri, destination.filename, format)
     }
 
     /** Tracks the current PDF page's canvas cursor (y position). */

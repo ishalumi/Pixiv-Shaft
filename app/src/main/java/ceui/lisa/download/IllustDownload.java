@@ -41,6 +41,8 @@ import ceui.lisa.models.NovelSeriesItem;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
+import ceui.pixiv.download.config.DownloadItems;
+import ceui.pixiv.download.model.RelativePath;
 
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
 
@@ -172,8 +174,12 @@ public class IllustDownload {
     }
 
     public static void downloadNovel(BaseActivity<?> activity, NovelSeriesItem novelSeriesItem, String content, Callback<Uri> targetCallback) {
-        String displayName = FileCreator.deleteSpecialWords("NovelSeries_" + novelSeriesItem.getId() + "_Chapter_1~" + novelSeriesItem.getContent_count() + "_" + novelSeriesItem.getTitle() + ".txt");
-        downloadNovel(activity, displayName, content, targetCallback);
+        // 文件名仍按系列合集惯例（NovelSeries_<id>_Chapter_1~N_<title>.txt），
+        // 但目录从用户当前的 Novel 命名预设里取——和 Kotlin 端的
+        // MergeDownloadNovelSeriesTask、CrossSeriesDownloadTask 走同一规则。
+        String mergeName = FileCreator.deleteSpecialWords("NovelSeries_" + novelSeriesItem.getId() + "_Chapter_1~" + novelSeriesItem.getContent_count() + "_" + novelSeriesItem.getTitle() + ".txt");
+        RelativePath path = DownloadItems.novelMergeDestinationForSeriesItem(novelSeriesItem, mergeName);
+        downloadNovel(activity, path, content, targetCallback);
     }
 
     public static String truncateTitle(String title, int maxLength) {
@@ -204,29 +210,46 @@ public class IllustDownload {
 
 
     public static void downloadNovel(BaseActivity<?> activity, NovelBean novelBean, NovelDetail novelDetail, Callback<Uri> targetCallback) {
-
-        String title = novelBean.getTitle();
-        if (novelBean.getSeries()!= null && novelBean.getSeries().getTitle() != null){
-            title=novelBean.getSeries().getTitle()+"_"+title;
-        }
-        String newTitle = truncateTitle(title, 58);
-        String displayName = FileCreator.deleteSpecialWords("Novel_" + novelBean.getId() + "_" + newTitle + ".txt");
-
-        String content = getNovelText(title, novelBean, novelDetail);
-        downloadNovel(activity, displayName, content, targetCallback);
+        // 文件路径完全交给用户当前的 Novel 命名预设——和 Kotlin 端的
+        // DownloadNovelTask、ReaderV3 导出走同一规则；旧版写死的
+        // "Novel_<id>_<title>.txt" 已经废弃。Reader 标题里加系列前缀的视觉
+        // 习惯保留在 getNovelText 里（正文头部仍带系列名），文件名不再二次拼接。
+        RelativePath path = DownloadItems.novelDestinationFromBean(novelBean);
+        String content = getNovelText(buildContentTitle(novelBean), novelBean, novelDetail);
+        downloadNovel(activity, path, content, targetCallback);
     }
 
-    public static void downloadNovel(BaseActivity<?> activity, String displayName, String content, Callback<Uri> targetCallback) {
+    /**
+     * 仅用于内容头部展示的标题——保留旧版「系列名_章节名」格式；不参与
+     * 文件命名（文件命名走预设模板，模板自己有 {title} 占位符）。
+     */
+    private static String buildContentTitle(NovelBean novelBean) {
+        String title = novelBean.getTitle();
+        if (novelBean.getSeries() != null && novelBean.getSeries().getTitle() != null) {
+            title = novelBean.getSeries().getTitle() + "_" + title;
+        }
+        return truncateTitle(title, 58);
+    }
+
+    /**
+     * Inner save: write [content] to a temp file (for FileProvider sharing /
+     * "open with" intents) and copy it into MediaStore at [path], which is
+     * the user's Novel-bucket path rendered through the active naming
+     * preset. The temp filename keeps using [RelativePath.getFilename] —
+     * not because MediaStore needs it (MediaStore reads from `path`), but
+     * to keep FileProvider URIs human-readable for the share callback.
+     */
+    public static void downloadNovel(BaseActivity<?> activity, RelativePath path, String content, Callback<Uri> targetCallback) {
         check(activity, new FeedBack() {
             @Override
             public void doSomething() {
-                File textFile = LegacyFile.textFile(activity, displayName);
+                File textFile = LegacyFile.textFile(activity, path.getFilename());
                 try {
                     OutputStream outStream = new FileOutputStream(textFile);
                     outStream.write(content.getBytes());
                     outStream.close();
-                    Common.showLog("downloadNovel displayName " + textFile.getName());
-                    OutPut.outPutNovel(activity, textFile, textFile.getName());
+                    Common.showLog("downloadNovel path " + path.joinTo("/"));
+                    OutPut.outPutNovel(activity, textFile, path);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

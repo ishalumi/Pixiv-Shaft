@@ -12,6 +12,7 @@ import ceui.pixiv.download.header.NovelHeaderRenderer
 import ceui.pixiv.ui.common.getTxtFileIdInDownloads
 import ceui.pixiv.ui.common.saveToDownloadsScopedStorage
 import ceui.pixiv.download.config.DownloadItems
+import ceui.pixiv.download.model.RelativePath
 import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -102,7 +103,8 @@ class BatchDownloadNovelsTask(
      */
     private suspend fun downloadOne(novel: Novel, seriesIndex: Int?) {
         val ctx = Shaft.getContext()
-        val fileName = DownloadItems.novelFileNameFromLoxia(novel)
+        val destination: RelativePath = DownloadItems.novelDestinationFromLoxia(novel)
+        val fileName = destination.filename
 
         // Skip already-downloaded files. DownloadNovelTask uses the same
         // pre-check before it hits the network.
@@ -137,7 +139,7 @@ class BatchDownloadNovelsTask(
             append("\n\n")
         }
 
-        val ok = saveToDownloadsScopedStorage(ctx, fileName, buffer.toString())
+        val ok = saveToDownloadsScopedStorage(ctx, destination, buffer.toString())
         if (!ok) {
             throw RuntimeException("saveToDownloadsScopedStorage returned false")
         }

@@ -8,6 +8,7 @@ import ceui.lisa.fragments.WebNovelParser
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.loxia.NovelSeriesDetail
+import ceui.pixiv.download.config.DownloadItems
 import ceui.pixiv.ui.common.saveToDownloadsScopedStorage
 import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.Dispatchers
@@ -87,11 +88,14 @@ class MergeDownloadNovelSeriesTask(
                     if (done < total) delay(1500L)
                 }
 
-                // 4) 写入文件
-                val fileName = buildMergeFileName(seriesDetail)
+                // 4) 写入文件 —— 目录从用户的 Novel 命名预设里取，文件名保留
+                //    合集自己的命名（带「_合集_ID...」后缀），让合集文件落在和
+                //    单本下载相同的目录下。
+                val mergeName = buildMergeFileName(seriesDetail)
+                val destination = DownloadItems.novelMergeDestination(seriesDetail, mergeName)
                 val content = header + chapterBodies.toString()
                 val ok = withContext(Dispatchers.IO) {
-                    saveToDownloadsScopedStorage(ctx, fileName, content)
+                    saveToDownloadsScopedStorage(ctx, destination, content)
                 }
                 if (!ok) {
                     ToastUtils.show(ctx.getString(R.string.merge_download_failed_save))
@@ -102,7 +106,7 @@ class MergeDownloadNovelSeriesTask(
                 if (failedCount > 0) {
                     ToastUtils.show(ctx.getString(R.string.merge_download_some_chapters_failed, failedCount))
                 } else {
-                    ToastUtils.show(ctx.getString(R.string.merge_download_finished, fileName))
+                    ToastUtils.show(ctx.getString(R.string.merge_download_finished, destination.filename))
                 }
                 onFinished(true, failedCount)
             } catch (ex: Exception) {

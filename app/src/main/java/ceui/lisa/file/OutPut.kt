@@ -42,9 +42,18 @@ object OutPut {
         }
     }
 
+    /**
+     * Write a novel temp file into the user's Novel bucket at [path].
+     * The path comes from the active naming preset — see
+     * [ceui.pixiv.download.config.DownloadItems.novelDestinationFromBean]
+     * — so callers must pass the full relative path (directory + filename).
+     * Hardcoding `ShaftNovels/` here was the legacy bypass that kept the
+     * Java download path on its own naming scheme regardless of user
+     * settings.
+     */
     @JvmStatic
-    fun outPutNovel(context: Context, from: File, fileName: String) {
-        writeRaw(Bucket.Novel, "ShaftNovels/$fileName", "text/plain", from, R.string.save_novel_failed)
+    fun outPutNovel(context: Context, from: File, path: RelativePath) {
+        writeRawPath(Bucket.Novel, path, "text/plain", from, R.string.save_novel_failed)
     }
 
     @JvmStatic
@@ -63,8 +72,11 @@ object OutPut {
     }
 
     private fun writeRaw(bucket: Bucket, rawPath: String, mime: String, from: File, failedMsgId: Int) {
+        writeRawPath(bucket, RelativePath.parse(rawPath), mime, from, failedMsgId)
+    }
+
+    private fun writeRawPath(bucket: Bucket, path: RelativePath, mime: String, from: File, failedMsgId: Int) {
         try {
-            val path = RelativePath.parse(rawPath)
             val handle = DownloadsRegistry.downloads.openRaw(bucket, path, mime) ?: return
             BufferedInputStream(FileInputStream(from)).use { bis ->
                 BufferedOutputStream(handle.stream).use { bos ->
@@ -73,7 +85,7 @@ object OutPut {
             }
             handle.onFinish()
         } catch (t: Throwable) {
-            Timber.e(t, "OutPut.writeRaw failed (bucket=$bucket path=$rawPath)")
+            Timber.e(t, "OutPut.writeRaw failed (bucket=$bucket path=${path.joinTo()})")
             Common.showToast(string(failedMsgId, errMsg(t)))
         }
     }
