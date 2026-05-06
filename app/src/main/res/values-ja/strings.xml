@@ -1147,6 +1147,7 @@
 
     <string name="bulk_select_title">一括ダウンロード · 作品を選択</string>
     <string name="bulk_select_select_all">すべて選択</string>
+    <string name="bulk_select_clear_all">選択解除</string>
     <string name="bulk_select_invert">選択反転</string>
     <string name="bulk_select_no_items">選択可能な作品がありません。別の入口から来たため状態が失われた可能性があります。</string>
     <string name="bulk_select_loading">読み込み中…</string>

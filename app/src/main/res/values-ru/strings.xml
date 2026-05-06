@@ -1047,6 +1047,7 @@
 
     <string name="bulk_select_title">Пакетная загрузка · Выбор работ</string>
     <string name="bulk_select_select_all">Выбрать все</string>
+    <string name="bulk_select_clear_all">Снять все</string>
     <string name="bulk_select_invert">Инвертировать</string>
     <string name="bulk_select_no_items">Нет доступных работ. Состояние могло быть потеряно при входе с другого экрана.</string>
     <string name="bulk_select_loading">Загрузка…</string>

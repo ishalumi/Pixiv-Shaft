@@ -1045,6 +1045,7 @@
 
     <string name="bulk_select_title">Toplu indirme · Eserleri seç</string>
     <string name="bulk_select_select_all">Tümünü seç</string>
+    <string name="bulk_select_clear_all">Seçimi kaldır</string>
     <string name="bulk_select_invert">Tersine çevir</string>
     <string name="bulk_select_no_items">Seçilebilir eser yok. Farklı bir giriş noktasından gelinmiş olabilir.</string>
     <string name="bulk_select_loading">Yükleniyor…</string>

@@ -1160,6 +1160,7 @@
 
     <string name="bulk_select_title">批次下載 · 選擇作品</string>
     <string name="bulk_select_select_all">全選</string>
+    <string name="bulk_select_clear_all">取消全選</string>
     <string name="bulk_select_invert">反選</string>
     <string name="bulk_select_no_items">沒有可選作品，可能從其他入口進來導致狀態遺失。</string>
     <string name="bulk_select_loading">載入中…</string>

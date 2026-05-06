@@ -1114,6 +1114,7 @@
     <!-- Bulk select page -->
     <string name="bulk_select_title">Batch download · Select works</string>
     <string name="bulk_select_select_all">Select all</string>
+    <string name="bulk_select_clear_all">Deselect all</string>
     <string name="bulk_select_invert">Invert</string>
     <string name="bulk_select_no_items">No selectable works. State may have been lost from a different entry point.</string>
     <string name="bulk_select_loading">Loading…</string>

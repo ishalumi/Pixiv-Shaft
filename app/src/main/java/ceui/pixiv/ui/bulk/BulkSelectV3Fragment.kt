@@ -50,6 +50,7 @@ class BulkSelectV3Fragment : Fragment() {
         refreshHeaderAndCta()
     }
 
+    private lateinit var toolbar: Toolbar
     private lateinit var hint: TextView
     private lateinit var btnConfirm: Button
 
@@ -59,18 +60,16 @@ class BulkSelectV3Fragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
+        toolbar = view.findViewById(R.id.toolbar)
         toolbar.setNavigationOnClickListener { requireActivity().finish() }
-        // 全选 / 反选 挂 toolbar menu —— 让操作区跟内容区清晰分层
+        // 单按钮 master-checkbox 模式：icon 跟选中态切（refreshSelectToggleIcon），
+        // 点击行为也跟 icon 一致 —— 没全选 → 全选；已全选 → 取消全选。
+        // 反选已废，使用频率低 + 单按钮表达不出第三种状态。
         toolbar.inflateMenu(R.menu.menu_bulk_select_v3)
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                R.id.action_select_all -> {
+                R.id.action_select_toggle -> {
                     selectAllToggle()
-                    true
-                }
-                R.id.action_invert -> {
-                    invertSelection()
                     true
                 }
                 else -> false
@@ -91,8 +90,7 @@ class BulkSelectV3Fragment : Fragment() {
             btnConfirm.isEnabled = false
             btnConfirm.text = "—"
             // 没东西可选，菜单也禁用了避免误导
-            toolbar.menu.findItem(R.id.action_select_all)?.isEnabled = false
-            toolbar.menu.findItem(R.id.action_invert)?.isEnabled = false
+            toolbar.menu.findItem(R.id.action_select_toggle)?.isEnabled = false
             return
         }
         hint.text = getString(R.string.bulk_select_loading)
@@ -149,18 +147,6 @@ class BulkSelectV3Fragment : Fragment() {
         }
     }
 
-    private fun invertSelection() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val rebuilt = withContext(Dispatchers.IO) {
-                items.map { if (it.selectable) it.copy(selected = !it.selected) else it }
-            }
-            items.clear()
-            items.addAll(rebuilt)
-            adapter.notifyDataSetChanged()
-            refreshHeaderAndCta()
-        }
-    }
-
     private fun refreshHeaderAndCta() {
         val total = items.size
         val selected = items.count { it.selected && it.selectable }
@@ -180,6 +166,21 @@ class BulkSelectV3Fragment : Fragment() {
         } else {
             getString(R.string.bulk_select_confirm_empty)
         }
+        refreshSelectToggleIcon(selected)
+    }
+
+    /**
+     * Master-checkbox 模式：根据"可选项有多少已选中"切 toolbar 单按钮的 icon + title。
+     *  - 没全选（含部分选中 / 全没选） → ic_select_all_24，title="全选"
+     *  - 已全选（可选项全选中）       → ic_deselect_24，title="取消全选"
+     * 状态不仅是视觉信号，也跟 selectAllToggle 行为一致：用户看到啥 icon 就预期点击会做啥。
+     */
+    private fun refreshSelectToggleIcon(selectedCount: Int) {
+        val item = toolbar.menu.findItem(R.id.action_select_toggle) ?: return
+        val selectableCount = items.count { it.selectable }
+        val allSelected = selectableCount > 0 && selectedCount == selectableCount
+        item.setIcon(if (allSelected) R.drawable.ic_deselect_24 else R.drawable.ic_select_all_24)
+        item.setTitle(if (allSelected) R.string.bulk_select_clear_all else R.string.bulk_select_select_all)
     }
 }
 

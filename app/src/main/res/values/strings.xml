@@ -1527,6 +1527,7 @@
     <!-- Bulk select page -->
     <string name="bulk_select_title">批量下载 · 选择作品</string>
     <string name="bulk_select_select_all">全选</string>
+    <string name="bulk_select_clear_all">取消全选</string>
     <string name="bulk_select_invert">反选</string>
     <string name="bulk_select_no_items">没有可选作品，可能从其他入口进来导致状态丢失。</string>
     <string name="bulk_select_loading">加载中…</string>
