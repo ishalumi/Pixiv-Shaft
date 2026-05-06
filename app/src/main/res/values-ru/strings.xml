@@ -1127,4 +1127,6 @@
     <string name="dlmgr_done_export_empty">Нет завершённых работ для экспорта</string>
     <string name="dlmgr_done_export_share_title">Экспорт завершённых загрузок</string>
     <string name="dlmgr_done_export_summary">Экспортировано работ: %1$d</string>
+
+    <string name="booked_tag_search_hint">Поиск тегов</string>
 </resources>

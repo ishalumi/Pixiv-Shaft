@@ -1198,4 +1198,6 @@
     <string name="dlmgr_done_export_empty">No completed works to export</string>
     <string name="dlmgr_done_export_share_title">Export completed downloads</string>
     <string name="dlmgr_done_export_summary">Exported %1$d work(s)</string>
+
+    <string name="booked_tag_search_hint">Search tags</string>
 </resources>

@@ -1227,4 +1227,6 @@
     <string name="dlmgr_done_export_empty">エクスポート可能な完了作品がありません</string>
     <string name="dlmgr_done_export_share_title">完了したダウンロードをエクスポート</string>
     <string name="dlmgr_done_export_summary">%1$d 件の作品をエクスポート</string>
+
+    <string name="booked_tag_search_hint">タグを検索</string>
 </resources>

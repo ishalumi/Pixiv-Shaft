@@ -1125,4 +1125,6 @@
     <string name="dlmgr_done_export_empty">Dışa aktarılacak tamamlanan eser yok</string>
     <string name="dlmgr_done_export_share_title">Tamamlanan indirmeleri dışa aktar</string>
     <string name="dlmgr_done_export_summary">%1$d eser dışa aktarıldı</string>
+
+    <string name="booked_tag_search_hint">Etiket ara</string>
 </resources>
