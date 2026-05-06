@@ -16,39 +16,50 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.core.DownloadItem
 import ceui.lisa.core.Manager
+import ceui.lisa.database.AppDatabase
 import ceui.lisa.download.FileSizeUtil
 import ceui.lisa.notification.DownloadReceiver
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
+import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.bumptech.glide.Glide
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
  * V3 风格 "正在下载" — 监听 Manager.content。
  *
- * 关于"看似多个并发下载"的澄清：
- *   一个 N-page illust 进入下载时，[Manager.content] 会同时挂 N 个 DownloadItem，
- *   但 [Manager.loop] 严格串行下载（每完成一个才启下一个）。任意时刻 **只有 1 个**
- *   item 处于 DOWNLOADING，其余都是 INIT（等待）。本 UI 用以下方式让区分一目了然：
- *
- *     - 顶部统计行明确写 "1 正在 · N 等待"
- *     - DOWNLOADING 卡：完整不透明 + 蓝色进度条 + 实时大小/百分比
- *     - INIT 卡：半透明 0.55 + 隐藏进度条/大小 + 文字 "等待中…"
- *     - 运行时 invariant：snapshot 里 DOWNLOADING > 1 直接 warn 到日志
+ * 并发下载（Settings.maxConcurrentDownloads，默认 1，上限 5）：
+ *   - 任意时刻 DOWNLOADING 数量 ≤ 用户配置的并发数
+ *   - 其余可下载的 page 处于 INIT（等待）
+ *   - DOWNLOADING 卡：完整不透明 + 蓝色进度条 + 实时大小/百分比
+ *   - INIT 卡：半透明 0.55 + 隐藏进度条/大小 + 文字 "等待中…"
+ *   - 顶部状态行明确写 "N 正在 · M 等待"
+ *   - 运行时 invariant：snapshot 里 DOWNLOADING > 配置上限 直接 warn 到日志
  */
 class ActiveListV3Fragment : Fragment() {
 
     private val adapter = ActiveAdapterV3()
     private var receiver: DownloadReceiver<*>? = null
     private var statusHeader: TextView? = null
+    private val queueDao: DownloadQueueDao by lazy {
+        AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -74,17 +85,30 @@ class ActiveListV3Fragment : Fragment() {
         }
 
         // 操作 bar
-        view.findViewById<Button>(R.id.btn1).apply {
+        val btnResume = view.findViewById<Button>(R.id.btn1).apply {
             text = getString(R.string.dlmgr_active_action_resume_all)
+            // 联动：恢复 active 同时恢复批量队列
             setOnClickListener { Manager.get().startAll(); QueueDownloadManager.resume() }
         }
-        view.findViewById<Button>(R.id.btn2).apply {
+        val btnPause = view.findViewById<Button>(R.id.btn2).apply {
             text = getString(R.string.dlmgr_active_action_pause_all)
-            setOnClickListener { Manager.get().stopAll() }
+            // 联动：暂停 active 同时暂停批量队列消费者
+            setOnClickListener { Manager.get().stopAll(); QueueDownloadManager.pause() }
         }
-        view.findViewById<Button>(R.id.btn4).apply {
+        val btnClear = view.findViewById<Button>(R.id.btn4).apply {
             text = getString(R.string.dlmgr_active_action_clear)
-            setOnClickListener { Manager.get().clearAll() }
+            // 联动：清空 active 同时把批量队列 DB 也清掉，避免用户清完 active 又被
+            // 队列消费者重新填回去，看起来"清不掉"。
+            //
+            // 加确认 dialog：destructive 操作不应一键直行 —— 用户误点损失大。
+            setOnClickListener {
+                showClearConfirmDialog {
+                    Manager.get().clearAll()
+                    viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                        runCatching { queueDao.deleteAll() }
+                    }
+                }
+            }
         }
 
         // Snapshot polling（1s）
@@ -108,10 +132,13 @@ class ActiveListV3Fragment : Fragment() {
                         it.state == DownloadItem.DownloadState.FAILED
                     }
 
-                    // 运行时不变量：DOWNLOADING 应当永远 <= 1（Manager.loop 串行）
-                    if (downloadingCount > 1) {
+                    // 运行时不变量：DOWNLOADING 数量永远不应该超过绝对上限 5。
+                    // 注意不要拿当前 maxConcurrent 比 —— 用户从 5 调到 2 后那 5 条
+                    // 在传的不会立即被掐，会自然消化，期间 downloadingCount > 2
+                    // 是正常现象，不能误报。
+                    if (downloadingCount > 5) {
                         Timber.tag(TAG).w(
-                            "INVARIANT: ${downloadingCount} items in DOWNLOADING state simultaneously! " +
+                            "INVARIANT: ${downloadingCount} DOWNLOADING > absolute max 5! " +
                                 snapshot.filter { it.state == DownloadItem.DownloadState.DOWNLOADING }
                                     .joinToString { "${it.uuid}/${it.illust?.id}" }
                         )
@@ -128,6 +155,14 @@ class ActiveListV3Fragment : Fragment() {
 
                     adapter.submit(snapshot.toList())
                     empty.visibility = if (snapshot.isEmpty()) View.VISIBLE else View.GONE
+                    // 没有任何活跃任务时把操作按钮置灰，避免用户在空列表上反复点
+                    val hasWork = snapshot.isNotEmpty()
+                    btnResume.isEnabled = hasWork
+                    btnResume.alpha = if (hasWork) 1f else 0.4f
+                    btnPause.isEnabled = hasWork
+                    btnPause.alpha = if (hasWork) 1f else 0.4f
+                    btnClear.isEnabled = hasWork
+                    btnClear.alpha = if (hasWork) 1f else 0.4f
                     delay(REFRESH_INTERVAL_MS)
                 }
             }
@@ -140,6 +175,21 @@ class ActiveListV3Fragment : Fragment() {
             DownloadReceiver.NOTIFY_FRAGMENT_DOWNLOADING,
         )
         LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiver!!, intentFilter)
+    }
+
+    private fun showClearConfirmDialog(onConfirm: () -> Unit) {
+        val act = activity ?: return
+        if (act.isFinishing || act.isDestroyed) return
+        QMUIDialog.MessageDialogBuilder(act)
+            .setTitle(R.string.dlmgr_clear_active_queue_title)
+            .setMessage(R.string.dlmgr_clear_active_queue_message)
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addAction(R.string.cancel) { d, _ -> d.dismiss() }
+            .addAction(0, R.string.sure, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                onConfirm()
+            }
+            .show()
     }
 
     override fun onDestroyView() {
@@ -158,14 +208,67 @@ class ActiveListV3Fragment : Fragment() {
     }
 }
 
-private class ActiveAdapterV3 : RecyclerView.Adapter<ActiveAdapterV3.VH>() {
+/**
+ * 关键陷阱：[Manager] 原地修改 [DownloadItem]（setNonius / setPaused / ...），
+ * 不会创建新对象。如果 ListAdapter 直接拿 DownloadItem 做 DiffUtil 元素，旧
+ * snapshot 列表和新 snapshot 列表持有**同一份对象引用**，DiffUtil 调
+ * areContentsTheSame 时 a 和 b 是同一个 obj，所有字段比较恒等 → 永不发现变化
+ * → 进度条视觉上冻死。这是 ListAdapter + 可变模型的经典 aliasing 陷阱。
+ *
+ * 修法：每次 submit 时把 DownloadItem 的"渲染相关字段"拍进一个 immutable
+ * data class [ActiveSnapshot]。新旧 ActiveSnapshot 之间字段比较真实反映变化；
+ * data class auto equals 让 DiffUtil 干净工作。
+ */
+private data class ActiveSnapshot(
+    /** 持有原 DownloadItem 引用，让 click handler 能拿到 uuid 给 Manager 调命令 */
+    val item: DownloadItem,
+    val state: Int,
+    val isPaused: Boolean,
+    val nonius: Int,
+    val currentSize: Long,
+    val totalSize: Long,
+    val name: String?,
+    val showUrl: String?,
+) {
+    companion object {
+        fun of(d: DownloadItem) = ActiveSnapshot(
+            item = d,
+            state = d.state,
+            isPaused = d.isPaused,
+            nonius = d.nonius,
+            currentSize = d.currentSize,
+            totalSize = d.totalSize,
+            name = d.name,
+            showUrl = d.showUrl,
+        )
+    }
+}
 
-    private val items = mutableListOf<DownloadItem>()
+/**
+ * DiffUtil 让"看起来没变"的 item 不重 bind。issue: 1s polling 用
+ * notifyDataSetChanged() 全量重 bind，每次都重 Glide.load 缩略图 → 视觉上闪烁
+ * （即使在暂停态也闪，因为 polling 不区分状态）。
+ *
+ * 行为：
+ *   - 标识相同（uuid）+ 内容完全一致 → 不 bind
+ *   - 仅进度/状态变化 → 走 payload，仅刷新进度条/百分比/大小/徽章
+ *   - 缩略图 URL 没变就根本不调 Glide.load
+ */
+private object ActiveDiff : DiffUtil.ItemCallback<ActiveSnapshot>() {
+    override fun areItemsTheSame(a: ActiveSnapshot, b: ActiveSnapshot): Boolean =
+        a.item.uuid == b.item.uuid
+    override fun areContentsTheSame(a: ActiveSnapshot, b: ActiveSnapshot): Boolean = a == b
+    override fun getChangePayload(oldItem: ActiveSnapshot, newItem: ActiveSnapshot): Any = PROGRESS_PAYLOAD
+}
+
+private const val PROGRESS_PAYLOAD = "progress"
+
+private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(ActiveDiff) {
 
     fun submit(newItems: List<DownloadItem>) {
-        items.clear()
-        items.addAll(newItems)
-        notifyDataSetChanged()
+        // 把可变 DownloadItem 拍成 immutable snapshot 后再交给 ListAdapter，
+        // 让 DiffUtil 拿到的新旧元素是不同对象、字段比较真实反映变化。
+        submitList(newItems.map { ActiveSnapshot.of(it) })
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -174,34 +277,87 @@ private class ActiveAdapterV3 : RecyclerView.Adapter<ActiveAdapterV3.VH>() {
     }
 
     override fun onBindViewHolder(h: VH, pos: Int) {
-        val item = items[pos]
-        h.taskName.text = item.name
+        bindFull(h, getItem(pos))
+    }
 
+    override fun onBindViewHolder(h: VH, pos: Int, payloads: List<Any>) {
+        if (payloads.isEmpty()) {
+            bindFull(h, getItem(pos))
+        } else {
+            // payload-only：进度/状态变了，但缩略图、文件名没变
+            bindStateAndProgress(h, getItem(pos))
+        }
+    }
+
+    private fun bindFull(h: VH, snap: ActiveSnapshot) {
+        h.taskName.text = snap.name
+        bindStateAndProgress(h, snap)
+
+        // 缩略图：原始 showUrl 没变就不 Glide.load —— 这是消除闪烁的关键。
+        // 用原始 String 比较（GlideUrl 没实现稳定的 equals，比较起来不靠谱）
+        val newShowUrl = snap.showUrl?.takeIf { !TextUtils.isEmpty(it) }
+        if (newShowUrl != h.lastLoadedUrl) {
+            if (!newShowUrl.isNullOrEmpty()) {
+                Glide.with(h.thumb)
+                    .load(GlideUtil.getUrl(newShowUrl))
+                    .placeholder(android.R.color.transparent)
+                    .into(h.thumb)
+            } else {
+                Glide.with(h.thumb).clear(h.thumb)
+                h.thumb.setImageDrawable(null)
+            }
+            h.lastLoadedUrl = newShowUrl
+        }
+
+        // 暂停/继续 + 取消（每次 full bind 重设，保证 lambda 引用最新 item）
+        h.pauseBtn.setOnClickListener {
+            // 即时反馈：snapshot 列表是 immutable，无法靠 notifyItemChanged 让
+            // payload-bind 看到新状态（snapshot 还是旧的）。直接操作 view —
+            // 下一轮 1s polling 来重 snapshot 时 DiffUtil 会再 reconcile 一次。
+            val live = snap.item
+            val wasPaused = live.isPaused
+            if (wasPaused) Manager.get().startOne(live.uuid)
+            else Manager.get().stopOne(live.uuid)
+            h.pauseBtn.setImageResource(
+                if (wasPaused) R.drawable.ic_baseline_pause_24
+                else R.drawable.ic_baseline_play_arrow_24
+            )
+        }
+        h.cancelBtn.setOnClickListener {
+            // Manager.clearOne 会从 content 移除该 item，下一轮 polling 通过
+            // DiffUtil 自动消失，不需要手动通知。
+            Manager.get().clearOne(snap.item.uuid)
+        }
+
+        // 故意不再 Manager.get().setCallback(item.uuid) { ... } —— 之前每次 bind 都
+        // 注册一个 lambda，Manager.mCallback HashMap 按 uuid 存且永远不清，长跑下
+        // 100000+ 闭包会持有 ViewHolder 引用 → 内存堆积 OOM。
+        // 进度更新依赖 1s polling + DiffUtil payload 触发 bindStateAndProgress。
+    }
+
+    private fun bindStateAndProgress(h: VH, snap: ActiveSnapshot) {
         // —— 状态分类决定视觉权重 ——
-        val isActive = item.state == DownloadItem.DownloadState.DOWNLOADING
-        val isWaiting = item.state == DownloadItem.DownloadState.INIT
-        val isPaused = item.isPaused || item.state == DownloadItem.DownloadState.PAUSED
-        val isFailed = item.state == DownloadItem.DownloadState.FAILED
+        val isActive = snap.state == DownloadItem.DownloadState.DOWNLOADING
+        val isWaiting = snap.state == DownloadItem.DownloadState.INIT
+        val isPaused = snap.isPaused || snap.state == DownloadItem.DownloadState.PAUSED
+        val isFailed = snap.state == DownloadItem.DownloadState.FAILED
 
-        // 等待中的卡片显著弱化
         h.itemView.alpha = if (isActive || isFailed) 1.0f else 0.55f
 
-        // 进度条：只对 DOWNLOADING 显示
         h.progress.visibility = if (isActive) View.VISIBLE else View.GONE
         h.percentText.visibility = if (isActive) View.VISIBLE else View.GONE
         if (isActive) {
-            h.progress.progress = item.nonius
-            h.percentText.text = "${item.nonius}%"
+            h.progress.progress = snap.nonius
+            h.percentText.text = "${snap.nonius}%"
         }
 
-        // size 文本：DOWNLOADING 显示实际大小；其它用人话替代
         when {
             isActive -> {
-                h.sizeText.text = if (item.totalSize > 0) {
+                h.sizeText.text = if (snap.totalSize > 0) {
                     String.format(
                         "%s / %s",
-                        FileSizeUtil.formatFileSize(item.currentSize),
-                        FileSizeUtil.formatFileSize(item.totalSize)
+                        FileSizeUtil.formatFileSize(snap.currentSize),
+                        FileSizeUtil.formatFileSize(snap.totalSize)
                     )
                 } else "—"
             }
@@ -211,49 +367,22 @@ private class ActiveAdapterV3 : RecyclerView.Adapter<ActiveAdapterV3.VH>() {
             else -> h.sizeText.text = "—"
         }
 
-        if (!TextUtils.isEmpty(item.showUrl)) {
-            Glide.with(h.thumb)
-                .load(GlideUtil.getUrl(item.showUrl))
-                .placeholder(android.R.color.transparent)
-                .into(h.thumb)
-        } else {
-            Glide.with(h.thumb).clear(h.thumb)
-            h.thumb.setImageDrawable(null)
-        }
-
         val (label, color) = when {
             isActive -> "DOWNLOADING" to "#5EB3FF"
             isPaused -> "PAUSED" to "#FFB454"
             isFailed -> "FAILED" to "#FF8B8B"
             isWaiting -> "QUEUED" to "#9DA3AB"
-            item.state == DownloadItem.DownloadState.SUCCESS -> "DONE" to "#7CB668"
+            snap.state == DownloadItem.DownloadState.SUCCESS -> "DONE" to "#7CB668"
             else -> "—" to "#9DA3AB"
         }
         h.stateBadge.text = label
         h.stateBadge.setTextColor(Color.parseColor(color))
 
-        // 暂停/继续切换 icon
         h.pauseBtn.setImageResource(
-            if (item.isPaused) R.drawable.ic_baseline_play_arrow_24
+            if (snap.isPaused) R.drawable.ic_baseline_play_arrow_24
             else R.drawable.ic_baseline_pause_24
         )
-        h.pauseBtn.setOnClickListener {
-            if (item.isPaused) Manager.get().startOne(item.uuid)
-            else Manager.get().stopOne(item.uuid)
-            notifyItemChanged(h.bindingAdapterPosition)
-        }
-        h.cancelBtn.setOnClickListener {
-            Manager.get().clearOne(item.uuid)
-        }
-
-        // 故意不再 Manager.get().setCallback(item.uuid) { ... } —— 之前每次 bind 都
-        // 注册一个 lambda，Manager.mCallback HashMap 按 uuid 存且永远不清，长跑下
-        // 100000+ 闭包会持有 ViewHolder 引用 → 内存堆积 OOM。
-        // 进度更新依赖 1s polling 重新 submit() 触发 onBindViewHolder 时读 item.nonius，
-        // 1Hz 已足够顺滑。
     }
-
-    override fun getItemCount(): Int = items.size
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val thumb: ImageView = v.findViewById(R.id.thumb)
@@ -264,5 +393,7 @@ private class ActiveAdapterV3 : RecyclerView.Adapter<ActiveAdapterV3.VH>() {
         val percentText: TextView = v.findViewById(R.id.percentText)
         val pauseBtn: ImageView = v.findViewById(R.id.pauseBtn)
         val cancelBtn: ImageView = v.findViewById(R.id.cancelBtn)
+        /** 上次 Glide.load 的 URL（含 referer 拼接后）；URL 不变就跳过加载，消除闪烁 */
+        var lastLoadedUrl: String? = null
     }
 }
