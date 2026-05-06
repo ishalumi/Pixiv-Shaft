@@ -311,7 +311,9 @@ public class Manager {
         if (max < 1) max = 1;
         if (max > 5) max = 5;
 
-        int active = activeCount();
+        int activeBefore = activeCount();
+        int active = activeBefore;
+        int dispatched = 0;
         while (active < max) {
             DownloadItem next = getFirstReady();
             if (next == null) break;
@@ -323,7 +325,15 @@ public class Manager {
             uuid = next.getUuid();
             downloadOne(mContext, next);
             active++;
+            dispatched++;
         }
+        // 让用户能在 logcat 里直接核实"并发数设置真的生效"：
+        //   [DL-PARALLEL] pump max=5 activeBefore=0 dispatched=5 activeAfter=5
+        // → 一次 pump 起了 5 个并行；max 跟 Settings 里设的数字一致就是真在用。
+        Common.showLog("[DL-PARALLEL] pump max=" + max
+                + " activeBefore=" + activeBefore
+                + " dispatched=" + dispatched
+                + " activeAfter=" + active);
 
         if (active == 0 && getFirstReady() == null) {
             // 没活儿了
