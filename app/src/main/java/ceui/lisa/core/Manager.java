@@ -623,34 +623,57 @@ public class Manager {
         .subscribe(s -> {
             Common.showLog("downloadOne " + s);
 
-            if(downloadItem.getIllust().isGif()){
-                Shaft.getMMKV().encode(Params.ILLUST_ID + "_" + downloadItem.getIllust().getId(), true);
-                AndroidSchedulers.mainThread().scheduleDirect(() ->
-                    PixivOperate.unzipAndPlay(context, downloadItem.getIllust(), downloadItem.isAutoSave()));
-            }
-
-            // Gson 序列化 + DB 操作在 IO 线程执行
-            DownloadEntity downloadEntity = new DownloadEntity();
-            downloadEntity.setIllustGson(Shaft.sGson.toJson(downloadItem.getIllust()));
-            downloadEntity.setFileName(downloadItem.getName());
-            downloadEntity.setDownloadTime(System.currentTimeMillis());
-            downloadEntity.setFilePath(factory.getFileUri().toString());
-            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(downloadEntity);
-            Common.showLog("[DL-CACHE] db inserted DownloadEntity fileName=" + downloadEntity.getFileName()
-                    + " filePath=" + downloadEntity.getFilePath());
-
-            factory.finishWrite();
-            // Gson + DB 在 IO 线程
-            complete(downloadItem, true);
-
-            // content.remove + 广播必须在同一个 Runnable 里，
-            // 确保 adapter 收到通知时 item 已经被移除。
+            // ===== CRITICAL: 把 content.remove 提到最前 =====
+            // QueueDownloadManager.awaitIllustSettled 是靠"item 从 Manager.content
+            // 消失"判断 illust 完成的。下面的 Gson 序列化 / Room insert /
+            // factory.finishWrite() / complete() 任何一行 throw 都会让原本在
+            // 末尾 schedule 的 content.remove **永远不会被 queue 上 main 线程**。
+            // 单页文件已经写盘成功（一行字节流早就 flush 了），但 await 看到这个
+            // page 还在 content 里 → 永远不 return → consumer 走不到
+            // dao.updateStatus(SUCCESS) → 批量队列 list 不消失，最终 stall
+            // timeout 把它标 FAILED（FAILED 行 SQL 也不过滤，list 仍然不消失）。
+            // 用户看到的就是"图都下成功了 但队列不少"。
+            //
+            // 把 remove 排到最前面，独立 Runnable，跟后续 IO 工作解耦：哪怕后面
+            // 任何步骤 throw，main thread 都已经把这条 item 从 content 取出了。
             AndroidSchedulers.mainThread().scheduleDirect(() -> {
                 int sizeBefore = content.size();
                 boolean removed = content.remove(downloadItem);
                 if (removed) ManagerReactive.invalidate();
                 Common.showLog("[DL-REMOVE] remove=" + removed + " sizeBefore=" + sizeBefore
                         + " sizeAfter=" + content.size() + " name=" + downloadItem.getName());
+            });
+
+            if(downloadItem.getIllust().isGif()){
+                Shaft.getMMKV().encode(Params.ILLUST_ID + "_" + downloadItem.getIllust().getId(), true);
+                AndroidSchedulers.mainThread().scheduleDirect(() ->
+                    PixivOperate.unzipAndPlay(context, downloadItem.getIllust(), downloadItem.isAutoSave()));
+            }
+
+            // 下面三块每块独立 try/catch：单条失败别牵连其它。最关键的 content.remove
+            // 已经在上面发出去了，这里都是"附加完成动作"，断了任意一条都不至于让
+            // 整个 illust 的下载流程卡死。
+            DownloadEntity downloadEntity = null;
+            try {
+                downloadEntity = new DownloadEntity();
+                downloadEntity.setIllustGson(Shaft.sGson.toJson(downloadItem.getIllust()));
+                downloadEntity.setFileName(downloadItem.getName());
+                downloadEntity.setDownloadTime(System.currentTimeMillis());
+                downloadEntity.setFilePath(factory.getFileUri().toString());
+                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(downloadEntity);
+                Common.showLog("[DL-CACHE] db inserted DownloadEntity fileName=" + downloadEntity.getFileName()
+                        + " filePath=" + downloadEntity.getFilePath());
+            } catch (Throwable t) {
+                Common.showLog("[DL] DownloadEntity insert failed (file already on disk, skipping 已完成 tab record): " + t);
+                downloadEntity = null;
+            }
+
+            try { factory.finishWrite(); } catch (Throwable t) { Common.showLog("[DL] finishWrite failed: " + t); }
+            try { complete(downloadItem, true); } catch (Throwable t) { Common.showLog("[DL] complete(success) failed: " + t); }
+
+            // 广播放第二个 Runnable，跟 content.remove 顺序保留（main thread FIFO）。
+            final DownloadEntity finalEntity = downloadEntity;
+            AndroidSchedulers.mainThread().scheduleDirect(() -> {
                 if (Shaft.sSettings.isToastDownloadResult()) {
                     Common.showToast(downloadItem.getName() + mContext.getString(R.string.has_been_downloaded));
                 }
@@ -663,9 +686,9 @@ public class Manager {
                     LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
                     Common.showLog("[DL-REMOVE] DOWNLOAD_ING broadcast sent");
                 }
-                {
+                if (finalEntity != null) {
                     Intent intent = new Intent(Params.DOWNLOAD_FINISH);
-                    intent.putExtra(Params.CONTENT, downloadEntity);
+                    intent.putExtra(Params.CONTENT, finalEntity);
                     LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
                 }
             });
