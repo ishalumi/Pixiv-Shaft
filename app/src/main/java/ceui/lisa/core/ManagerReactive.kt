@@ -83,4 +83,28 @@ object ManagerReactive {
     val activeCountFlow: Flow<Int> = contentFlow
         .map { items -> items.count { it.state == DownloadItem.DownloadState.DOWNLOADING } }
         .distinctUntilChanged()
+
+    /**
+     * `illust_download_table`（"已完成" tab 数据源）的脏标记。每个 page 成功
+     * 后 Manager 写一行，调用 [pokeDoneTable]。已完成 tab UI 端 collect 这个
+     * tick 后用 suspend `dao.getAll(...)` 拿最新行；用户手动删除单条 / 清空
+     * 整个 tab 时也要 poke 一次。
+     *
+     * 为什么不直接用 Room 的 `dao.flowAll`：跟 download_queue 同样的 bug，
+     * Room InvalidationTracker 在快速连续 INSERT 序列下首次 emit 后静默不再
+     * re-emit，导致已完成 tab 卡在初始状态。
+     *
+     * replay=1 + DROP_OLDEST：新 collector 立刻拿一帧；高频 tick 自动合并。
+     */
+    val doneTableInvalidations = MutableSharedFlow<Unit>(
+        replay = 1,
+        extraBufferCapacity = 0,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    ).apply { tryEmit(Unit) }
+
+    /** Java 端调：Manager.java 写 illust_download_table / 删行后 poke。 */
+    @JvmStatic
+    fun pokeDoneTable() {
+        doneTableInvalidations.tryEmit(Unit)
+    }
 }

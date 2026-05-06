@@ -14,18 +14,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 /**
- * 三个 tab 共享的 stats 数据源；统一在 IO 线程查 DAO 和 Manager.content。
+ * 三个 tab 共享的 stats 数据源。
  *
- * 完全 reactive：
- *   - 4 个队列计数 → [DownloadQueueDao.flowCountByStatus]，Room 自动 emit
- *   - 当前活跃 page 数 → 从 [ManagerReactive.contentFlow] 派生
- *   - 当前 illust 的页级进度 → [QueueDownloadManager.currentJobFlow] +
- *     contentFlow 派生（done = totalPages - 还在 content 里的 page 数）
- *   - 6 路 [combine] 合并成 [Snapshot]，UI collect 即可
- *
- * 0 timer，0 polling。空闲时彻底沉默；任何状态变动 < 50ms 反映到 UI。
+ * 数据源：
+ *   - 4 个队列计数从 [QueueDownloadManager.queueListInvalidations] 脏标记 +
+ *     suspend [DownloadQueueDao.countByStatus] 派生。**不用** Room 的
+ *     `flowCountByStatus`：实测 Room InvalidationTracker 在快速连续 UPDATE
+ *     序列下首次 emit 后静默不再 re-emit（用户已复现，17 个 SUCCESS 一次都
+ *     没让 Flow 再 emit）。改成自己 tick 后 suspend 查一次，可靠。
+ *   - 当前活跃 page 数 + 当前 illust 页级进度从 [ManagerReactive.contentFlow]
+ *     + [QueueDownloadManager.currentJobFlow] 派生。Manager 端有自己的
+ *     [ManagerReactive.invalidate] 机制驱动，不依赖 Room。
  */
 class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -47,13 +49,9 @@ class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     /**
-     * 把 contentFlow + currentJobFlow 合到一处算"页级进度 + 活跃 page 数"：
-     *   - activePagesForCurrent = content 里跟 currentJob 同 illust 的 page 数
-     *   - done = totalPages - activePagesForCurrent
-     *
-     * 高频 invalidate（progress 1% 一次）会让此 flow 频繁 emit；
-     * distinctUntilChanged 让相同 (active, progress) 不重复传给下游 combine，
-     * 减少 tab 文字无谓 setText 调用。
+     * 从 ManagerReactive 派生的 (active page 数, 当前 illust 进度) 二元组。
+     * distinctUntilChanged 避免高频 progress invalidate 让上层 combine 频繁
+     * 重算，无谓 setText。
      */
     private val derivedActiveStateFlow: Flow<Pair<Int, IllustProgress?>> =
         ManagerReactive.contentFlow.combine(QueueDownloadManager.currentJobFlow) { content, job ->
@@ -71,25 +69,41 @@ class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
         }.distinctUntilChanged()
 
     /**
-     * Reactive 合并：4 个 Room Flow + 派生的 (activeCount, illustProgress) Flow。
-     * combine 会等所有 upstream 都至少 emit 一次再 emit；Room flow 在订阅时
-     * 立刻拉一次当前 DB 值，[derivedActiveStateFlow] 透过 [ManagerReactive] 的
-     * replay=1 也会立刻拿到一帧。所以 first emit 几乎立刻发生。
+     * 队列计数 Flow：每次 [QueueDownloadManager.queueListInvalidations] tick
+     * 就 suspend 查一次 4 个状态的 count。queueListInvalidations 本身是
+     * SharedFlow(replay=1)，新订阅立刻拿一次初始 tick。
+     */
+    private val queueCountsFlow: Flow<QueueCounts> =
+        QueueDownloadManager.queueListInvalidations
+            .map {
+                QueueCounts(
+                    pending = runCatching { queueDao.countByStatus(QueueStatus.PENDING) }.getOrDefault(0),
+                    downloading = runCatching { queueDao.countByStatus(QueueStatus.DOWNLOADING) }.getOrDefault(0),
+                    success = runCatching { queueDao.countByStatus(QueueStatus.SUCCESS) }.getOrDefault(0),
+                    failed = runCatching { queueDao.countByStatus(QueueStatus.FAILED) }.getOrDefault(0),
+                )
+            }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.IO)
+
+    private data class QueueCounts(val pending: Int, val downloading: Int, val success: Int, val failed: Int)
+
+    /**
+     * 把队列 4 个 count + active state 合并成 Snapshot。
+     * combine 等所有 upstream 至少各 emit 一次 —— SharedFlow / StateFlow 都
+     * 自带初始值，几乎立刻 first emit。
      */
     fun snapshots(): Flow<Snapshot> = combine(
-        queueDao.flowCountByStatus(QueueStatus.PENDING),
-        queueDao.flowCountByStatus(QueueStatus.DOWNLOADING),
-        queueDao.flowCountByStatus(QueueStatus.SUCCESS),
-        queueDao.flowCountByStatus(QueueStatus.FAILED),
+        queueCountsFlow,
         derivedActiveStateFlow,
-    ) { pending, downloading, success, failed, activeAndProgress ->
+    ) { counts, activeAndProgress ->
         Snapshot(
-            queuePending = pending,
-            queueDownloading = downloading,
-            queueSuccess = success,
-            queueFailed = failed,
+            queuePending = counts.pending,
+            queueDownloading = counts.downloading,
+            queueSuccess = counts.success,
+            queueFailed = counts.failed,
             activeCount = activeAndProgress.first,
             currentIllustProgress = activeAndProgress.second,
         )
-    }.flowOn(Dispatchers.IO)
+    }
 }

@@ -74,6 +74,27 @@ object QueueDownloadManager {
     private val _currentJobFlow = kotlinx.coroutines.flow.MutableStateFlow<CurrentJob?>(null)
     val currentJobFlow: kotlinx.coroutines.flow.StateFlow<CurrentJob?> get() = _currentJobFlow
 
+    /**
+     * 队列脏标记 SharedFlow。任何会改变 download_queue 表内容的操作
+     * （consumer 的 dao.updateStatus / LegacyBatchEnqueue 的 appendBatch /
+     * 用户手动 deleteAll）都 tryEmit(Unit)，UI 端 collect 后用 suspend 的
+     * dao.pageActive 拿最新行。
+     *
+     * 为什么不直接用 Room 的 `Flow<List<...>>`：实测 Room InvalidationTracker
+     * 在 ~10 次/秒的连续 UPDATE 序列下**不可靠** —— 首次 emit 之后静默不再
+     * 重新 emit，导致 queue tab list 卡在初始状态（用户的真实复现：
+     * 17 个 illust 标了 SUCCESS 都没让 flow re-emit）。这个 SharedFlow 是
+     * belt-and-suspenders 兜底，不依赖 Room InvalidationTracker。
+     *
+     * replay=1 + DROP_OLDEST：新 collector 立刻拿一帧；高频 tick 自动合并。
+     * 初始 tryEmit 让首个 collector 不用等 mutation 就有数据。
+     */
+    val queueListInvalidations = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(
+        replay = 1,
+        extraBufferCapacity = 0,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST,
+    ).apply { tryEmit(Unit) }
+
     // —— 调度参数 ——
     private const val MAX_RETRY = 3
     private const val POLL_INTERVAL_MS = 600L
@@ -244,6 +265,7 @@ object QueueDownloadManager {
             try {
                 runCatching { dao.updateStatus(item.id, QueueStatus.DOWNLOADING) }
                     .onFailure { Timber.tag(TAG).e(it, "[QUEUE-CONSUMER] mark DOWNLOADING failed id=${item.id}") }
+                queueListInvalidations.tryEmit(Unit)  // 状态变了，poke UI
                 Timber.tag(TAG).i("[QUEUE-CONSUMER] PROCESS-START id=${item.id} illustId=${item.illustId}")
                 processOne(item)
                 Timber.tag(TAG).i("[QUEUE-CONSUMER] PROCESS-DONE id=${item.id} illustId=${item.illustId} → mark SUCCESS")
@@ -256,9 +278,11 @@ object QueueDownloadManager {
                     // 这次 consumer 还活着继续去拿下一条 PENDING。
                     Timber.tag(TAG).e(it, "[QUEUE-CONSUMER] mark SUCCESS failed id=${item.id} (consumer continues)")
                 }
+                queueListInvalidations.tryEmit(Unit)  // SUCCESS 之后立刻 poke UI 让那行消失
                 Timber.tag(TAG).i("[QUEUE-CONSUMER] DONE id=${item.id}")
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 runCatching { dao.updateStatus(item.id, QueueStatus.PENDING) }
+                queueListInvalidations.tryEmit(Unit)
                 throw cancellation
             } catch (e: Exception) {
                 Timber.tag(TAG).w(e, "[QUEUE-CONSUMER] process failed illustId=${item.illustId} retry=${item.retryCount}")
@@ -271,6 +295,7 @@ object QueueDownloadManager {
                         dao.updateStatus(item.id, QueueStatus.FAILED, err = e.message, finishedAt = System.currentTimeMillis())
                     }
                 }
+                queueListInvalidations.tryEmit(Unit)  // 失败 / 重试 也要 poke UI
             }
         }
     }

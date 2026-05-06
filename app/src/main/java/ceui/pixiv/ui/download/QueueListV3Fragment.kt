@@ -37,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
@@ -119,29 +120,35 @@ class QueueListV3Fragment : Fragment() {
                     // 否则用户清完队列还看到"正在下载" tab 有残留任务在跑。
                     runCatching { Manager.get().clearAll() }
                     runCatching { dao.deleteAll() }
+                    QueueDownloadManager.queueListInvalidations.tryEmit(Unit)
                 }
             }
         }
 
-        // Reactive 数据源 = 队列行 (Room Flow) + 暂停态 (StateFlow) 合并。
-        // Room InvalidationTracker 在 download_queue 表任意 INSERT/UPDATE/DELETE
-        // 时自动 emit；任何 tab 切换 pause/resume 都会让 pausedFlow 即时翻转。
-        // 完全替代之前的 1.5s 轮询 —— 0 timer，纯事件驱动。
-        // collectLatest：上一轮还在 prefetch 时新 emit 来了就取消旧的，
-        // 避免 prefetch 任务堆积。
+        // 数据源 = 队列脏标记 (SharedFlow) + 暂停态 (StateFlow) 合并。
+        //
+        // ⚠️ 不用 Room 的 dao.flowActive：实测 Room InvalidationTracker 在
+        // ~10 次/秒的连续 UPDATE 序列下首次 emit 后静默不再 re-emit
+        // （用户复现：17 个 illust 标了 SUCCESS 都没让 flow 再 emit）。
+        // 改成自己控制的 [QueueDownloadManager.queueListInvalidations]：consumer
+        // 每次 status 变化 / LegacyBatchEnqueue 入队都 tryEmit。这边 collect
+        // 后用 suspend 的 [DownloadQueueDao.pageActive] 取最新行，绕开 Room
+        // 那个不可靠的 Flow。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(
-                    dao.flowActive(MAX_DISPLAY_ROWS),
+                    QueueDownloadManager.queueListInvalidations,
                     QueueDownloadManager.pausedFlow,
-                ) { rows, paused -> rows to paused }
+                ) { _, paused -> paused }
+                    .map { paused ->
+                        val rows = runCatching { dao.pageActive(MAX_DISPLAY_ROWS, 0) }
+                            .getOrDefault(emptyList())
+                        rows to paused
+                    }
                     .flowOn(Dispatchers.IO)
                     .collectLatest { (rows, paused) ->
-                        // [QUEUE-LIST] 醒目日志：每次 dao.flowActive 重新 emit 都打印
-                        // 行数 + 各自 status。用户 grep "QUEUE-LIST" 能直接看到 Room
-                        // 是不是在 emit、SQL 是否过滤了 SUCCESS 的行。
                         Timber.tag("QueueListV3").i(
-                            "[QUEUE-LIST] flow emit rows=${rows.size} statuses=[${rows.joinToString(",") { "${it.id}:${it.status}" }}]"
+                            "[QUEUE-LIST] manual emit rows=${rows.size}"
                         )
                         adapter.submitList(rows)
                         empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE

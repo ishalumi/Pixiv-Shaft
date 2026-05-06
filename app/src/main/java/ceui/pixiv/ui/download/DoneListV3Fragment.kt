@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.activities.ImageDetailActivity
 import ceui.lisa.activities.Shaft
+import ceui.lisa.core.ManagerReactive
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.DownloadDao
 import ceui.lisa.database.DownloadEntity
@@ -115,21 +116,26 @@ class DoneListV3Fragment : Fragment() {
                 showClearDoneConfirmDialog {
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { dao.deleteAllDownload() }
-                        // Room InvalidationTracker 会在 deleteAllDownload 之后
-                        // 自动通知 flowAll，UI 即时刷新空状态，不需要手动 tickle
+                        ManagerReactive.pokeDoneTable()
                     }
                 }
             }
         }
 
-        // Reactive: Room 监听 illust_download_table 变更后自动 emit 新快照。
-        // Manager 写完 DownloadEntity / 用户按"清空记录" / 单条删除都会触发
-        // collector 重新 bind。0 timer、0 broadcast。
-        // groupByIllust 在 IO 线程跑（fromJson 解 illustGson 不卡 main）。
+        // 数据源 = ManagerReactive.doneTableInvalidations 脏标记。Manager 写
+        // illust_download_table / 用户清空 / 单条删除都 poke 一次。这边 collect
+        // 后用 suspend dao.getAll(...) 拿最新行。
+        //
+        // ⚠️ 不用 dao.flowAll：Room InvalidationTracker 在连续 INSERT 序列下
+        // 首次 emit 后静默不再 re-emit（同 download_queue 那个 bug）。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                dao.flowAll(PAGE_SIZE)
-                    .map { groupByIllust(it) }
+                ManagerReactive.doneTableInvalidations
+                    .map {
+                        val rows = runCatching { dao.getAll(PAGE_SIZE, 0) }
+                            .getOrDefault(emptyList())
+                        groupByIllust(rows)
+                    }
                     .flowOn(Dispatchers.IO)
                     .collect { groups ->
                         adapter.submitList(groups)
@@ -217,12 +223,11 @@ class DoneListV3Fragment : Fragment() {
     }
 
     private fun deleteOne(group: DownloadGroup) {
-        // Room InvalidationTracker 会在 dao.delete 之后通知 flowAll collect
-        // 端，UI 自动刷新；不需要手动 reload。
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 group.allEntities.forEach { dao.delete(it) }
             }
+            ManagerReactive.pokeDoneTable()
         }
     }
 

@@ -663,6 +663,7 @@ public class Manager {
                 AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(downloadEntity);
                 Common.showLog("[DL-CACHE] db inserted DownloadEntity fileName=" + downloadEntity.getFileName()
                         + " filePath=" + downloadEntity.getFilePath());
+                ManagerReactive.pokeDoneTable();
             } catch (Throwable t) {
                 Common.showLog("[DL] DownloadEntity insert failed (file already on disk, skipping 已完成 tab record): " + t);
                 downloadEntity = null;

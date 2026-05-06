@@ -86,6 +86,8 @@ object LegacyBatchEnqueue {
                         )
                     }
                     dao.appendBatch(rows)
+                    // 每个 batch 都 poke UI（让用户看到行数在涨），不用等 resume
+                    QueueDownloadManager.queueListInvalidations.tryEmit(Unit)
                 }
 
                 // 全部入完才唤醒一次（之前是每批都 resume，浪费 N 次主线程标志写）
