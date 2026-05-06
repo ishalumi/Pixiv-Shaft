@@ -1128,4 +1128,8 @@
     <string name="dlmgr_done_export_summary">%1$d eser dışa aktarıldı</string>
 
     <string name="booked_tag_search_hint">Etiket ara</string>
+
+    <string name="tag_action_copy">Metni kopyala</string>
+    <string name="tag_action_delete">Sil</string>
+    <string name="tag_action_edit">Düzenle</string>
 </resources>

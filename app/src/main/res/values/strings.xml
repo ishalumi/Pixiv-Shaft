@@ -1614,4 +1614,8 @@
     <string name="dlmgr_done_export_summary">已导出 %1$d 个作品的链接</string>
 
     <string name="booked_tag_search_hint">搜索标签</string>
+
+    <string name="tag_action_copy">复制文本</string>
+    <string name="tag_action_delete">删除</string>
+    <string name="tag_action_edit">编辑</string>
 </resources>

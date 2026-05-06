@@ -52,6 +52,12 @@ class V3TagFlowView @JvmOverloads constructor(
      */
     var onTagClick: ((name: String) -> Unit)? = null
 
+    /**
+     * Optional long-press handler. When non-null, long-pressing a chip invokes
+     * this callback and consumes the gesture (no regular click fires).
+     */
+    var onTagLongClick: ((name: String) -> Unit)? = null
+
     /** Show a trailing × icon on each chip — for editable/removable chip rows. */
     var showRemoveIcon: Boolean = false
         set(value) {
@@ -163,6 +169,14 @@ class V3TagFlowView @JvmOverloads constructor(
                         }
                         context.startActivity(intent)
                     }
+                }
+                // 长按回调晚读：渲染时 onTagLongClick 可能尚未 set（SearchActivity 里先
+                // refreshChipsUI 再 setOnTagLongClick），所以监听器无条件挂、回调在长按
+                // 触发时再取——和 onTagClick 同套路。
+                setOnLongClickListener {
+                    val handler = onTagLongClick ?: return@setOnLongClickListener false
+                    handler.invoke(name)
+                    true
                 }
             }
             applyTouchScale(tv, 0.94f)

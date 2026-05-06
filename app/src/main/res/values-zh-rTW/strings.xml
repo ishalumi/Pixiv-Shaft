@@ -1243,4 +1243,8 @@
     <string name="dlmgr_done_export_summary">已匯出 %1$d 個作品的連結</string>
 
     <string name="booked_tag_search_hint">搜尋標籤</string>
+
+    <string name="tag_action_copy">複製文本</string>
+    <string name="tag_action_delete">刪除</string>
+    <string name="tag_action_edit">編輯</string>
 </resources>

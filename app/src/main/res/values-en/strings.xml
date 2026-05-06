@@ -1201,4 +1201,8 @@
     <string name="dlmgr_done_export_summary">Exported %1$d work(s)</string>
 
     <string name="booked_tag_search_hint">Search tags</string>
+
+    <string name="tag_action_copy">Copy text</string>
+    <string name="tag_action_delete">Delete</string>
+    <string name="tag_action_edit">Edit</string>
 </resources>

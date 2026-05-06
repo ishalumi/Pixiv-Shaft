@@ -1230,4 +1230,8 @@
     <string name="dlmgr_done_export_summary">%1$d 件の作品をエクスポート</string>
 
     <string name="booked_tag_search_hint">タグを検索</string>
+
+    <string name="tag_action_copy">テキストをコピー</string>
+    <string name="tag_action_delete">削除</string>
+    <string name="tag_action_edit">編集</string>
 </resources>

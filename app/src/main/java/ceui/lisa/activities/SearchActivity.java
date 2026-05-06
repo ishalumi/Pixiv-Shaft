@@ -10,7 +10,9 @@ import android.text.TextWatcher;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.URLUtil;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.mxn.soul.flowingdrawer_core.ElasticDrawer;
@@ -106,6 +108,10 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
             refreshChipsUI();
             pushKeywordFromChipsAndInput();
             triggerSearchIfNotEmpty();
+            return kotlin.Unit.INSTANCE;
+        });
+        baseBind.searchTagsFlow.setOnTagLongClick(name -> {
+            showTagActionMenu(name);
             return kotlin.Unit.INSTANCE;
         });
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager(), 0) {
@@ -437,6 +443,47 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
                     })
                     .start();
         }
+    }
+
+    /**
+     * 长按 chip 弹出的居中菜单：复制文本 / 删除 / 编辑。
+     * 编辑＝把 chip 还原回输入框、移除该 chip、聚焦输入框唤起键盘，让用户改完再回车提交。
+     */
+    private void showTagActionMenu(String name) {
+        String[] items = new String[]{
+                getString(R.string.tag_action_copy),
+                getString(R.string.tag_action_delete),
+                getString(R.string.tag_action_edit)
+        };
+        new QMUIDialog.MenuDialogBuilder(mContext)
+                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                .addItems(items, (dialog, which) -> {
+                    if (which == 0) {
+                        Common.copy(mContext, name);
+                    } else if (which == 1) {
+                        committedTags.remove(name);
+                        refreshChipsUI();
+                        pushKeywordFromChipsAndInput();
+                        triggerSearchIfNotEmpty();
+                    } else if (which == 2) {
+                        committedTags.remove(name);
+                        refreshChipsUI();
+                        EditText ed = baseBind.searchTagsFlow.getEditor();
+                        if (ed != null) {
+                            ed.setText(name);
+                            ed.setSelection(name.length());
+                            ed.requestFocus();
+                            InputMethodManager imm = (InputMethodManager) mContext
+                                    .getSystemService(Context.INPUT_METHOD_SERVICE);
+                            if (imm != null) {
+                                imm.showSoftInput(ed, InputMethodManager.SHOW_IMPLICIT);
+                            }
+                        }
+                        pushKeywordFromChipsAndInput();
+                    }
+                    dialog.dismiss();
+                })
+                .show();
     }
 
     private void tipDialog(Context context){
