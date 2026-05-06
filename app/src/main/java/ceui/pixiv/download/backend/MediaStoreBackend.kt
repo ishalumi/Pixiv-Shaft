@@ -9,6 +9,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import ceui.pixiv.download.config.StorageChoice
 import ceui.pixiv.download.model.RelativePath
+import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -55,7 +56,13 @@ class MediaStoreBackend(
      */
     override fun replace(relPath: RelativePath, mime: String): StorageBackend.WriteHandle {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val existing = findUri(relPath)
+            // First the canonical + _DATA lookup. If both miss but a file
+            // physically exists at the requested on-disk path, force MediaStore
+            // to ingest it via [reclaimOrphanRow] — otherwise we'd fall through
+            // to insert and trigger the OEM-side directory auto-rename
+            // (`Pictures/ShaftImages (1)/`, `(2)/`, ... scattering, see
+            // [openModern]'s rename guard for the matching diagnostic).
+            val existing = findUri(relPath) ?: reclaimOrphanRow(relPath)
             if (existing != null) {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.MIME_TYPE, mime)
@@ -99,6 +106,12 @@ class MediaStoreBackend(
                 }
                 return StorageBackend.WriteHandle(existing, stream, onFinish, onAbort)
             }
+            // Three lookups (canonical / _DATA / scanFile) all missed — there
+            // is no row to update. Skip [super.replace], whose default impl
+            // would call `exists()` again (one more redundant findUri round
+            // trip), and go straight to insert. The inserted row carries our
+            // OEM-rename guard, so this is the safe entry to a fresh write.
+            return openModern(relPath, mime)
         }
         return super.replace(relPath, mime)
     }
@@ -119,6 +132,41 @@ class MediaStoreBackend(
         }
         val target: Uri = context.contentResolver.insert(collectionUri, values)
             ?: error("MediaStore insert failed for $relPath")
+        // OEM-rename guard: certain Android skins (HarmonyOS / MIUI / etc.)
+        // silently rewrite the inserted row's RELATIVE_PATH when an existing
+        // on-disk file collides with the one we're trying to write but its
+        // MediaStore row isn't visible to us. The result the user sees is
+        // sibling directories `Pictures/ShaftImages (1)/`, `(2)/`, ...
+        // each with a single file inside — instead of a normal collision
+        // resolution on the filename within the requested directory.
+        // We can't talk the OS out of doing this, but we can refuse to
+        // commit bytes to the wrong place: verify the actual
+        // RELATIVE_PATH on the row we just got, and if it was altered,
+        // delete the row and surface a clear error to the caller.
+        val actualRelativeDir = queryRelativePath(target)
+        if (actualRelativeDir != null && !relativePathsEqual(actualRelativeDir, relativeDir)) {
+            // Detail goes to the log so we can correlate user reports with the
+            // specific file/path; the user-visible exception keeps a short,
+            // actionable message because it propagates straight to a toast.
+            Timber.w(
+                "MediaStoreBackend: OEM auto-renamed insert from '%s' to '%s' for %s. " +
+                    "On-disk file at the requested path likely owned by another package " +
+                    "or hidden from MediaStore on this OEM (HarmonyOS / MIUI / etc.). " +
+                    "Aborting write to avoid scattering files into the wrong directory.",
+                relativeDir, actualRelativeDir, relPath,
+            )
+            runCatching { context.contentResolver.delete(target, null, null) }
+            // For human readability fall back to the collection root
+            // (Pictures/Downloads) when the relative path has no directory
+            // segments — joining an empty list yields "" and produces the
+            // confusing "无法写入 /" message.
+            val displayDir = if (relPath.directory.isNotEmpty()) {
+                relPath.directory.joinToString("/")
+            } else {
+                collectionRoot()
+            }
+            error("下载目录被系统占用，无法写入 $displayDir/，请在文件管理器删掉同名旧文件后重试")
+        }
         // If openOutputStream throws after the row was inserted, the row
         // would otherwise be left stranded as a `.pending-NNNN` 0-byte file.
         // Delete it before propagating so we don't leak orphans (issue #857).
@@ -175,7 +223,23 @@ class MediaStoreBackend(
 
     private fun findUri(relPath: RelativePath): Uri? {
         val relativeDir = (listOf(collectionRoot()) + relPath.directory).joinToString("/") + "/"
-        return queryUri(collectionUri(), relPath.filename, relativeDir)
+        // Canonical lookup: the row we just inserted (or one written by an
+        // earlier session of this app) is keyed by (DISPLAY_NAME,
+        // RELATIVE_PATH). Hits in the steady state.
+        queryUri(collectionUri(), relPath.filename, relativeDir)?.let { return it }
+        // Fallback: locate orphan rows whose RELATIVE_PATH doesn't match
+        // our canonical form. Seen in practice when:
+        //   - app was reinstalled and the existing row's owner became "no
+        //     one" but the row's RELATIVE_PATH was normalised differently
+        //     by a system migration (no trailing slash, etc.);
+        //   - the file was put on disk by another tool that scanned with
+        //     a slightly different RELATIVE_PATH.
+        // Without this fallback, [replace] mistakenly believes the file
+        // doesn't exist, falls through to insert-fresh, and on certain
+        // OEM skins MediaStore reacts to the on-disk collision by
+        // auto-renaming the *directory* — scattering files into
+        // `ShaftImages (1)/`, `ShaftImages (2)/`, ... silently.
+        return queryUriByData(collectionUri(), legacyFile(relPath).absolutePath)
     }
 
     private fun queryUri(collectionUri: Uri, displayName: String, relativeDir: String): Uri? {
@@ -183,6 +247,100 @@ class MediaStoreBackend(
         val selection =
             "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
         val args = arrayOf(displayName, relativeDir)
+        context.contentResolver.query(collectionUri, projection, selection, args, null)?.use { c ->
+            if (c.moveToFirst()) {
+                val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                return Uri.withAppendedPath(collectionUri, id.toString())
+            }
+        }
+        return null
+    }
+
+    /**
+     * Compare two MediaStore `RELATIVE_PATH` strings ignoring trailing
+     * slash. The platform docs spell the value as `Pictures/MyAlbum` (no
+     * trailing slash) but most apps — including this one — pass values
+     * *with* a trailing slash, and AOSP / OEM forks differ on whether
+     * they normalise it on write. A bare equality check here would
+     * therefore raise false positives in [openModern]'s rename guard
+     * every time the OS chose the canonical-without-slash form on
+     * read-back.
+     */
+    private fun relativePathsEqual(a: String, b: String): Boolean =
+        a.trimEnd('/') == b.trimEnd('/')
+
+    /**
+     * Read back the [MediaStore.MediaColumns.RELATIVE_PATH] the OS actually
+     * stored on [uri]. Used by [openModern] to detect OEM-side directory
+     * auto-rename. Returns `null` if the row was deleted or the column is
+     * not exposed (extremely unlikely on Q+).
+     */
+    private fun queryRelativePath(uri: Uri): String? {
+        val projection = arrayOf(MediaStore.MediaColumns.RELATIVE_PATH)
+        context.contentResolver.query(uri, projection, null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                val idx = c.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+                if (idx >= 0) return c.getString(idx)
+            }
+        }
+        return null
+    }
+
+    /**
+     * Force MediaStore to ingest an on-disk file that no row currently
+     * tracks (or whose row is invisible to us). Returns the freshly-
+     * resolved [Uri] on success, `null` if the file does not exist on
+     * disk or scanning fails / times out.
+     *
+     * This converts the "row missing, file present" state — which would
+     * otherwise fall through to insert and let HarmonyOS / MIUI decide
+     * to silently allocate `Pictures/ShaftImages (N)/` — into a normal
+     * "row found" state, after which [replace] can update in place and
+     * the bytes land in the user's configured directory.
+     *
+     * Implementation note: [android.provider.MediaStore.scanFile] is
+     * `@SystemApi` (system-only); the only public scan trigger is
+     * [MediaScannerConnection.scanFile] which is callback-based, so we
+     * gate completion through a [CountDownLatch] with a short timeout.
+     * Caller MUST be on a worker thread (the [StorageBackend] facade
+     * already enforces this).
+     */
+    private fun reclaimOrphanRow(relPath: RelativePath): Uri? {
+        val file = legacyFile(relPath)
+        if (!file.exists()) return null
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val resultRef = java.util.concurrent.atomic.AtomicReference<Uri?>(null)
+        try {
+            MediaScannerConnection.scanFile(
+                context,
+                arrayOf(file.absolutePath),
+                null,
+            ) { _, scannedUri ->
+                resultRef.set(scannedUri)
+                latch.countDown()
+            }
+        } catch (t: Throwable) {
+            Timber.w(t, "MediaStoreBackend: scanFile schedule failed for ${file.absolutePath}")
+            return null
+        }
+        val completed = latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        if (!completed) {
+            Timber.w("MediaStoreBackend: scanFile timed out for ${file.absolutePath}")
+            return null
+        }
+        val scanned = resultRef.get() ?: return null
+        // Prefer the canonical (DISPLAY_NAME, RELATIVE_PATH) Uri on our
+        // collection — some Android skins gate ContentResolver.update by
+        // collection authority, and scanFile may hand back a Files-view
+        // Uri that update() then silently no-ops on.
+        return findUri(relPath) ?: scanned
+    }
+
+    @Suppress("DEPRECATION")
+    private fun queryUriByData(collectionUri: Uri, absolutePath: String): Uri? {
+        val projection = arrayOf(MediaStore.MediaColumns._ID)
+        val selection = "${MediaStore.MediaColumns.DATA}=?"
+        val args = arrayOf(absolutePath)
         context.contentResolver.query(collectionUri, projection, selection, args, null)?.use { c ->
             if (c.moveToFirst()) {
                 val id = c.getLong(c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))

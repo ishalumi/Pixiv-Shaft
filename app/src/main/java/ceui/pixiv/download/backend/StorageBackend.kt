@@ -30,6 +30,10 @@ interface StorageBackend {
      * Default: delete + open. [MediaStoreBackend] overrides this to update
      * the existing row in place, avoiding `contentResolver.delete()` which
      * triggers media-deletion alerts on some Android skins (e.g. HarmonyOS).
+     * It also reclaims orphan rows (file on disk but row missing or invisible)
+     * via `MediaScannerConnection`, so a re-download lands in the user's
+     * configured directory instead of being scattered into sibling
+     * directories by HarmonyOS / MIUI MediaStore auto-rename behaviour.
      */
     fun replace(relPath: RelativePath, mime: String): WriteHandle {
         if (exists(relPath)) delete(relPath)
