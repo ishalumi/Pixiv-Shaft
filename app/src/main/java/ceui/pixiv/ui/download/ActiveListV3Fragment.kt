@@ -36,9 +36,11 @@ import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 
 /**
@@ -60,6 +62,8 @@ class ActiveListV3Fragment : Fragment() {
     private val queueDao: DownloadQueueDao by lazy {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
+    /** 唤醒 polling 立刻刷一次 —— 按钮点击 / DOWNLOAD_ING 广播都 tickle 它 */
+    private val refreshTickle = Channel<Unit>(Channel.CONFLATED)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -87,13 +91,22 @@ class ActiveListV3Fragment : Fragment() {
         // 操作 bar
         val btnResume = view.findViewById<Button>(R.id.btn1).apply {
             text = getString(R.string.dlmgr_active_action_resume_all)
-            // 联动：恢复 active 同时恢复批量队列
-            setOnClickListener { Manager.get().startAll(); QueueDownloadManager.resume() }
+            // 联动：恢复 active 同时恢复批量队列；点完立刻 tickle 唤醒 polling
+            // 让 UI 即时反映 "INIT → DOWNLOADING" 翻转，不要等 5s idle delay。
+            setOnClickListener {
+                Manager.get().startAll()
+                QueueDownloadManager.resume()
+                refreshTickle.trySend(Unit)
+            }
         }
         val btnPause = view.findViewById<Button>(R.id.btn2).apply {
             text = getString(R.string.dlmgr_active_action_pause_all)
-            // 联动：暂停 active 同时暂停批量队列消费者
-            setOnClickListener { Manager.get().stopAll(); QueueDownloadManager.pause() }
+            // 联动：暂停 active 同时暂停批量队列消费者；同样 tickle
+            setOnClickListener {
+                Manager.get().stopAll()
+                QueueDownloadManager.pause()
+                refreshTickle.trySend(Unit)
+            }
         }
         val btnClear = view.findViewById<Button>(R.id.btn4).apply {
             text = getString(R.string.dlmgr_active_action_clear)
@@ -107,6 +120,7 @@ class ActiveListV3Fragment : Fragment() {
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { queueDao.deleteAll() }
                     }
+                    refreshTickle.trySend(Unit)
                 }
             }
         }
@@ -163,15 +177,26 @@ class ActiveListV3Fragment : Fragment() {
                     btnPause.alpha = if (hasWork) 1f else 0.4f
                     btnClear.isEnabled = hasWork
                     btnClear.alpha = if (hasWork) 1f else 0.4f
-                    delay(REFRESH_INTERVAL_MS)
+                    // 自适应：有 page 真在传 → 1s 跟进度；其它（全空 / 全暂停 /
+                    // 全失败 / 全等待）→ 5s 节能。idle 延迟内若有事件
+                    // （按钮点击 / DOWNLOAD_ING 广播）会通过 refreshTickle 提前
+                    // 唤醒，避免用户感觉"按钮点了等几秒才有反应"。
+                    val hasActiveTransfer = downloadingCount > 0
+                    val nextDelay = if (hasActiveTransfer) BUSY_INTERVAL_MS else IDLE_INTERVAL_MS
+                    try {
+                        withTimeout(nextDelay) { refreshTickle.receive() }
+                    } catch (_: TimeoutCancellationException) {
+                        /* 超时 = 周期性轮询触发下一轮 */
+                    }
                 }
             }
         }
 
-        // 监听 DOWNLOAD_ING 广播来 catch 失败状态变化（规避 polling 误差）
+        // 监听 DOWNLOAD_ING 广播 —— 完成 / 失败事件触发 tickle 立刻刷新，
+        // 不让 idle 节奏的 5s 间隔拖慢 UI 反馈
         val intentFilter = IntentFilter(Params.DOWNLOAD_ING)
         receiver = DownloadReceiver<Any>(
-            { /* 任何变化都让下次 polling 看到 */ },
+            { refreshTickle.trySend(Unit) },
             DownloadReceiver.NOTIFY_FRAGMENT_DOWNLOADING,
         )
         LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiver!!, intentFilter)
@@ -203,7 +228,10 @@ class ActiveListV3Fragment : Fragment() {
     }
 
     companion object {
-        private const val REFRESH_INTERVAL_MS = 1000L
+        /** 有 page 真在传输 → 跟进度的快节奏 */
+        private const val BUSY_INTERVAL_MS = 1000L
+        /** 全空 / 全暂停 / 全失败 → 节能慢节奏，等用户操作或 broadcast 唤醒 */
+        private const val IDLE_INTERVAL_MS = 5000L
         private const val TAG = "ActiveListV3"
     }
 }

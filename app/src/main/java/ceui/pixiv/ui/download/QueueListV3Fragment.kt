@@ -148,7 +148,10 @@ class QueueListV3Fragment : Fragment() {
                     // 让看得见的几条 item 把缩略图/标题加载出来：ObjectPool cache miss 的
                     // illustId 触发后台拉取，下一轮 polling DiffUtil 会自动重 bind 那些行。
                     prefetchVisibleIllusts(rows)
-                    delay(REFRESH_INTERVAL_MS)
+                    // 自适应：队列里有活就 1.5s 跟新增 / 状态变化；空队列拉到 5s
+                    // 节能。consumer 拉新任务进队列时会改 DB，下一次 polling 自然
+                    // 会切回 busy 节奏。
+                    delay(if (hasWork) BUSY_INTERVAL_MS else IDLE_INTERVAL_MS)
                 }
             }
         }
@@ -256,7 +259,10 @@ class QueueListV3Fragment : Fragment() {
          * 几万条也只是前 5000 个可见，后续随消费完成自动滚出来。
          */
         private const val MAX_DISPLAY_ROWS = 5000
-        private const val REFRESH_INTERVAL_MS = 1500L
+        /** 队列有活：跟新增 / 状态翻转的快节奏 */
+        private const val BUSY_INTERVAL_MS = 1500L
+        /** 队列空：节能慢节奏，consumer 入队会让下轮自然切回 busy */
+        private const val IDLE_INTERVAL_MS = 5000L
         /** 每轮 polling 最多触发的 illust 详情 prefetch 数量 */
         private const val PREFETCH_MAX_VISIBLE = 30
         /** prefetch 并发上限 —— 太多会把 pixiv API 打急 */

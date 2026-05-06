@@ -131,7 +131,9 @@ class DoneListV3Fragment : Fragment() {
                 reload()
                 empty.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.GONE
                 while (true) {
-                    // 谁先：tickle / 1500ms 超时；CONFLATED channel 把多次广播合并成一次唤醒
+                    // 谁先：tickle / 5s 超时（兜底）；CONFLATED channel 把多次广播合并成一次唤醒。
+                    // 已完成 tab 几乎全靠 DOWNLOAD_FINISH 广播即时唤醒，超时只是
+                    // fallback 防遗漏；从 1.5s 拉到 5s 节能且不影响实际响应。
                     try {
                         kotlinx.coroutines.withTimeout(REFRESH_INTERVAL_MS) {
                             refreshTickle.receive()
