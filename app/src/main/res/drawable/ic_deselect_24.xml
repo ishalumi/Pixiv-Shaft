@@ -1,22 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Material Icons "check_box" — 实心方框带白勾 (☑)。
-  作为"取消全选"按钮：表达"已全部勾选 · 点击 → 去勾"，跟 ☐ → ☑ 形成
-  一对自然的对偶（master-checkbox 模式）。
-  原 disabled_by_default（实心方框带 X）视觉太像"禁止"标志，被用户指出"丑"。
+  Material Icons "check_box" — 实心方框带白勾 (☑)，"取消全选"按钮 icon。
+  跟"全选"那个 ic_select_all_24 (☐) 形成 master-checkbox 模式自然对偶。
+
+  tint 用 ?attr/colorPrimary 让 icon 跟随用户选的主题切色（这 app 有 10
+  多种主题），跟 cell 选中态 badge / border 用同一个属性，视觉串起来。
+  fillColor 留 white 当 tint 的"画布"——用 white+tint 的标准模式而不是
+  fillColor 直接写 ?attr —— 后者在某些 vectordrawable-compat 版本上会
+  fallback 成黑色。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!--
-      用 v3_blue（@color 自动跟随 light / dark 主题切换）。跟 cell 选中态
-      checkBadge 背景同色，让 toolbar 的"已全选"状态视觉跟列表里"已勾"
-      的 badge 一致 —— 同色 = 同语义。fillColor 直接指定避免 toolbar
-      auto-tint 把它压回灰色。
-    -->
+    android:viewportHeight="24"
+    android:tint="?attr/colorPrimary">
     <path
-        android:fillColor="@color/v3_blue"
+        android:fillColor="@android:color/white"
         android:pathData="M19,3H5c-1.11,0 -2,0.9 -2,2v14c0,1.1 0.89,2 2,2h14c1.11,0 2,-0.9 2,-2V5C21,3.9 20.11,3 19,3zM10,17l-5,-5 1.41,-1.41L10,14.17l7.59,-7.59L19,8L10,17z" />
 </vector>

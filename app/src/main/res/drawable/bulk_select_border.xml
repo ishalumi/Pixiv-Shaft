@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  批量选择 cell 选中态边框：3dp v3_blue 描边，14dp 圆角（贴 cell_bulk_select_v3 的 cardCornerRadius）。
-  作为 FrameLayout 子 View 覆盖整张 cell，不挡内容。
+  批量选择 cell 选中态边框：3dp ?attr/colorPrimary 描边，14dp 圆角
+  （贴 cell_bulk_select_v3 的 cardCornerRadius）。作为 FrameLayout 子 View
+  覆盖整张 cell，不挡内容。
+
+  用 colorPrimary 跟随用户选的主题切色（这 app 有 10 多种主题）。
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="@android:color/transparent" />
     <stroke
         android:width="3dp"
-        android:color="@color/v3_blue" />
+        android:color="?attr/colorPrimary" />
     <corners android:radius="14dp" />
 </shape>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 选中态勾标背景：实心 v3_blue 圆形（白色 ic_done 在上面叠加） -->
+<!-- 选中态勾标背景：实心 ?attr/colorPrimary 圆形（白色 ic_check_24 在上面叠加）。
+     用 colorPrimary 跟随用户选的主题切色（这 app 有 10 多种主题）。-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="@color/v3_blue" />
+    <solid android:color="?attr/colorPrimary" />
 </shape>
