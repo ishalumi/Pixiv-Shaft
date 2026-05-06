@@ -62,6 +62,18 @@ object QueueDownloadManager {
     private val _pausedFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
     val pausedFlow: kotlinx.coroutines.flow.StateFlow<Boolean> get() = _pausedFlow
 
+    /**
+     * 当前正在处理的 illust（[illustId] + 总页数）。consumer 一次只处理一个，
+     * 所以这是单值 StateFlow。null = 闲置（没有 illust 在跑）。
+     *
+     * 给 UI 算"页级进度"用：done = totalPages - (Manager.content 里这个
+     * illust 还剩的 page 数)。illust 间隙（一个完了下一个还没启动）会短暂
+     * 是 null，避免 UI 误读上一个 illust 残留的进度。
+     */
+    data class CurrentJob(val illustId: Long, val totalPages: Int)
+    private val _currentJobFlow = kotlinx.coroutines.flow.MutableStateFlow<CurrentJob?>(null)
+    val currentJobFlow: kotlinx.coroutines.flow.StateFlow<CurrentJob?> get() = _currentJobFlow
+
     // —— 调度参数 ——
     private const val MAX_RETRY = 3
     private const val POLL_INTERVAL_MS = 600L
@@ -244,8 +256,13 @@ object QueueDownloadManager {
             Timber.tag(TAG).i(
                 "retry path illust=${item.illustId}: ${existing.size}/$pageCount page(s) still in Manager.content, skipping addTask"
             )
-            startAllWithRetry()
-            awaitIllustSettled(item.illustId, expectedPageCount = pageCount)
+            _currentJobFlow.value = CurrentJob(item.illustId, pageCount)
+            try {
+                startAllWithRetry()
+                awaitIllustSettled(item.illustId, expectedPageCount = pageCount)
+            } finally {
+                _currentJobFlow.value = null
+            }
             return
         }
 
@@ -258,12 +275,21 @@ object QueueDownloadManager {
             di.showUrl = IllustDownload.getShowUrl(bean, i)
             Manager.get().addTask(di)
         }
-        // 显式驱动 Manager.loop()（不依赖 startTaskWhenCreate 配置）。
-        // Manager.startAll 内部 for-each content 不在 synchronized 里，跟主线程的
-        // content.remove(...)（RxJava onSuccess）有 CME 风险 —— 重试 3 次缓解。
-        startAllWithRetry()
-
-        awaitIllustSettled(item.illustId, expectedPageCount = pageCount)
+        // currentJob 在 addTask 全部完成后才 publish，避免 UI 看到 "0/87" 瞬态
+        // （addTask 还没填完 content 时进度算成"还没开始"是对的，但用户看到的是
+        // 跳变；先 hold 住、等 content 一次性灌满再发布，进度从 0/87 平滑往上走）。
+        _currentJobFlow.value = CurrentJob(item.illustId, pageCount)
+        try {
+            // 显式驱动 Manager.loop()（不依赖 startTaskWhenCreate 配置）。
+            // Manager.startAll 内部 for-each content 不在 synchronized 里，跟主线程的
+            // content.remove(...)（RxJava onSuccess）有 CME 风险 —— 重试 3 次缓解。
+            startAllWithRetry()
+            awaitIllustSettled(item.illustId, expectedPageCount = pageCount)
+        } finally {
+            // 不管正常 return 还是 throw（retry / 真失败），都把 currentJob 清掉，
+            // 让 UI 不会显示上一个 illust 的残留进度
+            _currentJobFlow.value = null
+        }
     }
 
     private suspend fun startAllWithRetry() {

@@ -53,11 +53,23 @@ class DownloadManagerV3Fragment : Fragment() {
             tab.text = baseLabel(pos)
         }.attach()
 
-        // 实时刷新 tab 文案末尾的数字
+        // 实时刷新 tab 文案末尾的数字 + 批量队列 tab 加当前 illust 页级进度
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 sharedVm.snapshots().collect { s ->
-                    setTabCount(0, s.queuePending + s.queueDownloading)
+                    val queueTotal = s.queuePending + s.queueDownloading
+                    // 没在跑当前 illust（闲置 / illust 间隙）→ 不带页级进度，只显示
+                    // illust 数；正在跑某 illust → "100 · 30/87" 让用户每张图下完都看到
+                    // 数字动一下，避免大 illust 下载时长达分钟级"看似不动"的体感。
+                    val progress = s.currentIllustProgress
+                    val tab0 = if (queueTotal > 0 && progress != null) {
+                        "${baseLabel(0)}  $queueTotal · ${progress.done}/${progress.total}"
+                    } else if (queueTotal > 0) {
+                        "${baseLabel(0)}  $queueTotal"
+                    } else {
+                        baseLabel(0)
+                    }
+                    tabs?.getTabAt(0)?.text = tab0
                     setTabCount(1, s.activeCount)
                     setTabCount(2, s.queueSuccess)
                 }
