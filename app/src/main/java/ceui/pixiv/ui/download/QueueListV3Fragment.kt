@@ -83,10 +83,9 @@ class QueueListV3Fragment : Fragment() {
         view.findViewById<TextView>(R.id.emptyTitle).text = getString(R.string.dlmgr_queue_empty_title)
         view.findViewById<TextView>(R.id.emptyHint).text = getString(R.string.dlmgr_queue_empty_hint)
 
-        // 按钮文案根据 manager 真实状态初始化（cold-start 暂停时直接显示"继续"）
-        val btnPause = view.findViewById<Button>(R.id.btn1).apply {
-            text = getString(if (QueueDownloadManager.isPaused()) R.string.dlmgr_queue_action_resume else R.string.dlmgr_queue_action_pause)
-        }
+        // 文案不在这里初始化 —— pausedFlow StateFlow 一 collect 立刻 replay 当前
+        // 值，下面的 combine collector 微秒级别就把 text 设上。
+        val btnPause = view.findViewById<Button>(R.id.btn1)
         val btnRetry = view.findViewById<Button>(R.id.btn2).apply { text = getString(R.string.dlmgr_queue_action_retry_failed) }
         // btn3（原"清成功记录"）已废弃 —— SUCCESS 行会自动从队列消失走到"已完成" tab，
         // 这个按钮没有实际意义。
@@ -94,16 +93,15 @@ class QueueListV3Fragment : Fragment() {
         val btnClearAll = view.findViewById<Button>(R.id.btn4).apply { text = getString(R.string.dlmgr_queue_action_clear_all) }
 
         btnPause.setOnClickListener {
+            // pausedFlow 翻转后 combine collector 自动设 text，不在这里手动重复设。
             if (QueueDownloadManager.isPaused()) {
                 // 联动：批量队列恢复时，正在下载 tab 的 Manager 也跟着恢复
                 QueueDownloadManager.resume()
                 Manager.get().startAll()
-                btnPause.text = getString(R.string.dlmgr_queue_action_pause)
             } else {
                 // 联动：批量队列暂停时，连同 Manager 当前正在下的也暂停
                 QueueDownloadManager.pause()
                 Manager.get().stopAll()
-                btnPause.text = getString(R.string.dlmgr_queue_action_resume)
             }
         }
         btnRetry.setOnClickListener {
@@ -157,13 +155,16 @@ class QueueListV3Fragment : Fragment() {
     }
 
     /**
-     * 看得见的几条 item ObjectPool cache miss → 后台拉一发 illust 详情塞回 ObjectPool。
-     * 下一轮 1.5s polling DiffUtil 会因为我们没改 [DownloadQueueEntity]、不会触发 rebind，
-     * 但 [QueueAdapterV3.onBindViewHolder] 内部读 [ObjectPool.getIllust] 此刻已命中，
-     * 因此当 RecyclerView 自然 rebind（滚动 / 状态变化）时缩略图就出来了。
+     * ObjectPool cache miss 的 illustId → 后台拉一发详情塞回 ObjectPool。
+     * 拿到后调 [QueueAdapterV3.notifyIllustChanged] 让对应 row 重 bind 显示
+     * 缩略图 / 标题 —— DiffUtil 默认不会 rebind（[DownloadQueueEntity] 内容
+     * 未变），所以必须显式 notify。
      *
-     * 上限：[PREFETCH_MAX_VISIBLE] 条 / 每轮 polling，并发 [PREFETCH_MAX_CONCURRENCY]。
-     * 失败的 ID 会从 [prefetchedIds] 移除让下次再试。
+     * 一次最多 [PREFETCH_MAX_VISIBLE] 条入队，并发 [PREFETCH_MAX_CONCURRENCY]
+     * 受 [prefetchSem] 节流。失败的 ID 会从 [prefetchedIds] 移除让下次再试。
+     * 调用方是 dao.flowActive.collectLatest —— 行表变化时被调，但已 launch
+     * 的 prefetch 不会跟着 collectLatest 取消（独立 lifecycleScope coroutine），
+     * 这是有意：rows 变了不该掐掉已在飞的网络请求，去重靠 [prefetchedIds] set。
      */
     private fun prefetchVisibleIllusts(rows: List<DownloadQueueEntity>) {
         val missing = rows.asSequence()
