@@ -20,3 +20,11 @@ fun Fragment.requireEntityWrapper(): EntityWrapper {
 fun FragmentActivity.requireEntityWrapper(): EntityWrapper {
     return (application as ServicesProvider).entityWrapper
 }
+
+fun Fragment.requireNetworkStateManager(): NetworkStateManager {
+    return requireActivity().requireNetworkStateManager()
+}
+
+fun FragmentActivity.requireNetworkStateManager(): NetworkStateManager {
+    return (application as ServicesProvider).networkStateManager
+}

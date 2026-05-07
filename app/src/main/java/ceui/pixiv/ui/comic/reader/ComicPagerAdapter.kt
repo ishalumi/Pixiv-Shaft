@@ -35,6 +35,7 @@ class ComicPagerAdapter(
     private val contentScaleProvider: () -> ContentScaleCompat,
     private val onSingleTap: (TapZone) -> Unit,
     private val onLongPressPage: ((Int) -> Unit)? = null,
+    private val onPageStatusChanged: ((Int, TaskStatus) -> Unit)? = null,
 ) : ListAdapter<ComicReaderV3ViewModel.ComicPage, ComicPagerAdapter.PageHolder>(DIFF) {
 
     enum class TapZone { Left, Center, Right }
@@ -46,7 +47,7 @@ class ComicPagerAdapter(
         binding.image.layoutParams = binding.image.layoutParams.apply {
             height = if (fillHeight) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT
         }
-        return PageHolder(lifecycleOwner, binding, urlResolver, contentScaleProvider, onSingleTap, onLongPressPage)
+        return PageHolder(lifecycleOwner, binding, urlResolver, contentScaleProvider, onSingleTap, onLongPressPage, onPageStatusChanged)
     }
 
     override fun onBindViewHolder(holder: PageHolder, position: Int) {
@@ -64,6 +65,7 @@ class ComicPagerAdapter(
         private val contentScaleProvider: () -> ContentScaleCompat,
         private val onSingleTap: (TapZone) -> Unit,
         private val onLongPressPage: ((Int) -> Unit)?,
+        private val onPageStatusChanged: ((Int, TaskStatus) -> Unit)?,
     ) : RecyclerView.ViewHolder(binding.root) {
 
         private var currentTask: LoadTask? = null
@@ -131,6 +133,7 @@ class ComicPagerAdapter(
                     }
                     else -> Unit
                 }
+                onPageStatusChanged?.invoke(page.index, status)
             }
             resultObserver = rObs
             statusObserver = sObs

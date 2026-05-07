@@ -41,10 +41,18 @@ import ceui.pixiv.ui.task.TaskStatus;
 
 public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDetailBinding>> {
 
+    /** Reports per-page LoadTask status changes to the host (used by V3's retry-all banner). */
+    public interface PageStatusListener {
+        void onStatusChanged(int position, @NonNull TaskStatus status);
+    }
+
     private final int maxHeight;
     private final FragmentActivity mActivity;
     private final Fragment mFragment;
     private static final boolean longPressDownload = Shaft.sSettings.isIllustLongPressDownload();
+
+    @Nullable
+    private PageStatusListener pageStatusListener;
 
     public IllustAdapter(FragmentActivity activity, Fragment fragment, IllustsBean illustsBean, int maxHeight, boolean isForceOriginal) {
         Common.showLog("IllustAdapter maxHeight " + maxHeight);
@@ -55,6 +63,10 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         imageSize = mContext.getResources().getDisplayMetrics().widthPixels;
         this.isForceOriginal = isForceOriginal;
         this.mFragment = fragment;
+    }
+
+    public void setPageStatusListener(@Nullable PageStatusListener listener) {
+        this.pageStatusListener = listener;
     }
 
     @NonNull
@@ -165,10 +177,14 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         // tag before mutating UI so stale callbacks become no-ops.
         holder.baseBind.illust.setTag(R.id.tag_image_url, imageUrl);
 
+        // Reset stale Error-state UI before the new task can fire its first status. Recycled
+        // holders and retry-all rebinds both hit this path; without the reset the "重新加载"
+        // button stays visible until the new download finishes.
+        holder.baseBind.reload.setVisibility(View.GONE);
+        holder.baseBind.progressLayout.donutProgress.setVisibility(View.VISIBLE);
+        holder.baseBind.progressLayout.donutProgress.setProgress(0);
+
         holder.baseBind.reload.setOnClickListener(v -> {
-            holder.baseBind.reload.setVisibility(View.GONE);
-            holder.baseBind.progressLayout.donutProgress.setVisibility(View.VISIBLE);
-            holder.baseBind.progressLayout.donutProgress.setProgress(0);
             TaskPool.INSTANCE.removeTask(imageUrl);
             loadIllust(holder, position, changeSize);
         });
@@ -197,6 +213,9 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                 holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
                 holder.baseBind.reload.setVisibility(View.VISIBLE);
                 Timber.w("[IllustAdapter] showing reload button. pos=%d, url=%s", position, shortUrl);
+            }
+            if (pageStatusListener != null) {
+                pageStatusListener.onStatusChanged(position, status);
             }
         });
 

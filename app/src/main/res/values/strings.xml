@@ -1486,6 +1486,8 @@
     <string name="comic_reader_open_label">进入阅读</string>
     <string name="comic_reader_load_failed">加载失败：%1$s</string>
     <string name="comic_reader_no_pages">该作品没有可阅读的页面</string>
+    <string name="image_load_status_summary">已加载 %1$d/%2$d · 失败 %3$d</string>
+    <string name="image_load_status_retry_all">重试全部</string>
     <string name="comic_reader_bookmarks_title">书签</string>
     <string name="comic_reader_bookmarks_add_here">在当前页添加</string>
     <string name="comic_reader_bookmarks_empty">还没有书签，长按或菜单可在当前页添加</string>

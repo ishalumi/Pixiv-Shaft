@@ -19,7 +19,9 @@ class NetworkStateManager(context: Context) : INetworkState {
     enum class NetworkType {
         WIFI,
         CELLULAR,
-        NONE
+        NONE;
+
+        val isOnline: Boolean get() = this == WIFI || this == CELLULAR
     }
 
     private val _networkState = MutableLiveData(NetworkType.NONE)

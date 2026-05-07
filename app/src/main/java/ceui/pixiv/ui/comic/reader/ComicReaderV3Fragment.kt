@@ -23,9 +23,12 @@ import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.ShareIllust
 import ceui.loxia.ObjectPool
+import ceui.loxia.requireNetworkStateManager
 import ceui.lisa.models.IllustsBean
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.detail.showV3Menu
+import ceui.pixiv.ui.task.PageLoadRetryController
+import ceui.pixiv.ui.task.renderImageLoadStatusBanner
 import com.github.panpf.zoomimage.zoom.ContentScaleCompat
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -54,6 +57,8 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
     private lateinit var webtoonViewport: WebtoonViewport
     private lateinit var current: ComicViewport
 
+    private lateinit var retryController: PageLoadRetryController
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -61,6 +66,29 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
         windowController = ComicWindowController(requireActivity().window, binding.comicRoot, binding.comicWarmOverlay)
         windowController.apply()
         chrome.applySystemBars()
+
+        retryController = PageLoadRetryController(
+            lifecycleOwner = viewLifecycleOwner,
+            networkStateManager = requireNetworkStateManager(),
+            urlAtIndex = { idx ->
+                (viewModel.loadState.value as? ComicReaderV3ViewModel.LoadState.Loaded)
+                    ?.pages?.getOrNull(idx)?.let { viewModel.urlForPage(it) }
+            },
+            totalPages = {
+                (viewModel.loadState.value as? ComicReaderV3ViewModel.LoadState.Loaded)?.pages?.size ?: 0
+            },
+            onSummaryChanged = { loaded, total, failed ->
+                renderImageLoadStatusBanner(
+                    binding.comicTopBar.pageStatusRow,
+                    binding.comicTopBar.pageStatusText,
+                    loaded, total, failed,
+                )
+            },
+            onRetryAt = { idx ->
+                binding.comicPager.adapter?.notifyItemChanged(idx)
+                binding.comicWebtoon.adapter?.notifyItemChanged(idx)
+            },
+        )
 
         wireSystemInsets()
         wireTopBar()
@@ -146,6 +174,7 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
         },
         onSingleTap = ::handleSingleTap,
         onLongPressPage = ::showLongPressMenu,
+        onPageStatusChanged = { idx, status -> retryController.reportStatus(idx, status) },
     )
 
     // ---- Wiring -------------------------------------------------------------
@@ -154,6 +183,7 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
         binding.comicTopBar.comicBack.setOnClickListener { activity?.finish() }
         binding.comicTopBar.comicShare.setOnClickListener { shareCurrentIllust() }
         binding.comicTopBar.comicMore.setOnClickListener { showOverflowMenu() }
+        binding.comicTopBar.pageStatusRetry.setOnClickListener { retryController.retryAllFailed() }
     }
 
     private fun wireBottomBar() {
@@ -253,6 +283,7 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
             pagesProvider.currentIndex = viewModel.currentPage.value ?: 0
             pagesProvider.title = state.illust.title.orEmpty()
             applyReadingMode(state.pages, viewModel.currentPage.value ?: 0)
+            retryController.refresh()
         }
     }
 

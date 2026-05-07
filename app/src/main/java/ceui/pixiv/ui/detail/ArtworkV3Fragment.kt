@@ -32,11 +32,14 @@ import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.ShareIllust
 import ceui.loxia.ObjectPool
+import ceui.loxia.requireNetworkStateManager
 import ceui.loxia.threadSafeArgs
 import android.content.res.ColorStateList
 import android.graphics.Color
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
+import ceui.pixiv.ui.task.PageLoadRetryController
+import ceui.pixiv.ui.task.renderImageLoadStatusBanner
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import kotlinx.coroutines.Dispatchers
@@ -64,12 +67,37 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
     private val relatedList = mutableListOf<IllustsBean>()
     private var pendingHeaderItems: List<ArtworkDetailItem>? = null
 
+    private lateinit var retryController: PageLoadRetryController
+
     override fun initLayout() {
         mLayoutID = R.layout.fragment_artwork_v3
     }
 
     override fun initView() {
         val illustId = safeArgs.illustId.toLong()
+
+        retryController = PageLoadRetryController(
+            lifecycleOwner = viewLifecycleOwner,
+            networkStateManager = requireNetworkStateManager(),
+            urlAtIndex = { idx ->
+                val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@PageLoadRetryController null
+                if (idx < 0 || idx >= illust.page_count) return@PageLoadRetryController null
+                val resolution = if (Shaft.sSettings.isShowOriginalPreviewImage)
+                    Params.IMAGE_RESOLUTION_ORIGINAL
+                else
+                    Params.IMAGE_RESOLUTION_LARGE
+                IllustDownload.getUrl(illust, idx, resolution)
+            },
+            totalPages = { ObjectPool.get<IllustsBean>(illustId).value?.page_count ?: 0 },
+            onSummaryChanged = { loaded, total, failed ->
+                renderImageLoadStatusBanner(
+                    baseBind.pageStatusRow, baseBind.pageStatusText,
+                    loaded, total, failed,
+                )
+            },
+            onRetryAt = { idx -> illustAdapter?.notifyItemChanged(idx) },
+        )
+        baseBind.pageStatusRetry.setOnClickListener { retryController.retryAllFailed() }
 
         headerAdapter = ArtworkDetailAdapter(this)
         headerAdapter.onCommentsVisible = { viewModel.loadComments() }
@@ -227,6 +255,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                     }
                 }
                 illustAdapter = adapter
+                adapter.setPageStatusListener { position, status ->
+                    retryController.reportStatus(position, status)
+                }
+                retryController.refresh()
                 val adapterCount = adapter.itemCount
                 Timber.tag("V3MultiP").d(
                     "[Fragment.addAdapter] inserting at index 0, " +
