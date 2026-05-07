@@ -34,6 +34,24 @@ interface NovelAnnotationDao {
     @Query("SELECT * FROM novel_annotation_table WHERE novelId = :novelId AND charStart < :charEnd AND charEnd > :charStart")
     suspend fun findOverlapping(novelId: Long, charStart: Int, charEnd: Int): List<NovelAnnotationEntity>
 
+    /**
+     * Exact-range lookup, scoped by [kind] — used by `addHighlight` to fold
+     * a re-pick of color into an UPDATE on the existing row instead of a
+     * second INSERT. Returns at most one row in normal use; if older builds
+     * left duplicates, the newest (highest annotationId) wins.
+     */
+    @Query(
+        "SELECT * FROM novel_annotation_table " +
+            "WHERE novelId = :novelId AND charStart = :charStart AND charEnd = :charEnd AND kind = :kind " +
+            "ORDER BY annotationId DESC LIMIT 1",
+    )
+    suspend fun findExactRange(
+        novelId: Long,
+        charStart: Int,
+        charEnd: Int,
+        kind: Int,
+    ): NovelAnnotationEntity?
+
     @Query("SELECT * FROM novel_annotation_table ORDER BY updatedTime DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<NovelAnnotationEntity>
 

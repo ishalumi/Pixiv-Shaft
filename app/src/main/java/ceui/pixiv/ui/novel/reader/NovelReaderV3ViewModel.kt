@@ -183,17 +183,36 @@ class NovelReaderV3ViewModel(
 
     fun addHighlight(charStart: Int, charEnd: Int, excerpt: String, colorArgb: Int) {
         viewModelScope.launch {
-            annotationDao.insert(
-                NovelAnnotationEntity(
-                    novelId = novelId,
-                    charStart = charStart,
-                    charEnd = charEnd,
-                    excerpt = excerpt.take(500),
-                    note = "",
-                    color = colorArgb,
-                    kind = NovelAnnotationEntity.KIND_HIGHLIGHT,
-                ),
+            // Upsert by exact range: re-picking a color on the same selection
+            // updates the existing row instead of stacking a new one. Scoped
+            // to KIND_HIGHLIGHT so a Note that happens to share the range is
+            // left untouched.
+            val existing = annotationDao.findExactRange(
+                novelId = novelId,
+                charStart = charStart,
+                charEnd = charEnd,
+                kind = NovelAnnotationEntity.KIND_HIGHLIGHT,
             )
+            if (existing != null) {
+                annotationDao.update(
+                    existing.copy(
+                        color = colorArgb,
+                        updatedTime = System.currentTimeMillis(),
+                    ),
+                )
+            } else {
+                annotationDao.insert(
+                    NovelAnnotationEntity(
+                        novelId = novelId,
+                        charStart = charStart,
+                        charEnd = charEnd,
+                        excerpt = excerpt.take(500),
+                        note = "",
+                        color = colorArgb,
+                        kind = NovelAnnotationEntity.KIND_HIGHLIGHT,
+                    ),
+                )
+            }
         }
     }
 
