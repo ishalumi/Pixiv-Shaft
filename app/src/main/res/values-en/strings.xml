@@ -1224,4 +1224,5 @@
     <string name="moon_sync_already_latest">Already up to date (v%1$d)</string>
     <string name="moon_sync_no_remote">No cloud settings for this account</string>
     <string name="moon_sync_fetch_error">Sync failed: %1$s</string>
+    <string name="moon_rate_limited">Too many requests, retry in %1$d seconds</string>
 </resources>

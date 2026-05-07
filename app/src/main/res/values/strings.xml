@@ -1637,4 +1637,5 @@
     <string name="moon_sync_already_latest">已是最新版本 (v%1$d)</string>
     <string name="moon_sync_no_remote">云端尚无此账号的配置</string>
     <string name="moon_sync_fetch_error">同步失败: %1$s</string>
+    <string name="moon_rate_limited">操作太频繁,请 %1$d 秒后再试</string>
 </resources>

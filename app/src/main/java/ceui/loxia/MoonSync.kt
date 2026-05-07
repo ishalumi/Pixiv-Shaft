@@ -34,6 +34,10 @@ object MoonSync {
 
     private const val TAG = "MoonSync"
 
+    /** 服务端返回 429 时,从 Retry-After 头提取秒数,默认 60。 */
+    private fun retryAfterSeconds(e: HttpException): Int =
+        e.response()?.headers()?.get("Retry-After")?.toIntOrNull() ?: 60
+
     /** 本设备已应用的云端版本(按 uid 区分,支持多账号切换)。 */
     private fun localAppliedVersion(uid: Long): Int =
         Shaft.sSettings.moonAppliedVersions[uid.toString()] ?: 0
@@ -201,7 +205,12 @@ object MoonSync {
             } catch (e: HttpException) {
                 val errBody = try { e.response()?.errorBody()?.string() } catch (_: Throwable) { null }
                 Timber.tag(TAG).e(e, "[upload] HTTP %d body=%s", e.code(), errBody ?: "<none>")
-                Common.showToast(activity.getString(R.string.moon_upload_failed_http, e.code()))
+                val msg = if (e.code() == 429) {
+                    activity.getString(R.string.moon_rate_limited, retryAfterSeconds(e))
+                } else {
+                    activity.getString(R.string.moon_upload_failed_http, e.code())
+                }
+                Common.showToast(msg)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "[upload] failed")
                 val reason = e.message ?: e.javaClass.simpleName
@@ -225,14 +234,23 @@ object MoonSync {
             val cloud = try {
                 Client.moonAPI.getSettings(uid)
             } catch (e: HttpException) {
-                if (e.code() == 404) {
-                    Timber.tag(TAG).i("[manual] cloud 404")
-                    Common.showToast(activity.getString(R.string.moon_sync_no_remote))
-                } else {
-                    Timber.tag(TAG).w(e, "[manual] HTTP %d", e.code())
-                    Common.showToast(
-                        activity.getString(R.string.moon_upload_failed_http, e.code())
-                    )
+                when (e.code()) {
+                    404 -> {
+                        Timber.tag(TAG).i("[manual] cloud 404")
+                        Common.showToast(activity.getString(R.string.moon_sync_no_remote))
+                    }
+                    429 -> {
+                        Timber.tag(TAG).w(e, "[manual] HTTP 429 rate limited")
+                        Common.showToast(
+                            activity.getString(R.string.moon_rate_limited, retryAfterSeconds(e))
+                        )
+                    }
+                    else -> {
+                        Timber.tag(TAG).w(e, "[manual] HTTP %d", e.code())
+                        Common.showToast(
+                            activity.getString(R.string.moon_upload_failed_http, e.code())
+                        )
+                    }
                 }
                 return@launch
             } catch (e: Exception) {
