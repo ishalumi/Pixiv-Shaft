@@ -60,14 +60,15 @@ public final class RubySSLSocketFactory extends SSLSocketFactory {
         if (socket == null) throw new NullPointerException("socket is null");
         String ip = socket.getInetAddress().getHostAddress();
         long start = System.nanoTime();
-        Log.d("RubySSL", "──→ No-SNI TLS handshake to " + ip + ":" + port);
+        Log.d("RubySSL", "──→ No-SNI TLS wrap " + ip + ":" + port);
         // 传 null hostname → Java TLS 不在 ClientHello 中包含 SNI 扩展
         SSLSocket sslSocket = (SSLSocket) delegate.createSocket(socket, null, port, autoClose);
         sslSocket.setEnabledProtocols(sslSocket.getSupportedProtocols());
         long elapsed = (System.nanoTime() - start) / 1_000_000;
-        Log.d("RubySSL", "←── TLS handshake done " + ip + ":" + port
-                + " [" + elapsed + "ms] protocol=" + sslSocket.getSession().getProtocol()
-                + " cipher=" + sslSocket.getSession().getCipherSuite());
+        // 不要在这里读 getSession()/getCipherSuite():
+        // 1) 此时握手尚未发生(okhttp 之后才 startHandshake),会强制提前握手
+        // 2) 若底层 SSL 已被关闭/握手失败,conscrypt 的 ssl 指针为 null,getCipherSuite() 会 NPE 把整个 OkHttp 线程炸掉
+        Log.d("RubySSL", "←── TLS socket ready " + ip + ":" + port + " [" + elapsed + "ms]");
         return sslSocket;
     }
 
