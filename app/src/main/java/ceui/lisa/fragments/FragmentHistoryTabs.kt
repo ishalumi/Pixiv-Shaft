@@ -19,9 +19,6 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.placeHolder.visibility = View.VISIBLE
-        binding.placeHolder.layoutParams.height = ceui.lisa.activities.Shaft.statusHeight
-        binding.placeHolder.requestLayout()
         binding.toolbar.title = " "
         binding.toolbarTitle.text = getString(R.string.view_history)
         binding.toolbar.setNavigationOnClickListener { activity?.finish() }

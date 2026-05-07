@@ -6,6 +6,13 @@
 
     </data>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="?attr/colorPrimary"
+        android:fitsSystemWindows="true">
+
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:id="@+id/top_parent"
@@ -27,7 +34,6 @@
                 app:contentInsetStartWithNavigation="0dp"
                 android:background="?attr/colorPrimary"
                 android:elevation="0dp"
-                android:fitsSystemWindows="true"
                 android:theme="@style/AppTheme.AppBarOverlay"
                 app:popupTheme="@style/AppTheme.PopupOverlay"
                 app:title=" "
@@ -112,4 +118,6 @@
             android:visibility="gone" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+    </LinearLayout>
 </layout>

@@ -16,7 +16,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.databinding.DataBindingUtil;
 import androidx.databinding.ViewDataBinding;
@@ -57,25 +56,18 @@ public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCo
                 }
             }
 
-            int primaryColor = Common.resolveThemeAttribute(mContext, androidx.appcompat.R.attr.colorPrimary);
-            if (isHarmonyOS()) {
-                // HarmonyOS 对 EdgeToEdge API 兼容性不佳，回退到直接设置状态栏/导航栏颜色
-                if (hideStatusBar()) {
-                    getWindow().setStatusBarColor(Color.TRANSPARENT);
-                    getWindow().setNavigationBarColor(Color.TRANSPARENT);
-                } else {
-                    getWindow().setStatusBarColor(primaryColor);
-                    getWindow().setNavigationBarColor(Color.TRANSPARENT);
-                }
-            } else if (hideStatusBar()) {
+            // 系统栏统一走 EdgeToEdge：非全屏 Activity 给 SystemBarStyle.auto(primary)
+            // 让顶部 AppBar/Toolbar 的 fitsSystemWindows + colorPrimary 背景吃掉状态栏区域；
+            // 全屏 Activity 走默认透明 scrim，由页面自己用 WindowInsets 处理。
+            // 不再调 setDecorFitsSystemWindows(true) —— 它和 EdgeToEdge 互斥，
+            // 在部分 OEM (HarmonyOS / EMUI) 上会让状态栏退回主题透明色而下方填 windowBackground (issue #853)。
+            if (hideStatusBar()) {
                 EdgeToEdge.enable(this);
             } else {
+                int primaryColor = Common.resolveThemeAttribute(mContext, androidx.appcompat.R.attr.colorPrimary);
                 EdgeToEdge.enable(this,
                         SystemBarStyle.auto(primaryColor, primaryColor),
                         SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT));
-                // 非透明状态栏的 Activity 不需要 edge-to-edge，
-                // 让系统处理 insets，避免 fitsSystemWindows 产生多余 padding
-                WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
             }
             try {
                 baseBind = DataBindingUtil.setContentView(mActivity, mLayoutID);
@@ -171,21 +163,6 @@ public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCo
 
     public void setFeedBack(FeedBack feedBack) {
         mFeedBack = feedBack;
-    }
-
-    private static Boolean sIsHarmonyOS;
-
-    private static boolean isHarmonyOS() {
-        if (sIsHarmonyOS == null) {
-            try {
-                Class<?> cls = Class.forName("com.huawei.system.BuildEx");
-                String osBrand = (String) cls.getMethod("getOsBrand").invoke(null);
-                sIsHarmonyOS = "Harmony".equalsIgnoreCase(osBrand) || "HarmonyOS".equalsIgnoreCase(osBrand);
-            } catch (Exception e) {
-                sIsHarmonyOS = false;
-            }
-        }
-        return sIsHarmonyOS;
     }
 
     private void updateTheme() {

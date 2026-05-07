@@ -1,10 +1,7 @@
 package ceui.lisa.activities
 
-import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import androidx.activity.ComponentActivity
-import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.Fragment
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
@@ -63,11 +60,6 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
     private var currentSize: TextView? = null
     private var index = 0
     private val viewModel by viewModels<ToggleToolnarViewModel>()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        (this as? ComponentActivity)?.enableEdgeToEdge()
-    }
 
     override fun initLayout(): Int {
         return R.layout.activity_image_detail
