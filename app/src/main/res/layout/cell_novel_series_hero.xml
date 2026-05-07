@@ -87,4 +87,21 @@
             android:textSize="11sp"
             tools:text="50,000字" />
     </LinearLayout>
+
+    <!-- "阅读最新一话(#N)" — 旧 FragmentNovelSeriesDetail 里很显眼的入口，
+         迁到新页 hero 卡片底部。仅当系列有最新章节时（latestNovelChapterIndex
+         非 null）由 ViewHolder 切换可见。 -->
+    <TextView
+        android:id="@+id/read_latest"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/v3_glass_surface"
+        android:gravity="center"
+        android:textColor="@color/v3_text_1"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:text="阅读最新一话(#12)"
+        tools:visibility="visible" />
 </LinearLayout>

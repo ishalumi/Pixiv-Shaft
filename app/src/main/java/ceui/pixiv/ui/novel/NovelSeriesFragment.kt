@@ -32,6 +32,7 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Client
+import ceui.loxia.ProgressImageButton
 import ceui.pixiv.ui.common.ListMode
 import ceui.pixiv.ui.common.NovelMultiSelectReceiver
 import ceui.pixiv.ui.common.PixivFragment
@@ -48,7 +49,10 @@ import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-class NovelSeriesFragment : PixivFragment(R.layout.fragment_pixiv_list), NovelMultiSelectReceiver {
+class NovelSeriesFragment :
+    PixivFragment(R.layout.fragment_pixiv_list),
+    NovelMultiSelectReceiver,
+    NovelSeriesHeaderActionReceiver {
 
     private val binding by viewBinding(FragmentPixivListBinding::bind)
     private val seriesId: Long by lazy { arguments?.getLong(ARG_SERIES_ID, 0L) ?: 0L }
@@ -394,6 +398,29 @@ class NovelSeriesFragment : PixivFragment(R.layout.fragment_pixiv_list), NovelMu
             }
             startActivity(intent)
         }
+    }
+
+    // ── NovelSeriesHeaderActionReceiver ─────────────────────────────
+    override fun onClickToggleWatchlist(progressView: ProgressImageButton) {
+        progressView.showProgress()
+        viewLifecycleOwner.lifecycleScope.launch {
+            // catch Exception 而不是 Throwable——避免吞掉 CancellationException
+            // 让 fragment 被销毁时协程取消能正常向上传播。
+            try {
+                viewModel.toggleWatchlist()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isAdded) ToastUtils.show(getString(R.string.task_status_error))
+            } finally {
+                if (isAdded) progressView.hideProgress()
+            }
+        }
+    }
+
+    override fun onClickReadLatestEpisode(novelId: Long) {
+        // 跳转逻辑跟列表内点击单话一致——直接复用 onClickNovel。
+        onClickNovel(novelId)
     }
 
     companion object {

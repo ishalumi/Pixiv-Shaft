@@ -29,6 +29,7 @@ import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
 import ceui.loxia.Tag;
+import ceui.pixiv.ui.novel.NovelSeriesFragment;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function2;
 
@@ -65,8 +66,8 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
                     @Override
                     public void onClick(View view) {
                         Intent intent = new Intent(mContext, TemplateActivity.class);
-                        intent.putExtra(Params.ID, allItems.get(position).getSeries().getId());
-                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列详情");
+                        intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, (long) allItems.get(position).getSeries().getId());
+                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列");
                         mContext.startActivity(intent);
                     }
                 });

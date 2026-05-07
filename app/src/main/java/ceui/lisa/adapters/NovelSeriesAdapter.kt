@@ -6,7 +6,7 @@ import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.databinding.RecyNovelSeriesOfUserBinding
 import ceui.lisa.models.NovelSeriesItem
-import ceui.lisa.utils.Params
+import ceui.pixiv.ui.novel.NovelSeriesFragment
 import kotlin.math.floor
 
 class NovelSeriesAdapter(
@@ -37,8 +37,8 @@ class NovelSeriesAdapter(
 
         bindView.itemView.setOnClickListener {
             val intent = Intent(mContext, TemplateActivity::class.java)
-            intent.putExtra(Params.ID, allItems[position].id)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列详情")
+            intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, allItems[position].id.toLong())
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列")
             mContext.startActivity(intent)
         }
     }

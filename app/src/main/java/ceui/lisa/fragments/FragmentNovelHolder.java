@@ -70,6 +70,7 @@ import ceui.loxia.TextDescHolder;
 import ceui.loxia.WebNovel;
 import ceui.pixiv.ui.common.CommonAdapter;
 import ceui.pixiv.ui.common.ListItemHolder;
+import ceui.pixiv.ui.novel.NovelSeriesFragment;
 import gdut.bsx.share2.Share2;
 import gdut.bsx.share2.ShareContentType;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -197,8 +198,8 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
                 @Override
                 public void onClick(View view) {
                     Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(Params.ID, mNovelBean.getSeries().getId());
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列详情");
+                    intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, (long) mNovelBean.getSeries().getId());
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列");
                     startActivity(intent);
                 }
             });

@@ -11,6 +11,7 @@ import ceui.lisa.activities.UActivity
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
+import ceui.pixiv.ui.novel.NovelSeriesFragment
 import com.bumptech.glide.Glide
 
 class WatchlistNovelAdapter(
@@ -44,8 +45,8 @@ class WatchlistNovelAdapter(
             bindView.baseBind.contentCount.text = mContext.getString(R.string.episode_number, target.published_content_count)
             bindView.itemView.setOnClickListener {
                 val intent = Intent(mContext, TemplateActivity::class.java)
-                intent.putExtra(Params.ID, target.id)
-                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列详情")
+                intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, target.id.toLong())
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列")
                 mContext.startActivity(intent)
             }
             bindView.baseBind.readLatest.setOnClickListener {

@@ -50,7 +50,6 @@ import ceui.pixiv.ui.novel.NovelTextFragment;
 import ceui.pixiv.ui.novel.UncategorizedNovelsFragment;
 import ceui.lisa.fragments.FragmentNovelMarkers;
 import ceui.lisa.fragments.FragmentNovelSeries;
-import ceui.lisa.fragments.FragmentNovelSeriesDetail;
 import ceui.lisa.fragments.FragmentPopularNovel;
 import ceui.lisa.fragments.FragmentPv;
 import ceui.lisa.fragments.FragmentRecmdIllust;
@@ -186,8 +185,14 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return FragmentWhoFollowThisUser.newInstance(intent.getIntExtra(Params.USER_ID, 0));
                 case "喜欢这个作品的用户":
                     return FragmentListSimpleUser.newInstance((IllustsBean) intent.getSerializableExtra(Params.CONTENT));
-                case "小说系列详情":
-                    return FragmentNovelSeriesDetail.newInstance(intent.getIntExtra(Params.ID, 0));
+                case "小说系列详情": {
+                    // Legacy 路由——桥接到新页 NovelSeriesFragment。保留 case
+                    // 兼容外部深链或仍在路上的字符串拼接调用；内部入口都已迁到
+                    // "小说系列" + ARG_SERIES_ID(Long)。
+                    long sid = intent.getLongExtra(NovelSeriesFragment.ARG_SERIES_ID,
+                            intent.getIntExtra(Params.ID, 0));
+                    return NovelSeriesFragment.Companion.newInstance(sid);
+                }
                 case "插画作品":
                     return FragmentUserIllust.newInstance(intent.getIntExtra(Params.USER_ID, 0),
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),

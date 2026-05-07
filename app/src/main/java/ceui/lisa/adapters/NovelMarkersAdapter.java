@@ -25,6 +25,7 @@ import ceui.lisa.models.TagsBean;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
+import ceui.pixiv.ui.novel.NovelSeriesFragment;
 
 public class NovelMarkersAdapter extends BaseAdapter<MarkedNovelItem, RecyNovelMarkersBinding> {
     public NovelMarkersAdapter(List<MarkedNovelItem> targetList, Context context) {
@@ -44,8 +45,8 @@ public class NovelMarkersAdapter extends BaseAdapter<MarkedNovelItem, RecyNovelM
                     target.getNovel().getSeries().getTitle()));
             bindView.baseBind.series.setOnClickListener(v -> {
                     Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(Params.ID, target.getNovel().getSeries().getId());
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列详情");
+                    intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, (long) target.getNovel().getSeries().getId());
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列");
                     mContext.startActivity(intent);
             });
         } else {
