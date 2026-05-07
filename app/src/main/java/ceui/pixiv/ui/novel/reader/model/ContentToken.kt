@@ -46,8 +46,9 @@ sealed class ContentToken {
 
     /**
      * `[jump:N]` — Pixiv novel inter-page navigation. `target` is the
-     * 1-indexed `[newpage]`-delimited segment to jump to. Block-level (own
-     * line) per Pixiv markup convention; renders as a tappable button.
+     * 1-indexed `[newpage]`-delimited segment to jump to. Renders as a
+     * tappable button on its own row. Emitted both for own-line jumps and
+     * for inline jumps split out of a paragraph (CYOA-style option lines).
      */
     data class Jump(
         override val sourceStart: Int,

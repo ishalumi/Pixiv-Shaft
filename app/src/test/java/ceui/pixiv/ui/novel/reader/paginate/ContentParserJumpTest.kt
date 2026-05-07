@@ -26,12 +26,35 @@ class ContentParserJumpTest {
         assertEquals(1, jump.target)
     }
 
-    @Test fun `jump tag mixed inline with text falls back to paragraph`() {
-        // Pixiv 实际产物里 jump 永远独占一行；混排时（罕见）当成普通段落
-        // 处理是合理的 fallback——不主动篡改作者输入。
+    @Test fun `inline jump at end of option line splits into paragraph plus jump`() {
+        // 真机抓取（novel id 17949544）里 CYOA 风格小说会把 jump 贴在选项行末，
+        // 形如 `——原路返回吧。[jump:8]`。原 fix 用 matchEntire 漏掉这种写法，
+        // 导致 `[jump:8]` 字面量直接漏到正文。现在按 jump 位置切片：前缀文字
+        // 走 Paragraph，jump 单独成 Jump token。
+        val tokens = ContentParser.tokenize("——原路返回吧。[jump:8]")
+        val nonBlank = tokens.filter { it !is ContentToken.BlankLine }
+        assertEquals(2, nonBlank.size)
+        val para = nonBlank[0] as ContentToken.Paragraph
+        assertEquals("——原路返回吧。", para.text)
+        val jump = nonBlank[1] as ContentToken.Jump
+        assertEquals(8, jump.target)
+    }
+
+    @Test fun `inline jump in middle of line still splits both sides`() {
         val tokens = ContentParser.tokenize("看这里[jump:2]再继续")
-        assertTrue(tokens.none { it is ContentToken.Jump })
-        assertTrue(tokens.any { it is ContentToken.Paragraph })
+        val seq = tokens.filter { it !is ContentToken.BlankLine }
+        assertEquals(3, seq.size)
+        assertEquals("看这里", (seq[0] as ContentToken.Paragraph).text)
+        assertEquals(2, (seq[1] as ContentToken.Jump).target)
+        assertEquals("再继续", (seq[2] as ContentToken.Paragraph).text)
+    }
+
+    @Test fun `multiple inline jumps on one line each emit jump`() {
+        val tokens = ContentParser.tokenize("a[jump:1]b[jump:2]c")
+        val targets = tokens.filterIsInstance<ContentToken.Jump>().map { it.target }
+        assertEquals(listOf(1, 2), targets)
+        val texts = tokens.filterIsInstance<ContentToken.Paragraph>().map { it.text }
+        assertEquals(listOf("a", "b", "c"), texts)
     }
 
     @Test fun `multiple jump tags each emit their own token`() {

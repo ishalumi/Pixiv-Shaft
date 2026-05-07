@@ -99,6 +99,15 @@ object ContentParser {
                     // ghost 1-char paragraphs with an auto-indent applied.
                     raw += ContentToken.BlankLine(lineStart, lineEnd)
                 }
+                cleanLine.contains("[jump:") && jumpRegex.containsMatchIn(cleanLine) -> {
+                    // Inline `[jump:N]` (issue #860 follow-up): branching/CYOA
+                    // novels embed jumps at the end of option lines, e.g.
+                    // `——原路返回吧。[jump:8]`. Earlier fix only handled bare
+                    // own-line jumps, so the literal `[jump:N]` was leaking
+                    // into rendered text. Split such a line into Paragraph
+                    // fragment(s) interleaved with Jump token(s).
+                    splitInlineJumps(cleanLine, lineStart, lineEnd, raw)
+                }
                 else -> {
                     val textSourceStart = lineStart + (cleanLine.length - paragraphText.length)
                     val processed = InlineMarkupProcessor.process(paragraphText)
@@ -109,6 +118,68 @@ object ContentParser {
             }
         }
         return coalesceParagraphBreaks(raw)
+    }
+
+    /**
+     * Split a paragraph line that contains one or more inline `[jump:N]`
+     * tags into a sequence of Paragraph fragments + Jump tokens, in order.
+     * The first fragment owns the line's leading-whitespace trim (CJK indent
+     * compensation); fragments after a jump start at a non-whitespace char by
+     * construction in real Pixiv content, so we don't trim them again.
+     */
+    private fun splitInlineJumps(
+        cleanLine: String,
+        lineStart: Int,
+        lineEnd: Int,
+        out: MutableList<ContentToken>,
+    ) {
+        var segStart = 0
+        val matches = jumpRegex.findAll(cleanLine).toList()
+        for ((idx, m) in matches.withIndex()) {
+            if (m.range.first > segStart) {
+                val frag = cleanLine.substring(segStart, m.range.first)
+                val display: String
+                val displayStartInFrag: Int
+                if (idx == 0) {
+                    val ts = frag.trimStart(' ', '\t', '　')
+                    display = ts
+                    displayStartInFrag = frag.length - ts.length
+                } else {
+                    display = frag
+                    displayStartInFrag = 0
+                }
+                if (display.isNotEmpty()) {
+                    val processed = InlineMarkupProcessor.process(display)
+                    out += ContentToken.Paragraph(
+                        lineStart + segStart,
+                        lineStart + m.range.first,
+                        processed.text,
+                        lineStart + segStart + displayStartInFrag,
+                        processed.spans,
+                    )
+                }
+            }
+            val target = m.groupValues[1].toIntOrNull() ?: 0
+            out += ContentToken.Jump(
+                lineStart + m.range.first,
+                lineStart + m.range.last + 1,
+                target,
+            )
+            segStart = m.range.last + 1
+        }
+        if (segStart < cleanLine.length) {
+            val frag = cleanLine.substring(segStart)
+            if (frag.isNotEmpty()) {
+                val processed = InlineMarkupProcessor.process(frag)
+                out += ContentToken.Paragraph(
+                    lineStart + segStart,
+                    lineEnd,
+                    processed.text,
+                    lineStart + segStart,
+                    processed.spans,
+                )
+            }
+        }
     }
 
     /**
