@@ -1618,4 +1618,23 @@
     <string name="tag_action_copy">复制文本</string>
     <string name="tag_action_delete">删除</string>
     <string name="tag_action_edit">编辑</string>
+
+    <!-- moonAPI cloud sync -->
+    <string name="moon_login_required">请先登录</string>
+    <string name="moon_upload_title">上传配置到云端</string>
+    <string name="moon_upload_message">将本地以下数据上传到 moonAPI:\n・设置项\n・屏蔽记录\n・下载路径模板与命名规则\n  (若你使用了 SAF 自选目录,恢复后需在新设备重新授权;\n   使用相册/Download 默认目录则不受影响)\n\n下次卸载重装登录此账号后会询问是否应用。</string>
+    <string name="moon_upload_current_version">\n\n当前云端版本: v%1$d</string>
+    <string name="moon_upload_success">已上传到云端 (v%1$d)</string>
+    <string name="moon_upload_failed_http">上传失败: HTTP %1$d</string>
+    <string name="moon_upload_failed_other">上传失败: %1$s</string>
+    <string name="moon_sync_title">检测到云端配置</string>
+    <string name="moon_sync_message">云端版本 v%1$d (%2$s)\n是否应用并重启?</string>
+    <string name="moon_sync_ignore">忽略</string>
+    <string name="moon_sync_apply_action">应用</string>
+    <string name="moon_sync_apply_success">已应用云端配置,即将重启</string>
+    <string name="moon_sync_apply_failed">应用云端配置失败</string>
+    <string name="moon_manual_sync_title">从云端同步配置</string>
+    <string name="moon_sync_already_latest">已是最新版本 (v%1$d)</string>
+    <string name="moon_sync_no_remote">云端尚无此账号的配置</string>
+    <string name="moon_sync_fetch_error">同步失败: %1$s</string>
 </resources>

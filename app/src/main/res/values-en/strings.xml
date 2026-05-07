@@ -1205,4 +1205,23 @@
     <string name="tag_action_copy">Copy text</string>
     <string name="tag_action_delete">Delete</string>
     <string name="tag_action_edit">Edit</string>
+
+    <!-- moonAPI cloud sync -->
+    <string name="moon_login_required">Please log in first</string>
+    <string name="moon_upload_title">Upload settings to cloud</string>
+    <string name="moon_upload_message">Upload the following local data to moonAPI:\n・App settings\n・Mute list\n・Download templates &amp; naming rules\n  (If you picked a custom SAF folder, you must re-authorize it on the new device;\n   the default Pictures/Downloads location is unaffected)\n\nWhen you reinstall and sign in with this account next time, you\'ll be asked whether to apply.</string>
+    <string name="moon_upload_current_version">\n\nCurrent cloud version: v%1$d</string>
+    <string name="moon_upload_success">Uploaded to cloud (v%1$d)</string>
+    <string name="moon_upload_failed_http">Upload failed: HTTP %1$d</string>
+    <string name="moon_upload_failed_other">Upload failed: %1$s</string>
+    <string name="moon_sync_title">Cloud settings detected</string>
+    <string name="moon_sync_message">Cloud version v%1$d (%2$s)\nApply and restart?</string>
+    <string name="moon_sync_ignore">Ignore</string>
+    <string name="moon_sync_apply_action">Apply</string>
+    <string name="moon_sync_apply_success">Cloud settings applied, restarting…</string>
+    <string name="moon_sync_apply_failed">Failed to apply cloud settings</string>
+    <string name="moon_manual_sync_title">Sync settings from cloud</string>
+    <string name="moon_sync_already_latest">Already up to date (v%1$d)</string>
+    <string name="moon_sync_no_remote">No cloud settings for this account</string>
+    <string name="moon_sync_fetch_error">Sync failed: %1$s</string>
 </resources>

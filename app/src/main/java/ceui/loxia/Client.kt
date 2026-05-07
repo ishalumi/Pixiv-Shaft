@@ -2,11 +2,14 @@ package ceui.loxia
 
 import ceui.lisa.activities.Shaft
 import ceui.lisa.http.CronetInterceptor
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.net.InetAddress
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 object Client {
@@ -34,6 +37,10 @@ object Client {
     val webApi: PixivWebApi by lazy {
         clientManager.createWebAPIService(PixivWebApi::class.java)
     }
+
+    val moonAPI: MoonAPI by lazy {
+        clientManager.createMoonAPIService(MoonAPI::class.java)
+    }
 }
 
 class ClientManager {
@@ -42,6 +49,13 @@ class ClientManager {
         const val APP_API_HOST = "https://app-api.pixiv.net"
         const val WEB_API_HOST = "https://www.pixiv.net"
         const val NETEASY_API_HOST = "http://192.243.123.124:3000"
+
+        // moonAPI: self-hosted backend (settings sync, etc.)
+        // Hostname is virtual; resolved by custom OkHttp Dns to the real IP.
+        // To migrate IP / domain, update MOON_BACKEND_IP only.
+        const val MOON_API_HOST = "https://shaft.api:8443/"
+        const val MOON_BACKEND_HOSTNAME = "shaft.api"
+        const val MOON_BACKEND_IP = "111.229.197.181"
 
         /**
          * 所有 Web API 请求和 WebView 统一使用的 User-Agent。
@@ -100,6 +114,38 @@ class ClientManager {
         })
         return Retrofit.Builder()
             .baseUrl(WEB_API_HOST)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(httpBuilder.build())
+            .build()
+            .create(service)
+    }
+
+    fun <T> createMoonAPIService(service: Class<T>): T {
+        val moonDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                return if (hostname == MOON_BACKEND_HOSTNAME) {
+                    listOf(InetAddress.getByName(MOON_BACKEND_IP))
+                } else {
+                    Dns.SYSTEM.lookup(hostname)
+                }
+            }
+        }
+
+        val httpBuilder = OkHttpClient.Builder()
+            .connectTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            .writeTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            .readTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+            .dns(moonDns)
+            // 自建后端在国内,不走系统 HTTP 代理(Clash 等);
+            // 注意:这绕不过 Clash 的 TUN/VPN 模式,TUN 用户需要在 Clash 规则里
+            // 把 shaft.api / 111.229.197.181 设为 DIRECT。
+            .proxy(Proxy.NO_PROXY)
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                setLevel(HttpLoggingInterceptor.Level.BODY)
+            })
+        return Retrofit.Builder()
+            .baseUrl(MOON_API_HOST)
             .addConverterFactory(GsonConverterFactory.create())
             .client(httpBuilder.build())
             .build()

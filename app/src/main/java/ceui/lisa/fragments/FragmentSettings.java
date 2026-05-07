@@ -54,9 +54,11 @@ import ceui.lisa.utils.PixivSearchParamUtil;
 import ceui.lisa.utils.Settings;
 import ceui.lisa.utils.UserFolderNameUtil;
 import ceui.loxia.Client;
+import ceui.loxia.MoonSync;
 import ceui.pixiv.download.DownloadsRegistry;
 import ceui.pixiv.download.config.OverwritePolicy;
 import ceui.pixiv.download.config.StorageChoice;
+import ceui.pixiv.session.SessionManager;
 
 import static android.app.Activity.RESULT_OK;
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
@@ -1475,6 +1477,55 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                         intent.putExtra(EXTRA_INITIAL_URI, backupFileUri);
                     }
                     startActivityForResult(intent, Params.REQUEST_CODE_CHOOSE);
+                }
+            });
+
+            // 上传配置到云端 (moonAPI)
+            baseBind.moonUploadRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    long uid = SessionManager.INSTANCE.getLoggedInUid();
+                    if (uid <= 0L) {
+                        Common.showToast(getString(R.string.moon_login_required));
+                        return;
+                    }
+                    Integer appliedVer = Shaft.sSettings.getMoonAppliedVersions()
+                            .get(String.valueOf(uid));
+                    String currentVer = (appliedVer != null && appliedVer > 0)
+                            ? getString(R.string.moon_upload_current_version, appliedVer)
+                            : "";
+                    new QMUIDialog.MessageDialogBuilder(getActivity())
+                            .setTitle(R.string.moon_upload_title)
+                            .setMessage(getString(R.string.moon_upload_message) + currentVer)
+                            .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                            .addAction(getString(R.string.string_187), new QMUIDialogAction.ActionListener() {
+                                @Override
+                                public void onClick(QMUIDialog dialog, int index) {
+                                    dialog.dismiss();
+                                }
+                            })
+                            .addAction(R.string.sure, new QMUIDialogAction.ActionListener() {
+                                @Override
+                                public void onClick(QMUIDialog dialog, int index) {
+                                    dialog.dismiss();
+                                    MoonSync.uploadToCloud(mActivity, uid);
+                                }
+                            })
+                            .create()
+                            .show();
+                }
+            });
+
+            // 从云端同步配置 (moonAPI)
+            baseBind.moonSyncRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    long uid = SessionManager.INSTANCE.getLoggedInUid();
+                    if (uid <= 0L) {
+                        Common.showToast(getString(R.string.moon_login_required));
+                        return;
+                    }
+                    MoonSync.manualSyncFromCloud(mActivity, uid);
                 }
             });
         }

@@ -213,35 +213,45 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
 
                                     AppDatabase.getAppDatabase(mContext).downloadDao().insertUser(userEntity);
 
-                                    // 检测是否打开R18并提示开启，新注册未验证邮箱用户不提示
-                                    if (userModel.getUser().isR18Enabled() || !userModel.getUser().isIs_mail_authorized()) {
-                                        mActivity.finish();
-                                        Common.restart();
-                                    } else {
-                                        new QMUIDialog.MessageDialogBuilder(mActivity)
-                                                .setTitle(R.string.string_216)
-                                                .setMessage(R.string.string_400)
-                                                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
-                                                .addAction(R.string.string_401, new QMUIDialogAction.ActionListener() {
-                                                    @Override
-                                                    public void onClick(QMUIDialog dialog, int index) {
-                                                        dialog.dismiss();
-                                                        mActivity.finish();
-                                                        Common.restart();
-                                                    }
-                                                })
-                                                .addAction(R.string.string_402, new QMUIDialogAction.ActionListener() {
-                                                    @Override
-                                                    public void onClick(QMUIDialog dialog, int index) {
-                                                        Intent intent1 = new Intent(mContext, TemplateActivity.class);
-                                                        intent1.putExtra(TemplateActivity.EXTRA_FRAGMENT, "网页链接");
-                                                        intent1.putExtra(Params.URL, Params.URL_R18_SETTING);
-                                                        startActivity(intent1);
-                                                    }
-                                                })
-                                                .create()
-                                                .show();
-                                    }
+                                    final UserModel loggedInUser = userModel;
+                                    final Runnable proceedAfterMoonSync = () -> {
+                                        // 检测是否打开R18并提示开启，新注册未验证邮箱用户不提示
+                                        if (loggedInUser.getUser().isR18Enabled() || !loggedInUser.getUser().isIs_mail_authorized()) {
+                                            mActivity.finish();
+                                            Common.restart();
+                                        } else {
+                                            new QMUIDialog.MessageDialogBuilder(mActivity)
+                                                    .setTitle(R.string.string_216)
+                                                    .setMessage(R.string.string_400)
+                                                    .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                                                    .addAction(R.string.string_401, new QMUIDialogAction.ActionListener() {
+                                                        @Override
+                                                        public void onClick(QMUIDialog dialog, int index) {
+                                                            dialog.dismiss();
+                                                            mActivity.finish();
+                                                            Common.restart();
+                                                        }
+                                                    })
+                                                    .addAction(R.string.string_402, new QMUIDialogAction.ActionListener() {
+                                                        @Override
+                                                        public void onClick(QMUIDialog dialog, int index) {
+                                                            Intent intent1 = new Intent(mContext, TemplateActivity.class);
+                                                            intent1.putExtra(TemplateActivity.EXTRA_FRAGMENT, "网页链接");
+                                                            intent1.putExtra(Params.URL, Params.URL_R18_SETTING);
+                                                            startActivity(intent1);
+                                                        }
+                                                    })
+                                                    .create()
+                                                    .show();
+                                        }
+                                    };
+
+                                    // moonAPI: 拉取云端设置,如有新版本弹窗询问是否应用;完成后继续 R18 流程
+                                    ceui.loxia.MoonSync.syncFromCloudOnLogin(
+                                            mActivity,
+                                            loggedInUser.getUser().getId(),
+                                            proceedAfterMoonSync
+                                    );
                                 }, throwable -> {
                                     Common.showToast("登录失败");
                                 });

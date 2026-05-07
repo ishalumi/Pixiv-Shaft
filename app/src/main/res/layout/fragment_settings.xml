@@ -1502,6 +1502,30 @@
 
                         </RelativeLayout>
 
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
+                            android:id="@+id/moon_upload_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/moon_upload_title" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
+                            android:id="@+id/moon_sync_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/moon_manual_sync_title" />
+
+                        </RelativeLayout>
+
                         <View style="@style/full_divider" />
 
                     </LinearLayout>

@@ -7,6 +7,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.blankj.utilcode.util.PathUtils;
 import com.google.gson.annotations.SerializedName;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import ceui.lisa.helper.NavigationLocationHelper;
 import ceui.lisa.helper.ThemeHelper;
 /**
@@ -41,6 +44,20 @@ public class Settings {
     private int lineCount = 2;
 
     private boolean useStaggeredLayout = true;
+
+    /** 各 uid 在本设备最近一次已应用的 moonAPI 版本号。key 是 uid.toString()。 */
+    private Map<String, Integer> moonAppliedVersions = new HashMap<>();
+
+    public Map<String, Integer> getMoonAppliedVersions() {
+        if (moonAppliedVersions == null) {
+            moonAppliedVersions = new HashMap<>();
+        }
+        return moonAppliedVersions;
+    }
+
+    public void setMoonAppliedVersions(Map<String, Integer> moonAppliedVersions) {
+        this.moonAppliedVersions = moonAppliedVersions;
+    }
 
     public int getLineCount() {
         return lineCount;
