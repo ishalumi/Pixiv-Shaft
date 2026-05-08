@@ -16,12 +16,18 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import android.content.Intent
+import android.widget.Toast
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
+import ceui.lisa.activities.VActivity
+import ceui.lisa.core.Container
 import ceui.lisa.core.Manager
+import ceui.lisa.core.PageData
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
+import ceui.lisa.utils.Params
 import ceui.loxia.ObjectPool
 import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.db.queue.DownloadQueueEntity
@@ -65,6 +71,27 @@ class QueueListV3Fragment : Fragment() {
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = adapter
         list.setHasFixedSize(true)
+
+        // 点击 row → VActivity 看一级详情。从 row.illustGson 反序列化拿到 IllustsBean，
+        // 整段 currentList 也一起反出来组成 PageData，让用户在 VActivity 里能左右滑切到
+        // 队列里的相邻 illust（跟"作品列表点击"行为一致）。
+        // 没有 illustGson 的老 v33 行被过滤掉；点击它会找不到自己 → 提示一下让用户等。
+        adapter.onItemClick = onItemClick@{ row, all ->
+            val ctx = context ?: return@onItemClick
+            val clicked = parseIllustFromRow(row)
+            if (clicked == null) {
+                Toast.makeText(ctx, R.string.dlmgr_queue_open_unavailable, Toast.LENGTH_SHORT).show()
+                return@onItemClick
+            }
+            val list = all.mapNotNull { parseIllustFromRow(it) }
+            val index = list.indexOfFirst { it.id == clicked.id }.coerceAtLeast(0)
+            val pageData = PageData(list)
+            Container.get().addPageToMap(pageData)
+            startActivity(Intent(ctx, VActivity::class.java).apply {
+                putExtra(Params.POSITION, index)
+                putExtra(Params.PAGE_UUID, pageData.uuid)
+            })
+        }
 
         val empty = view.findViewById<View>(R.id.emptyState)
         view.findViewById<TextView>(R.id.emptyTitle).text = getString(R.string.dlmgr_queue_empty_title)
@@ -201,6 +228,9 @@ private fun parseIllustFromRow(row: DownloadQueueEntity): IllustsBean? {
 
 private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.VH>(QueueDiff) {
 
+    /** 点击 row 的回调；fragment 端注册，把整段 currentList 一起传出去给 VActivity 拼 PageData */
+    var onItemClick: ((row: DownloadQueueEntity, all: List<DownloadQueueEntity>) -> Unit)? = null
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.cell_download_queue_v3, parent, false)
         return VH(v)
@@ -208,6 +238,12 @@ private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.V
 
     override fun onBindViewHolder(h: VH, pos: Int) {
         val item = getItem(pos)
+        h.itemView.setOnClickListener {
+            val p = h.bindingAdapterPosition
+            if (p != RecyclerView.NO_POSITION) {
+                onItemClick?.invoke(getItem(p), currentList)
+            }
+        }
         // illust 解析优先级跟 QueueDownloadManager.resolveIllustsBean 一致：
         //   1. ObjectPool 命中（用户最近浏览过 / consumer 已处理过）
         //   2. 反序列化 row.illustGson（入队时存的 JSON，冷启动主路径）

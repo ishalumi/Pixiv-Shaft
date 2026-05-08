@@ -1581,6 +1581,7 @@
     <string name="dlmgr_queue_action_retry_failed">重试失败</string>
     <string name="dlmgr_queue_action_clear_success">清成功记录</string>
     <string name="dlmgr_queue_action_clear_all">清空全部</string>
+    <string name="dlmgr_queue_open_unavailable">该任务暂无元数据，待处理后再点击</string>
 
     <string name="dlmgr_active_empty_title">没有正在下载的任务</string>
     <string name="dlmgr_active_empty_hint">队列里的任务会自动转到这里\n显示 page 级实时进度</string>
