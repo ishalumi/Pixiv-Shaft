@@ -14,7 +14,6 @@ import ceui.lisa.utils.AnimatedGifEncoder
 import ceui.lisa.utils.Params
 import ceui.pixiv.download.DownloadsRegistry
 import ceui.pixiv.download.config.DownloadItems
-import ceui.pixiv.ui.bulk.QueueDownloadManager.UgoiraPhase
 import com.blankj.utilcode.util.ZipUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive

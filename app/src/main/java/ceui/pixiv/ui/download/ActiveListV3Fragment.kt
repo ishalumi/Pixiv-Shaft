@@ -35,6 +35,8 @@ import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.ui.bulk.QueueDownloadManager
+import ceui.pixiv.ui.bulk.UgoiraInFlight
+import ceui.pixiv.ui.bulk.UgoiraPhase
 import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -412,12 +414,12 @@ private sealed class ActiveSnapshot {
         val bean: IllustsBean,
         val title: String,
         val showUrl: String?,
-        val phase: QueueDownloadManager.UgoiraPhase,
+        val phase: UgoiraPhase,
     ) : ActiveSnapshot() {
         override val key: String get() = "u:" + rowId
 
         companion object {
-            fun of(u: QueueDownloadManager.UgoiraInFlight) = UgoiraEntry(
+            fun of(u: UgoiraInFlight) = UgoiraEntry(
                 rowId = u.rowId,
                 bean = u.bean,
                 title = u.bean.title.orEmpty().ifEmpty { "ugoira " + u.bean.id },
@@ -452,7 +454,7 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
     var onItemClick: ((snap: ActiveSnapshot, all: List<ActiveSnapshot>) -> Unit)? = null
 
     /** ugoira 排在 illust 前面 —— 用户最近触发的批量下载里 ugoira 通常是稀缺关注点。 */
-    fun submit(illusts: List<DownloadItem>, ugoiras: List<QueueDownloadManager.UgoiraInFlight>) {
+    fun submit(illusts: List<DownloadItem>, ugoiras: List<UgoiraInFlight>) {
         val combined = ArrayList<ActiveSnapshot>(illusts.size + ugoiras.size)
         ugoiras.mapTo(combined) { ActiveSnapshot.UgoiraEntry.of(it) }
         illusts.mapTo(combined) { ActiveSnapshot.IllustEntry.of(it) }
@@ -622,11 +624,11 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
         h.percentText.visibility = View.GONE
 
         val phaseLabel = when (snap.phase) {
-            QueueDownloadManager.UgoiraPhase.QUEUED -> "QUEUED"
-            QueueDownloadManager.UgoiraPhase.FETCH_META -> "FETCH META"
-            QueueDownloadManager.UgoiraPhase.DOWNLOAD_ZIP -> "DOWNLOAD ZIP"
-            QueueDownloadManager.UgoiraPhase.EXTRACT -> "EXTRACT"
-            QueueDownloadManager.UgoiraPhase.ENCODE -> "ENCODE GIF"
+            UgoiraPhase.QUEUED -> "QUEUED"
+            UgoiraPhase.FETCH_META -> "FETCH META"
+            UgoiraPhase.DOWNLOAD_ZIP -> "DOWNLOAD ZIP"
+            UgoiraPhase.EXTRACT -> "EXTRACT"
+            UgoiraPhase.ENCODE -> "ENCODE GIF"
         }
         h.sizeText.text = phaseLabel
 

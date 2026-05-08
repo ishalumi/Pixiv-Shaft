@@ -1,30 +1,20 @@
 package ceui.pixiv.ui.bulk
 
-import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.os.Bundle
-import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.core.DownloadItem
 import ceui.lisa.core.Manager
 import ceui.lisa.core.ManagerReactive
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.download.IllustDownload
-import ceui.lisa.http.Retro
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.DownloadLimitTypeUtil
-import ceui.loxia.ObjectPool
 import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.db.queue.DownloadQueueEntity
 import ceui.pixiv.db.queue.QueueStatus
 import ceui.pixiv.db.queue.WorkType
 import ceui.pixiv.download.maintenance.MediaStoreOrphanCleaner
-import com.qmuiteam.qmui.skin.QMUISkinManager
-import com.qmuiteam.qmui.widget.dialog.QMUIDialog
-import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
-import io.reactivex.Observable
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,14 +28,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * 批量下载持久化队列消费者 —— 页级并发流水线。
@@ -184,24 +171,7 @@ object QueueDownloadManager {
     private val ugoiraInFlightRowIds: MutableSet<Long> =
         java.util.Collections.synchronizedSet(mutableSetOf())
 
-    /**
-     * Ugoira 任务的可见进度阶段。下载链是单 zip + 同步编码，没有自然的字节级
-     * % 进度可报；用 phase 让"正在下载" tab 的 cell 至少能显示当前在哪一步。
-     */
-    enum class UgoiraPhase {
-        QUEUED,         // 等 [ugoiraSem] 的许可（前面有别的 ugoira 占着 1 个串行槽）
-        FETCH_META,     // getGifPackage 拿 zip url + frame delays
-        DOWNLOAD_ZIP,   // 占 ugoira 总耗时 80%+ 的 zip 流式下载
-        EXTRACT,        // unzip → cacheDir
-        ENCODE,         // AnimatedGifEncoder 编 GIF + commit 进 V3 WriteHandle
-    }
-
-    /** "正在下载" tab 渲染用的 ugoira 行快照（uuid 用 row.id；bean 给缩略图 / 标题）。 */
-    data class UgoiraInFlight(
-        val rowId: Long,
-        val bean: IllustsBean,
-        val phase: UgoiraPhase,
-    )
+    // [UgoiraPhase] / [UgoiraInFlight] 已移到 UgoiraTypes.kt（同包，引用方式不变：直接写名字）
 
     /**
      * 当前在 [ugoiraScope] 里的 ugoira 任务详情。
@@ -265,7 +235,7 @@ object QueueDownloadManager {
                 paused = true   // 默认暂停；等用户在第一个 Activity 弹窗里决定
                 _pausedFlow.value = true
                 (appContext as? Application)?.let { app ->
-                    promptResumeOnFirstActivity(app, pending)
+                    promptResumeOnFirstActivity(app, pending) { resume() }
                 }
                 Timber.tag(TAG).i("cold start: $pending pending items, awaiting user decision")
             } else {
@@ -662,62 +632,7 @@ object QueueDownloadManager {
         return true
     }
 
-    // —— Cold-start dialog ——
-
-    /**
-     * 注册 ActivityLifecycleCallbacks，等到第一个真正进入 RESUMED 的 Activity，弹 QMUI
-     * dialog 询问用户是否继续。回调只触发一次，弹完即注销。
-     *
-     * Activity 必须是用户可见的 (state RESUMED) 且没在 finishing/destroyed —— 否则
-     * QMUIDialog 会在错误的窗口上 attach。
-     */
-    private fun promptResumeOnFirstActivity(app: Application, pendingCount: Int) {
-        val cb = object : Application.ActivityLifecycleCallbacks {
-            @Volatile var fired = false
-            override fun onActivityResumed(activity: Activity) {
-                if (fired) return
-                if (activity.isFinishing || activity.isDestroyed) return
-                fired = true
-                app.unregisterActivityLifecycleCallbacks(this)
-                showResumePrompt(activity, pendingCount)
-            }
-            override fun onActivityCreated(a: Activity, b: Bundle?) {}
-            override fun onActivityStarted(a: Activity) {}
-            override fun onActivityPaused(a: Activity) {}
-            override fun onActivityStopped(a: Activity) {}
-            override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            override fun onActivityDestroyed(a: Activity) {}
-        }
-        app.registerActivityLifecycleCallbacks(cb)
-    }
-
-    private fun showResumePrompt(activity: Activity, pendingCount: Int) {
-        // QMUIDialog 必须在主线程展示
-        activity.runOnUiThread {
-            if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
-            try {
-                QMUIDialog.MessageDialogBuilder(activity)
-                    .setTitle(R.string.bulk_resume_prompt_title)
-                    .setMessage(activity.getString(R.string.bulk_resume_prompt_message, pendingCount))
-                    .setSkinManager(QMUISkinManager.defaultInstance(activity))
-                    .addAction(0, activity.getString(R.string.bulk_resume_prompt_decline), QMUIDialogAction.ACTION_PROP_NEUTRAL) { d, _ ->
-                        // 保持 paused —— 用户可去 下载管理 → 批量队列 手动点 "继续"
-                        Timber.tag(TAG).i("user declined cold-start resume; staying paused")
-                        d.dismiss()
-                    }
-                    .addAction(0, activity.getString(R.string.bulk_resume_prompt_continue)) { d, _ ->
-                        Timber.tag(TAG).i("user confirmed cold-start resume; pending=$pendingCount")
-                        resume()
-                        d.dismiss()
-                    }
-                    .show()
-            } catch (e: Exception) {
-                Timber.tag(TAG).w(e, "failed to show resume prompt; auto-resuming as fallback")
-                // 极端情况（窗口已坏）下 fallback 到自动恢复，免得任务永远卡在 paused
-                resume()
-            }
-        }
-    }
+    // [promptResumeOnFirstActivity] / [showResumePrompt] 已移到 QueueColdStartPrompt.kt
 
     // —— 公共 API（被 Fragment / 其他 enqueue 入口调用） ——
 
@@ -829,61 +744,7 @@ object QueueDownloadManager {
         }
     }
 
-    // —— 工具 ——
-
-    /** Manager.content 是非线程安全 List，且主线程会 remove。安全 snapshot 含重试。 */
-    private fun snapshotManagerContent(): List<DownloadItem> {
-        for (attempt in 1..5) {
-            try {
-                return Manager.get().contentSnapshot()
-            } catch (e: Exception) {
-                if (attempt == 5) {
-                    Timber.tag(TAG).w(e, "snapshotManagerContent failed after retries")
-                    return emptyList()
-                }
-            }
-        }
-        return emptyList()
-    }
-
-    /**
-     * 解析 [row] 对应的 [IllustsBean]，优先级：
-     *   1. ObjectPool 命中（用户最近浏览过 / 同一会话之前已解析过）
-     *   2. 反序列化 [DownloadQueueEntity.illustGson] —— 入队时存进 DB 的 JSON，
-     *      冷启动 100+ PENDING 都靠这条路，0 次网络请求
-     *   3. 回退 API getIllustByID —— 只有老版本入队的行 illustGson=null 才走，
-     *      不会 429（量极少）
-     * 解析成功的都灌一次 ObjectPool，下一次同 id 命中第 1 步。
-     */
-    private suspend fun resolveIllustsBean(row: DownloadQueueEntity): IllustsBean {
-        val illustId = row.illustId
-        // 1) 内存池
-        val cached = runCatching { ObjectPool.getIllust(illustId).value }.getOrNull()
-        if (cached != null) return cached
-
-        // 2) DB 里入队时存的 JSON —— 主路径
-        val gson = row.illustGson
-        if (!gson.isNullOrEmpty()) {
-            val parsed = runCatching { Shaft.sGson.fromJson(gson, IllustsBean::class.java) }
-                .getOrNull()
-            if (parsed != null) {
-                withContext(Dispatchers.Main.immediate) {
-                    runCatching { ObjectPool.updateIllust(parsed) }
-                }
-                return parsed
-            }
-            Timber.tag(TAG).w("[QUEUE-CONSUMER] illustGson parse failed illust=$illustId, falling back to API")
-        }
-
-        // 3) 老行 fallback：API 拉一次，这一路不应该是常态
-        val resp = Retro.getAppApi().getIllustByID(illustId).awaitFirstSafe()
-        val bean = resp.illust
-            ?: throw IllegalStateException("getIllustByID returned null for $illustId")
-        withContext(Dispatchers.Main.immediate) {
-            runCatching { ObjectPool.updateIllust(bean) }
-        }
-        return bean
-    }
+    // [snapshotManagerContent] / [resolveIllustsBean] 已移到 QueueConsumerHelpers.kt
 
     private const val TAG = "QueueDownloadManager"
 }
