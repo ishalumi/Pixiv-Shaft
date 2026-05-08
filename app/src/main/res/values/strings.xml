@@ -1523,8 +1523,9 @@
     <string name="bulk_user_menu_download_all_manga">下载全部漫画 (批量入队)</string>
     <string name="bulk_user_menu_open_download_manager">打开下载管理…</string>
     <string name="bulk_task_name">下载 %1$s 的全部%2$s</string>
-    <string name="bulk_collection_menu_download_all">批量下载</string>
+    <string name="bulk_collection_menu_download_all">下载全部作品</string>
     <string name="bulk_collection_task_name">下载我的%1$s插画</string>
+    <string name="more_actions">更多</string>
     <string name="bulk_type_illust">插画</string>
     <string name="bulk_type_manga">漫画</string>
 

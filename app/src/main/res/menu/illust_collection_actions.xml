@@ -8,9 +8,9 @@
         android:title="@string/illust_filter"
         app:showAsAction="always" />
     <item
-        android:id="@+id/action_bulk_download"
-        android:icon="@drawable/ic_file_download_black_24dp"
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_more_vert_black_24dp"
         android:orderInCategory="200"
-        android:title="@string/bulk_collection_menu_download_all"
+        android:title="@string/more_actions"
         app:showAsAction="always" />
 </menu>

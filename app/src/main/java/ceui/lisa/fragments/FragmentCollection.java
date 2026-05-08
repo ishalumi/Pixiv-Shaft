@@ -27,6 +27,9 @@ import ceui.lisa.utils.Params;
 import ceui.pixiv.session.SessionManager;
 import ceui.pixiv.ui.bulk.BulkActions;
 
+import com.qmuiteam.qmui.skin.QMUISkinManager;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
+
 public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBinding> {
 
     private Fragment[] allPages;
@@ -115,15 +118,8 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
                 String restrict = baseBind.viewPager.getCurrentItem() == 0
                         ? Params.TYPE_PUBLIC
                         : Params.TYPE_PRIVATE;
-                if (item.getItemId() == R.id.action_bulk_download) {
-                    // 仅插画收藏 tab (type==0) 才挂这个 menu，所以这里直走插画批量下载入口
-                    long uid = SessionManager.INSTANCE.getLoggedInUid();
-                    String restrictLabel = getString(restrict.equals(Params.TYPE_PUBLIC)
-                            ? R.string.public_like_illust
-                            : R.string.private_like_illust);
-                    String taskName = getString(R.string.bulk_collection_task_name, restrictLabel);
-                    BulkActions.startBookmarkIllustBulkDownload(
-                            requireActivity(), uid, restrict, taskName);
+                if (item.getItemId() == R.id.action_more) {
+                    showMoreActionsDialog(restrict);
                     return true;
                 }
                 if (item.getItemId() == R.id.action_filter) {
@@ -180,8 +176,8 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
     }
 
     /**
-     * 插画收藏页 (type=0) 的 toolbar 多挂一个"批量下载"，
-     * 走 BulkActions.startBookmarkIllustBulkDownload；其它收藏类型保持原 filter only。
+     * 插画收藏页 (type=0) 的 toolbar 多挂一个 ⋯ overflow，弹 QMUIDialog 选具体动作；
+     * 其它收藏类型保持原 filter only。
      */
     private void inflateToolbarMenu() {
         if (type == 0) {
@@ -189,5 +185,31 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
         } else if (filterType.contains(type)) {
             baseBind.toolbar.inflateMenu(R.menu.illust_filter);
         }
+    }
+
+    /**
+     * ⋯ 点开后的二级菜单。当前只有"下载全部作品"一项；以后可加导出 / 离线缓存等
+     * 同类批量操作，集中收口在这个 dialog 里，避免 toolbar 上挂一堆图标。
+     */
+    private void showMoreActionsDialog(String restrict) {
+        if (mActivity == null || mActivity.isFinishing()) return;
+        String[] items = new String[]{
+                getString(R.string.bulk_collection_menu_download_all)
+        };
+        new QMUIDialog.MenuDialogBuilder(mActivity)
+                .setSkinManager(QMUISkinManager.defaultInstance(mActivity))
+                .addItems(items, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which == 0) {
+                        long uid = SessionManager.INSTANCE.getLoggedInUid();
+                        String restrictLabel = getString(restrict.equals(Params.TYPE_PUBLIC)
+                                ? R.string.public_like_illust
+                                : R.string.private_like_illust);
+                        String taskName = getString(R.string.bulk_collection_task_name, restrictLabel);
+                        BulkActions.startBookmarkIllustBulkDownload(
+                                requireActivity(), uid, restrict, taskName);
+                    }
+                })
+                .show();
     }
 }
