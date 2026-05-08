@@ -19,7 +19,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import ceui.lisa.BuildConfig;
 import ceui.lisa.R;
 import ceui.lisa.activities.Shaft;
 import ceui.lisa.database.AppDatabase;
@@ -72,30 +71,8 @@ public class Manager {
      */
     private static final int MAX_RESTORE_ITEMS = 100;
 
-    /**
-     * 调试态下每条下载流的人造限速：500 KB/s = 512_000 B/s。仅在
-     * [BuildConfig.IS_DEBUG_MODE] 为 true 时生效（debug 风味带 .cshaft 后缀，
-     * release / .pshaft 完全不进这个分支）。目的：fast WiFi 下肉眼看出
-     * 多 P 是否真的在并行 —— 压到 500 KB/s 后，3 并发能看到 3 条进度条同步在涨。
-     *
-     * # 作用域：**全局**，不止批量队列
-     * 限速嵌在 [startDownloadChain] 的字节读循环里，所以 debug build 下**任何**
-     * 走 Manager 的下载都被压速 —— 包括详情页单点保存、ugoira 帧抓取等。这是
-     * 实现成本权衡：要做成"仅批量队列"得给 [DownloadItem] 加个 `fromQueue` 字段
-     * 一路穿透，开销更大。debug 包本身就是测试场景，单条慢一点（一张图 ~4s）
-     * 可接受。
-     *
-     * # 也覆盖缓存命中（[cachedFile] != null 的本地拷贝）
-     * 同一个读循环既处理网络 [InputStream] 也处理 [java.io.FileInputStream]。
-     * 缓存命中的 P 也以 500 KB/s 视觉化进度条 —— 这是**有意为之**：否则缓存命中
-     * 的 P 瞬间到 100%，你看不到它跟别的 page 的并行关系。
-     *
-     * # 为什么 per-stream 而不是 aggregate
-     * Aggregate（全局 500 KB/s 共享）需要全局 token bucket，N 个 IO worker thread
-     * 抢，跨线程同步；per-stream 各自看自己的 [copyStartNs]，零同步开销。视觉
-     * 目的下两者都够用，per-stream 更简单。代价是 N 并发实际聚合 ≈ N × 500 KB/s。
-     */
-    private static final long DEBUG_THROTTLE_BPS = 500L * 1024L;
+    // 字节级限速已彻底删除（debug 调试可视化的 500KB/s 节流）。
+    // 唯一保留的是 BulkObjectFetcher.RATE_LIMIT_MS（页间 API 间隔，防 pixiv 429）。
 
     public void restore() {
         Schedulers.io().scheduleDirect(() -> {
@@ -590,37 +567,11 @@ public class Manager {
                     }
                     outputStream.write(buffer, 0, len);
                     downloaded += len;
-                    // Debug 态人造限速 —— 仅 debug build。把每条流压到
-                    // DEBUG_THROTTLE_BPS，让多 P 并行时进度条肉眼可分。
-                    // 算法：本流自 copyStartNs 起累计本应耗时 = 已传字节 / 速率。
-                    // 现实耗时 < 预期耗时 → sleep 差额。
-                    //
-                    // InterruptedException：恢复 interrupt 标志，再走 emitter.tryOnError
-                    // 让 RxJava 链正常 onError → doFinally → handles.remove。光 return
-                    // 不发信号会让 emitter 永远不终止（外部 dispose 路径 OK，但 scheduler
-                    // 强制中断这种少见场景下会泄漏 handle）。
-                    if (BuildConfig.IS_DEBUG_MODE) {
-                        long bytesSinceStart = downloaded - passSize;
-                        long expectedNs = bytesSinceStart * 1_000_000_000L / DEBUG_THROTTLE_BPS;
-                        long elapsedNs = System.nanoTime() - copyStartNs;
-                        long sleepMs = (expectedNs - elapsedNs) / 1_000_000L;
-                        if (sleepMs > 0) {
-                            try {
-                                Thread.sleep(sleepMs);
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                                if (!emitter.isDisposed()) {
-                                    emitter.tryOnError(new java.io.InterruptedIOException("debug throttle interrupted"));
-                                }
-                                return;
-                            }
-                        }
-                    }
                     // 进度上报：原版只在 progress %% 跳变时才发，会有两个洞 —
                     //  (a) totalSize=0（响应没 Content-Length，pixiv 有时是 chunked）
                     //      → if 块整个不进，UI 永远 0%；
-                    //  (b) 大文件 1% 间隔大（如 50MB / 500KB-throttle ≈ 1s 一跳）
-                    //      → 多 P 之间看起来"有的快有的卡"。
+                    //  (b) 大文件 % 跳变间隔大（如 50MB ≈ 几秒一跳）→ 多 P 之间
+                    //      看起来"有的快有的卡"。
                     // 改成：% 跳变 **或** 距上次上报 ≥ 500ms 都强制更新一次；
                     // totalSize=0 时 progress 留 0，但 currentSize/字节数仍会涨，
                     // UI 至少能看到字节在流。
