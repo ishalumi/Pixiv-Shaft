@@ -33,7 +33,12 @@ import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -62,6 +67,15 @@ class ActiveListV3Fragment : Fragment() {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
 
+    /**
+     * 1s 采样的整体下载速度（B/s）。0 表示当前没有可观测的字节增量（空闲 / 暂停 / 全失败）。
+     *
+     * 由 [SpeedSampler] 每 1s 计算一次，driver coroutine 写、status 渲染 collector
+     * 读，所以是 [MutableStateFlow] 而不是普通字段 —— [combine] 让"内容变更"和
+     * "速度更新"任一发生时 status header 都会刷新。
+     */
+    private val speedBpsFlow = MutableStateFlow(0L)
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View = inflater.inflate(R.layout.fragment_download_list_v3, container, false)
@@ -71,7 +85,15 @@ class ActiveListV3Fragment : Fragment() {
         val list = view.findViewById<RecyclerView>(R.id.list)
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = adapter
-        list.setHasFixedSize(false)
+        // RV 自身高度由父布局固定（fragment 内全屏 match_parent），跟 adapter 内容
+        // 多少无关。setHasFixedSize(true) 跳过每次 notifyItem* 重测自身。
+        list.setHasFixedSize(true)
+        // 完全去掉 ItemAnimator —— 试过 sample 节流 + 调 moveDuration 后仍然 choppy，
+        // OnePlus / 这套 layout 上 DefaultItemAnimator 的预测式 move 动画就是不健康。
+        // 直接 null 化：item 完成 → 瞬间消失；2/3 上滑 → 瞬间 snap；4 进入 → 瞬间显示。
+        // 没有动画就没有"被打断的动画"。代价：完成事件不再被视觉庆祝（aria2 / Chrome
+        // 下载列表也是这风格，可以接受）。进度条 / 数字 / 速度仍然实时跟手刷新。
+        list.itemAnimator = null
 
         val empty = view.findViewById<View>(R.id.emptyState)
         view.findViewById<TextView>(R.id.emptyTitle).text = getString(R.string.dlmgr_active_empty_title)
@@ -120,12 +142,21 @@ class ActiveListV3Fragment : Fragment() {
         // Reactive: ManagerReactive.contentFlow 在 Manager 任何 mutation 后
         // 自动推一帧（progress / state / add / remove / clearAll 全覆盖）。
         // 0 timer，0 broadcast，纯事件驱动。
+        //
+        // 没有 ItemAnimator 后不再需要 sample 节流（之前是为了保护动画时间窗口）。
+        // conflate() 兜 backpressure：collector 慢的时候上游高频 emit 会被合并成
+        // "最后一帧"，不会堆积。combine 上游的 contentFlow 本身就是 replay=1 +
+        // DROP_OLDEST 的 SharedFlow，已经天然 conflate；这里再 conflate 一次双保险。
+        //
         // flowOn(Default)：snapshot copy + count 计算放后台线程，UI 不挡帧。
+        // combine speedBpsFlow：让"内容变更"和"速度采样"任一发生时 status header 都会刷新。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 ManagerReactive.contentFlow
+                    .combine(speedBpsFlow) { snapshot, speedBps -> snapshot to speedBps }
+                    .conflate()
                     .flowOn(Dispatchers.Default)
-                    .collect { snapshot ->
+                    .collect { (snapshot, speedBps) ->
                         val downloadingCount = snapshot.count { it.state == DownloadItem.DownloadState.DOWNLOADING }
                         val initCount = snapshot.count { it.state == DownloadItem.DownloadState.INIT }
                         val pausedCount = snapshot.count { it.state == DownloadItem.DownloadState.PAUSED }
@@ -143,12 +174,15 @@ class ActiveListV3Fragment : Fragment() {
                             )
                         }
 
-                        // 顶部状态行
+                        // 顶部状态行：N 正在 · M 等待 · ... · 1.2 MB/s
+                        // 速度只在 downloadingCount > 0 且采样到非零时显示，避免暂停 / 空闲态
+                        // 显示一个"陈旧"的速度值。
                         val parts = buildList {
                             if (downloadingCount > 0) add(getString(R.string.dlmgr_active_status_downloading_n, downloadingCount))
                             if (initCount > 0) add(getString(R.string.dlmgr_active_status_waiting_n, initCount))
                             if (pausedCount > 0) add(getString(R.string.dlmgr_active_status_paused_n, pausedCount))
                             if (failedCount > 0) add(getString(R.string.dlmgr_active_status_failed_n, failedCount))
+                            if (downloadingCount > 0 && speedBps > 0) add(formatSpeed(speedBps))
                         }
                         statusHeader?.text = if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 
@@ -163,6 +197,19 @@ class ActiveListV3Fragment : Fragment() {
                         btnClear.isEnabled = hasWork
                         btnClear.alpha = if (hasWork) 1f else 0.4f
                     }
+            }
+        }
+
+        // 速度采样：每 1s 算一次整体网速。和上面的内容流是两条独立 coroutine，
+        // 通过 [speedBpsFlow] 解耦 —— driver 写、内容流的 combine 读。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                val sampler = SpeedSampler()
+                while (isActive) {
+                    val snapshot = Manager.get().contentSnapshot()
+                    speedBpsFlow.value = sampler.sample(snapshot)
+                    delay(SPEED_SAMPLE_INTERVAL_MS)
+                }
             }
         }
     }
@@ -190,8 +237,84 @@ class ActiveListV3Fragment : Fragment() {
 
     companion object {
         private const val TAG = "ActiveListV3"
+        /** 整体下载速度采样间隔（毫秒）。1s 比较接近用户对"实时网速"的预期 */
+        private const val SPEED_SAMPLE_INTERVAL_MS = 1000L
     }
 }
+
+/**
+ * 整体下载速度采样器 —— 不修改 Manager.java 的字节计数路径，纯靠 fragment 端
+ * 对 [DownloadItem.currentSize] 做差分。
+ *
+ * # 算法
+ * 每次 [sample] 拍一张 (uuid → currentSize/totalSize) 表，跟上次对比：
+ *   - 还在的 uuid：增量 = 当前 currentSize - 上次 currentSize
+ *   - 上次有本次消失的 uuid：**仅当上次 currentSize 接近 totalSize**（视为自然完成）
+ *     才补 totalSize - 上次 currentSize；否则视为用户 clearOne / clearAll 取消，
+ *     不补差，避免取消瞬间速度虚假飙到 GB/s。
+ *   - 本次新出现的 uuid：增量 = 0（首次见到，没有基线可比）
+ *
+ * 速度 = 总增量 / 时间差。负数截到 0。
+ *
+ * # 为什么不在 Manager 里加全局字节计数
+ * 1. 改 Manager.java 的下载内核是高频热路径（每 ~8KB 一次），AtomicLong 虽然便宜
+ *    但要新加 import + 暴露 getter，跨 Java/Kotlin 边界。
+ * 2. 这里 1s 采样足够：UI 刷新本身就是 1s 量级，没必要追字节级精度。
+ * 3. 跳过 cache hit / SAF skip 等无字节传输路径自然不计入 —— item 直接 currentSize=0
+ *    然后 disappear，按下面的"完成阈值"判定也不会误算（currentSize=0 不达 0.95×total）。
+ */
+private class SpeedSampler {
+    private data class Sample(val currentSize: Long, val totalSize: Long)
+
+    private var prevByUuid: Map<String, Sample> = emptyMap()
+    private var prevTimeMs: Long = 0L
+
+    /**
+     * 拍一帧并返回当前速度（B/s）。snapshot 不需要按状态过滤 —— 非
+     * DOWNLOADING 的 currentSize 不会涨，差分自然 0；省一次 filter。
+     */
+    fun sample(snapshot: List<ceui.lisa.core.DownloadItem>): Long {
+        val now = System.currentTimeMillis()
+        val cur: Map<String, Sample> = snapshot.associate { it.uuid to Sample(it.currentSize, it.totalSize) }
+
+        // 第一次采样：只记录基线，不算速度（没有 prev 时间点可比）
+        if (prevTimeMs == 0L) {
+            prevByUuid = cur
+            prevTimeMs = now
+            return 0L
+        }
+
+        var deltaBytes = 0L
+        for ((uuid, s) in cur) {
+            val prev = prevByUuid[uuid]
+            // 新出现的 uuid：prev?.currentSize ?: 0 → 增量 = currentSize
+            val inc = s.currentSize - (prev?.currentSize ?: 0L)
+            if (inc > 0) deltaBytes += inc
+        }
+        for ((uuid, s) in prevByUuid) {
+            if (cur.containsKey(uuid)) continue
+            // 消失的 item —— 仅当上次进度已经过门槛（接近 totalSize）才视为自然完成
+            // 补差。门槛 95% 既能覆盖 progress 回调粗粒度（每 1% 一次）让最后一档没
+            // 上报满格的情况，又能把"早早就被用户 clearOne 掉"的取消挡在外面（取消
+            // 通常在 currentSize 远小于 totalSize 时发生）。
+            if (s.totalSize > 0 && s.currentSize >= (s.totalSize * 95L / 100L)) {
+                val inc = s.totalSize - s.currentSize
+                if (inc > 0) deltaBytes += inc
+            }
+        }
+
+        val deltaMs = (now - prevTimeMs).coerceAtLeast(1L)
+        val speedBps = (deltaBytes * 1000L / deltaMs).coerceAtLeast(0L)
+
+        prevByUuid = cur
+        prevTimeMs = now
+        return speedBps
+    }
+}
+
+/** 把 B/s 整数格式化成人类可读 —— 跟 [FileSizeUtil.formatFileSize] 一样的进位规则，再追加 "/s" */
+private fun formatSpeed(bps: Long): String =
+    if (bps <= 0) "0B/s" else "${ceui.lisa.download.FileSizeUtil.formatFileSize(bps)}/s"
 
 /**
  * 关键陷阱：[Manager] 原地修改 [DownloadItem]（setNonius / setPaused / ...），
@@ -338,13 +461,20 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
 
         when {
             isActive -> {
-                h.sizeText.text = if (snap.totalSize > 0) {
-                    String.format(
+                // totalSize=0 时（响应没 Content-Length）只显示已下载字节，让用户
+                // 至少看到"在动"；否则照常 currentSize / totalSize。
+                h.sizeText.text = when {
+                    snap.totalSize > 0 -> String.format(
                         "%s / %s",
                         FileSizeUtil.formatFileSize(snap.currentSize),
                         FileSizeUtil.formatFileSize(snap.totalSize)
                     )
-                } else "—"
+                    snap.currentSize > 0 -> String.format(
+                        "%s / —",
+                        FileSizeUtil.formatFileSize(snap.currentSize)
+                    )
+                    else -> "—"
+                }
             }
             isWaiting -> h.sizeText.setText(R.string.dlmgr_active_size_waiting)
             isPaused -> h.sizeText.setText(R.string.dlmgr_active_size_paused)

@@ -23,6 +23,17 @@ interface DownloadQueueDao {
     @Query("SELECT * FROM download_queue WHERE status = :status ORDER BY seq ASC LIMIT 1")
     suspend fun nextByStatus(status: String = QueueStatus.PENDING): DownloadQueueEntity?
 
+    /**
+     * 同时刻多 illust 在飞时，"下一条 PENDING"必须排除已经在 inflight 集合中的
+     * id —— 否则同一行可能被同一轮 fillSlots 重复 take 导致 DOWNLOADING 重复。
+     * exclude 可空：调用方没有 inflight 时直接传 [emptyList]。
+     */
+    @Query("SELECT * FROM download_queue WHERE status = :status AND id NOT IN (:excludeIds) ORDER BY seq ASC LIMIT 1")
+    suspend fun nextByStatusExcluding(status: String, excludeIds: List<Long>): DownloadQueueEntity?
+
+    @Query("SELECT * FROM download_queue WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Long): DownloadQueueEntity?
+
     @Query("UPDATE download_queue SET status = :newStatus, errorMsg = :err, finishedAt = :finishedAt WHERE id = :id")
     suspend fun updateStatus(id: Long, newStatus: String, err: String? = null, finishedAt: Long? = null)
 

@@ -25,9 +25,7 @@ import kotlinx.coroutines.flow.map
  *     `flowCountByStatus`：实测 Room InvalidationTracker 在快速连续 UPDATE
  *     序列下首次 emit 后静默不再 re-emit（用户已复现，17 个 SUCCESS 一次都
  *     没让 Flow 再 emit）。改成自己 tick 后 suspend 查一次，可靠。
- *   - 当前活跃 page 数 + 当前 illust 页级进度从 [ManagerReactive.contentFlow]
- *     + [QueueDownloadManager.currentJobFlow] 派生。Manager 端有自己的
- *     [ManagerReactive.invalidate] 机制驱动，不依赖 Room。
+ *   - 当前活跃 page 数从 [ManagerReactive.contentFlow] 派生。
  */
 class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -35,38 +33,22 @@ class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
 
-    /** 当前 illust 的页级进度：(已完成页, 总页)；闲置时 null */
-    data class IllustProgress(val done: Int, val total: Int)
-
     data class Snapshot(
         val queuePending: Int,
         val queueDownloading: Int,
         val queueSuccess: Int,
         val queueFailed: Int,
         val activeCount: Int,
-        /** 当前正在跑的 illust 的页级进度；用来在批量队列 tab badge 上做"30/87"那种实时数字反馈 */
-        val currentIllustProgress: IllustProgress? = null,
     )
 
     /**
-     * 从 ManagerReactive 派生的 (active page 数, 当前 illust 进度) 二元组。
-     * distinctUntilChanged 避免高频 progress invalidate 让上层 combine 频繁
-     * 重算，无谓 setText。
+     * 从 ManagerReactive 派生的活跃 page 数。distinctUntilChanged 避免高频
+     * progress invalidate 让上层 combine 频繁重算，无谓 setText。
      */
-    private val derivedActiveStateFlow: Flow<Pair<Int, IllustProgress?>> =
-        ManagerReactive.contentFlow.combine(QueueDownloadManager.currentJobFlow) { content, job ->
-            val active = content.count { it.state == DownloadItem.DownloadState.DOWNLOADING }
-            val progress = job?.let { j ->
-                val activePages = content.count { item ->
-                    item.illust?.id?.toLong() == j.illustId
-                }
-                IllustProgress(
-                    done = (j.totalPages - activePages).coerceAtLeast(0),
-                    total = j.totalPages,
-                )
-            }
-            active to progress
-        }.distinctUntilChanged()
+    private val activePageCountFlow: Flow<Int> =
+        ManagerReactive.contentFlow
+            .map { content -> content.count { it.state == DownloadItem.DownloadState.DOWNLOADING } }
+            .distinctUntilChanged()
 
     /**
      * 队列计数 Flow：每次 [QueueDownloadManager.queueListInvalidations] tick
@@ -89,21 +71,20 @@ class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
     private data class QueueCounts(val pending: Int, val downloading: Int, val success: Int, val failed: Int)
 
     /**
-     * 把队列 4 个 count + active state 合并成 Snapshot。
+     * 把队列 4 个 count + active count 合并成 Snapshot。
      * combine 等所有 upstream 至少各 emit 一次 —— SharedFlow / StateFlow 都
      * 自带初始值，几乎立刻 first emit。
      */
     fun snapshots(): Flow<Snapshot> = combine(
         queueCountsFlow,
-        derivedActiveStateFlow,
-    ) { counts, activeAndProgress ->
+        activePageCountFlow,
+    ) { counts, activeCount ->
         Snapshot(
             queuePending = counts.pending,
             queueDownloading = counts.downloading,
             queueSuccess = counts.success,
             queueFailed = counts.failed,
-            activeCount = activeAndProgress.first,
-            currentIllustProgress = activeAndProgress.second,
+            activeCount = activeCount,
         )
     }
 }
