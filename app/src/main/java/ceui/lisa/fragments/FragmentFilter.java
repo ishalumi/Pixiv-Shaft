@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.CompoundButton;
 
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
 
@@ -23,6 +24,7 @@ import ceui.lisa.R;
 import ceui.lisa.activities.Shaft;
 import ceui.lisa.databinding.FragmentFilterBinding;
 import ceui.lisa.utils.Common;
+import ceui.lisa.utils.Local;
 import ceui.lisa.viewmodel.SearchModel;
 
 import ceui.lisa.utils.PixivSearchParamUtil;
@@ -158,6 +160,22 @@ public class FragmentFilter extends BaseFragment<FragmentFilterBinding> {
             public void onValueChanged(int value) {
                 searchModel.getR18Restriction().setValue(value);
                 performSearch();
+            }
+        });
+
+        baseBind.hideAiIllust.setChecked(Shaft.sSettings.isDeleteAIIllust());
+        baseBind.hideAiIllust.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Shaft.sSettings.setDeleteAIIllust(isChecked);
+                Local.setSettings(Shaft.sSettings);
+                performSearch();
+            }
+        });
+        baseBind.hideAiIllustRela.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                baseBind.hideAiIllust.performClick();
             }
         });
 
