@@ -58,9 +58,10 @@ object LegacyBatchEnqueue {
         scope.launch {
             try {
                 val dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
-                // GIF 滤掉（不走本队列，单独 ugoira 管线）；过滤本身在 IO。
+                // 不再过滤 isGif —— ugoira 走 consumer 内独立的 [downloadUgoira] 管线
+                // （getGifPackage → zip → 解压 → encodeGif → V3 WriteHandle 写盘），
+                // 跟 illust 同进一张 download_queue 表，状态机通用。
                 val list = src.asSequence()
-                    .filter { !it.isGif }
                     .take(HARD_CAP)
                     .toList()
 
@@ -82,9 +83,15 @@ object LegacyBatchEnqueue {
                 list.chunked(BATCH_SIZE).forEach { batch ->
                     val batchBase = System.nanoTime()
                     val rows = batch.mapIndexed { i, illust ->
+                        // type 跟 streaming fetcher 一致：isGif → UGOIRA，再分 manga / illust
+                        val rowType = when {
+                            illust.isGif -> WorkType.UGOIRA
+                            illust.type == WorkType.MANGA -> WorkType.MANGA
+                            else -> WorkType.ILLUST
+                        }
                         DownloadQueueEntity(
                             illustId = illust.id.toLong(),
-                            type = WorkType.ILLUST,
+                            type = rowType,
                             seq = batchBase + i,
                             sourceTag = "legacy-batch",
                             status = QueueStatus.PENDING,

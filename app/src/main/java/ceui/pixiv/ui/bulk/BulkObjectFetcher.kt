@@ -128,6 +128,7 @@ class BulkObjectFetcher<T>(
     }.flowOn(Dispatchers.IO)
 
     companion object {
+        /** 翻页之间的 API 限速 —— 防 pixiv 429，debug / release 都得守。 */
         private const val RATE_LIMIT_MS = 2000L
         private const val TAG = "BulkObjectFetcher"
     }
@@ -156,7 +157,7 @@ fun bulkEnqueueIllusts(
 }
 
 /**
- * 处理一页 illust：filter !isGif → 序列化进 illustGson → 批量写库 → emit 进度。
+ * 处理一页 illust：序列化进 illustGson → 批量写库 → emit 进度。
  *
  * **不灌 ObjectPool**（20000 illusts × ~15KB 直接撑满内存 → OOM；setValue 还会
  *  触发可见 RecyclerView cell 刷新一轮，UI 抖动）。
@@ -167,8 +168,13 @@ fun bulkEnqueueIllusts(
  *  这是 commit a01f5831 在 LegacyBatchEnqueue 上选的同一条路；当时漏了 streaming
  *  fetcher 这条路径，导致从作者作品 / 收藏批量入队的第 2 页之后标题/缩略图丢失。
  *
- * type 取自每条 illust 自身（[IllustsBean.getType]），不再是构造级 type 参数 ——
- * bookmarks 这种 illust/manga 混合的场景才能正确分流。
+ * type 取自每条 illust 自身：isGif → UGOIRA（走 [downloadUgoira] 单独管线），
+ * 否则按 [IllustsBean.getType] 落到 ILLUST/MANGA。bookmarks 这种 illust/manga/ugoira
+ * 混合的场景才能正确分流。
+ *
+ * **不再过滤 isGif** —— 之前一刀切丢弃，现在 ugoira 走 consumer 里的独立管线
+ * （getGifPackage → zip → 解压 → encodeGif → 写用户目录），跟 illust 同入一张
+ * download_queue 表，状态机通用。
  */
 private suspend fun enqueueIllustPage(
     collector: FlowCollector<FetchEvent>,
@@ -176,18 +182,22 @@ private suspend fun enqueueIllustPage(
     sourceTag: String,
     dao: DownloadQueueDao,
 ): Int {
-    val filtered = list.filter { !it.isGif }
-    if (filtered.isEmpty()) return 0
+    if (list.isEmpty()) return 0
 
-    collector.emit(FetchEvent.DbBatchStart(filtered.size))
+    collector.emit(FetchEvent.DbBatchStart(list.size))
     val tDb = System.currentTimeMillis()
     val batchBase = System.nanoTime()
-    val rows = filtered.mapIndexed { i, illust ->
+    val rows = list.mapIndexed { i, illust ->
         // toJson 在 IO 线程做，单条 ~15KB 串生成完即写库，不会驻留
         val gson = runCatching { Shaft.sGson.toJson(illust) }.getOrNull()
+        val rowType = when {
+            illust.isGif -> WorkType.UGOIRA
+            illust.type == WorkType.MANGA -> WorkType.MANGA
+            else -> WorkType.ILLUST
+        }
         DownloadQueueEntity(
             illustId = illust.id.toLong(),
-            type = if (illust.type == WorkType.MANGA) WorkType.MANGA else WorkType.ILLUST,
+            type = rowType,
             seq = batchBase + i,
             sourceTag = sourceTag,
             status = QueueStatus.PENDING,
@@ -196,8 +206,8 @@ private suspend fun enqueueIllustPage(
     }
     dao.appendBatch(rows)
     val dbLatency = System.currentTimeMillis() - tDb
-    collector.emit(FetchEvent.DbBatchDone(filtered.size, dbLatency))
-    return filtered.size
+    collector.emit(FetchEvent.DbBatchDone(list.size, dbLatency))
+    return list.size
 }
 
 private fun abbrevUrl(url: String): String {

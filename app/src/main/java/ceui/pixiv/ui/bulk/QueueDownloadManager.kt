@@ -27,7 +27,9 @@ import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -36,6 +38,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
@@ -151,6 +155,32 @@ object QueueDownloadManager {
      * 该 map 只在 [loopJob] 单一协程内读写，不需要同步。
      */
     private val inFlight: LinkedHashMap<Long, InFlightIllust> = LinkedHashMap()
+
+    /**
+     * Ugoira 任务专用 scope。independent of [scope] 的主循环 —— ugoira 一条要
+     * 几秒到几十秒（zip 下载 + 解压 + AnimatedGifEncoder 编码），不能压在
+     * loopJob 单协程里阻塞 illust 并发。
+     */
+    private val ugoiraScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * 全局 ugoira 并发上限。每条吃峰值内存（解码 PNG 序列 → AnimatedGifEncoder
+     * 全帧 in-memory），并行多了 OOM。1 条串行就足够，每条几秒级别。
+     */
+    private const val MAX_UGOIRA_PARALLEL = 1
+    private val ugoiraSem = Semaphore(MAX_UGOIRA_PARALLEL)
+
+    /**
+     * 已派给 [ugoiraScope] 但还没收尾的 row.id 集合。
+     *
+     *  - [dispatchUgoira] add，worker finally remove
+     *  - [fillSlots] 拉行时把这部分加进 nextByStatusExcluding 的 excludeIds，
+     *    避免主循环把同一条 ugoira 反复 launch
+     *  - synchronizedSet：worker 在 [ugoiraScope] 多线程 IO 上写，主循环在
+     *    [scope] 上读，需要互斥
+     */
+    private val ugoiraInFlightRowIds: MutableSet<Long> =
+        java.util.Collections.synchronizedSet(mutableSetOf())
 
     private data class InFlightIllust(
         val queueRowId: Long,
@@ -457,8 +487,20 @@ object QueueDownloadManager {
                 continue
             }
 
-            // 2) inflight 都满了 P，拉下一条 PENDING
-            val excludeIds = inFlight.keys.toList()
+            // 2) inflight 都满了 P，拉下一条 PENDING。
+            //    excludeIds 必须包括 illust inflight + ugoira inflight —— 后者还是 PENDING
+            //    状态（worker 真正开始处理才翻 DOWNLOADING），不排除会被重复 launch。
+            val ugoiraExcl = synchronized(ugoiraInFlightRowIds) {
+                ArrayList(ugoiraInFlightRowIds)
+            }
+            val excludeIds = if (inFlight.isEmpty() && ugoiraExcl.isEmpty()) {
+                emptyList()
+            } else {
+                ArrayList<Long>(inFlight.size + ugoiraExcl.size).apply {
+                    addAll(inFlight.keys)
+                    addAll(ugoiraExcl)
+                }
+            }
             val row = runCatching {
                 if (excludeIds.isEmpty()) dao.nextByStatus(QueueStatus.PENDING)
                 else dao.nextByStatusExcluding(QueueStatus.PENDING, excludeIds)
@@ -502,14 +544,16 @@ object QueueDownloadManager {
         }
 
         if (bean.isGif) {
-            // GIF 走 ugoira zip + 解压，不适合走本队列；直接当 SUCCESS 跳过。
-            runCatching {
-                dao.updateStatus(
-                    row.id, QueueStatus.SUCCESS, finishedAt = System.currentTimeMillis()
-                )
-            }
-            queueListInvalidations.tryEmit(Unit)
-            Timber.tag(TAG).i("[QUEUE-CONSUMER] skip gif illust=${row.illustId}")
+            // ugoira 走独立管线（getGifPackage → zip → 解压 → encodeGif → 写用户目录），
+            // 不进 Manager.content 的页级并发模型 —— [downloadUgoira] 用单独的
+            // [ugoiraScope] 串行跑，跟 illust 并发互不挤占。
+            //
+            // 标 DOWNLOADING 后立刻 launch 一个 background job：主循环不被阻塞，
+            // 继续 pull 别的 illust。job 自己写终态（SUCCESS / FAILED / bumpRetry）。
+            //
+            // dispatchUgoira 同时维护 ugoiraInFlightRowIds，避免主循环把同一行重复
+            // launch。row.id 必然唯一（PRIMARY KEY），用作幂等 key。
+            dispatchUgoira(row, bean)
             return false
         }
 
@@ -630,6 +674,11 @@ object QueueDownloadManager {
     fun pause() {
         paused = true
         _pausedFlow.value = true
+        // 联动：illust 走 Manager.stopAll() 立刻停 disposables；ugoira 这边等价做法
+        // 是 cancel 已派出去的 worker —— 否则一条 50MB zip + ~1s 编码会跑完才理睬
+        // 用户的暂停意图。worker 的 catch CancellationException 会把行翻回 PENDING，
+        // resume 时主循环重新 pull。
+        cancelOngoingUgoiraWorkers()
         Timber.tag(TAG).i("[QUEUE-CONSUMER] pause() called")
     }
     fun resume() {
@@ -639,6 +688,90 @@ object QueueDownloadManager {
         Timber.tag(TAG).i("[QUEUE-CONSUMER] resume() called, tickle.trySend=$sent")
     }
     fun isPaused(): Boolean = paused
+
+    /**
+     * 给"清空全部"用：取消所有正在跑 / 等 Semaphore 的 ugoira worker。row 已经在
+     * 调用方 `dao.deleteAll()` 删掉，worker 的 cancellation cleanup 会尝试把行翻
+     * PENDING 但 row 不存在，dao 静默 no-op，不会异常。
+     */
+    fun cancelOngoingUgoiraWorkers() {
+        ugoiraScope.coroutineContext.cancelChildren()
+    }
+
+    // —— ugoira 派发 ——
+
+    /**
+     * 把 ugoira [row] 派给 [ugoiraScope] 跑。**不阻塞 [loopJob]**，主循环继续 pull
+     * 别的 illust。
+     *
+     * 状态机（与 illust 路径独立）：
+     *   - 派出去：[ugoiraInFlightRowIds] 加 row.id（fillSlots 排它），status 仍是 PENDING
+     *   - worker 拿 [ugoiraSem] 后才翻 DOWNLOADING（UI 上只有真正在跑的那条显示
+     *     DOWNLOADING；其余 ugoira 行排队期间是 PENDING，不会出现"100 条同时
+     *     DOWNLOADING 但只有 1 条在动"的假象）
+     *   - 完成：SUCCESS / 失败重试 PENDING (bumpRetry) / 终态 FAILED
+     *   - finally：移除 [ugoiraInFlightRowIds]，tryEmit 列表脏标，trySend tickle
+     *     让主循环立刻再 pull 下一行（不必等 POLL_INTERVAL_MS）
+     */
+    private fun dispatchUgoira(row: DownloadQueueEntity, bean: IllustsBean) {
+        if (!ugoiraInFlightRowIds.add(row.id)) {
+            Timber.tag(TAG).w("[QUEUE-CONSUMER] ugoira already dispatched row=${row.id}")
+            return
+        }
+        queueListInvalidations.tryEmit(Unit)
+        Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira queued illust=${row.illustId} row=${row.id}")
+
+        ugoiraScope.launch {
+            var cancelledMidWay = false
+            try {
+                ugoiraSem.withPermit {
+                    runCatching { dao.updateStatus(row.id, QueueStatus.DOWNLOADING) }
+                    queueListInvalidations.tryEmit(Unit)
+                    Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira start illust=${row.illustId}")
+                    downloadUgoira(bean)
+                    runCatching {
+                        dao.updateStatus(
+                            row.id, QueueStatus.SUCCESS,
+                            finishedAt = System.currentTimeMillis()
+                        )
+                    }
+                    Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira success illust=${row.illustId}")
+                }
+            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                // pause / clearAll 路径：把行翻回 PENDING，让 resume 时主循环再 pull。
+                // clearAll 已 deleteAll，updateStatus 命中不存在的 id，Room 静默 no-op。
+                cancelledMidWay = true
+                throw cancellation
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "[QUEUE-CONSUMER] ugoira failed illust=${row.illustId}")
+                if (row.retryCount + 1 < MAX_RETRY) {
+                    runCatching { dao.bumpRetry(row.id) }
+                    runCatching {
+                        dao.updateStatus(row.id, QueueStatus.PENDING, err = e.message)
+                    }
+                } else {
+                    runCatching {
+                        dao.updateStatus(
+                            row.id, QueueStatus.FAILED, err = e.message,
+                            finishedAt = System.currentTimeMillis()
+                        )
+                    }
+                }
+            } finally {
+                // finally 在已取消协程里 dao.updateStatus 会立刻抛 CancellationException
+                // —— 用 NonCancellable 让收尾 dao 写真的能落库。tryEmit / trySend 不挂
+                // 起，不受 cancellation 影响。
+                ugoiraInFlightRowIds.remove(row.id)
+                if (cancelledMidWay) {
+                    withContext(NonCancellable) {
+                        runCatching { dao.updateStatus(row.id, QueueStatus.PENDING) }
+                    }
+                }
+                queueListInvalidations.tryEmit(Unit)
+                tickle.trySend(Unit)
+            }
+        }
+    }
 
     // —— 工具 ——
 

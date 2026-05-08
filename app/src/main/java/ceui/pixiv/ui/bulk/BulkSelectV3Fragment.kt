@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
  *       本 fragment 取 BulkSelectStorage.consume() 拿到列表
  *
  * 行为：
- *  - 默认全选（除 GIF —— GIF 走单独 ugoira 管线，本队列不接）
+ *  - 默认全选（包含 ugoira —— consumer 内独立的 [downloadUgoira] 管线会处理）
  *  - 全选 / 反选 在 toolbar 右上 menu（不再占用底部 bar）
  *  - 选中态：粗 v3_blue 边框 + 实色圆形勾标 + 微缩小 0.94，三层视觉差
  *  - 确认按钮：把选中的灌入 download_queue（走 LegacyBatchEnqueue），完成后跳转
@@ -98,8 +98,8 @@ class BulkSelectV3Fragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val prepared = withContext(Dispatchers.IO) {
                 raw.map { illust ->
-                    val selectable = !illust.isGif
-                    SelectableItem(illust, selected = selectable, selectable = selectable)
+                    // ugoira 现在也走批量队列（独立 consumer 管线），不再 disable。
+                    SelectableItem(illust, selected = true, selectable = true)
                 }
             }
             items.clear()

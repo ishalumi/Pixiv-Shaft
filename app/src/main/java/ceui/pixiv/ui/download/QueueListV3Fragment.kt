@@ -132,6 +132,9 @@ class QueueListV3Fragment : Fragment() {
                     // 联动：清空队列同时把正在下载的也一并停掉清掉，
                     // 否则用户清完队列还看到"正在下载" tab 有残留任务在跑。
                     runCatching { Manager.get().clearAll() }
+                    // 同步停掉 ugoira workers —— 否则用户清完，正在跑的 ugoira 还会
+                    // 编完 GIF 落到用户图库（用户已表明全清，落盘等于无视意图）。
+                    runCatching { QueueDownloadManager.cancelOngoingUgoiraWorkers() }
                     runCatching { dao.deleteAll() }
                     QueueDownloadManager.queueListInvalidations.tryEmit(Unit)
                 }
