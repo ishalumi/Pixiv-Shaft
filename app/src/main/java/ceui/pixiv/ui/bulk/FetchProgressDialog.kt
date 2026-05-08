@@ -143,9 +143,9 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         when (e) {
             is FetchEvent.Started -> {
                 if (viewAlive) {
-                    titleView.text = "batch-download · user:${e.userId}"
+                    titleView.text = "batch-download · ${e.subtitle}"
                     appendLine("> ${e.taskName}")
-                    appendLine("  userId=${e.userId}, streaming pages…")
+                    appendLine("  source=${e.subtitle}, streaming pages…")
                     flushLog()
                 }
             }

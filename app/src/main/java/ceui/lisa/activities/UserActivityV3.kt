@@ -767,12 +767,15 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             if (type == ceui.pixiv.db.queue.WorkType.MANGA) R.string.bulk_type_manga
             else R.string.bulk_type_illust
         )
-        val fetcher = ceui.pixiv.ui.bulk.AuthorWorksFetcher(
+        val source = ceui.pixiv.ui.bulk.AuthorWorksSource(
             userId = userIdLong,
             type = type,
-            taskName = getString(R.string.bulk_task_name, authorName, typeLabel),
         )
-        ceui.pixiv.ui.bulk.FetchProgressDialog.show(supportFragmentManager, fetcher.fetch())
+        val taskName = getString(R.string.bulk_task_name, authorName, typeLabel)
+        ceui.pixiv.ui.bulk.FetchProgressDialog.show(
+            supportFragmentManager,
+            ceui.pixiv.ui.bulk.bulkEnqueueIllusts(source, taskName),
+        )
         // 不在这里 notifyNewItems —— 等 fetcher 全部抓完才统一唤醒消费者
     }
 

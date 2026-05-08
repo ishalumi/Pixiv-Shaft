@@ -1108,6 +1108,8 @@
     <string name="bulk_user_menu_download_all_manga">Download all manga (queue all)</string>
     <string name="bulk_user_menu_open_download_manager">Open download manager…</string>
     <string name="bulk_task_name">Download all %2$s by %1$s</string>
+    <string name="bulk_collection_menu_download_all">Bulk download</string>
+    <string name="bulk_collection_task_name">Download my %1$s illustrations</string>
     <string name="bulk_type_illust">illustrations</string>
     <string name="bulk_type_manga">manga</string>
 

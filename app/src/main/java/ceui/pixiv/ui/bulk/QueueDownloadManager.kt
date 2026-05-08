@@ -699,13 +699,4 @@ object QueueDownloadManager {
     private const val TAG = "QueueDownloadManager"
 }
 
-/** RxJava2 Observable -> suspend 单值。 */
-private suspend fun <T : Any> Observable<T>.awaitFirstSafe(): T = suspendCancellableCoroutine { cont ->
-    val disposable = subscribeOn(Schedulers.io())
-        .firstOrError()
-        .subscribe(
-            { cont.resume(it) },
-            { cont.resumeWithException(it) }
-        )
-    cont.invokeOnCancellation { disposable.dispose() }
-}
+// awaitFirstSafe 已迁到 BulkObjectFetcher.kt 内的 internal 扩展，本包共享。

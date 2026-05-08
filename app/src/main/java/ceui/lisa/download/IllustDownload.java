@@ -145,7 +145,7 @@ public class IllustDownload {
 
 
     // downloadCheckedIllustAllPages 已移除：旧的 FragmentMultiDownload 勾选下载入口已废弃，
-    // 现在统一通过 download_queue v33 持久化队列（见 ceui.pixiv.ui.bulk.LegacyBatchEnqueue 与 AuthorWorksFetcher）。
+    // 现在统一通过 download_queue v33 持久化队列（见 ceui.pixiv.ui.bulk.LegacyBatchEnqueue 与 ceui.pixiv.ui.bulk.bulkEnqueueIllusts）。
 
     public static DownloadItem downloadGif(GifResponse response, IllustsBean illust) {
         return downloadGif(response, illust, false);

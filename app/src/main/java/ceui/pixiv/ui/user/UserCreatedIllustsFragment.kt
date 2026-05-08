@@ -16,8 +16,9 @@ import ceui.pixiv.ui.common.IllustCardHolder
 import ceui.pixiv.ui.common.setUpRefreshState
 
 import ceui.pixiv.ui.common.viewBinding
-import ceui.pixiv.ui.bulk.AuthorWorksFetcher
+import ceui.pixiv.ui.bulk.AuthorWorksSource
 import ceui.pixiv.ui.bulk.FetchProgressDialog
+import ceui.pixiv.ui.bulk.bulkEnqueueIllusts
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import ceui.pixiv.ui.task.FetchAllTask
 import ceui.pixiv.ui.task.PixivTaskType
@@ -51,12 +52,11 @@ class UserCreatedIllustsFragment : PixivFragment(R.layout.fragment_pixiv_list) {
                             if (args.objectType == "manga") R.string.bulk_type_manga else R.string.bulk_type_illust
                         )
                         val taskName = getString(R.string.bulk_task_name, authorName, typeLabel)
-                        val fetcher = AuthorWorksFetcher(
+                        val source = AuthorWorksSource(
                             userId = args.userId,
                             type = args.objectType,
-                            taskName = taskName,
                         )
-                        FetchProgressDialog.show(childFragmentManager, fetcher.fetch())
+                        FetchProgressDialog.show(childFragmentManager, bulkEnqueueIllusts(source, taskName))
                         // 不在这里 notifyNewItems —— 等 fetcher 全部抓完才统一唤醒消费者
                     }
                 )

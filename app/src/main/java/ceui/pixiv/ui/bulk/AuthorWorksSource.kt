@@ -1,0 +1,30 @@
+package ceui.pixiv.ui.bulk
+
+import ceui.lisa.http.Retro
+import ceui.lisa.models.IllustsBean
+
+/**
+ * 某作者的全部作品（插画或漫画，由 [type] 决定）。
+ * type 直接用 [ceui.pixiv.db.queue.WorkType] 的常量，避免再来一份字符串约定。
+ */
+class AuthorWorksSource(
+    private val userId: Long,
+    private val type: String,
+) : PaginatedObjectSource<IllustsBean> {
+
+    override val sourceTag: String = "user:$userId"
+    override val subtitle: String = "user:$userId"
+    override val endpointHint: String = "/v1/user/illusts?type=$type"
+
+    override suspend fun firstPage(): PageResult<IllustsBean>? =
+        Retro.getAppApi()
+            .getUserSubmitIllust(userId.toInt(), type)
+            .awaitFirstSafe()
+            .toPageResult()
+
+    override suspend fun nextPage(nextUrl: String): PageResult<IllustsBean>? =
+        Retro.getAppApi()
+            .getNextIllust(nextUrl)
+            .awaitFirstSafe()
+            .toPageResult()
+}
