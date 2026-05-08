@@ -1588,7 +1588,9 @@
     <string name="dlmgr_active_action_resume_all">全部继续</string>
     <string name="dlmgr_active_action_pause_all">全部暂停</string>
     <string name="dlmgr_active_action_clear">清空</string>
-    <string name="dlmgr_active_status_downloading_n">%1$d 正在下载</string>
+    <!-- "正在下载"前面不挂数字 —— tab 标题已经有"正在下载 N"。getString 多传一个 int
+         参数到无 %1$d 的字符串是合法的（String.format 忽略多余 arg），所以调用点不用改。 -->
+    <string name="dlmgr_active_status_downloading_n">正在下载</string>
     <string name="dlmgr_active_status_waiting_n">%1$d 等待中</string>
     <string name="dlmgr_active_status_paused_n">%1$d 已暂停</string>
     <string name="dlmgr_active_status_failed_n">%1$d 失败</string>
