@@ -18,6 +18,7 @@ import ceui.loxia.ObjectPool
 import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.db.queue.DownloadQueueEntity
 import ceui.pixiv.db.queue.QueueStatus
+import ceui.pixiv.db.queue.WorkType
 import ceui.pixiv.download.maintenance.MediaStoreOrphanCleaner
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -164,11 +165,12 @@ object QueueDownloadManager {
     private val ugoiraScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * 全局 ugoira 并发上限。每条吃峰值内存（解码 PNG 序列 → AnimatedGifEncoder
-     * 全帧 in-memory），并行多了 OOM。1 条串行就足够，每条几秒级别。
+     * Ugoira encode 步骤的串行许可。zip 下载 / 解压都是 IO-bound，让它们 maxConc
+     * 个同时跑没问题；只有 ENCODE 一步会把整段 PNG 序列 decode 成 Bitmap +
+     * AnimatedGifEncoder 全帧驻留，并行多了 OOM。所以只串行 encode 这一步，下载
+     * 解压并发 —— pipeline 上能同时看到 maxConc 条 ugoira。
      */
-    private const val MAX_UGOIRA_PARALLEL = 1
-    private val ugoiraSem = Semaphore(MAX_UGOIRA_PARALLEL)
+    private val ugoiraEncodeSem = Semaphore(1)
 
     /**
      * 已派给 [ugoiraScope] 但还没收尾的 row.id 集合。
@@ -501,17 +503,27 @@ object QueueDownloadManager {
         // 的逻辑出 bug 了，超出就停 + 警告，等下一 tick。
         var didAdd = false
         var safety = maxConc * 2 + 8
+
         while (safety-- > 0) {
             if (!DownloadLimitTypeUtil.canDownloadNow() || paused) return didAdd
 
             val snapshot = snapshotManagerContent()
-            val activeFootprint = snapshot.count {
+            val illustActive = snapshot.count {
                 !it.isPaused && (it.state == DownloadItem.DownloadState.INIT
                         || it.state == DownloadItem.DownloadState.DOWNLOADING)
             }
+            // ugoira 跟 illust 共享 maxConc 槽位 —— 用户视角"最大并行数"包含所有
+            // 正在跑的活儿（illust page + ugoira），不区分类型。否则 maxConc=3 时
+            // 用户实际看到 3 illust + 1 ugoira = 4 条在跑，违反"设置=上限"的直觉。
+            // ugoira 内部的 encode 步骤靠 [ugoiraEncodeSem] 串行，meta/download/extract
+            // 可以 maxConc 条同时跑，pipeline 满负荷。
+            val ugoiraExcl = synchronized(ugoiraInFlightRowIds) {
+                ArrayList(ugoiraInFlightRowIds)
+            }
+            val activeFootprint = illustActive + ugoiraExcl.size
             if (activeFootprint >= maxConc) return didAdd
 
-            // 1) 现有 inflight 还有未 add 的 P → 添一个
+            // 1) 现有 inflight illust 还有未 add 的 P → 添一个
             val infNeedingPage = inFlight.values.firstOrNull { it.nextPageToAdd < it.totalPages }
             if (infNeedingPage != null) {
                 val i = infNeedingPage.nextPageToAdd
@@ -531,11 +543,7 @@ object QueueDownloadManager {
             }
 
             // 2) inflight 都满了 P，拉下一条 PENDING。
-            //    excludeIds 必须包括 illust inflight + ugoira inflight —— 后者还是 PENDING
-            //    状态（worker 真正开始处理才翻 DOWNLOADING），不排除会被重复 launch。
-            val ugoiraExcl = synchronized(ugoiraInFlightRowIds) {
-                ArrayList(ugoiraInFlightRowIds)
-            }
+            //    excludeIds = illust inflight + ugoira inflight。
             val excludeIds = if (inFlight.isEmpty() && ugoiraExcl.isEmpty()) {
                 emptyList()
             } else {
@@ -769,21 +777,21 @@ object QueueDownloadManager {
         ugoiraScope.launch {
             var cancelledMidWay = false
             try {
-                ugoiraSem.withPermit {
-                    runCatching { dao.updateStatus(row.id, QueueStatus.DOWNLOADING) }
-                    queueListInvalidations.tryEmit(Unit)
-                    Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira start illust=${row.illustId}")
-                    downloadUgoira(bean) { phase ->
-                        setUgoiraPhase(row.id, bean, phase)
-                    }
-                    runCatching {
-                        dao.updateStatus(
-                            row.id, QueueStatus.SUCCESS,
-                            finishedAt = System.currentTimeMillis()
-                        )
-                    }
-                    Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira success illust=${row.illustId}")
+                // 不再外层 withPermit —— ENCODE 步骤的串行已经下放到 [downloadUgoira]
+                // 内部，meta/download/extract 三步可以 maxConc 条同时跑。
+                runCatching { dao.updateStatus(row.id, QueueStatus.DOWNLOADING) }
+                queueListInvalidations.tryEmit(Unit)
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira start illust=${row.illustId}")
+                downloadUgoira(bean, ugoiraEncodeSem) { phase ->
+                    setUgoiraPhase(row.id, bean, phase)
                 }
+                runCatching {
+                    dao.updateStatus(
+                        row.id, QueueStatus.SUCCESS,
+                        finishedAt = System.currentTimeMillis()
+                    )
+                }
+                Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira success illust=${row.illustId}")
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 // pause / clearAll 路径：把行翻回 PENDING，让 resume 时主循环再 pull。
                 // clearAll 已 deleteAll，updateStatus 命中不存在的 id，Room 静默 no-op。

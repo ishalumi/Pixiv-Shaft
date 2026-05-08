@@ -18,6 +18,8 @@ import ceui.pixiv.ui.bulk.QueueDownloadManager.UgoiraPhase
 import com.blankj.utilcode.util.ZipUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -55,8 +57,18 @@ import kotlin.coroutines.coroutineContext
  *  - 任何一步出错就抛异常 —— [QueueDownloadManager.dispatchUgoira] 走 retry / FAILED
  *    路径，不要在这里吞错误。
  */
+/**
+ * 下载并编码单条 ugoira。
+ *
+ * - [encodeSem] 用来串行 GIF 编码这一步（吃满帧 Bitmap，并行多了 OOM）。其它阶段
+ *   （meta / zip 下载 / 解压）是 IO-bound，不需要互斥；调用方传 `Semaphore(1)`
+ *   就能"并发下载，串行编码"，让 maxConcurrent 个 ugoira 同时在 pipeline 上跑。
+ *   单条调用（详情页保存）不在意并发可以省略，默认 [Semaphore](Int.MAX_VALUE)
+ *   等价于无锁。
+ */
 suspend fun downloadUgoira(
     illust: IllustsBean,
+    encodeSem: Semaphore = Semaphore(Int.MAX_VALUE),
     onPhase: (UgoiraPhase) -> Unit = {},
 ) = withContext(Dispatchers.IO) {
     Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
@@ -110,23 +122,27 @@ suspend fun downloadUgoira(
     coroutineContext.ensureActive()
 
     // 4) 直接编进 V3 WriteHandle —— 用户配置的 ugoira 命名模板 / 存储位置统一生效。
-    onPhase(UgoiraPhase.ENCODE)
-    val handle = DownloadsRegistry.downloads.open(DownloadItems.ugoira(illust))
-    if (handle == null) {
-        // OverwritePolicy.Skip + 目标已存在；当作完成
-        Timber.tag(TAG).i("[UGOIRA] skip: target already exists illust=$illustId")
-        return@withContext
-    }
-    try {
-        BufferedOutputStream(handle.stream).use { bos ->
-            encodeFramesToGif(unzipFolder, resp, bos)
+    //    ENCODE phase 在 encodeSem.withPermit 里跑：等许可期间 last-emitted phase 仍是
+    //    上一步（DOWNLOAD_ZIP / EXTRACT），UI 显示是诚实的——它真的还没在 encode。
+    encodeSem.withPermit {
+        onPhase(UgoiraPhase.ENCODE)
+        val handle = DownloadsRegistry.downloads.open(DownloadItems.ugoira(illust))
+        if (handle == null) {
+            // OverwritePolicy.Skip + 目标已存在；当作完成
+            Timber.tag(TAG).i("[UGOIRA] skip: target already exists illust=$illustId")
+            return@withPermit
         }
-        handle.onFinish()
-        Timber.tag(TAG).i("[UGOIRA] done illust=$illustId uri=${handle.uri}")
-    } catch (t: Throwable) {
-        // onAbort 让 backend 清掉部分写入的 .pending-NNNN 文件；不调用就会留 0 字节孤儿
-        runCatching { handle.onAbort() }
-        throw t
+        try {
+            BufferedOutputStream(handle.stream).use { bos ->
+                encodeFramesToGif(unzipFolder, resp, bos)
+            }
+            handle.onFinish()
+            Timber.tag(TAG).i("[UGOIRA] done illust=$illustId uri=${handle.uri}")
+        } catch (t: Throwable) {
+            // onAbort 让 backend 清掉部分写入的 .pending-NNNN 文件；不调用就会留 0 字节孤儿
+            runCatching { handle.onAbort() }
+            throw t
+        }
     }
 }
 
