@@ -1319,6 +1319,22 @@
                         <View style="@style/half_divider" />
 
                         <RelativeLayout
+                            android:id="@+id/auto_download_after_star_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/auto_download_after_star" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/auto_download_after_star"
+                                style="@style/setting_right_switch" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
                             android:id="@+id/illust_detail_keep_screen_on_rela"
                             style="@style/ripple_rela">
 

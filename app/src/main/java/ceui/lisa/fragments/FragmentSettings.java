@@ -1328,6 +1328,22 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            baseBind.autoDownloadAfterStar.setChecked(Shaft.sSettings.isAutoDownloadAfterStar());
+            baseBind.autoDownloadAfterStar.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setAutoDownloadAfterStar(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.autoDownloadAfterStarRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.autoDownloadAfterStar.performClick();
+                }
+            });
+
             //插画二级详情保持屏幕常亮
             baseBind.illustDetailKeepScreenOn.setChecked(Shaft.sSettings.isIllustDetailKeepScreenOn());
             baseBind.illustDetailKeepScreenOn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {

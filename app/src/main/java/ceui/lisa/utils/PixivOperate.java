@@ -40,6 +40,7 @@ import ceui.lisa.core.Container;
 import ceui.lisa.core.PageData;
 import ceui.lisa.core.RxRun;
 import ceui.lisa.core.RxRunnable;
+import ceui.lisa.download.IllustDownload;
 import ceui.lisa.core.TryCatchObserverImpl;
 import ceui.lisa.database.AppDatabase;
 import ceui.lisa.database.IllustHistoryEntity;
@@ -220,6 +221,12 @@ public class PixivOperate {
                                     && !illustsBean.getUser().isIs_followed()) {
                                 postFollowUser(illustsBean.getUser().getId(), Params.TYPE_PUBLIC);
                                 illustsBean.getUser().setIs_followed(true);
+                            }
+
+                            //收藏后自动下载（issue #722）—— ugoira 走 IllustDownload.downloadGif，
+                            //单图 / 多图都被 downloadIllustAllPages 内部分流覆盖。
+                            if (Shaft.sSettings.isAutoDownloadAfterStar()) {
+                                IllustDownload.downloadIllustAllPages(illustsBean);
                             }
                         }
                     });
