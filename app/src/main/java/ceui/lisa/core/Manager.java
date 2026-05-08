@@ -499,11 +499,49 @@ public class Manager {
     private void startDownloadChain(Context context, DownloadItem downloadItem,
             DownloadFileFactory factory, File cachedFile, Uri targetUri, String dlUrl, long passSize) {
         OkHttpClient client = ((Shaft) Shaft.getContext()).getOkHttpClient();
+
+        // ─── STAGED-DL 写入策略 ───
+        // content:// 目标 (MediaStore / SAF) 直接 openOutputStream 是 Binder pipe，
+        // N 流并发写时会被 MediaProvider 串行化：读循环卡 outputStream.write，OkHttp
+        // 接收 buffer 满，TCP window 缩 0，**服务器停发那两条流**。3 流场景的视觉
+        // 后果就是 1 条跑满、另外 2 条进度近乎不动；首条结束后另两条才秒完成。
+        //
+        // 修法：先 stream 进 cacheDir/staging_dl/{uuid}.part（本地 FS 写零跨进程
+        // 锁），下完一次性 copy 到 targetUri。这样 N 流的字节读取永远不被 MediaStore
+        // 阻塞，commit 阶段虽然仍可能串行但只是几十 ms 量级，肉眼无感。
+        //
+        // file:// 目标（用户配的纯路径）保持直写——无 ContentProvider 介入。
+        // cachedFile 命中（本地拷贝）也直接写目标——源已在本地，无 TCP 反压可言。
+        final boolean useStaging = cachedFile == null && !"file".equals(targetUri.getScheme());
+        final java.io.File stageFile;
+        final long effectivePassSize;
+        if (useStaging) {
+            java.io.File stageDir = new java.io.File(context.getCacheDir(), "staging_dl");
+            if (!stageDir.isDirectory() && !stageDir.mkdirs()) {
+                Common.showLog("[STAGED-DL] mkdirs failed " + stageDir);
+            }
+            stageFile = new java.io.File(stageDir, downloadItem.getUuid() + ".part");
+            // 入参 passSize 是 MediaStore 行的现有大小（旧续传逻辑），staging 模式
+            // 下只看 stage 文件实际长度。同会话 pause/resume 仍能续；冷启动跨会话
+            // 的旧 MediaStore 部分文件不再可续，重头来——不大问题。
+            if (!downloadItem.shouldStartNewDownload() && stageFile.length() > 0) {
+                effectivePassSize = stageFile.length();
+            } else {
+                if (stageFile.exists() && !stageFile.delete()) {
+                    Common.showLog("[STAGED-DL] stale stage cleanup failed " + stageFile);
+                }
+                effectivePassSize = 0;
+            }
+        } else {
+            stageFile = null;
+            effectivePassSize = passSize;
+        }
+
         Request.Builder reqBuilder = new Request.Builder()
                 .url(downloadItem.getUrl())
                 .addHeader(Params.MAP_KEY, Params.IMAGE_REFERER);
-        if (passSize > 0) {
-            reqBuilder.addHeader("Range", "bytes=" + passSize + "-");
+        if (effectivePassSize > 0) {
+            reqBuilder.addHeader("Range", "bytes=" + effectivePassSize + "-");
         }
         Request request = reqBuilder.build();
 
@@ -523,7 +561,7 @@ public class Manager {
                     contentLength = cachedFile.length();
                 } else {
                     Common.showLog("[DL-CACHE] begin network fetch, url=" + dlUrl
-                            + " passSize=" + passSize + " dst=" + targetUri);
+                            + " passSize=" + effectivePassSize + " staging=" + useStaging + " dst=" + targetUri);
                     response = client.newCall(request).execute();
                     if (!response.isSuccessful()) {
                         Common.showLog("[DL-CACHE] network HTTP " + response.code() + " url=" + dlUrl);
@@ -540,16 +578,21 @@ public class Manager {
                     contentLength = body.contentLength();
                 }
 
-                long totalSize = contentLength > 0 ? contentLength + passSize : 0;
+                long totalSize = contentLength > 0 ? contentLength + effectivePassSize : 0;
                 Common.showLog("[DL-CACHE] contentLength=" + contentLength + " totalSize=" + totalSize
                         + " source=" + (cachedFile != null ? "cache" : "network"));
 
-                if ("file".equals(targetUri.getScheme())) {
+                if (useStaging) {
+                    // staging：写本地 cacheDir，effectivePassSize 已基于 stage 文件长度
+                    outputStream = new java.io.FileOutputStream(stageFile, effectivePassSize > 0);
+                } else if ("file".equals(targetUri.getScheme())) {
                     String path = targetUri.getPath();
-                    java.io.FileOutputStream fos = new java.io.FileOutputStream(path, passSize > 0);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(path, effectivePassSize > 0);
                     outputStream = fos;
                 } else {
-                    outputStream = context.getContentResolver().openOutputStream(targetUri, passSize > 0 ? "wa" : "w");
+                    // cachedFile 命中 + 目标是 content://：直接进 ContentResolver pipe，
+                    // 单条短拷贝可接受
+                    outputStream = context.getContentResolver().openOutputStream(targetUri, effectivePassSize > 0 ? "wa" : "w");
                 }
                 if (outputStream == null) {
                     emitter.onError(new IOException("Cannot open output stream for " + targetUri));
@@ -557,7 +600,7 @@ public class Manager {
                 }
 
                 byte[] buffer = new byte[8192];
-                long downloaded = passSize;
+                long downloaded = effectivePassSize;
                 int lastProgress = 0;
                 long lastUpdateNs = 0L;
                 int len;
@@ -612,7 +655,44 @@ public class Manager {
                 outputStream.flush();
                 long elapsedMs = (System.nanoTime() - copyStartNs) / 1_000_000L;
                 Common.showLog("[DL-CACHE] write done source=" + (cachedFile != null ? "cache" : "network")
-                        + " bytes=" + downloaded + " elapsedMs=" + elapsedMs + " dst=" + targetUri);
+                        + " bytes=" + downloaded + " elapsedMs=" + elapsedMs
+                        + " staging=" + useStaging + " dst=" + targetUri);
+
+                // STAGED-DL commit：stage → MediaStore Uri 一次性串行 copy，跟别条
+                // 下载的字节读循环不再纠缠在 MediaProvider pipe 上。读循环已彻底
+                // 走完所以不会再有 TCP 反压风险；commit 串行也只是几十 ms 量级。
+                if (useStaging) {
+                    try { outputStream.close(); } catch (Exception ignored) {}
+                    outputStream = null;  // 让 finally 不重复 close
+                    long commitStartNs = System.nanoTime();
+                    java.io.FileInputStream stageIn = null;
+                    OutputStream mediaOut = null;
+                    try {
+                        stageIn = new java.io.FileInputStream(stageFile);
+                        mediaOut = context.getContentResolver().openOutputStream(targetUri, "w");
+                        if (mediaOut == null) {
+                            emitter.onError(new IOException("staging commit: openOutputStream null for " + targetUri));
+                            return;
+                        }
+                        byte[] copyBuf = new byte[64 * 1024];
+                        int n;
+                        while ((n = stageIn.read(copyBuf)) != -1) {
+                            if (emitter.isDisposed()) return;
+                            mediaOut.write(copyBuf, 0, n);
+                        }
+                        mediaOut.flush();
+                    } finally {
+                        if (mediaOut != null) try { mediaOut.close(); } catch (Exception ignored) {}
+                        if (stageIn != null) try { stageIn.close(); } catch (Exception ignored) {}
+                    }
+                    long commitMs = (System.nanoTime() - commitStartNs) / 1_000_000L;
+                    Common.showLog("[STAGED-DL] commit done bytes=" + downloaded
+                            + " commitMs=" + commitMs + " dst=" + targetUri);
+                    if (!stageFile.delete()) {
+                        Common.showLog("[STAGED-DL] stage cleanup failed " + stageFile);
+                    }
+                }
+
                 emitter.onNext(targetUri.toString());
                 emitter.onComplete();
             } catch (Exception e) {
