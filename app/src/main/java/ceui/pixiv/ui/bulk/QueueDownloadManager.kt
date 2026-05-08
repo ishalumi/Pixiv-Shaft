@@ -182,6 +182,49 @@ object QueueDownloadManager {
     private val ugoiraInFlightRowIds: MutableSet<Long> =
         java.util.Collections.synchronizedSet(mutableSetOf())
 
+    /**
+     * Ugoira 任务的可见进度阶段。下载链是单 zip + 同步编码，没有自然的字节级
+     * % 进度可报；用 phase 让"正在下载" tab 的 cell 至少能显示当前在哪一步。
+     */
+    enum class UgoiraPhase {
+        QUEUED,         // 等 [ugoiraSem] 的许可（前面有别的 ugoira 占着 1 个串行槽）
+        FETCH_META,     // getGifPackage 拿 zip url + frame delays
+        DOWNLOAD_ZIP,   // 占 ugoira 总耗时 80%+ 的 zip 流式下载
+        EXTRACT,        // unzip → cacheDir
+        ENCODE,         // AnimatedGifEncoder 编 GIF + commit 进 V3 WriteHandle
+    }
+
+    /** "正在下载" tab 渲染用的 ugoira 行快照（uuid 用 row.id；bean 给缩略图 / 标题）。 */
+    data class UgoiraInFlight(
+        val rowId: Long,
+        val bean: IllustsBean,
+        val phase: UgoiraPhase,
+    )
+
+    /**
+     * 当前在 [ugoiraScope] 里的 ugoira 任务详情。
+     * [ActiveListV3Fragment] 把这条 flow 跟 [ManagerReactive.contentFlow] combine 起来，
+     * 让 ugoira 跟 illust 并排出现在"正在下载" tab，UX 跟普通图片下载一致。
+     *
+     * 内部用 LinkedHashMap 保持入队顺序（先进先排前面），加 synchronized 包裹。
+     */
+    private val ugoiraInFlightDetails = LinkedHashMap<Long, UgoiraInFlight>()
+    private val _ugoiraInFlightFlow = MutableStateFlow<List<UgoiraInFlight>>(emptyList())
+    val ugoiraInFlightFlow: StateFlow<List<UgoiraInFlight>> get() = _ugoiraInFlightFlow
+
+    private fun setUgoiraPhase(rowId: Long, bean: IllustsBean, phase: UgoiraPhase) {
+        synchronized(ugoiraInFlightDetails) {
+            ugoiraInFlightDetails[rowId] = UgoiraInFlight(rowId, bean, phase)
+            _ugoiraInFlightFlow.value = ugoiraInFlightDetails.values.toList()
+        }
+    }
+    private fun clearUgoiraDetail(rowId: Long) {
+        synchronized(ugoiraInFlightDetails) {
+            ugoiraInFlightDetails.remove(rowId)
+            _ugoiraInFlightFlow.value = ugoiraInFlightDetails.values.toList()
+        }
+    }
+
     private data class InFlightIllust(
         val queueRowId: Long,
         val illustId: Long,
@@ -718,6 +761,8 @@ object QueueDownloadManager {
             Timber.tag(TAG).w("[QUEUE-CONSUMER] ugoira already dispatched row=${row.id}")
             return
         }
+        // 一进派发就 push 到 ugoiraInFlightFlow，UI 能立刻看到 QUEUED 行
+        setUgoiraPhase(row.id, bean, UgoiraPhase.QUEUED)
         queueListInvalidations.tryEmit(Unit)
         Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira queued illust=${row.illustId} row=${row.id}")
 
@@ -728,7 +773,9 @@ object QueueDownloadManager {
                     runCatching { dao.updateStatus(row.id, QueueStatus.DOWNLOADING) }
                     queueListInvalidations.tryEmit(Unit)
                     Timber.tag(TAG).i("[QUEUE-CONSUMER] ugoira start illust=${row.illustId}")
-                    downloadUgoira(bean)
+                    downloadUgoira(bean) { phase ->
+                        setUgoiraPhase(row.id, bean, phase)
+                    }
                     runCatching {
                         dao.updateStatus(
                             row.id, QueueStatus.SUCCESS,
@@ -762,6 +809,7 @@ object QueueDownloadManager {
                 // —— 用 NonCancellable 让收尾 dao 写真的能落库。tryEmit / trySend 不挂
                 // 起，不受 cancellation 影响。
                 ugoiraInFlightRowIds.remove(row.id)
+                clearUgoiraDetail(row.id)
                 if (cancelledMidWay) {
                     withContext(NonCancellable) {
                         runCatching { dao.updateStatus(row.id, QueueStatus.PENDING) }

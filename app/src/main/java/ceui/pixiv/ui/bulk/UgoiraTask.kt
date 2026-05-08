@@ -14,6 +14,7 @@ import ceui.lisa.utils.AnimatedGifEncoder
 import ceui.lisa.utils.Params
 import ceui.pixiv.download.DownloadsRegistry
 import ceui.pixiv.download.config.DownloadItems
+import ceui.pixiv.ui.bulk.QueueDownloadManager.UgoiraPhase
 import com.blankj.utilcode.util.ZipUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -54,7 +55,10 @@ import kotlin.coroutines.coroutineContext
  *  - 任何一步出错就抛异常 —— [QueueDownloadManager.dispatchUgoira] 走 retry / FAILED
  *    路径，不要在这里吞错误。
  */
-suspend fun downloadUgoira(illust: IllustsBean) = withContext(Dispatchers.IO) {
+suspend fun downloadUgoira(
+    illust: IllustsBean,
+    onPhase: (UgoiraPhase) -> Unit = {},
+) = withContext(Dispatchers.IO) {
     Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
     val ctx = Shaft.getContext()
     val illustId = illust.id
@@ -62,6 +66,7 @@ suspend fun downloadUgoira(illust: IllustsBean) = withContext(Dispatchers.IO) {
     Timber.tag(TAG).i("[UGOIRA] start illust=$illustId title=${illust.title}")
 
     // 1) 元数据：zip url + frame delays。Cache 里如果已经有 GifResponse 直接复用。
+    onPhase(UgoiraPhase.FETCH_META)
     val cached = runCatching {
         Cache.get().getModel(Params.ILLUST_ID + "_" + illustId, GifResponse::class.java)
     }.getOrNull()
@@ -79,6 +84,7 @@ suspend fun downloadUgoira(illust: IllustsBean) = withContext(Dispatchers.IO) {
     // 2) 下载 zip（已存在且非空就跳过）—— internal cache，未来由 V3 cache 清理
     val zipFile = LegacyFile.gifZipFile(ctx, illust)
     if (!zipFile.isFile || zipFile.length() == 0L) {
+        onPhase(UgoiraPhase.DOWNLOAD_ZIP)
         downloadZipTo(zipUrl, zipFile)
     } else {
         Timber.tag(TAG).i("[UGOIRA] zip already cached ($zipFile)")
@@ -97,12 +103,14 @@ suspend fun downloadUgoira(illust: IllustsBean) = withContext(Dispatchers.IO) {
             unzipFolder.listFiles()?.forEach { runCatching { it.delete() } }
             Timber.tag(TAG).w("[UGOIRA] frame count mismatch (had=$onDiskFrameCount expect=$expectedFrameCount), re-extracting")
         }
+        onPhase(UgoiraPhase.EXTRACT)
         ZipUtils.unzipFile(zipFile, unzipFolder)
         Timber.tag(TAG).i("[UGOIRA] unzipped ${unzipFolder.listFiles()?.size ?: 0} frames")
     }
     coroutineContext.ensureActive()
 
     // 4) 直接编进 V3 WriteHandle —— 用户配置的 ugoira 命名模板 / 存储位置统一生效。
+    onPhase(UgoiraPhase.ENCODE)
     val handle = DownloadsRegistry.downloads.open(DownloadItems.ugoira(illust))
     if (handle == null) {
         // OverwritePolicy.Skip + 目标已存在；当作完成

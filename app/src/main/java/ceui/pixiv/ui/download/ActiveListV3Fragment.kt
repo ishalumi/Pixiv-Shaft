@@ -1,5 +1,6 @@
 package ceui.pixiv.ui.download
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.text.TextUtils
@@ -10,6 +11,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -20,12 +22,17 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
+import ceui.lisa.activities.VActivity
+import ceui.lisa.core.Container
 import ceui.lisa.core.DownloadItem
 import ceui.lisa.core.Manager
 import ceui.lisa.core.ManagerReactive
+import ceui.lisa.core.PageData
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.download.FileSizeUtil
+import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
+import ceui.lisa.utils.Params
 import ceui.pixiv.db.queue.DownloadQueueDao
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.bumptech.glide.Glide
@@ -88,6 +95,33 @@ class ActiveListV3Fragment : Fragment() {
         // RV 自身高度由父布局固定（fragment 内全屏 match_parent），跟 adapter 内容
         // 多少无关。setHasFixedSize(true) 跳过每次 notifyItem* 重测自身。
         list.setHasFixedSize(true)
+
+        // 点击 row → VActivity 看一级详情。把整段 currentList 的 IllustsBean 一起
+        // 拼 PageData，让用户在详情里能左右滑切到列表里相邻 item（illust 拿
+        // DownloadItem.illust，ugoira 拿 UgoiraEntry.bean）。
+        adapter.onItemClick = onItemClick@{ snap, all ->
+            val ctx = context ?: return@onItemClick
+            val clicked: IllustsBean = when (snap) {
+                is ActiveSnapshot.IllustEntry -> snap.item.illust ?: run {
+                    Toast.makeText(ctx, R.string.dlmgr_queue_open_unavailable, Toast.LENGTH_SHORT).show()
+                    return@onItemClick
+                }
+                is ActiveSnapshot.UgoiraEntry -> snap.bean
+            }
+            val beans = all.mapNotNull { entry ->
+                when (entry) {
+                    is ActiveSnapshot.IllustEntry -> entry.item.illust
+                    is ActiveSnapshot.UgoiraEntry -> entry.bean
+                }
+            }
+            val index = beans.indexOfFirst { it.id == clicked.id }.coerceAtLeast(0)
+            val pageData = PageData(beans)
+            Container.get().addPageToMap(pageData)
+            startActivity(Intent(ctx, VActivity::class.java).apply {
+                putExtra(Params.POSITION, index)
+                putExtra(Params.PAGE_UUID, pageData.uuid)
+            })
+        }
         // 完全去掉 ItemAnimator —— 试过 sample 节流 + 调 moveDuration 后仍然 choppy，
         // OnePlus / 这套 layout 上 DefaultItemAnimator 的预测式 move 动画就是不健康。
         // 直接 null 化：item 完成 → 瞬间消失；2/3 上滑 → 瞬间 snap；4 进入 → 瞬间显示。
@@ -132,6 +166,9 @@ class ActiveListV3Fragment : Fragment() {
             setOnClickListener {
                 showClearConfirmDialog {
                     Manager.get().clearAll()
+                    // 跟 QueueListV3Fragment 一致：同步取消 ugoira workers，否则
+                    // 用户清完仍有 ugoira 正在跑、跑完还往用户图库写 GIF（违反"全清"）
+                    runCatching { QueueDownloadManager.cancelOngoingUgoiraWorkers() }
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { queueDao.deleteAll() }
                     }
@@ -152,15 +189,19 @@ class ActiveListV3Fragment : Fragment() {
         // combine speedBpsFlow：让"内容变更"和"速度采样"任一发生时 status header 都会刷新。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                ManagerReactive.contentFlow
-                    .combine(speedBpsFlow) { snapshot, speedBps -> snapshot to speedBps }
+                kotlinx.coroutines.flow.combine(
+                    ManagerReactive.contentFlow,
+                    QueueDownloadManager.ugoiraInFlightFlow,
+                    speedBpsFlow,
+                ) { snapshot, ugoiras, speedBps -> Triple(snapshot, ugoiras, speedBps) }
                     .conflate()
                     .flowOn(Dispatchers.Default)
-                    .collect { (snapshot, speedBps) ->
+                    .collect { (snapshot, ugoiras, speedBps) ->
                         val downloadingCount = snapshot.count { it.state == DownloadItem.DownloadState.DOWNLOADING }
                         val initCount = snapshot.count { it.state == DownloadItem.DownloadState.INIT }
                         val pausedCount = snapshot.count { it.state == DownloadItem.DownloadState.PAUSED }
                         val failedCount = snapshot.count { it.state == DownloadItem.DownloadState.FAILED }
+                        val ugoiraCount = ugoiras.size
 
                         // 运行时不变量：DOWNLOADING 数量永远不应该超过绝对上限 5。
                         // 注意不要拿当前 maxConcurrent 比 —— 用户从 5 调到 2 后那 5 条
@@ -177,25 +218,28 @@ class ActiveListV3Fragment : Fragment() {
                         // 顶部状态行：N 正在 · M 等待 · ... · 1.2 MB/s
                         // 速度只在 downloadingCount > 0 且采样到非零时显示，避免暂停 / 空闲态
                         // 显示一个"陈旧"的速度值。
+                        // ugoira 跟 illust 都计入"正在"——用户视角它们都在跑，分两段反而困惑；
+                        // ugoira 走自己 Semaphore 不挤 illust 并发槽是实现细节，不暴露给用户。
+                        val activeTotal = downloadingCount + ugoiraCount
                         val parts = buildList {
-                            if (downloadingCount > 0) add(getString(R.string.dlmgr_active_status_downloading_n, downloadingCount))
+                            if (activeTotal > 0) add(getString(R.string.dlmgr_active_status_downloading_n, activeTotal))
                             if (initCount > 0) add(getString(R.string.dlmgr_active_status_waiting_n, initCount))
                             if (pausedCount > 0) add(getString(R.string.dlmgr_active_status_paused_n, pausedCount))
                             if (failedCount > 0) add(getString(R.string.dlmgr_active_status_failed_n, failedCount))
-                            if (downloadingCount > 0 && speedBps > 0) add(formatSpeed(speedBps))
+                            if (activeTotal > 0 && speedBps > 0) add(formatSpeed(speedBps))
                         }
                         statusHeader?.text = if (parts.isEmpty()) "—" else parts.joinToString(" · ")
 
-                        adapter.submit(snapshot)
-                        empty.visibility = if (snapshot.isEmpty()) View.VISIBLE else View.GONE
+                        adapter.submit(snapshot, ugoiras)
+                        val anyWork = snapshot.isNotEmpty() || ugoiras.isNotEmpty()
+                        empty.visibility = if (anyWork) View.GONE else View.VISIBLE
                         // 没有任何活跃任务时把操作按钮置灰，避免用户在空列表上反复点
-                        val hasWork = snapshot.isNotEmpty()
-                        btnResume.isEnabled = hasWork
-                        btnResume.alpha = if (hasWork) 1f else 0.4f
-                        btnPause.isEnabled = hasWork
-                        btnPause.alpha = if (hasWork) 1f else 0.4f
-                        btnClear.isEnabled = hasWork
-                        btnClear.alpha = if (hasWork) 1f else 0.4f
+                        btnResume.isEnabled = anyWork
+                        btnResume.alpha = if (anyWork) 1f else 0.4f
+                        btnPause.isEnabled = anyWork
+                        btnPause.alpha = if (anyWork) 1f else 0.4f
+                        btnClear.isEnabled = anyWork
+                        btnClear.alpha = if (anyWork) 1f else 0.4f
                     }
             }
         }
@@ -323,48 +367,75 @@ private fun formatSpeed(bps: Long): String =
  * areContentsTheSame 时 a 和 b 是同一个 obj，所有字段比较恒等 → 永不发现变化
  * → 进度条视觉上冻死。这是 ListAdapter + 可变模型的经典 aliasing 陷阱。
  *
- * 修法：每次 submit 时把 DownloadItem 的"渲染相关字段"拍进一个 immutable
- * data class [ActiveSnapshot]。新旧 ActiveSnapshot 之间字段比较真实反映变化；
- * data class auto equals 让 DiffUtil 干净工作。
+ * 修法：每次 submit 时把数据拍进 immutable snapshot 再交给 ListAdapter。data
+ * class auto equals 让 DiffUtil 拿到的新旧元素之间字段比较真实反映变化。
+ *
+ * sealed 让一份 adapter / 一份 cell layout 同时容纳两类活跃任务：
+ *   - [IllustEntry]：来自 [Manager.content] 的 page-level 图片下载（带 nonius）
+ *   - [UgoiraEntry]：来自 [QueueDownloadManager.ugoiraInFlightFlow] 的 ugoira 全
+ *     链路任务（无字节级 % 进度，按 phase 显示当前在哪一步）
  */
-private data class ActiveSnapshot(
-    /** 持有原 DownloadItem 引用，让 click handler 能拿到 uuid 给 Manager 调命令 */
-    val item: DownloadItem,
-    val state: Int,
-    val isPaused: Boolean,
-    val nonius: Int,
-    val currentSize: Long,
-    val totalSize: Long,
-    val name: String?,
-    val showUrl: String?,
-) {
-    companion object {
-        fun of(d: DownloadItem) = ActiveSnapshot(
-            item = d,
-            state = d.state,
-            isPaused = d.isPaused,
-            nonius = d.nonius,
-            currentSize = d.currentSize,
-            totalSize = d.totalSize,
-            name = d.name,
-            showUrl = d.showUrl,
-        )
+private sealed class ActiveSnapshot {
+    /** DiffUtil 用的稳定标识。illust 用 uuid；ugoira 用 row.id 拼前缀避免命名空间撞 */
+    abstract val key: String
+
+    data class IllustEntry(
+        /** 持有原 DownloadItem 引用，让 click handler 能拿到 uuid 给 Manager 调命令 */
+        val item: DownloadItem,
+        val state: Int,
+        val isPaused: Boolean,
+        val nonius: Int,
+        val currentSize: Long,
+        val totalSize: Long,
+        val name: String?,
+        val showUrl: String?,
+    ) : ActiveSnapshot() {
+        override val key: String get() = "i:" + item.uuid
+
+        companion object {
+            fun of(d: DownloadItem) = IllustEntry(
+                item = d,
+                state = d.state,
+                isPaused = d.isPaused,
+                nonius = d.nonius,
+                currentSize = d.currentSize,
+                totalSize = d.totalSize,
+                name = d.name,
+                showUrl = d.showUrl,
+            )
+        }
+    }
+
+    data class UgoiraEntry(
+        val rowId: Long,
+        /** 完整 bean 而非只存 id —— row click → VActivity 需要 IllustsBean 拼 PageData */
+        val bean: IllustsBean,
+        val title: String,
+        val showUrl: String?,
+        val phase: QueueDownloadManager.UgoiraPhase,
+    ) : ActiveSnapshot() {
+        override val key: String get() = "u:" + rowId
+
+        companion object {
+            fun of(u: QueueDownloadManager.UgoiraInFlight) = UgoiraEntry(
+                rowId = u.rowId,
+                bean = u.bean,
+                title = u.bean.title.orEmpty().ifEmpty { "ugoira " + u.bean.id },
+                showUrl = u.bean.image_urls?.medium,
+                phase = u.phase,
+            )
+        }
     }
 }
 
 /**
- * DiffUtil 让"看起来没变"的 item 不重 bind。issue: 1s polling 用
- * notifyDataSetChanged() 全量重 bind，每次都重 Glide.load 缩略图 → 视觉上闪烁
- * （即使在暂停态也闪，因为 polling 不区分状态）。
- *
- * 行为：
- *   - 标识相同（uuid）+ 内容完全一致 → 不 bind
- *   - 仅进度/状态变化 → 走 payload，仅刷新进度条/百分比/大小/徽章
- *   - 缩略图 URL 没变就根本不调 Glide.load
+ * DiffUtil 让"看起来没变"的 item 不重 bind。
+ *  - 标识相同 + 内容完全一致 → 不 bind
+ *  - 仅进度/状态变化 → 走 payload，仅刷新进度条/百分比/大小/徽章
+ *  - 缩略图 URL 没变就根本不调 Glide.load
  */
 private object ActiveDiff : DiffUtil.ItemCallback<ActiveSnapshot>() {
-    override fun areItemsTheSame(a: ActiveSnapshot, b: ActiveSnapshot): Boolean =
-        a.item.uuid == b.item.uuid
+    override fun areItemsTheSame(a: ActiveSnapshot, b: ActiveSnapshot): Boolean = a.key == b.key
     override fun areContentsTheSame(a: ActiveSnapshot, b: ActiveSnapshot): Boolean = a == b
     override fun getChangePayload(oldItem: ActiveSnapshot, newItem: ActiveSnapshot): Any = PROGRESS_PAYLOAD
 }
@@ -373,10 +444,19 @@ private const val PROGRESS_PAYLOAD = "progress"
 
 private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(ActiveDiff) {
 
-    fun submit(newItems: List<DownloadItem>) {
-        // 把可变 DownloadItem 拍成 immutable snapshot 后再交给 ListAdapter，
-        // 让 DiffUtil 拿到的新旧元素是不同对象、字段比较真实反映变化。
-        submitList(newItems.map { ActiveSnapshot.of(it) })
+    /**
+     * 点击 row → VActivity 看一级详情。fragment 端注册，把整段 currentList 的
+     * IllustsBean 一起传出去拼 PageData，让用户在详情里能左右滑切到列表里相邻的 illust。
+     * 跟 [ceui.pixiv.ui.download.QueueListV3Fragment] 的行为一致。
+     */
+    var onItemClick: ((snap: ActiveSnapshot, all: List<ActiveSnapshot>) -> Unit)? = null
+
+    /** ugoira 排在 illust 前面 —— 用户最近触发的批量下载里 ugoira 通常是稀缺关注点。 */
+    fun submit(illusts: List<DownloadItem>, ugoiras: List<QueueDownloadManager.UgoiraInFlight>) {
+        val combined = ArrayList<ActiveSnapshot>(illusts.size + ugoiras.size)
+        ugoiras.mapTo(combined) { ActiveSnapshot.UgoiraEntry.of(it) }
+        illusts.mapTo(combined) { ActiveSnapshot.IllustEntry.of(it) }
+        submitList(combined)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -385,25 +465,78 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
     }
 
     override fun onBindViewHolder(h: VH, pos: Int) {
-        bindFull(h, getItem(pos))
+        when (val it = getItem(pos)) {
+            is ActiveSnapshot.IllustEntry -> bindFullIllust(h, it)
+            is ActiveSnapshot.UgoiraEntry -> bindFullUgoira(h, it)
+        }
     }
 
     override fun onBindViewHolder(h: VH, pos: Int, payloads: List<Any>) {
         if (payloads.isEmpty()) {
-            bindFull(h, getItem(pos))
-        } else {
-            // payload-only：进度/状态变了，但缩略图、文件名没变
-            bindStateAndProgress(h, getItem(pos))
+            onBindViewHolder(h, pos)
+            return
+        }
+        // payload-only：进度/状态/phase 变了，但缩略图、标题没变
+        when (val it = getItem(pos)) {
+            is ActiveSnapshot.IllustEntry -> bindIllustStateAndProgress(h, it)
+            is ActiveSnapshot.UgoiraEntry -> bindUgoiraStateAndProgress(h, it)
         }
     }
 
-    private fun bindFull(h: VH, snap: ActiveSnapshot) {
+    private fun bindFullIllust(h: VH, snap: ActiveSnapshot.IllustEntry) {
         h.taskName.text = snap.name
-        bindStateAndProgress(h, snap)
+        bindIllustStateAndProgress(h, snap)
+        bindThumb(h, snap.showUrl)
 
-        // 缩略图：原始 showUrl 没变就不 Glide.load —— 这是消除闪烁的关键。
-        // 用原始 String 比较（GlideUrl 没实现稳定的 equals，比较起来不靠谱）
-        val newShowUrl = snap.showUrl?.takeIf { !TextUtils.isEmpty(it) }
+        // row click → VActivity（用 bindingAdapterPosition 取最新 currentList，避免
+        // 闭包捕获过期的 snap.item）
+        h.itemView.setOnClickListener {
+            val p = h.bindingAdapterPosition
+            if (p != RecyclerView.NO_POSITION) {
+                onItemClick?.invoke(getItem(p), currentList)
+            }
+        }
+
+        // 暂停/继续 + 取消（每次 full bind 重设，保证 lambda 引用最新 item）
+        h.pauseBtn.visibility = View.VISIBLE
+        h.cancelBtn.visibility = View.VISIBLE
+        h.pauseBtn.setOnClickListener {
+            // 即时反馈：snapshot 列表是 immutable，无法靠 notifyItemChanged 让
+            // payload-bind 看到新状态（snapshot 还是旧的）。直接操作 view —
+            // 下一轮 polling 来重 snapshot 时 DiffUtil 会再 reconcile 一次。
+            val live = snap.item
+            val wasPaused = live.isPaused
+            if (wasPaused) Manager.get().startOne(live.uuid)
+            else Manager.get().stopOne(live.uuid)
+            h.pauseBtn.setImageResource(
+                if (wasPaused) R.drawable.ic_baseline_pause_24
+                else R.drawable.ic_baseline_play_arrow_24
+            )
+        }
+        h.cancelBtn.setOnClickListener {
+            Manager.get().clearOne(snap.item.uuid)
+        }
+    }
+
+    private fun bindFullUgoira(h: VH, snap: ActiveSnapshot.UgoiraEntry) {
+        h.taskName.text = snap.title
+        bindUgoiraStateAndProgress(h, snap)
+        bindThumb(h, snap.showUrl)
+        h.itemView.setOnClickListener {
+            val p = h.bindingAdapterPosition
+            if (p != RecyclerView.NO_POSITION) {
+                onItemClick?.invoke(getItem(p), currentList)
+            }
+        }
+        // ugoira 没有 per-item pause/cancel —— 全局靠批量队列 tab 的暂停 / 清空。
+        // 隐藏按钮避免误点；后续若要做 per-row cancel 再上。
+        h.pauseBtn.visibility = View.GONE
+        h.cancelBtn.visibility = View.GONE
+    }
+
+    /** 缩略图：URL 没变就不 Glide.load —— 这是消除闪烁的关键。 */
+    private fun bindThumb(h: VH, showUrl: String?) {
+        val newShowUrl = showUrl?.takeIf { !TextUtils.isEmpty(it) }
         if (newShowUrl != h.lastLoadedUrl) {
             if (!newShowUrl.isNullOrEmpty()) {
                 Glide.with(h.thumb)
@@ -416,34 +549,9 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
             }
             h.lastLoadedUrl = newShowUrl
         }
-
-        // 暂停/继续 + 取消（每次 full bind 重设，保证 lambda 引用最新 item）
-        h.pauseBtn.setOnClickListener {
-            // 即时反馈：snapshot 列表是 immutable，无法靠 notifyItemChanged 让
-            // payload-bind 看到新状态（snapshot 还是旧的）。直接操作 view —
-            // 下一轮 1s polling 来重 snapshot 时 DiffUtil 会再 reconcile 一次。
-            val live = snap.item
-            val wasPaused = live.isPaused
-            if (wasPaused) Manager.get().startOne(live.uuid)
-            else Manager.get().stopOne(live.uuid)
-            h.pauseBtn.setImageResource(
-                if (wasPaused) R.drawable.ic_baseline_pause_24
-                else R.drawable.ic_baseline_play_arrow_24
-            )
-        }
-        h.cancelBtn.setOnClickListener {
-            // Manager.clearOne 会从 content 移除该 item，下一轮 polling 通过
-            // DiffUtil 自动消失，不需要手动通知。
-            Manager.get().clearOne(snap.item.uuid)
-        }
-
-        // 故意不再 Manager.get().setCallback(item.uuid) { ... } —— 之前每次 bind 都
-        // 注册一个 lambda，Manager.mCallback HashMap 按 uuid 存且永远不清，长跑下
-        // 100000+ 闭包会持有 ViewHolder 引用 → 内存堆积 OOM。
-        // 进度更新依赖 1s polling + DiffUtil payload 触发 bindStateAndProgress。
     }
 
-    private fun bindStateAndProgress(h: VH, snap: ActiveSnapshot) {
+    private fun bindIllustStateAndProgress(h: VH, snap: ActiveSnapshot.IllustEntry) {
         // —— 状态分类决定视觉权重 ——
         val isActive = snap.state == DownloadItem.DownloadState.DOWNLOADING
         val isWaiting = snap.state == DownloadItem.DownloadState.INIT
@@ -499,6 +607,32 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
             if (snap.isPaused) R.drawable.ic_baseline_play_arrow_24
             else R.drawable.ic_baseline_pause_24
         )
+    }
+
+    /**
+     * Ugoira 状态展示：进度条 / 百分比都隐藏，phase label 直接当 size 文字。
+     *
+     * 没有字节级 % 进度可报（zip 一次性下载 + 同步编码），50% 占位条视觉上像"卡死"，
+     * indeterminate 又会跟 illust 行的 determinate 样式割裂；干脆都隐了，phase 文字
+     * 已经能说清"在哪一步"。
+     */
+    private fun bindUgoiraStateAndProgress(h: VH, snap: ActiveSnapshot.UgoiraEntry) {
+        h.itemView.alpha = 1.0f
+        h.progress.visibility = View.GONE
+        h.percentText.visibility = View.GONE
+
+        val phaseLabel = when (snap.phase) {
+            QueueDownloadManager.UgoiraPhase.QUEUED -> "QUEUED"
+            QueueDownloadManager.UgoiraPhase.FETCH_META -> "FETCH META"
+            QueueDownloadManager.UgoiraPhase.DOWNLOAD_ZIP -> "DOWNLOAD ZIP"
+            QueueDownloadManager.UgoiraPhase.EXTRACT -> "EXTRACT"
+            QueueDownloadManager.UgoiraPhase.ENCODE -> "ENCODE GIF"
+        }
+        h.sizeText.text = phaseLabel
+
+        // 紫色标识 ugoira，跟绿色的图片下载 / 暂停黄 / 失败红 颜色空间错开
+        h.stateBadge.text = "UGOIRA"
+        h.stateBadge.setTextColor(Color.parseColor("#B388FF"))
     }
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
