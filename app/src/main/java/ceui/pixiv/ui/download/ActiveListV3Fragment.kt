@@ -482,8 +482,10 @@ private class ActiveAdapterV3 : ListAdapter<ActiveSnapshot, ActiveAdapterV3.VH>(
             else -> h.sizeText.text = "—"
         }
 
+        // DOWNLOADING 用稍鲜亮的绿（活跃感），跟 DONE 的 #7CB668（柔和"已完成"绿）
+        // 区分开 —— 都用绿但深浅有别：在跑的更亮，结束的更收。
         val (label, color) = when {
-            isActive -> "DOWNLOADING" to "#5EB3FF"
+            isActive -> "DOWNLOADING" to "#4CAF50"
             isPaused -> "PAUSED" to "#FFB454"
             isFailed -> "FAILED" to "#FF8B8B"
             isWaiting -> "QUEUED" to "#9DA3AB"

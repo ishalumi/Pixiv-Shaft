@@ -21,14 +21,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/thumb"
             android:layout_width="match_parent"
             android:layout_height="100dp"
             android:adjustViewBounds="true"
             android:background="@color/v3_surface_2"
             android:contentDescription="@null"
-            android:scaleType="centerCrop" />
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.V3DownloadThumb" />
 
         <TextView
             android:id="@+id/typeBadge"

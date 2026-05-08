@@ -212,6 +212,8 @@
     <color name="v3_surface_1">#08000000</color>
     <color name="v3_surface_2">#0E000000</color>
     <color name="v3_surface_3">#14000000</color>
+    <!-- 进度条未完成段：比 v3_surface_2/3 对比更强，让 dark 模式下能清楚看到 track -->
+    <color name="v3_progress_track">#22000000</color>
     <color name="v3_border_1">#0A000000</color>
     <color name="v3_border_2">#0F000000</color>
     <color name="v3_menu_bg">#F5F5F5</color>

@@ -22,13 +22,14 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <ImageView
+            <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/thumb"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:background="@color/v3_surface_2"
                 android:contentDescription="@null"
-                android:scaleType="centerCrop" />
+                android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.V3DownloadThumb" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -88,11 +89,12 @@
             android:id="@+id/progress"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="3dp"
+            android:layout_height="4dp"
             android:layout_marginTop="10dp"
             android:max="100"
+            android:progressDrawable="@drawable/v3_progress_horizontal"
             android:progressTint="?attr/colorPrimary"
-            android:progressBackgroundTint="@color/v3_surface_2"
+            android:progressBackgroundTint="@color/v3_progress_track"
             tools:progress="40" />
 
         <LinearLayout

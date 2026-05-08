@@ -92,6 +92,8 @@
     <color name="v3_surface_1">#08FFFFFF</color>
     <color name="v3_surface_2">#0EFFFFFF</color>
     <color name="v3_surface_3">#14FFFFFF</color>
+    <!-- 进度条未完成段 dark 版：~25% 白让 #08080C 卡片背景上能看清 track -->
+    <color name="v3_progress_track">#40FFFFFF</color>
     <color name="v3_border_1">#0AFFFFFF</color>
     <color name="v3_border_2">#0FFFFFFF</color>
     <color name="v3_menu_bg">#1A1A2E</color>

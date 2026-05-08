@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    "正在下载" tab 进度条 drawable —— 圆角胶囊形。
+
+    layer id 用 @android:id/background 和 @android:id/progress，让外层 ProgressBar 上
+    设的 progressBackgroundTint / progressTint 自动作用到这两层；shape 内 solid 用
+    纯白做基色，tint 直接覆盖即可，跟主题色（colorPrimary）解耦。
+
+    radius=2dp 配合 layout 里 height=3dp 接近半高，视觉上是胶囊端。
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="2dp" />
+            <solid android:color="@android:color/white" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="2dp" />
+                <solid android:color="@android:color/white" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>
