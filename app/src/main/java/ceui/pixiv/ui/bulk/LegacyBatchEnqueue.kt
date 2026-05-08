@@ -73,7 +73,12 @@ object LegacyBatchEnqueue {
 
                 // 不灌 ObjectPool —— 这些 illust 来自当前可见列表页，已经在池里。
                 // 重复 setValue 会让 LiveData observers 不必要地刷新一轮，list 大时（5000+）
-                // 会导致 main thread jank。consumer 处理时拿不到会回退到 detail API。
+                // 会导致 main thread jank。
+                //
+                // **序列化 illust 进 illustGson 列** —— 这样 consumer / 队列 tab 显示
+                // 都不必再打 getIllustByID 接口；冷启动 100+ PENDING 一拥而上不会 429。
+                // Gson 序列化一个 IllustsBean ~30-80KB JSON，200 行 batch ≈ 6-16MB；
+                // 全在 IO 线程做，跟 dao.appendBatch 同事务，不会卡主线程。
                 list.chunked(BATCH_SIZE).forEach { batch ->
                     val batchBase = System.nanoTime()
                     val rows = batch.mapIndexed { i, illust ->
@@ -83,6 +88,7 @@ object LegacyBatchEnqueue {
                             seq = batchBase + i,
                             sourceTag = "legacy-batch",
                             status = QueueStatus.PENDING,
+                            illustGson = runCatching { Shaft.sGson.toJson(illust) }.getOrNull(),
                         )
                     }
                     dao.appendBatch(rows)

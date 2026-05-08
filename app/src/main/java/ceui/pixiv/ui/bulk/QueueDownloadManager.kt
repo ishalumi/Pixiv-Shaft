@@ -482,7 +482,7 @@ object QueueDownloadManager {
      */
     private suspend fun pullRowToInFlight(row: DownloadQueueEntity): Boolean {
         val bean = try {
-            resolveIllustsBean(row.illustId)
+            resolveIllustsBean(row)
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "[QUEUE-CONSUMER] resolveBean failed illust=${row.illustId}")
             if (row.retryCount + 1 < MAX_RETRY) {
@@ -657,17 +657,39 @@ object QueueDownloadManager {
         return emptyList()
     }
 
-    private suspend fun resolveIllustsBean(illustId: Long): IllustsBean {
-        // ObjectPool.store 是非线程安全 HashMap（项目历史遗留），从 IO 读可能撞 CME。
-        // 失败就当 cache miss，回退 API；不能让 pool 内部状态污染 consumer。
+    /**
+     * 解析 [row] 对应的 [IllustsBean]，优先级：
+     *   1. ObjectPool 命中（用户最近浏览过 / 同一会话之前已解析过）
+     *   2. 反序列化 [DownloadQueueEntity.illustGson] —— 入队时存进 DB 的 JSON，
+     *      冷启动 100+ PENDING 都靠这条路，0 次网络请求
+     *   3. 回退 API getIllustByID —— 只有老版本入队的行 illustGson=null 才走，
+     *      不会 429（量极少）
+     * 解析成功的都灌一次 ObjectPool，下一次同 id 命中第 1 步。
+     */
+    private suspend fun resolveIllustsBean(row: DownloadQueueEntity): IllustsBean {
+        val illustId = row.illustId
+        // 1) 内存池
         val cached = runCatching { ObjectPool.getIllust(illustId).value }.getOrNull()
         if (cached != null) return cached
 
+        // 2) DB 里入队时存的 JSON —— 主路径
+        val gson = row.illustGson
+        if (!gson.isNullOrEmpty()) {
+            val parsed = runCatching { Shaft.sGson.fromJson(gson, IllustsBean::class.java) }
+                .getOrNull()
+            if (parsed != null) {
+                withContext(Dispatchers.Main.immediate) {
+                    runCatching { ObjectPool.updateIllust(parsed) }
+                }
+                return parsed
+            }
+            Timber.tag(TAG).w("[QUEUE-CONSUMER] illustGson parse failed illust=$illustId, falling back to API")
+        }
+
+        // 3) 老行 fallback：API 拉一次，这一路不应该是常态
         val resp = Retro.getAppApi().getIllustByID(illustId).awaitFirstSafe()
         val bean = resp.illust
             ?: throw IllegalStateException("getIllustByID returned null for $illustId")
-        // ObjectPool.updateIllust 必须 Main —— LiveData.setValue 主线程要求
-        // 同样 try-catch：池内 HashMap 的写也可能撞别处的并发读
         withContext(Dispatchers.Main.immediate) {
             runCatching { ObjectPool.updateIllust(bean) }
         }

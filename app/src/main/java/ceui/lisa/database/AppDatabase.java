@@ -43,7 +43,7 @@ import ceui.pixiv.db.queue.DownloadQueueEntity;
                 ComicReadingStatsEntity.class, // V3 漫画阅读器累计统计
                 DownloadQueueEntity.class, // 批量下载队列（v33）
         },
-        version = 33,
+        version = 34,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -281,6 +281,17 @@ public abstract class AppDatabase extends RoomDatabase {
     // 但 androidx.room.Index 不支持 partial 索引（无 where 子句），手写 migration 加索引会让
     // Room 启动时 validateMigration 失败。改为 QueueDownloadManager.consumeUntilEmpty 里
     // mark DOWNLOADING 前 count 一次的运行时检查；reasonable，因为只有一个 consumer 写状态。
+
+    // 迁移 33 -> 34：download_queue 加 illustGson 列。入队时序列化 IllustsBean 进 DB，
+    // 让 consumer / 队列 tab 显示 都不必再打 getIllustByID（冷启动 100+ PENDING 一拥而上
+    // 会被 pixiv 429）。老行的 illustGson 为 null，consumer 会 fallback 到 API。
+    private static final Migration MIGRATION_33_34 = new Migration(33, 34) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE download_queue ADD COLUMN illustGson TEXT");
+        }
+    };
+
     private static AppDatabase INSTANCE;
 
     public static AppDatabase getAppDatabase(Context context) {
@@ -301,6 +312,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_30_31) // 注册 30 -> 31 迁移 (V3 漫画书签)
                             .addMigrations(MIGRATION_31_32) // 注册 31 -> 32 迁移 (V3 漫画累计统计)
                             .addMigrations(MIGRATION_32_33) // 注册 32 -> 33 迁移 (批量下载队列)
+                            .addMigrations(MIGRATION_33_34) // 注册 33 -> 34 迁移 (download_queue.illustGson)
                             .build();
         }
         return INSTANCE;

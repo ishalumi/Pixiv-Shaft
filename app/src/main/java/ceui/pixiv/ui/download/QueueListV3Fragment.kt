@@ -20,7 +20,6 @@ import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.core.Manager
 import ceui.lisa.database.AppDatabase
-import ceui.lisa.http.Retro
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import ceui.loxia.ObjectPool
@@ -32,21 +31,13 @@ import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * V3 风格 "批量队列" 列表。
@@ -63,11 +54,6 @@ class QueueListV3Fragment : Fragment() {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
     private val adapter = QueueAdapterV3()
-
-    /** 已经成功 prefetch 过的 illustId（避免重复打 API）；fetch 失败会从这里 remove 让下次再试 */
-    private val prefetchedIds = ConcurrentHashMap<Long, Boolean>()
-    /** 限制同时进行的 illust 详情拉取数，避免 1000 项队列把网络打满 */
-    private val prefetchSem = Semaphore(PREFETCH_MAX_CONCURRENCY)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -161,53 +147,7 @@ class QueueListV3Fragment : Fragment() {
                             if (paused) R.string.dlmgr_queue_action_resume
                             else R.string.dlmgr_queue_action_pause
                         )
-                        prefetchVisibleIllusts(rows)
                     }
-            }
-        }
-    }
-
-    /**
-     * ObjectPool cache miss 的 illustId → 后台拉一发详情塞回 ObjectPool。
-     * 拿到后调 [QueueAdapterV3.notifyIllustChanged] 让对应 row 重 bind 显示
-     * 缩略图 / 标题 —— DiffUtil 默认不会 rebind（[DownloadQueueEntity] 内容
-     * 未变），所以必须显式 notify。
-     *
-     * 一次最多 [PREFETCH_MAX_VISIBLE] 条入队，并发 [PREFETCH_MAX_CONCURRENCY]
-     * 受 [prefetchSem] 节流。失败的 ID 会从 [prefetchedIds] 移除让下次再试。
-     * 调用方是 dao.flowActive.collectLatest —— 行表变化时被调，但已 launch
-     * 的 prefetch 不会跟着 collectLatest 取消（独立 lifecycleScope coroutine），
-     * 这是有意：rows 变了不该掐掉已在飞的网络请求，去重靠 [prefetchedIds] set。
-     */
-    private fun prefetchVisibleIllusts(rows: List<DownloadQueueEntity>) {
-        val missing = rows.asSequence()
-            .map { it.illustId }
-            .distinct()
-            .filter { id ->
-                prefetchedIds[id] != true && ObjectPool.getIllust(id).value == null
-            }
-            .take(PREFETCH_MAX_VISIBLE)
-            .toList()
-        if (missing.isEmpty()) return
-        val scope = viewLifecycleOwner.lifecycleScope
-        for (id in missing) {
-            scope.launch(Dispatchers.IO) {
-                prefetchSem.withPermit {
-                    if (prefetchedIds.putIfAbsent(id, true) != null) return@withPermit
-                    if (ObjectPool.getIllust(id).value != null) return@withPermit
-                    runCatching {
-                        val bean = fetchIllustOnce(id) ?: return@runCatching
-                        withContext(Dispatchers.Main.immediate) {
-                            runCatching { ObjectPool.updateIllust(bean) }
-                            // pool 命中后 DiffUtil 不会自动 rebind（DownloadQueueEntity 没变），
-                            // 主动通知该 illustId 的所有可见 row 重 bind 一次。
-                            runCatching { adapter.notifyIllustChanged(id) }
-                        }
-                    }.onFailure {
-                        prefetchedIds.remove(id)
-                        Timber.tag("QueueListV3").w(it, "prefetch illust=$id failed")
-                    }
-                }
             }
         }
     }
@@ -227,21 +167,6 @@ class QueueListV3Fragment : Fragment() {
             .show()
     }
 
-    private suspend fun fetchIllustOnce(id: Long): IllustsBean? = suspendCancellableCoroutine { cont ->
-        val d = Retro.getAppApi().getIllustByID(id)
-            .subscribeOn(Schedulers.io())
-            .firstOrError()
-            .subscribe(
-                { resp ->
-                    if (cont.isActive) cont.resume(resp.illust)
-                },
-                { err ->
-                    if (cont.isActive) cont.resumeWithException(err)
-                }
-            )
-        cont.invokeOnCancellation { d.dispose() }
-    }
-
     companion object {
         /**
          * UI 一次最多加载这么多条 —— 5000 条 RecyclerView 仍然流畅。
@@ -252,10 +177,6 @@ class QueueListV3Fragment : Fragment() {
          * Room flowActive 一次拉 5000 条带 LIMIT，覆盖正常规模，不再分页。
          */
         private const val MAX_DISPLAY_ROWS = 5000
-        /** 每次列表更新最多触发的 illust 详情 prefetch 数量 */
-        private const val PREFETCH_MAX_VISIBLE = 30
-        /** prefetch 并发上限 —— 太多会把 pixiv API 打急 */
-        private const val PREFETCH_MAX_CONCURRENCY = 4
     }
 }
 
@@ -265,19 +186,20 @@ private object QueueDiff : DiffUtil.ItemCallback<DownloadQueueEntity>() {
         a.status == b.status && a.retryCount == b.retryCount
 }
 
-private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.VH>(QueueDiff) {
+/**
+ * 从 [DownloadQueueEntity.illustGson] 反序列化出 [IllustsBean]，失败 / null / 空字符串
+ * 都返回 null（adapter / consumer 调用方自己 fallback 老路径）。
+ *
+ * 在 onBindViewHolder 里调，3-5 个可见行每行一次 Gson.fromJson(~50KB JSON)，
+ * 微秒级，不会卡。
+ */
+private fun parseIllustFromRow(row: DownloadQueueEntity): IllustsBean? {
+    val json = row.illustGson
+    if (json.isNullOrEmpty()) return null
+    return runCatching { Shaft.sGson.fromJson(json, IllustsBean::class.java) }.getOrNull()
+}
 
-    /**
-     * 用于 prefetch 成功后主动通知特定 illustId 的所有可见 row 重 bind。
-     * DiffUtil 默认按 [DownloadQueueEntity] 内容比较，ObjectPool 填充后实体本身没变，
-     * 不调这个方法的话视图就不会刷新缩略图/标题。
-     */
-    fun notifyIllustChanged(illustId: Long) {
-        val list = currentList
-        list.forEachIndexed { i, e ->
-            if (e.illustId == illustId) notifyItemChanged(i)
-        }
-    }
+private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.VH>(QueueDiff) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.cell_download_queue_v3, parent, false)
@@ -286,8 +208,15 @@ private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.V
 
     override fun onBindViewHolder(h: VH, pos: Int) {
         val item = getItem(pos)
-        // 优先从 ObjectPool 拿 illust，命中显示标题、作者、缩略图
+        // illust 解析优先级跟 QueueDownloadManager.resolveIllustsBean 一致：
+        //   1. ObjectPool 命中（用户最近浏览过 / consumer 已处理过）
+        //   2. 反序列化 row.illustGson（入队时存的 JSON，冷启动主路径）
+        //   3. 都没有 → 老行（v33 之前入队的）显示占位 "illust XXX"
+        // 命中 2 时顺手灌一次 ObjectPool，下个 row 同 id 走 1，零重复 Gson。
         val illust = runCatching { ObjectPool.getIllust(item.illustId).value }.getOrNull()
+            ?: parseIllustFromRow(item)?.also { bean ->
+                runCatching { ObjectPool.updateIllust(bean) }
+            }
         if (illust != null) {
             h.title.text = illust.title.orEmpty().ifBlank { "illustId ${item.illustId}" }
             h.author.text = illust.user?.name?.let { "by: $it" } ?: ""
