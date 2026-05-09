@@ -1232,4 +1232,69 @@
     <string name="moon_sync_no_remote">No cloud settings for this account</string>
     <string name="moon_sync_fetch_error">Sync failed: %1$s</string>
     <string name="moon_rate_limited">Too many requests, retry in %1$d seconds</string>
+
+    <!-- V3 Search Filter -->
+    <string name="search_filter_v3_entry">Filter</string>
+    <string name="search_filter_v3_entry_with_count">Filter · %d</string>
+
+    <string name="search_filter_v3_sort_popular_preview">Popular preview</string>
+    <string name="search_filter_v3_sort_date_desc">Newest</string>
+    <string name="search_filter_v3_sort_date_asc">Oldest</string>
+    <string name="search_filter_v3_sort_popular_desc">Most popular</string>
+    <string name="search_filter_v3_sort_trending">Trending</string>
+
+    <string name="search_filter_v3_target_partial">Partial tag match</string>
+    <string name="search_filter_v3_target_exact">Exact tag match</string>
+    <string name="search_filter_v3_target_title_caption">Title / caption</string>
+    <string name="search_filter_v3_target_novel_text">Body text</string>
+    <string name="search_filter_v3_target_novel_keyword">Keyword</string>
+
+    <string name="search_filter_v3_bookmark_min">%d+</string>
+
+    <string name="search_filter_v3_duration_all">Any time</string>
+    <string name="search_filter_v3_duration_day">Last day</string>
+    <string name="search_filter_v3_duration_week">Last week</string>
+    <string name="search_filter_v3_duration_month">Last month</string>
+    <string name="search_filter_v3_duration_half_year">Last 6 months</string>
+    <string name="search_filter_v3_duration_year">Last year</string>
+
+    <string name="search_filter_v3_date_clear">Clear</string>
+
+
+
+    <string name="search_filter_v3_ai_exclude">Hide AI-generated works</string>
+    <string name="search_filter_v3_ai_exclude_desc">Synced with Settings → Hide AI works</string>
+
+    <string name="search_filter_v3_section_r18">R-18 restriction</string>
+    <string name="search_filter_v3_r18_all">All</string>
+    <string name="search_filter_v3_r18_safe">Safe only</string>
+    <string name="search_filter_v3_r18_only">R-18 only</string>
+
+    <!-- V3 Filter (iOS-style settings list) -->
+    <string name="search_filter_v3_cancel">Cancel</string>
+    <string name="search_filter_v3_confirm">Done</string>
+    <string name="search_filter_v3_search">Search</string>
+    <string name="search_filter_v3_topbar_title">Search options</string>
+    <string name="search_filter_v3_row_target">Search target</string>
+    <string name="search_filter_v3_row_work_type">Work type</string>
+    <string name="search_filter_v3_value_work_illust">Illustration, manga, ugoira</string>
+    <string name="search_filter_v3_value_work_novel">Novel</string>
+    <string name="search_filter_v3_row_sort">Sort</string>
+    <string name="search_filter_v3_row_duration">Posted</string>
+    <string name="search_filter_v3_row_bookmark">Bookmarks</string>
+    <string name="search_filter_v3_row_tool">Drawing tool</string>
+    <string name="search_filter_v3_row_genre">Genre</string>
+    <string name="search_filter_v3_row_lang">Language</string>
+    <string name="search_filter_v3_row_other">Other conditions</string>
+    <string name="search_filter_v3_bookmark_unlimited_summary">All bookmarks</string>
+    <string name="search_filter_v3_tool_all_summary">All tools</string>
+    <string name="search_filter_v3_genre_all_summary">All genres</string>
+    <string name="search_filter_v3_lang_all_summary">All languages</string>
+    <string name="search_filter_v3_other_summary_no_ai">Hide AI</string>
+    <string name="search_filter_v3_other_summary_none">None</string>
+    <string name="search_filter_v3_date_start">Start date</string>
+    <string name="search_filter_v3_date_end">End date</string>
+    <string name="search_filter_v3_date_unset">Not set</string>
+    <string name="search_filter_v3_row_original_only">Original works only</string>
+    <string name="search_filter_v3_row_replaceable_only">Word-replaceable only</string>
 </resources>

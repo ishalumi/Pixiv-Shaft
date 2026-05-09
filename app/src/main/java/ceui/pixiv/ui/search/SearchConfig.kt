@@ -7,4 +7,16 @@ data class SearchConfig(
     val search_target: String = "partial_match_for_tags",
     val merge_plain_keyword_results: Boolean = true,
     val include_translated_tag_results: Boolean = true,
+
+    // V3 Filter — 全部走 pixiv 官方原生 query 参数，不再依赖 keyword hack。
+    val bookmarkMin: Int? = null,
+    val tool: String? = null,        // illust only
+    val genre: Int? = null,          // novel only
+    val lang: String? = null,
+    val duration: String? = null,    // within_last_day | week | month | half_year | year
+    val startDate: String? = null,   // YYYY-MM-DD
+    val endDate: String? = null,
+    val searchAiType: Int = 0,       // 0 = include AI（默认）；1 = exclude AI
+    val isOriginalOnly: Boolean? = null,    // novel only
+    val isReplaceableOnly: Boolean? = null, // novel only
 )

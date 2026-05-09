@@ -1236,4 +1236,69 @@
     <string name="tag_action_copy">テキストをコピー</string>
     <string name="tag_action_delete">削除</string>
     <string name="tag_action_edit">編集</string>
+
+    <!-- V3 Search Filter -->
+    <string name="search_filter_v3_entry">絞り込み</string>
+    <string name="search_filter_v3_entry_with_count">絞り込み · %d</string>
+
+    <string name="search_filter_v3_sort_popular_preview">人気プレビュー</string>
+    <string name="search_filter_v3_sort_date_desc">新しい順</string>
+    <string name="search_filter_v3_sort_date_asc">古い順</string>
+    <string name="search_filter_v3_sort_popular_desc">人気順</string>
+    <string name="search_filter_v3_sort_trending">トレンド</string>
+
+    <string name="search_filter_v3_target_partial">タグ部分一致</string>
+    <string name="search_filter_v3_target_exact">タグ完全一致</string>
+    <string name="search_filter_v3_target_title_caption">タイトル/キャプション</string>
+    <string name="search_filter_v3_target_novel_text">本文</string>
+    <string name="search_filter_v3_target_novel_keyword">キーワード</string>
+
+    <string name="search_filter_v3_bookmark_min">%d+</string>
+
+    <string name="search_filter_v3_duration_all">指定なし</string>
+    <string name="search_filter_v3_duration_day">24時間以内</string>
+    <string name="search_filter_v3_duration_week">1週間以内</string>
+    <string name="search_filter_v3_duration_month">1ヶ月以内</string>
+    <string name="search_filter_v3_duration_half_year">半年以内</string>
+    <string name="search_filter_v3_duration_year">1年以内</string>
+
+    <string name="search_filter_v3_date_clear">クリア</string>
+
+
+
+    <string name="search_filter_v3_ai_exclude">AI 作品を非表示</string>
+    <string name="search_filter_v3_ai_exclude_desc">「設定 → AI 作品を非表示」と連動</string>
+
+    <string name="search_filter_v3_section_r18">R-18 制限</string>
+    <string name="search_filter_v3_r18_all">すべて</string>
+    <string name="search_filter_v3_r18_safe">セーフのみ</string>
+    <string name="search_filter_v3_r18_only">R-18 のみ</string>
+
+    <!-- V3 Filter (iOS-style settings list) -->
+    <string name="search_filter_v3_cancel">キャンセル</string>
+    <string name="search_filter_v3_confirm">完了</string>
+    <string name="search_filter_v3_search">検索</string>
+    <string name="search_filter_v3_topbar_title">検索条件</string>
+    <string name="search_filter_v3_row_target">検索範囲</string>
+    <string name="search_filter_v3_row_work_type">作品種別</string>
+    <string name="search_filter_v3_value_work_illust">イラスト、マンガ、うごイラ</string>
+    <string name="search_filter_v3_value_work_novel">小説</string>
+    <string name="search_filter_v3_row_sort">並び順</string>
+    <string name="search_filter_v3_row_duration">投稿期間</string>
+    <string name="search_filter_v3_row_bookmark">いいね！数</string>
+    <string name="search_filter_v3_row_tool">ペイントツール</string>
+    <string name="search_filter_v3_row_genre">ジャンル</string>
+    <string name="search_filter_v3_row_lang">作品の言語</string>
+    <string name="search_filter_v3_row_other">その他の条件</string>
+    <string name="search_filter_v3_bookmark_unlimited_summary">すべて</string>
+    <string name="search_filter_v3_tool_all_summary">すべてのツール</string>
+    <string name="search_filter_v3_genre_all_summary">すべてのジャンル</string>
+    <string name="search_filter_v3_lang_all_summary">すべての言語</string>
+    <string name="search_filter_v3_other_summary_no_ai">AI 非表示</string>
+    <string name="search_filter_v3_other_summary_none">なし</string>
+    <string name="search_filter_v3_date_start">開始日</string>
+    <string name="search_filter_v3_date_end">終了日</string>
+    <string name="search_filter_v3_date_unset">未設定</string>
+    <string name="search_filter_v3_row_original_only">オリジナル作品のみ</string>
+    <string name="search_filter_v3_row_replaceable_only">単語置換対応作品のみ</string>
 </resources>

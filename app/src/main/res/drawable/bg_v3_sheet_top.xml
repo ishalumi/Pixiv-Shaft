@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- V3 BottomSheet 整张 sheet 的背景：v3_bg 实底 + 仅顶部 16dp 圆角。
+     替代之前 sheet.background = TRANSPARENT 的 hack——那个 hack 把 Material BottomSheet
+     默认的圆角擦没了。改用这层后顶部圆角生效，浅/深色模式都自动跟着 v3_bg 走。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_bg" />
+    <corners
+        android:topLeftRadius="16dp"
+        android:topRightRadius="16dp"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp" />
+</shape>

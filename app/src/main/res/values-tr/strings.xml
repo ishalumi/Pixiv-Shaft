@@ -1135,4 +1135,69 @@
     <string name="tag_action_copy">Metni kopyala</string>
     <string name="tag_action_delete">Sil</string>
     <string name="tag_action_edit">Düzenle</string>
+
+    <!-- V3 Search Filter -->
+    <string name="search_filter_v3_entry">Filtre</string>
+    <string name="search_filter_v3_entry_with_count">Filtre · %d</string>
+
+    <string name="search_filter_v3_sort_popular_preview">Popüler önizleme</string>
+    <string name="search_filter_v3_sort_date_desc">En yeni</string>
+    <string name="search_filter_v3_sort_date_asc">En eski</string>
+    <string name="search_filter_v3_sort_popular_desc">En popüler</string>
+    <string name="search_filter_v3_sort_trending">Trend</string>
+
+    <string name="search_filter_v3_target_partial">Etiket kısmi eşleşme</string>
+    <string name="search_filter_v3_target_exact">Etiket tam eşleşme</string>
+    <string name="search_filter_v3_target_title_caption">Başlık / açıklama</string>
+    <string name="search_filter_v3_target_novel_text">Metin</string>
+    <string name="search_filter_v3_target_novel_keyword">Anahtar kelime</string>
+
+    <string name="search_filter_v3_bookmark_min">%d+</string>
+
+    <string name="search_filter_v3_duration_all">Sınırsız</string>
+    <string name="search_filter_v3_duration_day">Son 1 gün</string>
+    <string name="search_filter_v3_duration_week">Son 1 hafta</string>
+    <string name="search_filter_v3_duration_month">Son 1 ay</string>
+    <string name="search_filter_v3_duration_half_year">Son 6 ay</string>
+    <string name="search_filter_v3_duration_year">Son 1 yıl</string>
+
+    <string name="search_filter_v3_date_clear">Temizle</string>
+
+
+
+    <string name="search_filter_v3_ai_exclude">YZ eserlerini gizle</string>
+    <string name="search_filter_v3_ai_exclude_desc">«Ayarlar → YZ eserlerini gizle» ile senkron</string>
+
+    <string name="search_filter_v3_section_r18">R-18 kısıtlaması</string>
+    <string name="search_filter_v3_r18_all">Tümü</string>
+    <string name="search_filter_v3_r18_safe">Yalnızca güvenli</string>
+    <string name="search_filter_v3_r18_only">Yalnızca R-18</string>
+
+    <!-- V3 Filter (iOS-style settings list) -->
+    <string name="search_filter_v3_cancel">İptal</string>
+    <string name="search_filter_v3_confirm">Tamam</string>
+    <string name="search_filter_v3_search">Ara</string>
+    <string name="search_filter_v3_topbar_title">Arama koşulları</string>
+    <string name="search_filter_v3_row_target">Arama kapsamı</string>
+    <string name="search_filter_v3_row_work_type">Eser türü</string>
+    <string name="search_filter_v3_value_work_illust">İllüstrasyon, manga, ugoira</string>
+    <string name="search_filter_v3_value_work_novel">Roman</string>
+    <string name="search_filter_v3_row_sort">Sıralama</string>
+    <string name="search_filter_v3_row_duration">Yayın tarihi</string>
+    <string name="search_filter_v3_row_bookmark">Beğeni</string>
+    <string name="search_filter_v3_row_tool">Çizim aracı</string>
+    <string name="search_filter_v3_row_genre">Tür</string>
+    <string name="search_filter_v3_row_lang">Eser dili</string>
+    <string name="search_filter_v3_row_other">Diğer koşullar</string>
+    <string name="search_filter_v3_bookmark_unlimited_summary">Tümü</string>
+    <string name="search_filter_v3_tool_all_summary">Tüm araçlar</string>
+    <string name="search_filter_v3_genre_all_summary">Tüm türler</string>
+    <string name="search_filter_v3_lang_all_summary">Tüm diller</string>
+    <string name="search_filter_v3_other_summary_no_ai">YZ gizle</string>
+    <string name="search_filter_v3_other_summary_none">Yok</string>
+    <string name="search_filter_v3_date_start">Başlangıç tarihi</string>
+    <string name="search_filter_v3_date_end">Bitiş tarihi</string>
+    <string name="search_filter_v3_date_unset">Belirsiz</string>
+    <string name="search_filter_v3_row_original_only">Yalnızca özgün eserler</string>
+    <string name="search_filter_v3_row_replaceable_only">Yalnızca kelime değiştirilebilir</string>
 </resources>

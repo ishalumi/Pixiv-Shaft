@@ -30,6 +30,15 @@ public class SearchModel extends ViewModel {
 
     private final MutableLiveData<Integer> r18Restriction = new MutableLiveData<>();
 
+    // ── V3 filter 维度 —— 老版 FragmentFilter 没暴露但 pixiv API 都吃 ──
+    private final MutableLiveData<Integer> bookmarkMin = new MutableLiveData<>();
+    private final MutableLiveData<String> tool = new MutableLiveData<>();
+    private final MutableLiveData<Integer> genre = new MutableLiveData<>();
+    private final MutableLiveData<String> lang = new MutableLiveData<>();
+    private final MutableLiveData<String> duration = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isOriginalOnly = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isReplaceableOnly = new MutableLiveData<>();
+
     public MutableLiveData<String> getKeyword() {
         return keyword;
     }
@@ -74,5 +83,33 @@ public class SearchModel extends ViewModel {
 
     public MutableLiveData<Integer> getR18Restriction() {
         return r18Restriction;
+    }
+
+    public MutableLiveData<Integer> getBookmarkMin() {
+        return bookmarkMin;
+    }
+
+    public MutableLiveData<String> getTool() {
+        return tool;
+    }
+
+    public MutableLiveData<Integer> getGenre() {
+        return genre;
+    }
+
+    public MutableLiveData<String> getLang() {
+        return lang;
+    }
+
+    public MutableLiveData<String> getDuration() {
+        return duration;
+    }
+
+    public MutableLiveData<Boolean> getIsOriginalOnly() {
+        return isOriginalOnly;
+    }
+
+    public MutableLiveData<Boolean> getIsReplaceableOnly() {
+        return isReplaceableOnly;
     }
 }

@@ -6,14 +6,25 @@ import androidx.lifecycle.ViewModel
 import ceui.loxia.Event
 import ceui.loxia.ObjectType
 import ceui.loxia.Tag
+import ceui.pixiv.ui.search.v3.R18Mode
+import ceui.pixiv.ui.search.v3.SearchFilterV3
+import ceui.pixiv.ui.search.v3.SearchOptionsResponse
 
 class SearchViewModel(initialKeyword: String) : ViewModel() {
 
 
     val tagList = MutableLiveData<List<Tag>>()
 
+    /** 兼容老的 radio_tab UI——存的是 0..3 索引；写时同步到 [illustFilter]/[novelFilter] 的 sort。 */
     val illustSelectedRadioTabIndex = MutableLiveData(0)
     val novelSelectedRadioTabIndex = MutableLiveData(0)
+
+    /** V3 Filter 的真单源——sort/bookmark/tool/lang/genre/duration/dates/ai/r18 全在这里。 */
+    val illustFilter = MutableLiveData(SearchFilterV3())
+    val novelFilter = MutableLiveData(SearchFilterV3())
+
+    /** /v1/search/options 的缓存——拉一次给 illust + novel 共用。 */
+    val searchOptions = MutableLiveData<SearchOptionsResponse?>()
 
     val inputDraft = MutableLiveData("")
 
@@ -54,36 +65,57 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
         triggerSearchNovelEvent(now)
     }
 
-    fun buildSearchConfig(usersYori: Int?, objectType: String): SearchConfig {
-        val tabIndex = if (objectType == ObjectType.ILLUST) {
-            illustSelectedRadioTabIndex.value ?: 0
-        } else {
-            novelSelectedRadioTabIndex.value ?: 0
-        }
-        val sort = when (tabIndex) {
-            0 -> {
-                SortType.POPULAR_PREVIEW
+    /** Radio tab 索引 → SortType。和 V3 Filter 的 sort 双向同步用。 */
+    fun radioIndexToSort(index: Int): String = when (index) {
+        0 -> SortType.POPULAR_PREVIEW
+        1 -> SortType.DATE_DESC
+        2 -> SortType.DATE_ASC
+        3 -> SortType.POPULAR_DESC
+        else -> SortType.POPULAR_PREVIEW
+    }
+
+    /** SortType → Radio tab 索引。trending_builtin 等 radio 没有的项落回热度预览。 */
+    fun sortToRadioIndex(sort: String): Int = when (sort) {
+        SortType.POPULAR_PREVIEW -> 0
+        SortType.DATE_DESC -> 1
+        SortType.DATE_ASC -> 2
+        SortType.POPULAR_DESC -> 3
+        else -> 0
+    }
+
+    /**
+     * 用 V3 Filter + tagList 拼最终 SearchConfig。
+     *
+     * - keyword：在原始 tagList 后追加 R18 后缀（兼容旧版 -R-18 / R-18 关键字 hack，
+     *   pixiv 服务端没有原生 r18 query 参数）
+     * - usersYori 留空：V3 走 bookmark_num_min API 参数，不再追加「Xusers入り」关键字
+     */
+    fun buildSearchConfig(@Suppress("UNUSED_PARAMETER") usersYori: Int?, objectType: String): SearchConfig {
+        val isNovel = objectType == ObjectType.NOVEL
+        val filter = (if (isNovel) novelFilter.value else illustFilter.value) ?: SearchFilterV3()
+        val rawKeyword = tagList.value?.joinToString(separator = " ") { it.name ?: "" }.orEmpty()
+        val keyword = when (filter.r18Mode) {
+            R18Mode.All -> rawKeyword
+            R18Mode.SafeOnly, R18Mode.R18Only -> {
+                if (rawKeyword.isEmpty()) filter.r18Mode.keywordSuffix
+                else "$rawKeyword ${filter.r18Mode.keywordSuffix}"
             }
-            1 -> {
-                SortType.DATE_DESC
-            }
-            2 -> {
-                SortType.DATE_ASC
-            }
-            else -> {
-                SortType.POPULAR_DESC
-            }
-        }
-        val yoriString = if ((usersYori ?: 0) > 0) {
-            "${usersYori}users入り"
-        } else {
-            ""
         }
         return SearchConfig(
-            keyword = tagList.value?.map { it.name }?.joinToString(separator = " ") ?: "",
-            usersYori = yoriString,
-            search_target = if (yoriString.isNotEmpty()) "exact_match_for_tags" else "partial_match_for_tags",
-            sort = sort,
+            keyword = keyword,
+            sort = filter.sort,
+            search_target = filter.searchTarget.apiValue,
+            bookmarkMin = filter.bookmarkBucket.bookmarkMin(),
+            tool = if (isNovel) null else filter.tool,
+            genre = if (isNovel) filter.genre else null,
+            lang = filter.lang,
+            duration = filter.duration?.apiValue,
+            startDate = filter.startDate,
+            endDate = filter.endDate,
+            searchAiType = if (filter.excludeAi) 1 else 0,
+            // novel-only switches —— illust 路径忽略；nullable 保留 retrofit 不传 query 的语义
+            isOriginalOnly = if (isNovel && filter.isOriginalOnly) true else null,
+            isReplaceableOnly = if (isNovel && filter.isReplaceableOnly) true else null,
         )
     }
 }

@@ -5,4 +5,5 @@ object SortType {
     const val DATE_DESC = "date_desc"
     const val DATE_ASC = "date_asc"
     const val POPULAR_DESC = "popular_desc"
+    const val TRENDING_BUILTIN = "trending_builtin"
 }

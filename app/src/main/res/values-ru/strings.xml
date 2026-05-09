@@ -1137,4 +1137,69 @@
     <string name="tag_action_copy">Копировать текст</string>
     <string name="tag_action_delete">Удалить</string>
     <string name="tag_action_edit">Изменить</string>
+
+    <!-- V3 Search Filter -->
+    <string name="search_filter_v3_entry">Фильтр</string>
+    <string name="search_filter_v3_entry_with_count">Фильтр · %d</string>
+
+    <string name="search_filter_v3_sort_popular_preview">Популярные (предпросмотр)</string>
+    <string name="search_filter_v3_sort_date_desc">Сначала новые</string>
+    <string name="search_filter_v3_sort_date_asc">Сначала старые</string>
+    <string name="search_filter_v3_sort_popular_desc">По популярности</string>
+    <string name="search_filter_v3_sort_trending">В тренде</string>
+
+    <string name="search_filter_v3_target_partial">Частичное совпадение тегов</string>
+    <string name="search_filter_v3_target_exact">Точное совпадение тегов</string>
+    <string name="search_filter_v3_target_title_caption">Название / описание</string>
+    <string name="search_filter_v3_target_novel_text">Текст</string>
+    <string name="search_filter_v3_target_novel_keyword">Ключевое слово</string>
+
+    <string name="search_filter_v3_bookmark_min">%d+</string>
+
+    <string name="search_filter_v3_duration_all">Любая</string>
+    <string name="search_filter_v3_duration_day">За сутки</string>
+    <string name="search_filter_v3_duration_week">За неделю</string>
+    <string name="search_filter_v3_duration_month">За месяц</string>
+    <string name="search_filter_v3_duration_half_year">За полгода</string>
+    <string name="search_filter_v3_duration_year">За год</string>
+
+    <string name="search_filter_v3_date_clear">Очистить</string>
+
+
+
+    <string name="search_filter_v3_ai_exclude">Скрывать работы ИИ</string>
+    <string name="search_filter_v3_ai_exclude_desc">Синхронизировано с «Настройки → Скрывать ИИ»</string>
+
+    <string name="search_filter_v3_section_r18">R-18</string>
+    <string name="search_filter_v3_r18_all">Все</string>
+    <string name="search_filter_v3_r18_safe">Только безопасные</string>
+    <string name="search_filter_v3_r18_only">Только R-18</string>
+
+    <!-- V3 Filter (iOS-style settings list) -->
+    <string name="search_filter_v3_cancel">Отмена</string>
+    <string name="search_filter_v3_confirm">Готово</string>
+    <string name="search_filter_v3_search">Поиск</string>
+    <string name="search_filter_v3_topbar_title">Параметры поиска</string>
+    <string name="search_filter_v3_row_target">Где искать</string>
+    <string name="search_filter_v3_row_work_type">Тип работы</string>
+    <string name="search_filter_v3_value_work_illust">Иллюстрации, манга, угоира</string>
+    <string name="search_filter_v3_value_work_novel">Новелла</string>
+    <string name="search_filter_v3_row_sort">Сортировка</string>
+    <string name="search_filter_v3_row_duration">Дата публикации</string>
+    <string name="search_filter_v3_row_bookmark">Закладки</string>
+    <string name="search_filter_v3_row_tool">Инструмент</string>
+    <string name="search_filter_v3_row_genre">Жанр</string>
+    <string name="search_filter_v3_row_lang">Язык работы</string>
+    <string name="search_filter_v3_row_other">Прочее</string>
+    <string name="search_filter_v3_bookmark_unlimited_summary">Все</string>
+    <string name="search_filter_v3_tool_all_summary">Все инструменты</string>
+    <string name="search_filter_v3_genre_all_summary">Все жанры</string>
+    <string name="search_filter_v3_lang_all_summary">Все языки</string>
+    <string name="search_filter_v3_other_summary_no_ai">Скрыть ИИ</string>
+    <string name="search_filter_v3_other_summary_none">Нет</string>
+    <string name="search_filter_v3_date_start">Начальная дата</string>
+    <string name="search_filter_v3_date_end">Конечная дата</string>
+    <string name="search_filter_v3_date_unset">Не задано</string>
+    <string name="search_filter_v3_row_original_only">Только оригинальные работы</string>
+    <string name="search_filter_v3_row_replaceable_only">Только с заменой слов</string>
 </resources>

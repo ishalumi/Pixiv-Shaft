@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- V3 search filter 设置型行：标题左 / 值右 / chevron。
+     无值的行（如「作品类别」）把 row_value 留空；
+     不可点的行（同上）外层调用方 setOnClick 不挂 + chevron GONE 即可。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:paddingStart="18dp"
+    android:paddingEnd="18dp">
+
+    <TextView
+        android:id="@+id/row_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="16dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="16dp"
+        android:textColor="@color/v3_text_1"
+        android:textSize="15sp"
+        tools:text="检索范围" />
+
+    <TextView
+        android:id="@+id/row_value"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="end"
+        android:maxLines="1"
+        android:paddingStart="10dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:textColor="@color/v3_text_3"
+        android:textSize="14sp"
+        tools:text="标签部分匹配" />
+
+    <TextView
+        android:id="@+id/row_chevron"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingBottom="2dp"
+        android:text="›"
+        android:textColor="@color/v3_text_3"
+        android:textSize="20sp" />
+
+</LinearLayout>

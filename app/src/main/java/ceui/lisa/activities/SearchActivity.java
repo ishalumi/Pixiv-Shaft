@@ -25,7 +25,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
@@ -35,7 +34,6 @@ import ceui.lisa.R;
 import ceui.lisa.adapters.SearchHintAdapter;
 import ceui.lisa.databinding.FragmentNewSearchBinding;
 import ceui.lisa.fragments.BaseFragment;
-import ceui.lisa.fragments.FragmentFilter;
 import ceui.lisa.fragments.FragmentSearchIllust;
 import ceui.lisa.fragments.FragmentSearchNovel;
 import ceui.lisa.fragments.FragmentSearchUser;
@@ -46,14 +44,16 @@ import ceui.lisa.utils.PixivOperate;
 import ceui.lisa.utils.PixivSearchParamUtil;
 import ceui.lisa.utils.SearchTypeUtil;
 import ceui.lisa.viewmodel.SearchModel;
+import ceui.loxia.ObjectType;
 import ceui.pixiv.session.SessionManager;
 import ceui.pixiv.ui.prime.PrimeIllustLoader;
 import ceui.pixiv.ui.search.SearchHintViewModel;
+import ceui.pixiv.ui.search.v3.SearchFilterV3BottomSheet;
+import ceui.pixiv.ui.search.v3.SearchFilterV3LegacyBridge;
 
 public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
 
     private final BaseFragment<?>[] allPages = new BaseFragment[]{null, null,null};
-    private FragmentFilter fragmentFilter;
     private String keyWord = "";
     private SearchModel searchModel;
     private int index = 0;
@@ -149,26 +149,15 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
             @Override
             public void onPageSelected(int position) {
                 hintViewModel.hideHints();
-                // 通知更改 过滤器-关键字匹配 类型
-                if (fragmentFilter != null) {
-                    mPosition = position;
-                    if (mPosition == 2) {
-                        baseBind.drawerlayout.setTouchMode(ElasticDrawer.TOUCH_MODE_NONE);
-                        if (baseBind.drawerlayout.isMenuVisible()) {
-                            baseBind.drawerlayout.closeMenu(true);
-                        }
-                    }
-                    if (mPosition != 2) {
-                        baseBind.drawerlayout.setTouchMode(ElasticDrawer.TOUCH_MODE_BEZEL);
-                    }
-
-                    MutableLiveData<Boolean> isNovel = searchModel.getIsNovel();
-                    if (isNovel.getValue() != null) {
-                        if ((position == 0) && isNovel.getValue()) {
-                            isNovel.setValue(false);
-                        } else if (position == 1 && !isNovel.getValue()) {
-                            isNovel.setValue(true);
-                        }
+                mPosition = position;
+                // V3 filter 不再用抽屉，全程禁掉抽屉触摸；老 SearchModel.isNovel 仍要保持
+                // 同步——FragmentSearchIllust / FragmentSearchNovel 通过它分流 search_target。
+                MutableLiveData<Boolean> isNovel = searchModel.getIsNovel();
+                if (isNovel.getValue() != null) {
+                    if ((position == 0) && isNovel.getValue()) {
+                        isNovel.setValue(false);
+                    } else if (position == 1 && !isNovel.getValue()) {
+                        isNovel.setValue(true);
                     }
                 }
             }
@@ -179,14 +168,13 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
         });
         baseBind.viewPager.setOffscreenPageLimit(2);
         baseBind.tabLayout.setupWithViewPager(baseBind.viewPager);
-        baseBind.drawerlayout.setTouchMode(ElasticDrawer.TOUCH_MODE_BEZEL);
+        // drawer 触摸响应在 initData 末尾跟着 bridge 一并关掉——不在这里重复
         if (index != 0) {
             baseBind.viewPager.setCurrentItem(index);
         }
 
         if (Shaft.getMMKV().decodeBool(Params.MMKV_KEY_ISSHOWTIPS_SEARCHSORT, true)) {
             tipDialog(mContext);
-            baseBind.drawerlayout.openMenu(true);
         }
     }
 
@@ -205,11 +193,12 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
                 if (item.getItemId() == R.id.action_filter) {
                     Common.hideKeyboard(mActivity);
                     if (mPosition == 0 || mPosition == 1) {
-                        if (baseBind.drawerlayout.isMenuVisible()) {
-                            baseBind.drawerlayout.closeMenu(true);
-                        } else {
-                            baseBind.drawerlayout.openMenu(true);
-                        }
+                        // V3 filter sheet 替代老抽屉里的 FragmentFilter；状态由
+                        // SearchFilterV3LegacyBridge 翻译回 SearchModel。
+                        String objectType = (mPosition == 1) ? ObjectType.NOVEL : ObjectType.ILLUST;
+                        SearchFilterV3BottomSheet
+                                .newInstance(objectType, true)
+                                .show(getSupportFragmentManager(), "SearchFilterV3LegacySheet");
                     } else {
                         Common.showToast(getString(R.string.string_435));
                     }
@@ -364,17 +353,12 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
             animateHintList(visible != null && visible);
         });
 
-        fragmentFilter = new FragmentFilter();
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        if (!fragmentFilter.isAdded()) {
-            fragmentManager.beginTransaction()
-                    .add(R.id.id_container_menu, fragmentFilter)
-                    .commitNowAllowingStateLoss();
-        } else {
-            fragmentManager.beginTransaction()
-                    .show(fragmentFilter)
-                    .commitNowAllowingStateLoss();
-        }
+        // V3 filter sheet 替代老 FragmentFilter 抽屉。bridge 启动后会持续把
+        // V3 SearchViewModel 的 illustFilter / novelFilter 翻译到 SearchModel，
+        // 并在 sheet 触发搜索事件时 setNowGo("search_now") 让老 fragment 自动刷新。
+        SearchFilterV3LegacyBridge.INSTANCE.install(this, searchModel);
+        // 关掉抽屉的触摸响应——抽屉里没东西了，避免侧边盲区误触。
+        baseBind.drawerlayout.setTouchMode(ElasticDrawer.TOUCH_MODE_NONE);
     }
 
     /**

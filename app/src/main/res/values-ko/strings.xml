@@ -1144,4 +1144,69 @@
     <string name="tag_action_copy">텍스트 복사</string>
     <string name="tag_action_delete">삭제</string>
     <string name="tag_action_edit">편집</string>
+
+    <!-- V3 Search Filter -->
+    <string name="search_filter_v3_entry">필터</string>
+    <string name="search_filter_v3_entry_with_count">필터 · %d</string>
+
+    <string name="search_filter_v3_sort_popular_preview">인기 미리보기</string>
+    <string name="search_filter_v3_sort_date_desc">최신 순</string>
+    <string name="search_filter_v3_sort_date_asc">오래된 순</string>
+    <string name="search_filter_v3_sort_popular_desc">인기 순</string>
+    <string name="search_filter_v3_sort_trending">트렌딩</string>
+
+    <string name="search_filter_v3_target_partial">태그 부분 일치</string>
+    <string name="search_filter_v3_target_exact">태그 완전 일치</string>
+    <string name="search_filter_v3_target_title_caption">제목/설명</string>
+    <string name="search_filter_v3_target_novel_text">본문</string>
+    <string name="search_filter_v3_target_novel_keyword">키워드</string>
+
+    <string name="search_filter_v3_bookmark_min">%d+</string>
+
+    <string name="search_filter_v3_duration_all">제한 없음</string>
+    <string name="search_filter_v3_duration_day">24시간 이내</string>
+    <string name="search_filter_v3_duration_week">1주일 이내</string>
+    <string name="search_filter_v3_duration_month">1개월 이내</string>
+    <string name="search_filter_v3_duration_half_year">6개월 이내</string>
+    <string name="search_filter_v3_duration_year">1년 이내</string>
+
+    <string name="search_filter_v3_date_clear">지우기</string>
+
+
+
+    <string name="search_filter_v3_ai_exclude">AI 작품 숨기기</string>
+    <string name="search_filter_v3_ai_exclude_desc">「설정 → AI 작품 숨기기」와 연동</string>
+
+    <string name="search_filter_v3_section_r18">R-18 제한</string>
+    <string name="search_filter_v3_r18_all">전체</string>
+    <string name="search_filter_v3_r18_safe">안전한 작품만</string>
+    <string name="search_filter_v3_r18_only">R-18만</string>
+
+    <!-- V3 Filter (iOS-style settings list) -->
+    <string name="search_filter_v3_cancel">취소</string>
+    <string name="search_filter_v3_confirm">완료</string>
+    <string name="search_filter_v3_search">검색</string>
+    <string name="search_filter_v3_topbar_title">검색 조건</string>
+    <string name="search_filter_v3_row_target">검색 범위</string>
+    <string name="search_filter_v3_row_work_type">작품 종류</string>
+    <string name="search_filter_v3_value_work_illust">일러스트, 만화, 우고이라</string>
+    <string name="search_filter_v3_value_work_novel">소설</string>
+    <string name="search_filter_v3_row_sort">정렬</string>
+    <string name="search_filter_v3_row_duration">투고 기간</string>
+    <string name="search_filter_v3_row_bookmark">좋아요 수</string>
+    <string name="search_filter_v3_row_tool">제작 도구</string>
+    <string name="search_filter_v3_row_genre">장르</string>
+    <string name="search_filter_v3_row_lang">작품 언어</string>
+    <string name="search_filter_v3_row_other">기타 조건</string>
+    <string name="search_filter_v3_bookmark_unlimited_summary">전체</string>
+    <string name="search_filter_v3_tool_all_summary">모든 도구</string>
+    <string name="search_filter_v3_genre_all_summary">모든 장르</string>
+    <string name="search_filter_v3_lang_all_summary">모든 언어</string>
+    <string name="search_filter_v3_other_summary_no_ai">AI 숨김</string>
+    <string name="search_filter_v3_other_summary_none">없음</string>
+    <string name="search_filter_v3_date_start">시작일</string>
+    <string name="search_filter_v3_date_end">종료일</string>
+    <string name="search_filter_v3_date_unset">미설정</string>
+    <string name="search_filter_v3_row_original_only">오리지널 작품만</string>
+    <string name="search_filter_v3_row_replaceable_only">단어 치환 가능 작품만</string>
 </resources>

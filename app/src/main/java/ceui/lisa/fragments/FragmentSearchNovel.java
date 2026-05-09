@@ -89,7 +89,14 @@ public class FragmentSearchNovel extends NetListFragment<FragmentBaseListBinding
                 searchModel.getIsPremium().getValue(),
                 searchModel.getStartDate().getValue(),
                 searchModel.getEndDate().getValue(),
-                searchModel.getR18Restriction().getValue()
+                searchModel.getR18Restriction().getValue(),
+                searchModel.getBookmarkMin().getValue(),
+                searchModel.getGenre().getValue(),
+                searchModel.getLang().getValue(),
+                searchModel.getDuration().getValue(),
+                ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust() ? 1 : 0,
+                searchModel.getIsOriginalOnly().getValue(),
+                searchModel.getIsReplaceableOnly().getValue()
         );
     }
 

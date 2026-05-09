@@ -116,6 +116,20 @@ public interface AppApi {
                                         @Query("end_date") String endDate,
                                         @Query("search_target") String search_target);
 
+    /** V3 filter ext —— bookmark_num_min/max + tool + lang + duration + search_ai_type，nullable 自动跳过。
+     *  与 [ceui.loxia.API.searchIllustManga] 对齐：默认 include_potential_violation_works=false（iOS 默认）。 */
+    @GET("v1/search/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    Observable<ListIllust> searchIllust(@Query("word") String word,
+                                        @Query("sort") String sort,
+                                        @Query("start_date") String startDate,
+                                        @Query("end_date") String endDate,
+                                        @Query("search_target") String search_target,
+                                        @Query("bookmark_num_min") Integer bookmark_num_min,
+                                        @Query("tool") String tool,
+                                        @Query("lang") String lang,
+                                        @Query("duration") String duration,
+                                        @Query("search_ai_type") Integer search_ai_type);
+
     /**
      * search_target=exact_match_for_tags,partial_match_for_tags,text(文本),keyword(关键词)
      */
@@ -125,6 +139,21 @@ public interface AppApi {
                                       @Query("start_date") String startDate,
                                       @Query("end_date") String endDate,
                                       @Query("search_target") String search_target);
+
+    /** V3 filter ext for novel —— 多了 genre / is_original_only / is_replaceable_only 而非 tool。 */
+    @GET("v1/search/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    Observable<ListNovel> searchNovel(@Query("word") String word,
+                                      @Query("sort") String sort,
+                                      @Query("start_date") String startDate,
+                                      @Query("end_date") String endDate,
+                                      @Query("search_target") String search_target,
+                                      @Query("bookmark_num_min") Integer bookmark_num_min,
+                                      @Query("genre") Integer genre,
+                                      @Query("lang") String lang,
+                                      @Query("duration") String duration,
+                                      @Query("search_ai_type") Integer search_ai_type,
+                                      @Query("is_original_only") Boolean is_original_only,
+                                      @Query("is_replaceable_only") Boolean is_replaceable_only);
 
 
     @GET("v2/illust/related?filter=for_android")
@@ -291,11 +320,37 @@ public interface AppApi {
                                           @Query("end_date") String endDate,
                                           @Query("search_target") String search_target);
 
+    /** V3 filter ext for popular illust preview。 */
+    @GET("v1/search/popular-preview/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    Observable<ListIllust> popularPreview(@Query("word") String word,
+                                          @Query("start_date") String startDate,
+                                          @Query("end_date") String endDate,
+                                          @Query("search_target") String search_target,
+                                          @Query("bookmark_num_min") Integer bookmark_num_min,
+                                          @Query("tool") String tool,
+                                          @Query("lang") String lang,
+                                          @Query("duration") String duration,
+                                          @Query("search_ai_type") Integer search_ai_type);
+
     @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
     Observable<ListNovel> popularNovelPreview(@Query("word") String word,
                                           @Query("start_date") String startDate,
                                           @Query("end_date") String endDate,
                                           @Query("search_target") String search_target);
+
+    /** V3 filter ext for popular novel preview。 */
+    @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    Observable<ListNovel> popularNovelPreview(@Query("word") String word,
+                                          @Query("start_date") String startDate,
+                                          @Query("end_date") String endDate,
+                                          @Query("search_target") String search_target,
+                                          @Query("bookmark_num_min") Integer bookmark_num_min,
+                                          @Query("genre") Integer genre,
+                                          @Query("lang") String lang,
+                                          @Query("duration") String duration,
+                                          @Query("search_ai_type") Integer search_ai_type,
+                                          @Query("is_original_only") Boolean is_original_only,
+                                          @Query("is_replaceable_only") Boolean is_replaceable_only);
 
 
     /**

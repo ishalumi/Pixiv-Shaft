@@ -1249,4 +1249,69 @@
     <string name="tag_action_copy">複製文本</string>
     <string name="tag_action_delete">刪除</string>
     <string name="tag_action_edit">編輯</string>
+
+    <!-- V3 Search Filter -->
+    <string name="search_filter_v3_entry">篩選</string>
+    <string name="search_filter_v3_entry_with_count">篩選 · %d 項</string>
+
+    <string name="search_filter_v3_sort_popular_preview">熱度預覽</string>
+    <string name="search_filter_v3_sort_date_desc">由新到舊</string>
+    <string name="search_filter_v3_sort_date_asc">由舊到新</string>
+    <string name="search_filter_v3_sort_popular_desc">依熱度</string>
+    <string name="search_filter_v3_sort_trending">綜合趨勢</string>
+
+    <string name="search_filter_v3_target_partial">標籤部分匹配</string>
+    <string name="search_filter_v3_target_exact">標籤完全匹配</string>
+    <string name="search_filter_v3_target_title_caption">標題/簡介</string>
+    <string name="search_filter_v3_target_novel_text">內文</string>
+    <string name="search_filter_v3_target_novel_keyword">關鍵字</string>
+
+    <string name="search_filter_v3_bookmark_min">%d+</string>
+
+    <string name="search_filter_v3_duration_all">不限</string>
+    <string name="search_filter_v3_duration_day">一天內</string>
+    <string name="search_filter_v3_duration_week">一週內</string>
+    <string name="search_filter_v3_duration_month">一月內</string>
+    <string name="search_filter_v3_duration_half_year">半年內</string>
+    <string name="search_filter_v3_duration_year">一年內</string>
+
+    <string name="search_filter_v3_date_clear">清除</string>
+
+
+
+    <string name="search_filter_v3_ai_exclude">不顯示 AI 作品</string>
+    <string name="search_filter_v3_ai_exclude_desc">與「設定 → 不顯示 AI 作品」連動</string>
+
+    <string name="search_filter_v3_section_r18">R-18 限制</string>
+    <string name="search_filter_v3_r18_all">全部</string>
+    <string name="search_filter_v3_r18_safe">僅安全</string>
+    <string name="search_filter_v3_r18_only">僅 R-18</string>
+
+    <!-- V3 Filter (iOS-style settings list) -->
+    <string name="search_filter_v3_cancel">取消</string>
+    <string name="search_filter_v3_confirm">完成</string>
+    <string name="search_filter_v3_search">搜尋</string>
+    <string name="search_filter_v3_topbar_title">搜尋條件</string>
+    <string name="search_filter_v3_row_target">檢索範圍</string>
+    <string name="search_filter_v3_row_work_type">作品類別</string>
+    <string name="search_filter_v3_value_work_illust">插畫、漫畫、動圖（動態插畫）</string>
+    <string name="search_filter_v3_value_work_novel">小說</string>
+    <string name="search_filter_v3_row_sort">排序</string>
+    <string name="search_filter_v3_row_duration">投稿期間</string>
+    <string name="search_filter_v3_row_bookmark">喜歡！數</string>
+    <string name="search_filter_v3_row_tool">繪圖工具</string>
+    <string name="search_filter_v3_row_genre">類型</string>
+    <string name="search_filter_v3_row_lang">作品語言</string>
+    <string name="search_filter_v3_row_other">其他條件</string>
+    <string name="search_filter_v3_bookmark_unlimited_summary">所有讚數</string>
+    <string name="search_filter_v3_tool_all_summary">所有的繪圖工具</string>
+    <string name="search_filter_v3_genre_all_summary">全部類型</string>
+    <string name="search_filter_v3_lang_all_summary">所有語種</string>
+    <string name="search_filter_v3_other_summary_no_ai">屏蔽 AI</string>
+    <string name="search_filter_v3_other_summary_none">無</string>
+    <string name="search_filter_v3_date_start">起始日期</string>
+    <string name="search_filter_v3_date_end">截止日期</string>
+    <string name="search_filter_v3_date_unset">未設定</string>
+    <string name="search_filter_v3_row_original_only">僅限原創作品</string>
+    <string name="search_filter_v3_row_replaceable_only">僅限支援單字置換的作品</string>
 </resources>

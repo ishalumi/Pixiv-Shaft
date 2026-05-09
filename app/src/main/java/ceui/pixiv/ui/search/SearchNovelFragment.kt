@@ -2,7 +2,6 @@ package ceui.pixiv.ui.search
 
 import android.os.Bundle
 import android.view.View
-import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import ceui.lisa.R
@@ -13,9 +12,12 @@ import ceui.loxia.observeEvent
 import ceui.pixiv.ui.common.ListMode
 import ceui.pixiv.ui.common.PixivFragment
 import ceui.pixiv.ui.common.setUpRefreshState
-import ceui.pixiv.ui.list.pixivListViewModel
-import ceui.pixiv.widgets.DialogViewModel
 import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.ui.list.pixivListViewModel
+import ceui.pixiv.ui.search.v3.SearchFilterV3
+import ceui.pixiv.ui.search.v3.SearchFilterV3BottomSheet
+import ceui.pixiv.utils.setOnClick
+import ceui.pixiv.widgets.DialogViewModel
 
 class SearchNovelFragment : PixivFragment(R.layout.fragment_pixiv_list) {
     private val searchViewModel by viewModels<SearchViewModel>(ownerProducer = { requireParentFragment() })
@@ -39,6 +41,11 @@ class SearchNovelFragment : PixivFragment(R.layout.fragment_pixiv_list) {
         ))
         binding.radioTab.setItemCickListener { index ->
             searchViewModel.novelSelectedRadioTabIndex.value = index
+            val newSort = searchViewModel.radioIndexToSort(index)
+            val cur = searchViewModel.novelFilter.value ?: SearchFilterV3()
+            if (cur.sort != newSort) {
+                searchViewModel.novelFilter.value = cur.copy(sort = newSort)
+            }
             val now = System.currentTimeMillis()
             searchViewModel.triggerSearchNovelEvent(now)
         }
@@ -47,7 +54,21 @@ class SearchNovelFragment : PixivFragment(R.layout.fragment_pixiv_list) {
         }
         searchViewModel.novelSelectedRadioTabIndex.observe(viewLifecycleOwner) { index ->
             binding.radioTab.selectTab(index)
-            binding.usersYori.isVisible = (index == 1) || (index == 2)
+        }
+        searchViewModel.novelFilter.observe(viewLifecycleOwner) { filter ->
+            val count = filter?.activeCount(isNovel = true) ?: 0
+            binding.usersYori.text = if (count > 0)
+                getString(R.string.search_filter_v3_entry_with_count, count)
+            else getString(R.string.search_filter_v3_entry)
+            val sortIdx = searchViewModel.sortToRadioIndex(filter?.sort ?: SortType.POPULAR_PREVIEW)
+            if (searchViewModel.novelSelectedRadioTabIndex.value != sortIdx) {
+                searchViewModel.novelSelectedRadioTabIndex.value = sortIdx
+            }
+        }
+        binding.usersYori.visibility = View.VISIBLE
+        binding.usersYori.setOnClick {
+            SearchFilterV3BottomSheet.newInstance(ObjectType.NOVEL)
+                .show(childFragmentManager, "SearchFilterV3NovelSheet")
         }
     }
 }

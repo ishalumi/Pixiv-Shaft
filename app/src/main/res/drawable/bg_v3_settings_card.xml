@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- V3 settings list 卡片：v3_menu_bg 实底（浅 #F5F5F5 / 深 #1A1A2E）+ 0.5dp v3_border_2 hairline。
+     hairline 解决浅色模式下 #F5F5F5 卡片 vs #FAFAFA bg 区分不出来的问题——细描边让卡片在
+     浅色模式也能从背景里浮出来。深色模式 #1A1A2E vs #08080C 本来就有强对比，hairline 也无害。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_menu_bg" />
+    <corners android:radius="14dp" />
+    <stroke
+        android:width="0.5dp"
+        android:color="@color/v3_border_2" />
+</shape>

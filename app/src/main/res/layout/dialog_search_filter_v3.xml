@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- V3 搜索筛选器主 sheet —— iOS pixiv 8.6.5 「搜索条件」的 V3 投影。
+     全静态布局（行/段都已知），Kotlin 只更新文案 + 路由点击。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_v3_sheet_top"
+    android:orientation="vertical">
+
+    <!-- 顶栏：取消（左 accent） / 搜索条件（中 bold） -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp">
+
+        <TextView
+            android:id="@+id/btn_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="start|center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center_vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:text="@string/search_filter_v3_cancel"
+            android:textSize="16sp"
+            tools:textColor="#0A84FF" />
+
+        <TextView
+            android:id="@+id/top_title"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="@string/search_filter_v3_topbar_title"
+            android:textColor="@color/v3_text_1"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="14dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ── A 段：检索范围 / 作品类别 ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_v3_settings_card"
+                android:clipToOutline="true"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/row_target"
+                    layout="@layout/cell_search_filter_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_work_type"
+                    layout="@layout/cell_search_filter_row" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="20dp" />
+
+            <!-- ── B 段：排序 / 投稿期间 / 喜欢！数 / 工具|类型 / 语种 ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_v3_settings_card"
+                android:clipToOutline="true"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/row_sort"
+                    layout="@layout/cell_search_filter_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_duration"
+                    layout="@layout/cell_search_filter_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_bookmark"
+                    layout="@layout/cell_search_filter_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <!-- 同一行：illust=制图工具 / novel=类型；Kotlin 切换 title+value -->
+                <include
+                    android:id="@+id/row_tool_or_genre"
+                    layout="@layout/cell_search_filter_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_lang"
+                    layout="@layout/cell_search_filter_row" />
+
+                <!-- novel 专属：仅限原创 / 仅限支持单词置换 —— 在 SearchFilterV3BottomSheet
+                     的 isNovel 分支统一切显隐 -->
+                <View
+                    android:id="@+id/divider_original_only"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/row_original_only"
+                    layout="@layout/cell_search_filter_inline_switch"
+                    android:visibility="gone" />
+
+                <View
+                    android:id="@+id/divider_replaceable_only"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/row_replaceable_only"
+                    layout="@layout/cell_search_filter_inline_switch"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="20dp" />
+
+            <!-- ── C 段：其他条件 ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_v3_settings_card"
+                android:clipToOutline="true"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/row_other"
+                    layout="@layout/cell_search_filter_row" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- 底栏：全宽 V3 primary pill「搜索」 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="20dp">
+
+        <TextView
+            android:id="@+id/btn_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_v3_pill_primary"
+            android:gravity="center"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:text="@string/search_filter_v3_search"
+            android:textColor="@color/always_white"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+</LinearLayout>

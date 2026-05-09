@@ -174,22 +174,41 @@ interface API {
         @Query("mode") mode: String,
     ): IllustResponse
 
-    @GET("/v1/search/popular-preview/illust?search_ai_type=0&filter=for_ios")
+    // 对齐 pixiv iOS app 8.6.5 实际调用——
+    //   - 不再带 ?filter=for_ios（app-os: ios header 已经表态；image_urls 实测一致）
+    //   - 默认 include_potential_violation_works=false（iOS 默认行为：屏蔽潜在违规作品）
+    @GET("/v1/search/popular-preview/illust?include_potential_violation_works=false")
     suspend fun popularPreview(
         @Query("word") word: String,
         @Query("sort") sort: String,
         @Query("search_target") search_target: String,
         @Query("merge_plain_keyword_results") merge_plain_keyword_results: Boolean,
         @Query("include_translated_tag_results") include_translated_tag_results: Boolean,
+        @Query("search_ai_type") search_ai_type: Int = 0,
+        @Query("bookmark_num_min") bookmark_num_min: Int? = null,
+        @Query("tool") tool: String? = null,
+        @Query("lang") lang: String? = null,
+        @Query("duration") duration: String? = null,
+        @Query("start_date") start_date: String? = null,
+        @Query("end_date") end_date: String? = null,
     ): IllustResponse
 
-    @GET("/v1/search/popular-preview/novel?search_ai_type=0&filter=for_ios")
+    @GET("/v1/search/popular-preview/novel?include_potential_violation_works=false")
     suspend fun popularPreviewNovel(
         @Query("word") word: String,
         @Query("sort") sort: String,
         @Query("search_target") search_target: String,
         @Query("merge_plain_keyword_results") merge_plain_keyword_results: Boolean,
         @Query("include_translated_tag_results") include_translated_tag_results: Boolean,
+        @Query("search_ai_type") search_ai_type: Int = 0,
+        @Query("bookmark_num_min") bookmark_num_min: Int? = null,
+        @Query("genre") genre: Int? = null,
+        @Query("lang") lang: String? = null,
+        @Query("duration") duration: String? = null,
+        @Query("start_date") start_date: String? = null,
+        @Query("end_date") end_date: String? = null,
+        @Query("is_original_only") is_original_only: Boolean? = null,
+        @Query("is_replaceable_only") is_replaceable_only: Boolean? = null,
     ): NovelResponse
 
     @GET("/v1/spotlight/articles?filter=for_ios")
@@ -197,23 +216,48 @@ interface API {
         @Query("category") category: String,
     ): ArticlesResponse
 
-    @GET("/v1/search/illust?search_ai_type=0&filter=for_ios")
+    @GET("/v1/search/illust?include_potential_violation_works=false")
     suspend fun searchIllustManga(
         @Query("word") word: String,
         @Query("sort") sort: String,
         @Query("search_target") search_target: String,
         @Query("merge_plain_keyword_results") merge_plain_keyword_results: Boolean,
         @Query("include_translated_tag_results") include_translated_tag_results: Boolean,
+        @Query("search_ai_type") search_ai_type: Int = 0,
+        @Query("bookmark_num_min") bookmark_num_min: Int? = null,
+        @Query("tool") tool: String? = null,
+        @Query("lang") lang: String? = null,
+        @Query("duration") duration: String? = null,
+        @Query("start_date") start_date: String? = null,
+        @Query("end_date") end_date: String? = null,
     ): IllustResponse
 
-    @GET("/v1/search/novel?search_ai_type=0&filter=for_ios")
+    @GET("/v1/search/novel?include_potential_violation_works=false")
     suspend fun searchNovel(
         @Query("word") word: String,
         @Query("sort") sort: String,
         @Query("search_target") search_target: String,
         @Query("merge_plain_keyword_results") merge_plain_keyword_results: Boolean,
         @Query("include_translated_tag_results") include_translated_tag_results: Boolean,
+        @Query("search_ai_type") search_ai_type: Int = 0,
+        @Query("bookmark_num_min") bookmark_num_min: Int? = null,
+        @Query("genre") genre: Int? = null,
+        @Query("lang") lang: String? = null,
+        @Query("duration") duration: String? = null,
+        @Query("start_date") start_date: String? = null,
+        @Query("end_date") end_date: String? = null,
+        @Query("is_original_only") is_original_only: Boolean? = null,
+        @Query("is_replaceable_only") is_replaceable_only: Boolean? = null,
     ): NovelResponse
+
+    @GET("/v1/search/options")
+    suspend fun searchOptions(
+        @Query("word") word: String,
+        @Query("search_target") search_target: String = "partial_match_for_tags",
+        @Query("merge_plain_keyword_results") merge_plain_keyword_results: Boolean = true,
+        @Query("include_translated_tag_results") include_translated_tag_results: Boolean = true,
+        @Query("search_ai_type") search_ai_type: Int = 0,
+    ): ceui.pixiv.ui.search.v3.SearchOptionsResponse
 
 
     @GET("/v1/search/user?filter=for_ios")

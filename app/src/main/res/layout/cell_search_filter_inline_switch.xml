@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 主 sheet section 内嵌的开关行：标题 + Switch（无副标题、无 chevron）。
+     novel 专属——「仅限原创作品」/「仅限支持单词置换的作品」。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:paddingStart="18dp"
+    android:paddingEnd="18dp">
+
+    <TextView
+        android:id="@+id/inline_switch_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingTop="16dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="16dp"
+        android:textColor="@color/v3_text_1"
+        android:textSize="15sp"
+        tools:text="仅限原创作品" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/inline_switch_toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+</LinearLayout>

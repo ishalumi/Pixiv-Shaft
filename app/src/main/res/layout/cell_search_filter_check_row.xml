@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- V3 single-choice 行：标签左，选中时右侧 ✓ —— SimplePickerSheet / DurationPickerSheet
+     的相对时间段 / OtherFilterSheet 的 R-18 三选一 都用这个。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="52dp"
+    android:orientation="horizontal"
+    android:paddingStart="18dp"
+    android:paddingEnd="18dp">
+
+    <TextView
+        android:id="@+id/check_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingTop="14dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="14dp"
+        android:textColor="@color/v3_text_1"
+        android:textSize="15sp"
+        tools:text="标签部分匹配" />
+
+    <TextView
+        android:id="@+id/check_mark"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingBottom="2dp"
+        android:text="✓"
+        android:textSize="20sp"
+        android:visibility="invisible"
+        tools:visibility="visible" />
+
+</LinearLayout>

@@ -2,7 +2,6 @@ package ceui.pixiv.ui.search
 
 import android.os.Bundle
 import android.view.View
-import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import ceui.lisa.R
@@ -10,13 +9,14 @@ import ceui.lisa.databinding.FragmentPixivListBinding
 import ceui.loxia.ObjectType
 import ceui.loxia.RefreshHint
 import ceui.loxia.observeEvent
-import ceui.pixiv.ui.bottom.UsersYoriDialogFragment
 import ceui.pixiv.ui.common.PixivFragment
 import ceui.pixiv.ui.common.setUpRefreshState
-import ceui.pixiv.ui.list.pixivListViewModel
-import ceui.pixiv.widgets.DialogViewModel
-import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.ui.list.pixivListViewModel
+import ceui.pixiv.ui.search.v3.SearchFilterV3
+import ceui.pixiv.ui.search.v3.SearchFilterV3BottomSheet
+import ceui.pixiv.utils.setOnClick
+import ceui.pixiv.widgets.DialogViewModel
 
 
 class SearchIlllustMangaFragment : PixivFragment(R.layout.fragment_pixiv_list) {
@@ -42,6 +42,12 @@ class SearchIlllustMangaFragment : PixivFragment(R.layout.fragment_pixiv_list) {
         ))
         binding.radioTab.setItemCickListener { index ->
             searchViewModel.illustSelectedRadioTabIndex.value = index
+            // radio_tab → V3 filter sort 单向同步（保留 radio_tab 作为快捷切换）
+            val newSort = searchViewModel.radioIndexToSort(index)
+            val cur = searchViewModel.illustFilter.value ?: SearchFilterV3()
+            if (cur.sort != newSort) {
+                searchViewModel.illustFilter.value = cur.copy(sort = newSort)
+            }
             val now = System.currentTimeMillis()
             searchViewModel.triggerSearchIllustMangaEvent(now)
         }
@@ -50,16 +56,24 @@ class SearchIlllustMangaFragment : PixivFragment(R.layout.fragment_pixiv_list) {
         }
         searchViewModel.illustSelectedRadioTabIndex.observe(viewLifecycleOwner) { index ->
             binding.radioTab.selectTab(index)
-            binding.usersYori.isVisible = (index == 1) || (index == 2)
         }
-        dialogViewModel.chosenUsersYoriCount.observe(viewLifecycleOwner) { count ->
-            binding.usersYori.text = "${count}users入り"
+        // V3 filter 改了非 radio 维度也更新右上「筛选」入口的徽标。
+        searchViewModel.illustFilter.observe(viewLifecycleOwner) { filter ->
+            val count = filter?.activeCount(isNovel = false) ?: 0
+            binding.usersYori.text = if (count > 0)
+                getString(R.string.search_filter_v3_entry_with_count, count)
+            else getString(R.string.search_filter_v3_entry)
+            // 保持 radio_tab 与 filter.sort 同步（V3 sheet 改了 sort 也要回写）
+            val sortIdx = searchViewModel.sortToRadioIndex(filter?.sort ?: SortType.POPULAR_PREVIEW)
+            if (searchViewModel.illustSelectedRadioTabIndex.value != sortIdx) {
+                searchViewModel.illustSelectedRadioTabIndex.value = sortIdx
+            }
         }
-        dialogViewModel.triggerUsersYoriEvent.observeEvent(this) { time ->
-            searchViewModel.triggerSearchIllustMangaEvent(time)
-        }
+        // 入口常驻（旧版仅在 date 排序下显示——V3 没有这个限制，所有排序都能加 filter）
+        binding.usersYori.visibility = View.VISIBLE
         binding.usersYori.setOnClick {
-            UsersYoriDialogFragment().show(childFragmentManager, "UsersYoriDialogFragmentTag")
+            SearchFilterV3BottomSheet.newInstance(ObjectType.ILLUST)
+                .show(childFragmentManager, "SearchFilterV3IllustSheet")
         }
     }
 }
