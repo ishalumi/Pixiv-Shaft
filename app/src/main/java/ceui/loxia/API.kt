@@ -273,4 +273,7 @@ interface API {
 
     @GET("/v2/search/autocomplete?merge_plain_keyword_results=true")
     suspend fun searchAutocomplete(@Query("word") word: String): ListTrendingtag
+
+    @GET("/idp-urls")
+    suspend fun getIdpUrls(): IdpUrlsResponse
 }
