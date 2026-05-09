@@ -503,16 +503,26 @@ public class Manager {
         // ─── STAGED-DL 写入策略 ───
         // content:// 目标 (MediaStore / SAF) 直接 openOutputStream 是 Binder pipe，
         // N 流并发写时会被 MediaProvider 串行化：读循环卡 outputStream.write，OkHttp
-        // 接收 buffer 满，TCP window 缩 0，**服务器停发那两条流**。3 流场景的视觉
-        // 后果就是 1 条跑满、另外 2 条进度近乎不动；首条结束后另两条才秒完成。
+        // 接收 buffer 满，TCP window 缩 0，**服务器停发那几条流**。N=5 场景的视觉
+        // 后果就是 1 条跑满、其余进度近乎不动；首条结束后下一条才接着跑。
         //
         // 修法：先 stream 进 cacheDir/staging_dl/{uuid}.part（本地 FS 写零跨进程
         // 锁），下完一次性 copy 到 targetUri。这样 N 流的字节读取永远不被 MediaStore
         // 阻塞，commit 阶段虽然仍可能串行但只是几十 ms 量级，肉眼无感。
         //
-        // file:// 目标（用户配的纯路径）保持直写——无 ContentProvider 介入。
-        // cachedFile 命中（本地拷贝）也直接写目标——源已在本地，无 TCP 反压可言。
-        final boolean useStaging = cachedFile == null && !"file".equals(targetUri.getScheme());
+        // 决策维度只有两个：
+        //   1. file:// 目标（用户配的纯路径）：无 ContentProvider 介入，永远不需要
+        //      staging。
+        //   2. maxConc=1：单流场景没有"多写者抢同一个 MediaProvider"的问题，staging
+        //      只是凭空多一次本地 copy；省了。
+        // 其余情况（content:// + 多并发）一律走 staging —— 不管源是网络流还是
+        // Glide 命中的本地缓存。瓶颈在写侧（Binder pipe），跟读侧是网络还是本地无关。
+        // 这条修正了 4c16183b 当时只盯网络反压、漏掉缓存命中也共用 MediaProvider
+        // 串行点的疏忽（详见 ManagerStagingConcurrencyTest）。
+        int maxConc = Shaft.sSettings.getMaxConcurrentDownloads();
+        if (maxConc < 1) maxConc = 1;
+        if (maxConc > 5) maxConc = 5;
+        final boolean useStaging = maxConc > 1 && !"file".equals(targetUri.getScheme());
         final java.io.File stageFile;
         final long effectivePassSize;
         if (useStaging) {
@@ -524,7 +534,17 @@ public class Manager {
             // 入参 passSize 是 MediaStore 行的现有大小（旧续传逻辑），staging 模式
             // 下只看 stage 文件实际长度。同会话 pause/resume 仍能续；冷启动跨会话
             // 的旧 MediaStore 部分文件不再可续，重头来——不大问题。
-            if (!downloadItem.shouldStartNewDownload() && stageFile.length() > 0) {
+            //
+            // 一个微妙点：续传 stage 依赖 Range 头让服务器跳过 effectivePassSize
+            // 字节、剩下的追加到 stage 末尾。本地 cachedFile 路径没 Range 概念，
+            // FileInputStream(cachedFile) 永远从 offset 0 读完整字节；这时再用
+            // append=true 写 partial stage 就会让 stage 字节翻倍，commit 出去等于
+            // 把损坏的图灌进相册。所以本地源永远从空 stage 重来 —— 反正拷贝是 ms
+            // 级，没几个字节代价。
+            boolean canResumePartialStage = cachedFile == null
+                    && !downloadItem.shouldStartNewDownload()
+                    && stageFile.length() > 0;
+            if (canResumePartialStage) {
                 effectivePassSize = stageFile.length();
             } else {
                 if (stageFile.exists() && !stageFile.delete()) {
@@ -590,8 +610,9 @@ public class Manager {
                     java.io.FileOutputStream fos = new java.io.FileOutputStream(path, effectivePassSize > 0);
                     outputStream = fos;
                 } else {
-                    // cachedFile 命中 + 目标是 content://：直接进 ContentResolver pipe，
-                    // 单条短拷贝可接受
+                    // 不走 staging：要么 file:// 直写（无 Provider），要么 maxConc=1
+                    // 单流（content:// 但没多写者抢 MediaProvider，开 staging 只是
+                    // 凭空多一次本地 copy）。两种情况下进 ContentResolver pipe 都安全。
                     outputStream = context.getContentResolver().openOutputStream(targetUri, effectivePassSize > 0 ? "wa" : "w");
                 }
                 if (outputStream == null) {
