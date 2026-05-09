@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import ceui.lisa.activities.Shaft;
 import ceui.lisa.utils.Common;
 import okhttp3.Dns;
 import retrofit2.Call;
@@ -58,8 +59,10 @@ public class HttpDns implements Dns {
             } catch (UnknownHostException ignored) {
             }
         }
-        for (String domain : DOMAINS) {
-            resolveViaDoH(domain, 0);
+        if (isSecureDnsEnabled()) {
+            for (String domain : DOMAINS) {
+                resolveViaDoH(domain, 0);
+            }
         }
     }
 
@@ -72,6 +75,25 @@ public class HttpDns implements Dns {
             }
         }
         return sHttpDns;
+    }
+
+    // 设置项切换时调用：Glide 等持有的 OkHttpClient 仍引用同一个 HttpDns 实例，
+    // 所以这里清空已缓存的 DoH 结果，并按当前设置重新预热，让切换立即生效。
+    public static void invalidate() {
+        HttpDns instance = sHttpDns;
+        if (instance == null) {
+            return;
+        }
+        instance.resolvedHosts.clear();
+        if (isSecureDnsEnabled()) {
+            for (String domain : DOMAINS) {
+                instance.resolveViaDoH(domain, 0);
+            }
+        }
+    }
+
+    private static boolean isSecureDnsEnabled() {
+        return Shaft.sSettings != null && Shaft.sSettings.isUseSecureDns();
     }
 
     private void resolveViaDoH(String hostname, int endpointIndex) {
@@ -120,12 +142,26 @@ public class HttpDns implements Dns {
     @Override
     public List<InetAddress> lookup(String hostname) throws UnknownHostException {
         long start = System.nanoTime();
-        // 优先用 DoH 解析的结果
-        List<InetAddress> cached = resolvedHosts.get(hostname);
-        if (cached != null && !cached.isEmpty()) {
-            long elapsed = (System.nanoTime() - start) / 1_000_000;
-            Common.showLog("HttpDns lookup " + hostname + " → DoH cached " + cached + " [" + elapsed + "ms]");
-            return cached;
+        if (isSecureDnsEnabled()) {
+            // DoH 开：优先用 DoH 缓存的解析结果
+            List<InetAddress> cached = resolvedHosts.get(hostname);
+            if (cached != null && !cached.isEmpty()) {
+                long elapsed = (System.nanoTime() - start) / 1_000_000;
+                Common.showLog("HttpDns lookup " + hostname + " → DoH cached " + cached + " [" + elapsed + "ms]");
+                return cached;
+            }
+        } else {
+            // DoH 关：用户主动表示本地 DNS 可信，先走系统 DNS（issue #616 的核心诉求）
+            try {
+                List<InetAddress> systemResult = Dns.SYSTEM.lookup(hostname);
+                if (!systemResult.isEmpty()) {
+                    long elapsed = (System.nanoTime() - start) / 1_000_000;
+                    Common.showLog("HttpDns lookup " + hostname + " → system " + systemResult + " [" + elapsed + "ms]");
+                    return systemResult;
+                }
+            } catch (UnknownHostException ignored) {
+                // 系统 DNS 失败再落到下面的硬编码 fallback
+            }
         }
         // 图片域名用旧 Pixiv 服务器 IP，API 域名用 Cloudflare IP
         List<InetAddress> result;

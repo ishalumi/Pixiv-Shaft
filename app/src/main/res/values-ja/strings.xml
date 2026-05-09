@@ -119,6 +119,8 @@
   <string name="normal">一般</string>  
   <string name="open_direct_connection">GFWをバイパス（中国大陸地区以外で使用しているか、既にGFWをバイパスしている場合はオフにしてください）</string>
   <string name="see_pixiv_ez">詳細はNotsfsssf/pix-ezviewerを参照してください。</string>
+  <string name="use_secure_dns_title">セキュア DNS（DoH）</string>
+  <string name="use_secure_dns_summary">Cloudflare DoH で Pixiv ドメインを解決します。ローカル DNS が信頼できる場合はオフにできます</string>
   <string name="show_original_image">オリジナルの画質で表示</string>
   <string name="delete_star_illust">すき！したイラストを検索結果から隠す</string>
   <string name="save_view_history">閲覧履歴を保存</string>

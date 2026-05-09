@@ -217,6 +217,46 @@
 
                         <View style="@style/half_divider" />
 
+                        <LinearLayout
+                            android:id="@+id/use_secure_dns_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <RelativeLayout
+                                android:id="@+id/use_secure_dns_rela"
+                                style="@style/ripple_rela">
+
+                                <TextView
+                                    android:id="@+id/use_secure_dns_title"
+                                    style="@style/setting_text_left"
+                                    android:layout_marginBottom="@dimen/six_dp"
+                                    android:text="@string/use_secure_dns_title" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_below="@+id/use_secure_dns_title"
+                                    android:layout_marginStart="@dimen/sixteen_dp"
+                                    android:layout_marginBottom="@dimen/twelve_dp"
+                                    android:layout_toStartOf="@+id/use_secure_dns"
+                                    android:ellipsize="start"
+                                    android:singleLine="true"
+                                    android:text="@string/use_secure_dns_summary"
+                                    android:textColor="?attr/colorPrimary"
+                                    android:textSize="12sp" />
+
+                                <androidx.appcompat.widget.SwitchCompat
+                                    android:id="@+id/use_secure_dns"
+                                    style="@style/setting_right_switch" />
+
+                            </RelativeLayout>
+
+                            <View style="@style/half_divider" />
+
+                        </LinearLayout>
+
                         <RelativeLayout
                             android:id="@+id/show_large_thumbnail_image_rela"
                             style="@style/ripple_rela">

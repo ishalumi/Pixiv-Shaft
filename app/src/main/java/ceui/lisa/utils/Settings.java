@@ -120,6 +120,11 @@ public class Settings {
     @SerializedName("autoFuckChina")
     private boolean directConnect = false;
 
+    //是否启用 DoH（安全 DNS）解析。关闭时直接走系统 DNS / 内置兜底 IP，
+    //适合本地已是可信 DNS 的场景。issue #616
+    //默认 true，与历史行为保持一致（升级用户不会被静默关闭 DoH）
+    private boolean useSecureDns = true;
+
     private boolean relatedIllustNoLimit = true;
 
     //使用pixiv cat 代理 展示图片
@@ -403,6 +408,14 @@ public class Settings {
 
     public void setDirectConnect(boolean directConnect) {
         this.directConnect = directConnect;
+    }
+
+    public boolean isUseSecureDns() {
+        return useSecureDns;
+    }
+
+    public void setUseSecureDns(boolean useSecureDns) {
+        this.useSecureDns = useSecureDns;
     }
 
     public boolean isMainViewR18() {

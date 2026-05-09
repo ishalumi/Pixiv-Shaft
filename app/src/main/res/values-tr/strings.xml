@@ -117,7 +117,10 @@
   <string name="login_out">Çıkış yap</string>  
   <string name="normal">Genel</string>  
   <string name="open_direct_connection">GFW\'yi atla (Hızlı bağlantı)</string>  
-  <string name="see_pixiv_ez">Notsfsssf / Pix-EzViewer\'a bak</string>  
+  <string name="see_pixiv_ez">Notsfsssf / Pix-EzViewer\'a bak</string>
+  <string name="use_secure_dns_title">Güvenli DNS (DoH)</string>
+  <string name="use_secure_dns_summary">Pixiv alan adlarını Cloudflare DoH ile çöz; yerel DNS\'iniz zaten güvenliyse kapatın</string>
+
   <string name="show_original_image">Orijinal resmi kullan</string>
   <string name="delete_star_illust">Favorilere eklenenleri arama sonuçlarında gizle</string>  
   <string name="save_view_history">Geçmişi kaydet</string>  

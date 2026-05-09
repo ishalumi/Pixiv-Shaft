@@ -5,8 +5,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.text.TextUtils;
+import android.os.Bundle;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.view.LayoutInflater;
@@ -15,11 +15,12 @@ import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.databinding.DataBindingUtil;
 
 import java.io.File;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.blankj.utilcode.util.FileUtils;
 import com.blankj.utilcode.util.UriUtils;
@@ -49,6 +50,7 @@ import ceui.lisa.file.LegacyFile;
 import ceui.lisa.helper.NavigationLocationHelper;
 import ceui.lisa.helper.PageTransformerHelper;
 import ceui.lisa.helper.ThemeHelper;
+import ceui.lisa.http.HttpDns;
 import ceui.lisa.http.Retro;
 import ceui.lisa.interfaces.Callback;
 import ceui.lisa.utils.BackupUtils;
@@ -194,6 +196,9 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         // 网络
         {
             baseBind.autoDns.setChecked(Shaft.sSettings.isDirectConnect());
+            // DoH 只在直连开启时生效，跟随直连开关显隐
+            baseBind.useSecureDnsGroup.setVisibility(
+                    Shaft.sSettings.isDirectConnect() ? View.VISIBLE : View.GONE);
             baseBind.autoDns.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -201,6 +206,11 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                     Shaft.sSettings.setDirectConnect(isChecked);
                     Common.showToast(getString(R.string.string_428), 2);
                     Local.setSettings(Shaft.sSettings);
+                    ViewGroup secureDnsParent = (ViewGroup) baseBind.useSecureDnsGroup.getParent();
+                    if (secureDnsParent != null) {
+                        TransitionManager.beginDelayedTransition(secureDnsParent, new AutoTransition());
+                    }
+                    baseBind.useSecureDnsGroup.setVisibility(isChecked ? View.VISIBLE : View.GONE);
                     if (changed) {
                         Retro.refreshAppApi();
                         Client.INSTANCE.reset();
@@ -221,6 +231,24 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 @Override
                 public void onClick(View v) {
                     baseBind.autoDns.performClick();
+                }
+            });
+
+            //安全 DNS（DoH） issue #616
+            baseBind.useSecureDns.setChecked(Shaft.sSettings.isUseSecureDns());
+            baseBind.useSecureDns.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setUseSecureDns(isChecked);
+                    Common.showToast(getString(R.string.string_428), 2);
+                    Local.setSettings(Shaft.sSettings);
+                    HttpDns.invalidate();
+                }
+            });
+            baseBind.useSecureDnsRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.useSecureDns.performClick();
                 }
             });
 

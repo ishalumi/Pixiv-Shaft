@@ -109,6 +109,8 @@
   <string name="normal">常規</string>
   <string name="open_direct_connection">開啟直連（自行代理或在牆外，可以關閉）</string>
   <string name="see_pixiv_ez">詳見 Notsfsssf/Pix-EzViewer</string>
+  <string name="use_secure_dns_title">安全 DNS（DoH）</string>
+  <string name="use_secure_dns_summary">透過 Cloudflare DoH 解析 Pixiv 網域；本機 DNS 已可信時可關閉</string>
   <string name="show_original_image">圖片詳情展示原圖</string>
   <string name="save_view_history">保存瀏覽歷史</string>
   <string name="slide_down_endless">相關作品無限下滑（可能出現重複）</string>

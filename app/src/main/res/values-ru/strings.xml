@@ -118,7 +118,10 @@
   <string name="login_out">выход из системы</string>  
   <string name="normal">обычный</string>  
   <string name="open_direct_connection">открыть прямое соединение (само собой или снаружи стены, может быть закрыто)</string>  
-  <string name="see_pixiv_ez">Подробнее см.</string>  
+  <string name="see_pixiv_ez">Подробнее см.</string>
+  <string name="use_secure_dns_title">Безопасный DNS (DoH)</string>
+  <string name="use_secure_dns_summary">Разрешать домены Pixiv через Cloudflare DoH; отключите, если локальный DNS уже надёжен</string>
+
   <string name="show_original_image">показать рисунок</string>  
   <string name="delete_star_illust">фильтр результатов поиска</string>  
   <string name="save_view_history">Сохранить журнал просмотра</string>  

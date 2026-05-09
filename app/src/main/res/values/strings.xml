@@ -127,6 +127,8 @@
     <string name="normal">常规</string>
     <string name="open_direct_connection">开启直连(自行代理或在墙外，可以关闭)</string>
     <string name="see_pixiv_ez">详见 Notsfsssf/Pix-EzViewer</string>
+    <string name="use_secure_dns_title">安全 DNS（DoH）</string>
+    <string name="use_secure_dns_summary">通过 Cloudflare DoH 解析 Pixiv 域名；本地 DNS 已可信时可关闭</string>
     <string name="show_original_image">图片详情展示原图</string>
     <string name="delete_star_illust">搜索结果过滤已收藏</string>
     <string name="filter_rank_bookmarked">排行榜过滤已收藏</string>
