@@ -103,8 +103,16 @@
   <string name="user_main_page">Profil</string>  
   <string name="user_collections">Favoriler</string>  
   <string name="download_manager">İndirme Yöneticisi</string>  
-  <string name="recommend_illust">Önerilen eserler</string>  
-  <string name="recommend_novel">Önerilen Romanlar</string>  
+  <string name="recommend_illust">Önerilen eserler</string>
+  <string name="recommend_novel">Önerilen Romanlar</string>
+
+  <string name="v3_widget_spotlight_label">Pixiv Öne Çıkan</string>
+  <string name="v3_widget_spotlight_description">Düzenli olarak yenilenen önerilen bir eser</string>
+  <string name="v3_widget_loading_title">Bir eser seçiliyor…</string>
+  <string name="v3_widget_loading_author">Bir saniye</string>
+  <string name="v3_widget_login_required">Önerileri görmek için oturum aç</string>
+  <string name="v3_widget_failed">Yüklenemedi, daha sonra tekrar dene</string>
+  <string name="v3_widget_refresh">Yenile</string>
   <string name="novel_tag">Roman Etiketleri</string>  
   <string name="hot_tag">Popüler Etiketler</string>  
   <string name="ranking_illust">Popüler</string>  

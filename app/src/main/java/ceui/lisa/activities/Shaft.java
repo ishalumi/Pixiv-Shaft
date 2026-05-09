@@ -194,6 +194,16 @@ public class Shaft extends Application implements ServicesProvider {
 
         SessionManager.INSTANCE.initialize();
 
+        // 旧 widget 删了但 WorkManager DB 里还残留它们的 PeriodicWork，
+        // 系统会反复 ClassNotFoundException。一次性清理。
+        try {
+            androidx.work.WorkManager wm = androidx.work.WorkManager.getInstance(this);
+            wm.cancelUniqueWork("illust_grid_widget_work");
+            wm.cancelUniqueWork("illust_grid_widget_work_once");
+        } catch (Throwable t) {
+            Timber.w(t, "Failed to cancel legacy widget work");
+        }
+
         // 批量下载持久化队列（v33）：冷启动恢复 + 单并发消费循环
         ceui.pixiv.ui.bulk.QueueDownloadManager.INSTANCE.init(this);
 

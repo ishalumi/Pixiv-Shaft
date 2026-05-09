@@ -103,8 +103,16 @@
   <string name="user_main_page">マイページ</string>  
   <string name="user_collections">お気に入り</string>  
   <string name="download_manager">ダウンロードを管理</string>
-  <string name="recommend_illust">おすすめ</string>  
-  <string name="recommend_novel">おすすめ小説</string>  
+  <string name="recommend_illust">おすすめ</string>
+  <string name="recommend_novel">おすすめ小説</string>
+
+  <string name="v3_widget_spotlight_label">Pixiv ピックアップ</string>
+  <string name="v3_widget_spotlight_description">おすすめ作品を定期的にお届け</string>
+  <string name="v3_widget_loading_title">作品を選んでいます…</string>
+  <string name="v3_widget_loading_author">少々お待ちください</string>
+  <string name="v3_widget_login_required">ログインしておすすめを表示</string>
+  <string name="v3_widget_failed">読み込めませんでした。後で再試行</string>
+  <string name="v3_widget_refresh">更新</string>
   <string name="novel_tag">小説のタグ</string>  
   <string name="hot_tag">人気のタグ</string>  
   <string name="ranking_illust">ランキング</string>  

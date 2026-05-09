@@ -103,8 +103,16 @@
   <string name="user_main_page">личная страница</string>  
   <string name="user_collections">коллекция</string>  
   <string name="download_manager">управление загрузкой</string>  
-  <string name="recommend_illust">рекомендовать произведение</string>  
-  <string name="recommend_novel">рекомендательный роман</string>  
+  <string name="recommend_illust">рекомендовать произведение</string>
+  <string name="recommend_novel">рекомендательный роман</string>
+
+  <string name="v3_widget_spotlight_label">Pixiv: подборка</string>
+  <string name="v3_widget_spotlight_description">Подборка рекомендованных работ, обновляемая регулярно</string>
+  <string name="v3_widget_loading_title">Выбираем работу…</string>
+  <string name="v3_widget_loading_author">Минутку</string>
+  <string name="v3_widget_login_required">Войдите, чтобы видеть рекомендации</string>
+  <string name="v3_widget_failed">Не удалось загрузить, попробуйте позже</string>
+  <string name="v3_widget_refresh">Обновить</string>
   <string name="novel_tag">художественная этикетка</string>  
   <string name="hot_tag">горячая этикетка</string>  
   <string name="ranking_illust">рейтинг</string>  

@@ -103,8 +103,16 @@
   <string name="user_main_page">Homepage</string>  
   <string name="user_collections">Favorites</string>  
   <string name="download_manager">Download Manager</string>  
-  <string name="recommend_illust">Recommended works</string>  
-  <string name="recommend_novel">Recommended Novels</string>  
+  <string name="recommend_illust">Recommended works</string>
+  <string name="recommend_novel">Recommended Novels</string>
+
+  <string name="v3_widget_spotlight_label">Pixiv Spotlight</string>
+  <string name="v3_widget_spotlight_description">A hand-picked recommendation refreshed periodically</string>
+  <string name="v3_widget_loading_title">Picking an artwork…</string>
+  <string name="v3_widget_loading_author">Just a moment</string>
+  <string name="v3_widget_login_required">Sign in to see recommendations</string>
+  <string name="v3_widget_failed">Couldn\'t load — try again later</string>
+  <string name="v3_widget_refresh">Refresh</string>
   <string name="novel_tag">Novel tags</string>  
   <string name="hot_tag">Popular Tags</string>  
   <string name="ranking_illust">Popular</string>  

@@ -220,34 +220,17 @@
             android:theme="@style/SplashTheme" />
 
         <receiver
-            android:name=".notification.RecommendAppWidgetProvider"
+            android:name="ceui.pixiv.widget.SpotlightWidgetProvider"
             android:exported="false"
-            android:label="@string/recommend_illust">
+            android:label="@string/v3_widget_spotlight_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ceui.pixiv.widget.action.SPOTLIGHT_REFRESH" />
             </intent-filter>
 
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/recommend_appwidget_provider_info" />
-        </receiver>
-
-        <service
-            android:name=".notification.RecommendAppWidgetProvider$RecommendAppWidgetService"
-            android:exported="false"
-            android:permission="android.permission.BIND_REMOTEVIEWS" />
-
-        <receiver
-            android:name="ceui.pixiv.widget.IllustGridWidget"
-            android:exported="false"
-            android:label="@string/illust_grid_widget_label">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/illust_grid_widget_info" />
+                android:resource="@xml/v3_spotlight_widget_info" />
         </receiver>
     </application>
 
