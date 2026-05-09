@@ -47,6 +47,8 @@ public class FragmentRelatedIllust extends NetListFragment<FragmentBaseListBindi
     public void initView() {
         super.initView();
         baseBind.toolbar.inflateMenu(R.menu.local_save);
+        baseBind.toolbar.getMenu().removeItem(R.id.action_jump);
+        baseBind.toolbar.getMenu().removeItem(R.id.action_add);
         baseBind.toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(MenuItem item) {
