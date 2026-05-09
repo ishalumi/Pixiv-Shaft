@@ -76,6 +76,17 @@ interface DownloadQueueDao {
     suspend fun pageActive(limit: Int, offset: Int): List<DownloadQueueEntity>
 
     /**
+     * 列表展示用的轻量投影：**不带** [DownloadQueueEntity.illustGson]。
+     *
+     * 为什么独立：单条 JSON 5–30KB，UI 上限 5000 行 → 一次拉就把 ~50–150MB
+     * 钉死在 ListAdapter.currentList，叠加其他 retain 直接把 256MB heap 撑爆，
+     * UI 任何后续 setText / new byte[] 全部 OOM。列表上根本用不到 JSON：
+     * 标题 / 缩略图走 ObjectPool；点击进 VActivity 时再单条 [getById] 反序列化。
+     */
+    @Query("SELECT id, illustId, type, seq, status, retryCount FROM download_queue WHERE status != '${QueueStatus.SUCCESS}' ORDER BY seq ASC LIMIT :limit")
+    suspend fun pageActiveLight(limit: Int): List<DownloadQueueRow>
+
+    /**
      * Reactive 队列：UI 端直接 collect 这个 Flow，Room 在 download_queue 表
      * 任何变更时自动重新 emit 完整快照。替代原来的 1.5s 轮询 + pageActive 翻页拼装。
      * 上限 [limit] 控制 RecyclerView 一次渲染的最大行数；consumer 不受此限。

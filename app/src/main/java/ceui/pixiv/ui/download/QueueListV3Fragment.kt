@@ -30,19 +30,22 @@ import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.loxia.ObjectPool
 import ceui.pixiv.db.queue.DownloadQueueDao
-import ceui.pixiv.db.queue.DownloadQueueEntity
+import ceui.pixiv.db.queue.DownloadQueueRow
 import ceui.pixiv.db.queue.QueueStatus
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -59,7 +62,7 @@ class QueueListV3Fragment : Fragment() {
     private val dao: DownloadQueueDao by lazy {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
-    private val adapter = QueueAdapterV3()
+    private lateinit var adapter: QueueAdapterV3
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -67,30 +70,37 @@ class QueueListV3Fragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        adapter = QueueAdapterV3(viewLifecycleOwner.lifecycleScope, dao)
         val list = view.findViewById<RecyclerView>(R.id.list)
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = adapter
         list.setHasFixedSize(true)
 
-        // 点击 row → VActivity 看一级详情。从 row.illustGson 反序列化拿到 IllustsBean，
-        // 整段 currentList 也一起反出来组成 PageData，让用户在 VActivity 里能左右滑切到
-        // 队列里的相邻 illust（跟"作品列表点击"行为一致）。
-        // 没有 illustGson 的老 v33 行被过滤掉；点击它会找不到自己 → 提示一下让用户等。
-        adapter.onItemClick = onItemClick@{ row, all ->
+        // 点击 row → VActivity 看一级详情。
+        //
+        // 历史上这里把 currentList 全 5000 行的 illustGson 一并反序列化拼 PageData
+        // 让用户能左右滑切到相邻 illust，但 5000 × 5–30KB JSON × 反序列化峰值
+        // 直接把 256MB heap 撑爆。批量队列 tab 的主要用例是看进度/管队列，浏览
+        // 图片是次要；现在只把点击那一张放进 PageData，单 illust 也合法。
+        adapter.onItemClick = onItemClick@{ row ->
             val ctx = context ?: return@onItemClick
-            val clicked = parseIllustFromRow(row)
-            if (clicked == null) {
-                Toast.makeText(ctx, R.string.dlmgr_queue_open_unavailable, Toast.LENGTH_SHORT).show()
+            // ObjectPool 命中（用户最近浏览 / consumer 处理过 / 列表懒加载灌过）→ 立即起。
+            val cached = runCatching { ObjectPool.getIllust(row.illustId).value }.getOrNull()
+            if (cached != null) {
+                openVActivity(ctx, cached)
                 return@onItemClick
             }
-            val list = all.mapNotNull { parseIllustFromRow(it) }
-            val index = list.indexOfFirst { it.id == clicked.id }.coerceAtLeast(0)
-            val pageData = PageData(list)
-            Container.get().addPageToMap(pageData)
-            startActivity(Intent(ctx, VActivity::class.java).apply {
-                putExtra(Params.POSITION, index)
-                putExtra(Params.PAGE_UUID, pageData.uuid)
-            })
+            // 未命中：IO 协程单行拉 illustGson 反序列化。一般不会走到 —— 用户能看到
+            // 这条 row 的标题/缩略图说明已经懒加载过、ObjectPool 已经命中。
+            viewLifecycleOwner.lifecycleScope.launch {
+                val bean = loadIllustForRow(dao, row.id)
+                if (bean == null) {
+                    Toast.makeText(ctx, R.string.dlmgr_queue_open_unavailable, Toast.LENGTH_SHORT).show()
+                } else {
+                    runCatching { ObjectPool.updateIllust(bean) }
+                    openVActivity(ctx, bean)
+                }
+            }
         }
 
         val empty = view.findViewById<View>(R.id.emptyState)
@@ -148,8 +158,8 @@ class QueueListV3Fragment : Fragment() {
         // （用户复现：17 个 illust 标了 SUCCESS 都没让 flow 再 emit）。
         // 改成自己控制的 [QueueDownloadManager.queueListInvalidations]：consumer
         // 每次 status 变化 / LegacyBatchEnqueue 入队都 tryEmit。这边 collect
-        // 后用 suspend 的 [DownloadQueueDao.pageActive] 取最新行，绕开 Room
-        // 那个不可靠的 Flow。
+        // 后用 suspend 的 [DownloadQueueDao.pageActiveLight] 取最新行（不带
+        // illustGson，避免 5000 × JSON 撑爆 heap），绕开 Room 不可靠的 Flow。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(
@@ -157,7 +167,8 @@ class QueueListV3Fragment : Fragment() {
                     QueueDownloadManager.pausedFlow,
                 ) { _, paused -> paused }
                     .map { paused ->
-                        val rows = runCatching { dao.pageActive(MAX_DISPLAY_ROWS, 0) }
+                        // light projection：不拉 illustGson（5000 × 5–30KB JSON 会撑爆 heap）
+                        val rows = runCatching { dao.pageActiveLight(MAX_DISPLAY_ROWS) }
                             .getOrDefault(emptyList())
                         rows to paused
                     }
@@ -182,6 +193,15 @@ class QueueListV3Fragment : Fragment() {
         }
     }
 
+    private fun openVActivity(ctx: android.content.Context, bean: IllustsBean) {
+        val pageData = PageData(listOf(bean))
+        Container.get().addPageToMap(pageData)
+        startActivity(Intent(ctx, VActivity::class.java).apply {
+            putExtra(Params.POSITION, 0)
+            putExtra(Params.PAGE_UUID, pageData.uuid)
+        })
+    }
+
     private fun showClearConfirmDialog(onConfirm: () -> Unit) {
         val act = activity ?: return
         if (act.isFinishing || act.isDestroyed) return
@@ -199,40 +219,46 @@ class QueueListV3Fragment : Fragment() {
 
     companion object {
         /**
-         * UI 一次最多加载这么多条 —— 5000 条 RecyclerView 仍然流畅。
-         * consumer 不受此限，会把 DB 里全部 PENDING 都消费掉，所以即使有
-         * 几万条也只是前 5000 个可见，后续随消费完成自动滚出来。
+         * UI 一次最多加载这么多条 —— 5000 行 RecyclerView 仍然流畅，前提是
+         * **走 [DownloadQueueDao.pageActiveLight]**（不带 illustGson 字段）。
+         * 否则 5000 × 5–30KB JSON 直接把 256MB heap 钉死，引发 ListAdapter
+         * currentList 上下文外的"无辜分配点" OOM（详情页 setText / 反射 / 下载
+         * 字节读循环里 new byte[] 都中弹过）。
          *
-         * 解决 issue #858（旧代码 pageActive 只拿前 200 条让用户感觉"中间丢了"）：
-         * Room flowActive 一次拉 5000 条带 LIMIT，覆盖正常规模，不再分页。
+         * consumer 不受此限，会把 DB 里全部 PENDING 都消费掉，所以即使有几万条
+         * 也只是前 5000 个可见，后续随消费完成自动滚出来。
+         *
+         * 解决 issue #858（旧代码 pageActive 只拿前 200 条让用户感觉"中间丢了"）。
          */
         private const val MAX_DISPLAY_ROWS = 5000
     }
 }
 
-private object QueueDiff : DiffUtil.ItemCallback<DownloadQueueEntity>() {
-    override fun areItemsTheSame(a: DownloadQueueEntity, b: DownloadQueueEntity): Boolean = a.id == b.id
-    override fun areContentsTheSame(a: DownloadQueueEntity, b: DownloadQueueEntity): Boolean =
+private object QueueDiff : DiffUtil.ItemCallback<DownloadQueueRow>() {
+    override fun areItemsTheSame(a: DownloadQueueRow, b: DownloadQueueRow): Boolean = a.id == b.id
+    override fun areContentsTheSame(a: DownloadQueueRow, b: DownloadQueueRow): Boolean =
         a.status == b.status && a.retryCount == b.retryCount
 }
 
 /**
- * 从 [DownloadQueueEntity.illustGson] 反序列化出 [IllustsBean]，失败 / null / 空字符串
- * 都返回 null（adapter / consumer 调用方自己 fallback 老路径）。
- *
- * 在 onBindViewHolder 里调，3-5 个可见行每行一次 Gson.fromJson(~50KB JSON)，
- * 微秒级，不会卡。
+ * 单行懒加载：按 row.id 拉一行 entity 取 illustGson → 反序列化。IO 线程跑，
+ * 可被外层协程 cancel；视口外的 VH 在 [QueueAdapterV3.onViewRecycled] 里 cancel
+ * 自己的 loadJob，避免无效解析继续跑。
  */
-private fun parseIllustFromRow(row: DownloadQueueEntity): IllustsBean? {
-    val json = row.illustGson
-    if (json.isNullOrEmpty()) return null
-    return runCatching { Shaft.sGson.fromJson(json, IllustsBean::class.java) }.getOrNull()
-}
+private suspend fun loadIllustForRow(dao: DownloadQueueDao, rowId: Long): IllustsBean? =
+    withContext(Dispatchers.IO) {
+        val ent = runCatching { dao.getById(rowId) }.getOrNull() ?: return@withContext null
+        val json = ent.illustGson?.takeIf { it.isNotEmpty() } ?: return@withContext null
+        runCatching { Shaft.sGson.fromJson(json, IllustsBean::class.java) }.getOrNull()
+    }
 
-private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.VH>(QueueDiff) {
+private class QueueAdapterV3(
+    private val scope: CoroutineScope,
+    private val dao: DownloadQueueDao,
+) : ListAdapter<DownloadQueueRow, QueueAdapterV3.VH>(QueueDiff) {
 
-    /** 点击 row 的回调；fragment 端注册，把整段 currentList 一起传出去给 VActivity 拼 PageData */
-    var onItemClick: ((row: DownloadQueueEntity, all: List<DownloadQueueEntity>) -> Unit)? = null
+    /** 点击 row 的回调；fragment 端按 row.id 单独反序列化 illustGson 拼 PageData */
+    var onItemClick: ((row: DownloadQueueRow) -> Unit)? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.cell_download_queue_v3, parent, false)
@@ -241,43 +267,21 @@ private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.V
 
     override fun onBindViewHolder(h: VH, pos: Int) {
         val item = getItem(pos)
+        // 上一次 bind 残留的懒加载先 cancel —— VH 复用时若不 cancel，旧 row 的
+        // bean 解析完会写到当前 row 的 view 上（错位）。
+        h.loadJob?.cancel()
+        h.loadJob = null
+        h.boundIllustId = item.illustId
+
         h.itemView.setOnClickListener {
             val p = h.bindingAdapterPosition
             if (p != RecyclerView.NO_POSITION) {
-                onItemClick?.invoke(getItem(p), currentList)
+                onItemClick?.invoke(getItem(p))
             }
-        }
-        // illust 解析优先级跟 QueueDownloadManager.resolveIllustsBean 一致：
-        //   1. ObjectPool 命中（用户最近浏览过 / consumer 已处理过）
-        //   2. 反序列化 row.illustGson（入队时存的 JSON，冷启动主路径）
-        //   3. 都没有 → 老行（v33 之前入队的）显示占位 "illust XXX"
-        // 命中 2 时顺手灌一次 ObjectPool，下个 row 同 id 走 1，零重复 Gson。
-        val illust = runCatching { ObjectPool.getIllust(item.illustId).value }.getOrNull()
-            ?: parseIllustFromRow(item)?.also { bean ->
-                runCatching { ObjectPool.updateIllust(bean) }
-            }
-        if (illust != null) {
-            h.title.text = illust.title.orEmpty().ifBlank { "illustId ${item.illustId}" }
-            h.author.text = illust.user?.name?.let { "by: $it" } ?: ""
-            val showUrl = runCatching { illust.image_urls?.medium }.getOrNull()
-            if (!showUrl.isNullOrEmpty()) {
-                Glide.with(h.thumb)
-                    .load(GlideUtil.getUrl(showUrl))
-                    .placeholder(android.R.color.transparent)
-                    .into(h.thumb)
-            } else {
-                Glide.with(h.thumb).clear(h.thumb)
-                h.thumb.setImageDrawable(null)
-            }
-        } else {
-            h.title.text = "illust  ${item.illustId}"
-            h.author.text = ""
-            Glide.with(h.thumb).clear(h.thumb)
-            h.thumb.setImageDrawable(null)
         }
 
+        // 静态字段 —— seq / 状态徽章 / retry 跟 illust 内容无关，永远绑定。
         h.seqLabel.text = "#${pos + 1}  ·  ${item.type}"
-
         h.statusBadge.text = when (item.status) {
             QueueStatus.PENDING -> "PENDING"
             QueueStatus.DOWNLOADING -> "DOWNLOADING"
@@ -294,13 +298,66 @@ private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.V
                 else -> Color.GRAY
             }
         )
-
         if (item.retryCount > 0) {
             h.retryBadge.visibility = View.VISIBLE
             h.retryBadge.text = "RETRY ${item.retryCount}"
         } else {
             h.retryBadge.visibility = View.GONE
         }
+
+        // —— illust 标题/缩略图 ——
+        // 优先 ObjectPool（用户最近浏览 / consumer 已处理过 / 同 fragment 别的 row 懒加载灌过）。
+        val cached = runCatching { ObjectPool.getIllust(item.illustId).value }.getOrNull()
+        if (cached != null) {
+            renderIllust(h, item, cached)
+            return
+        }
+
+        // 杀进程重启后 ObjectPool 是空的；之前的修法在 miss 时只显示 "illust 12345"
+        // 让用户看不到任何 illust 信息（回归）。改为懒加载：占位 + IO 协程拉这一行的
+        // illustGson 反序列化回填 VH。视口典型只 5–10 行可见，最多 prefetch 几行 →
+        // 同时刻活跃 load job 也就十来个，相比"一次反序列化 5000 行"省 100×+ 内存。
+        renderPlaceholder(h, item)
+        h.loadJob = scope.launch {
+            val bean = loadIllustForRow(dao, item.id) ?: return@launch
+            // 灌 ObjectPool —— 跟 consumer.resolveIllustsBean 行为一致；后续别处 get
+            // 同 id 直接命中，本 fragment 滚动回这条也直接走上面的 cached 分支。
+            runCatching { ObjectPool.updateIllust(bean) }
+            // race 防护：VH 可能已被复用 rebind 到别的行
+            if (h.boundIllustId == item.illustId) {
+                renderIllust(h, item, bean)
+            }
+        }
+    }
+
+    override fun onViewRecycled(h: VH) {
+        super.onViewRecycled(h)
+        // VH 滚出视口 → 取消尚未完成的懒加载，防 stale 写入
+        h.loadJob?.cancel()
+        h.loadJob = null
+        h.boundIllustId = -1L
+    }
+
+    private fun renderIllust(h: VH, item: DownloadQueueRow, illust: IllustsBean) {
+        h.title.text = illust.title.orEmpty().ifBlank { "illustId ${item.illustId}" }
+        h.author.text = illust.user?.name?.let { "by: $it" } ?: ""
+        val showUrl = runCatching { illust.image_urls?.medium }.getOrNull()
+        if (!showUrl.isNullOrEmpty()) {
+            Glide.with(h.thumb)
+                .load(GlideUtil.getUrl(showUrl))
+                .placeholder(android.R.color.transparent)
+                .into(h.thumb)
+        } else {
+            Glide.with(h.thumb).clear(h.thumb)
+            h.thumb.setImageDrawable(null)
+        }
+    }
+
+    private fun renderPlaceholder(h: VH, item: DownloadQueueRow) {
+        h.title.text = "illust  ${item.illustId}"
+        h.author.text = ""
+        Glide.with(h.thumb).clear(h.thumb)
+        h.thumb.setImageDrawable(null)
     }
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -310,5 +367,9 @@ private class QueueAdapterV3 : ListAdapter<DownloadQueueEntity, QueueAdapterV3.V
         val seqLabel: TextView = v.findViewById(R.id.seqLabel)
         val statusBadge: TextView = v.findViewById(R.id.statusBadge)
         val retryBadge: TextView = v.findViewById(R.id.retryBadge)
+        /** 当前正在跑的懒加载 job；onViewRecycled / 下一次 bind 之前 cancel */
+        var loadJob: Job? = null
+        /** bind 时记录的 illustId；race 防护用，避免 job 完成后写到已被 rebind 的别的行 */
+        var boundIllustId: Long = -1L
     }
 }
