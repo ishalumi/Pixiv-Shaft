@@ -516,13 +516,11 @@ class ArtworkDetailAdapter(
                     })
                 }
                 if (comment.stamp?.stamp_url != null) {
-                    val sv = com.google.android.material.imageview.ShapeableImageView(ctx).apply {
+                    val sv = net.csdn.roundview.RoundImageView(ctx).apply {
                         layoutParams = LinearLayout.LayoutParams(80.ppppx, 80.ppppx)
                             .apply { topMargin = 6.ppppx }
                         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                        shapeAppearanceModel = shapeAppearanceModel.toBuilder()
-                            .setAllCornerSizes(8.ppppx.toFloat())
-                            .build()
+                        setRadius(8.ppppx.toFloat())
                     }
                     glide.load(GlideUrlChild(comment.stamp!!.stamp_url!!)).into(sv)
                     content.addView(sv)
