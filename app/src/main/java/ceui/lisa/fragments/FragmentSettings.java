@@ -5,15 +5,21 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.databinding.DataBindingUtil;
+
+import java.io.File;
 
 import com.blankj.utilcode.util.FileUtils;
 import com.blankj.utilcode.util.UriUtils;
@@ -75,9 +81,28 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
     }
 
     @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        if (rootView == null) {
+            View prewarmed = ceui.lisa.utils.LayoutPrewarmer.consume(R.layout.fragment_settings);
+            if (prewarmed != null) {
+                FragmentSettingsBinding bound = DataBindingUtil.bind(prewarmed);
+                if (bound != null) {
+                    initLayout();
+                    baseBind = bound;
+                    rootView = prewarmed;
+                    isInit = true;
+                    initView();
+                    initData();
+                    return rootView;
+                }
+            }
+        }
+        return super.onCreateView(inflater, container, savedInstanceState);
+    }
+
+    @Override
     protected void initData() {
         baseBind.toolbar.setNavigationOnClickListener(view -> mActivity.finish());
-        Common.animate(baseBind.parentLinear);
 
         // 账号
         {
@@ -1426,23 +1451,23 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
 
         // 缓存
         {
-            baseBind.imageCacheSize.setText(FileUtils.getSize(LegacyFile.imageCacheFolder(mContext)));
+            loadCacheSizeAsync(baseBind.imageCacheSize, LegacyFile.imageCacheFolder(mContext));
             baseBind.clearImageCache.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     FileUtils.deleteAllInDir(LegacyFile.imageCacheFolder(mContext));
                     Common.showToast(getString(R.string.success_clearImageCache));
-                    baseBind.imageCacheSize.setText(FileUtils.getSize(LegacyFile.imageCacheFolder(mContext)));
+                    loadCacheSizeAsync(baseBind.imageCacheSize, LegacyFile.imageCacheFolder(mContext));
                 }
             });
 
-            baseBind.gifCacheSize.setText(FileUtils.getSize(LegacyFile.gifCacheFolder(mContext)));
+            loadCacheSizeAsync(baseBind.gifCacheSize, LegacyFile.gifCacheFolder(mContext));
             baseBind.clearGifCache.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     FileUtils.deleteAllInDir(LegacyFile.gifCacheFolder(mContext));
                     Common.showToast(getString(R.string.success_clearGifCache), 2);
-                    baseBind.gifCacheSize.setText(FileUtils.getSize(LegacyFile.gifCacheFolder(mContext)));
+                    loadCacheSizeAsync(baseBind.gifCacheSize, LegacyFile.gifCacheFolder(mContext));
                 }
             });
         }
@@ -1654,6 +1679,18 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void loadCacheSizeAsync(TextView target, File folder) {
+        target.setText("…");
+        new Thread(() -> {
+            String size = FileUtils.getSize(folder);
+            target.post(() -> {
+                if (isAdded()) {
+                    target.setText(size);
+                }
+            });
+        }, "cache-size-calc").start();
     }
 
     private String currentLanguageDisplay() {
