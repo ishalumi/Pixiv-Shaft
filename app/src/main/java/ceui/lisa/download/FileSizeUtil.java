@@ -12,6 +12,14 @@ public class FileSizeUtil {
     public static final int SIZETYPE_GB = 4;//获取文件大小单位为GB的double值
     private static final String TAG = FileSizeUtil.class.getSimpleName();
 
+    // Android 24+ 上 new DecimalFormat("#.00") 走 ICU 后端，构造会调
+    // NumberPropertyMapper.oldToNew 编译 pattern 成一整棵 MacroProps 对象树，单次成本极高。
+    // 下载 V3 active list bind 每 1% 进度都会调 formatFileSize 2~3 次，5 路并发能把
+    // 主线程刷到 100+ 次/s，young-gen 撑爆后 GC 跟不上 → 192MB heap 挤到 <1% free → OOM。
+    // 复用一个静态实例即可——本类所有调用方（ActiveListV3Fragment / FragmentEditFile）
+    // 都在主线程，DecimalFormat 不线程安全的限制不影响。
+    private static final DecimalFormat TWO_DECIMAL = new DecimalFormat("#.00");
+
     /**
      * 获取文件指定文件的指定单位的大小
      *
@@ -105,29 +113,26 @@ public class FileSizeUtil {
      * 转换文件大小
      */
     public static String formatFileSize(long fileS) {
-        DecimalFormat df = new DecimalFormat("#.00");
-        String fileSizeString = "";
-        String wrongSize = "0B";
         if (fileS <= 0) {
-            return wrongSize;
+            return "0B";
         }
+        DecimalFormat df = TWO_DECIMAL;
         if (fileS < 1024) {
-            fileSizeString = df.format((double) fileS) + "B";
+            return df.format((double) fileS) + "B";
         } else if (fileS < 1048576) {
-            fileSizeString = df.format((double) fileS / 1024) + "KB";
+            return df.format((double) fileS / 1024) + "KB";
         } else if (fileS < 1073741824) {
-            fileSizeString = df.format((double) fileS / 1048576) + "MB";
+            return df.format((double) fileS / 1048576) + "MB";
         } else {
-            fileSizeString = df.format((double) fileS / 1073741824) + "GB";
+            return df.format((double) fileS / 1073741824) + "GB";
         }
-        return fileSizeString;
     }
 
     /**
      * 转换文件大小,指定转换的类型
      */
     private static double FormatFileSize(long fileS, int sizeType) {
-        DecimalFormat df = new DecimalFormat("#.00");
+        DecimalFormat df = TWO_DECIMAL;
         double fileSizeLong = 0;
         switch (sizeType) {
             case SIZETYPE_B:
