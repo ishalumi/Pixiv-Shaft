@@ -6,12 +6,11 @@
 
     </data>
 
-    <LinearLayout
+    <ceui.pixiv.widgets.TopInsetLinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="?attr/colorPrimary"
-        android:fitsSystemWindows="true">
+        android:background="?attr/colorPrimary">
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
@@ -69,6 +68,6 @@
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-    </LinearLayout>
+    </ceui.pixiv.widgets.TopInsetLinearLayout>
 </layout>
 
