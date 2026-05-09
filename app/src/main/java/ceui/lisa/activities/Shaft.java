@@ -88,6 +88,15 @@ public class Shaft extends Application implements ServicesProvider {
         return sContext;
     }
 
+    private static boolean hasStackFrame(Throwable t, String classNamePrefix) {
+        for (StackTraceElement frame : t.getStackTrace()) {
+            if (frame.getClassName().startsWith(classNamePrefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Initialize the whole application.
      * */
@@ -116,6 +125,18 @@ public class Shaft extends Application implements ServicesProvider {
                             && t.getMessage() != null
                             && t.getMessage().contains("trying to draw too large")) {
                         Timber.w(t, "Suppressed oversized bitmap draw on main thread");
+                        continue;
+                    }
+                    // Glide GifDrawable race: GifFrameLoader 回收上一帧 bitmap 后，
+                    // ImageView 还在用旧的 GifDrawable 跑一次 onDraw，于是
+                    // canvas.drawBitmap(null,...) → BaseCanvas.throwIfCannotDraw NPE。
+                    // 上游 issue 长期未修，丢一帧好过崩进程。stack 里必须有
+                    // GifDrawable 帧才放过，否则会吞掉无关的 NPE。
+                    if (t instanceof NullPointerException
+                            && t.getMessage() != null
+                            && t.getMessage().contains("Bitmap.isRecycled()")
+                            && hasStackFrame(t, "com.bumptech.glide.load.resource.gif.GifDrawable")) {
+                        Timber.w(t, "Suppressed Glide GifDrawable null-bitmap draw on main thread");
                         continue;
                     }
                     // android.app.RemoteServiceException$CrashedByAdbException：adb 的
