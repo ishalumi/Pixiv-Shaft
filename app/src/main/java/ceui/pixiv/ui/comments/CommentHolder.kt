@@ -55,13 +55,20 @@ class CommentViewHolder(bd: CellCommentBinding) :
         binding.root.setOnClickListener { sender ->
             sender.findActionReceiverOrNull<CommentActionReceiver>()?.onClickComment(holder.comment)
         }
-        if (holder.comment.stamp != null) {
-            binding.commentStamp.isVisible = true
+        val hasStamp = holder.comment.stamp != null
+        binding.commentStamp.isVisible = hasStamp
+        if (hasStamp) {
             Glide.with(context).load(GlideUrlChild(holder.comment.stamp.stamp_url))
                 .placeholder(R.drawable.bg_loading_placeholder)
                 .into(binding.commentStamp)
-        } else {
-            binding.commentStamp.isVisible = false
+        }
+        binding.commentContent.isVisible = !hasStamp
+        if (!hasStamp) {
+            binding.commentContent.text = CommentEmojiSpanner.format(
+                context,
+                holder.comment.comment,
+                binding.commentContent.textSize.toInt(),
+            )
         }
 
         binding.userIcon.setOnClick {
@@ -153,14 +160,22 @@ class CellChildCommentViewHolder(bd: CellChildCommentBinding) :
         binding.root.setOnClickListener { sender ->
             sender.findActionReceiverOrNull<CommentActionReceiver>()?.onClickComment(holder.comment)
         }
-        if (holder.comment.stamp != null) {
-            binding.commentStamp.isVisible = true
+        val hasStamp = holder.comment.stamp != null
+        binding.commentStamp.isVisible = hasStamp
+        if (hasStamp) {
             Glide.with(context).load(GlideUrlChild(holder.comment.stamp.stamp_url))
                 .placeholder(R.drawable.bg_loading_placeholder)
                 .into(binding.commentStamp)
-        } else {
-            binding.commentStamp.isVisible = false
         }
+        binding.commentContent.isVisible = !hasStamp
+        if (!hasStamp) {
+            binding.commentContent.text = CommentEmojiSpanner.format(
+                context,
+                holder.comment.comment,
+                binding.commentContent.textSize.toInt(),
+            )
+        }
+
         binding.arthurLabel.isVisible = holder.isArthurCommented
 
         binding.userIcon.setOnClick {
