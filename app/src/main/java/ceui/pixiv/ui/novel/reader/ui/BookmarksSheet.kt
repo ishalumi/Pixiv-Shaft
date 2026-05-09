@@ -15,6 +15,8 @@ import ceui.lisa.databinding.ItemReaderBookmarkRowBinding
 import ceui.lisa.databinding.SheetReaderBookmarksBinding
 import ceui.pixiv.ui.novel.reader.NovelReaderV3ViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 
 interface BookmarkSheetCallback {
     fun onJumpToBookmark(entry: NovelBookmarkEntity)
@@ -94,10 +96,13 @@ class BookmarksSheet : BottomSheetDialogFragment() {
                 dismiss()
             }
             holder.itemView.setOnLongClickListener {
-                androidx.appcompat.app.AlertDialog.Builder(ctx)
+                QMUIDialog.MessageDialogBuilder(ctx)
                     .setTitle(R.string.bookmarks_delete_confirm)
-                    .setPositiveButton(R.string.action_delete) { _, _ -> callback?.onDeleteBookmark(entry) }
-                    .setNegativeButton(R.string.action_cancel, null)
+                    .addAction(R.string.action_cancel) { d, _ -> d.dismiss() }
+                    .addAction(0, R.string.action_delete, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                        d.dismiss()
+                        callback?.onDeleteBookmark(entry)
+                    }
                     .show()
                 true
             }

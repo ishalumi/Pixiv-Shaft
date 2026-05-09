@@ -12,7 +12,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -38,6 +37,8 @@ import ceui.pixiv.ui.task.BatchDownloadNovelsTask
 import ceui.pixiv.ui.task.FailedNovel
 import ceui.pixiv.utils.setOnClick
 import com.hjq.toast.ToastUtils
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -280,10 +281,10 @@ class UncategorizedNovelsFragment : PixivFragment(R.layout.fragment_pixiv_list),
                 fn.reason.orEmpty(),
             )
         }
-        AlertDialog.Builder(requireContext())
+        QMUIDialog.MessageDialogBuilder(requireContext())
             .setTitle(getString(R.string.batch_download_some_failed, failures.size))
             .setMessage(msg)
-            .setPositiveButton(android.R.string.ok, null)
+            .addAction(android.R.string.ok) { d, _ -> d.dismiss() }
             .show()
     }
 

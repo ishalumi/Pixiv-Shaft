@@ -1,6 +1,5 @@
 package ceui.lisa.fragments
 
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
 import androidx.databinding.ViewDataBinding
 import ceui.lisa.R
@@ -16,6 +15,8 @@ import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
 import ceui.pixiv.ui.novel.CrossSeriesDownloadOptionsSheet
 import ceui.pixiv.ui.task.CrossSeriesDownloadTask
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 
 /**
  * 某作者「小说系列」总览页（注意：不是单个系列详情页 NovelSeriesFragment）。
@@ -73,7 +74,7 @@ class FragmentNovelSeries :
     }
 
     /**
-     * 多选对话框：最简实现——AlertDialog.setMultiChoiceItems。避免引入单独的
+     * 多选对话框：QMUI MultiCheckableDialogBuilder。避免引入单独的
      * ActionMode 状态到 NovelSeriesAdapter，保持列表页自身不变。
      */
     private fun showSeriesPicker() {
@@ -82,45 +83,25 @@ class FragmentNovelSeries :
             Common.showToast(getString(R.string.cross_series_no_series_loaded))
             return
         }
-        val titles = list.map { it.title.orEmpty() }.toTypedArray()
-        val checked = BooleanArray(list.size)
+        val titles: Array<CharSequence> = list.map { it.title.orEmpty() as CharSequence }.toTypedArray()
 
-        val dialog = AlertDialog.Builder(mContext)
+        val builder = QMUIDialog.MultiCheckableDialogBuilder(mContext)
             .setTitle(getString(R.string.cross_series_pick_dialog_title))
-            .setMultiChoiceItems(titles, checked) { _, which, isChecked ->
-                checked[which] = isChecked
+            .setCheckedItems(intArrayOf())
+        builder.addItems(titles) { _, _ -> /* multi-state auto-tracked */ }
+        builder.addAction(getString(R.string.cross_series_pick_dialog_cancel)) { d, _ -> d.dismiss() }
+        builder.addAction(getString(R.string.sure)) { d, _ ->
+            val indexes = builder.checkedItemIndexes
+            if (indexes == null || indexes.isEmpty()) {
+                Common.showToast(getString(R.string.cross_series_pick_empty))
+                return@addAction
             }
-            // 占位 text，下面手动覆盖 click listener，以便按勾选数量实时更新 button text
-            .setPositiveButton(
-                getString(R.string.cross_series_pick_dialog_ok, 0), null,
-            )
-            .setNegativeButton(getString(R.string.cross_series_pick_dialog_cancel), null)
-            .create()
-
-        dialog.setOnShowListener {
-            val ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            fun refreshOkText() {
-                val count = checked.count { it }
-                ok.text = getString(R.string.cross_series_pick_dialog_ok, count)
-                ok.isEnabled = count > 0
-            }
-            refreshOkText()
-            // 勾选变化时刷新按钮文字
-            dialog.listView.setOnItemClickListener { _, _, position, _ ->
-                checked[position] = dialog.listView.isItemChecked(position)
-                refreshOkText()
-            }
-            ok.setOnClickListener {
-                val picked = list.filterIndexed { idx, _ -> checked[idx] }
-                if (picked.isEmpty()) {
-                    Common.showToast(getString(R.string.cross_series_pick_empty))
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                runPerSeries(picked)
-            }
+            val pickedSet = indexes.toHashSet()
+            val picked = list.filterIndexed { idx, _ -> pickedSet.contains(idx) }
+            d.dismiss()
+            runPerSeries(picked)
         }
-        dialog.show()
+        builder.create().show()
     }
 
     private fun runPerSeries(seriesList: List<NovelSeriesItem>) {
@@ -134,12 +115,14 @@ class FragmentNovelSeries :
             val msg = failures.joinToString(separator = "\n") { f ->
                 "《${f.seriesTitle}》— ${f.reason}"
             }
-            AlertDialog.Builder(mContext)
+            QMUIDialog.MessageDialogBuilder(mContext)
                 .setTitle(
                     getString(R.string.batch_download_some_failed, failures.size)
                 )
                 .setMessage(msg)
-                .setPositiveButton(android.R.string.ok, null)
+                .addAction(0, android.R.string.ok, QMUIDialogAction.ACTION_PROP_POSITIVE) { d, _ ->
+                    d.dismiss()
+                }
                 .show()
         }
     }

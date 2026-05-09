@@ -42,6 +42,7 @@ import ceui.pixiv.ui.task.PageLoadRetryController
 import ceui.pixiv.ui.task.renderImageLoadStatusBanner
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -403,8 +404,8 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 Params.IMAGE_RESOLUTION_MEDIUM,
                 Params.IMAGE_RESOLUTION_SQUARE_MEDIUM
             )
-            androidx.appcompat.app.AlertDialog.Builder(mContext)
-                .setItems(resNames) { dialog, which ->
+            QMUIDialog.MenuDialogBuilder(mContext)
+                .addItems(resNames) { dialog, which ->
                     if (illust.page_count == 1) {
                         IllustDownload.downloadIllustFirstPageWithResolution(illust, resValues[which], baseAct)
                     } else {

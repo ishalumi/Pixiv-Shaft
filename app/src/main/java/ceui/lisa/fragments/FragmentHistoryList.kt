@@ -11,6 +11,8 @@ import ceui.lisa.database.IllustHistoryEntity
 import ceui.lisa.databinding.FragmentHistoryListBinding
 import ceui.pixiv.ui.common.CommonAdapter
 import ceui.pixiv.ui.common.viewBinding
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.scwang.smart.refresh.footer.ClassicsFooter
 import com.scwang.smart.refresh.header.MaterialHeader
 
@@ -54,11 +56,14 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
 
     private fun confirmDelete(entity: IllustHistoryEntity) {
         val act = activity ?: return
-        androidx.appcompat.app.AlertDialog.Builder(act)
+        QMUIDialog.MessageDialogBuilder(act)
             .setTitle(R.string.string_143)
             .setMessage(R.string.string_352)
-            .setPositiveButton(R.string.string_141) { _, _ -> viewModel.delete(entity) }
-            .setNegativeButton(R.string.string_142, null)
+            .addAction(R.string.string_142) { d, _ -> d.dismiss() }
+            .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                viewModel.delete(entity)
+            }
             .show()
     }
 

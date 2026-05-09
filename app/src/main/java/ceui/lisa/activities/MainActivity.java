@@ -20,7 +20,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -31,6 +30,7 @@ import com.bumptech.glide.Glide;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction;
 import com.tbruyelle.rxpermissions3.RxPermissions;
 
 import java.io.File;
@@ -460,25 +460,22 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
     public void exit() {
         if ((System.currentTimeMillis() - mExitTime) > 2000) {
             if (Manager.get().getContent().size() != 0) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-                builder.setTitle(getString(R.string.shaft_hint));
-                builder.setMessage(mContext.getString(R.string.you_have_download_plan));
-                builder.setPositiveButton(mContext.getString(R.string.sure), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Manager.get().stopAll();
-                        finish();
-                    }
-                });
-                builder.setNegativeButton(mContext.getString(R.string.cancel), null);
-                builder.setNeutralButton(getString(R.string.see_download_task), (dialog, which) -> {
-                    Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "下载管理");
-                    intent.putExtra("hideStatusBar", true);
-                    startActivity(intent);
-                });
-                AlertDialog alertDialog = builder.create();
-                alertDialog.show();
+                new QMUIDialog.MessageDialogBuilder(mContext)
+                        .setTitle(getString(R.string.shaft_hint))
+                        .setMessage(mContext.getString(R.string.you_have_download_plan))
+                        .addAction(R.string.cancel, (d, i) -> d.dismiss())
+                        .addAction(0, R.string.see_download_task, QMUIDialogAction.ACTION_PROP_NEUTRAL, (d, i) -> {
+                            Intent intent = new Intent(mContext, TemplateActivity.class);
+                            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "下载管理");
+                            intent.putExtra("hideStatusBar", true);
+                            startActivity(intent);
+                            d.dismiss();
+                        })
+                        .addAction(0, R.string.sure, QMUIDialogAction.ACTION_PROP_NEGATIVE, (d, i) -> {
+                            Manager.get().stopAll();
+                            finish();
+                        })
+                        .show();
             } else {
                 Common.showToast(getString(R.string.double_click_finish));
                 mExitTime = System.currentTimeMillis();

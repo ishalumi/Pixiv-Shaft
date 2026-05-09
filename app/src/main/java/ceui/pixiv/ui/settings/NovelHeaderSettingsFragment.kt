@@ -8,13 +8,10 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.CheckBox
-import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -35,6 +32,8 @@ import ceui.pixiv.download.header.HeaderPreset
 import ceui.pixiv.download.header.NovelHeaderRenderer
 import ceui.pixiv.ui.common.viewBinding
 import com.hjq.toast.ToastUtils
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 
 /**
  * "下载内容信息头设置" — lets the user choose which metadata fields are
@@ -269,11 +268,12 @@ class NovelHeaderSettingsFragment : Fragment(R.layout.fragment_novel_header_sett
             ToastUtils.show(getString(R.string.novel_header_preset_delete_last))
             return
         }
-        AlertDialog.Builder(requireContext())
+        QMUIDialog.MessageDialogBuilder(requireContext())
             .setTitle(getString(R.string.novel_header_preset_delete))
             .setMessage(getString(R.string.novel_header_preset_delete_confirm, draftPresetName))
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            .addAction(android.R.string.cancel) { d, _ -> d.dismiss() }
+            .addAction(0, android.R.string.ok, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
                 val remaining = store.presets.filter { it.name != draftPresetName }
                 store = store.copy(presets = remaining, activeName = remaining.first().name)
                 draftPresetName = store.activeName
@@ -290,30 +290,24 @@ class NovelHeaderSettingsFragment : Fragment(R.layout.fragment_novel_header_sett
         hint: String,
         onConfirm: (String) -> Unit,
     ) {
-        val edit = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-            imeOptions = EditorInfo.IME_ACTION_DONE
-            setText(initial)
-            this.hint = hint
-            setSelection(initial.length)
-        }
-        val container = FrameLayout(requireContext()).apply {
-            setPadding(dp(20), dp(8), dp(20), dp(0))
-            addView(edit)
-        }
-        AlertDialog.Builder(requireContext())
-            .setTitle(title)
-            .setView(container)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val entered = edit.text?.toString()?.trim().orEmpty()
+        val builder = QMUIDialog.EditTextDialogBuilder(requireContext())
+        builder.setTitle(title)
+            .setPlaceholder(hint)
+            .setDefaultText(initial)
+            .setInputType(InputType.TYPE_CLASS_TEXT)
+            .addAction(android.R.string.cancel) { d, _ -> d.dismiss() }
+            .addAction(android.R.string.ok) { d, _ ->
+                val entered = builder.editText.text?.toString()?.trim().orEmpty()
                 if (entered.isBlank()) {
                     ToastUtils.show(getString(R.string.novel_header_preset_name_blank))
                 } else {
+                    d.dismiss()
                     onConfirm(entered)
                 }
             }
             .show()
+        builder.editText.imeOptions = EditorInfo.IME_ACTION_DONE
+        builder.editText.setSelection(builder.editText.text?.length ?: 0)
     }
 
     // -------- Fields section --------
@@ -448,11 +442,12 @@ class NovelHeaderSettingsFragment : Fragment(R.layout.fragment_novel_header_sett
     }
 
     private fun onResetDefault() {
-        AlertDialog.Builder(requireContext())
+        QMUIDialog.MessageDialogBuilder(requireContext())
             .setTitle(getString(R.string.novel_header_reset))
             .setMessage(getString(R.string.novel_header_reset_confirm))
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            .addAction(android.R.string.cancel) { d, _ -> d.dismiss() }
+            .addAction(0, android.R.string.ok, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
                 HeaderConfigRepo.reset()
                 store = HeaderConfigRepo.load()
                 draftPresetName = store.activeName

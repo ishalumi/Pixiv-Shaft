@@ -15,6 +15,7 @@ import ceui.lisa.databinding.ItemReaderAnnotationRowBinding
 import ceui.lisa.databinding.SheetReaderAnnotationsBinding
 import ceui.pixiv.ui.novel.reader.NovelReaderV3ViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 
 interface AnnotationSheetCallback {
     fun onJumpToAnnotation(entry: NovelAnnotationEntity)
@@ -104,13 +105,14 @@ class AnnotationsSheet : BottomSheetDialogFragment() {
                     if (entry.note.isEmpty()) ctx.getString(R.string.note_add_title) else ctx.getString(R.string.note_edit_title),
                     ctx.getString(R.string.action_delete),
                 )
-                androidx.appcompat.app.AlertDialog.Builder(ctx)
+                QMUIDialog.MenuDialogBuilder(ctx)
                     .setTitle(entry.excerpt.take(24))
-                    .setItems(options) { _, which ->
+                    .addItems(options) { dialog, which ->
                         when (which) {
                             0 -> callback?.onEditAnnotation(entry)
                             1 -> callback?.onDeleteAnnotation(entry)
                         }
+                        dialog.dismiss()
                     }
                     .show()
                 true

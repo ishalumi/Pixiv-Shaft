@@ -14,7 +14,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,6 +21,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.blankj.utilcode.util.PathUtils;
 import com.bumptech.glide.Glide;
 import com.jaredrummler.android.colorpicker.ColorPickerDialog;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction;
 import com.skydoves.transformationlayout.OnTransformFinishListener;
 import com.zhy.view.flowlayout.FlowLayout;
 import com.zhy.view.flowlayout.TagAdapter;
@@ -524,13 +525,22 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
     }
 
     private void showFontSizeDialog() {
-        View view = LayoutInflater.from(mContext).inflate(R.layout.dialog_font_size, null);
-        AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-        builder.setView(view);
+        QMUIDialog.CustomDialogBuilder builder = new QMUIDialog.CustomDialogBuilder(mContext);
+        builder.setLayout(R.layout.dialog_font_size);
+        builder.addAction(R.string.cancel, (d, i) -> d.dismiss());
+        builder.addAction(R.string.sure, (d, i) -> {
+            SeekBar sb = d.findViewById(R.id.font_size_seekbar);
+            if (mActivity instanceof TemplateActivity && sb != null) {
+                ((TemplateActivity) mActivity).onFontSizeSelected(sb.getProgress());
+            }
+            d.dismiss();
+        });
+        QMUIDialog dialog = builder.create();
+        dialog.show();
 
-        TextView previewText = view.findViewById(R.id.preview_text);
-        final SeekBar seekBar = view.findViewById(R.id.font_size_seekbar);
-        TextView currentSizeText = view.findViewById(R.id.current_size_text);
+        TextView previewText = dialog.findViewById(R.id.preview_text);
+        final SeekBar seekBar = dialog.findViewById(R.id.font_size_seekbar);
+        TextView currentSizeText = dialog.findViewById(R.id.current_size_text);
 
         // 从设置中获取当前字体大小
         int currentSize = Shaft.sSettings.getNovelHolderTextSize();
@@ -541,18 +551,6 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
         seekBar.setProgress(currentSize);
         currentSizeText.setText(currentSize + "sp");
         previewText.setTextSize(currentSize);
-
-        // 添加确认和取消按钮
-        builder.setPositiveButton(R.string.sure, (dialog, which) -> {
-            if (mActivity instanceof TemplateActivity) {
-                ((TemplateActivity) mActivity).onFontSizeSelected(seekBar.getProgress());
-            }
-        });
-
-        builder.setNegativeButton(R.string.cancel, null);
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override

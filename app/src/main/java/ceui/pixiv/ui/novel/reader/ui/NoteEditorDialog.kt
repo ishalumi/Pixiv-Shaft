@@ -1,17 +1,21 @@
 package ceui.pixiv.ui.novel.reader.ui
 
 import android.app.Dialog
+import android.content.Context
 import android.os.Bundle
 import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogView
 
 interface NoteEditorCallback {
     fun onNoteSaved(annotationId: Long, charStart: Int, charEnd: Int, excerpt: String, noteText: String, color: Int)
@@ -62,19 +66,26 @@ class NoteEditorDialog : DialogFragment() {
 
         val callback = parentFragment as? NoteEditorCallback
 
-        val builder = AlertDialog.Builder(ctx)
-            .setTitle(if (existingNote.isEmpty()) getString(ceui.lisa.R.string.note_add_title) else getString(ceui.lisa.R.string.note_edit_title))
-            .setView(container)
-            .setPositiveButton(ceui.lisa.R.string.action_save) { _, _ ->
-                callback?.onNoteSaved(annotationId, charStart, charEnd, excerpt, edit.text.toString().trim(), highlightColor)
+        val builder = object : QMUIDialog.CustomDialogBuilder(ctx) {
+            override fun onCreateContent(dialog: QMUIDialog, parent: QMUIDialogView, context: Context): View {
+                return container
             }
-            .setNegativeButton(ceui.lisa.R.string.action_cancel, null)
+        }
+            .setTitle(if (existingNote.isEmpty()) getString(ceui.lisa.R.string.note_add_title) else getString(ceui.lisa.R.string.note_edit_title))
+            .addAction(ceui.lisa.R.string.action_cancel) { d, _ -> d.dismiss() }
 
         if (showDelete) {
-            builder.setNeutralButton(ceui.lisa.R.string.action_delete) { _, _ ->
+            builder.addAction(0, ceui.lisa.R.string.action_delete, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
                 callback?.onNoteDeleted(annotationId)
             }
         }
+
+        builder.addAction(ceui.lisa.R.string.action_save) { d, _ ->
+            d.dismiss()
+            callback?.onNoteSaved(annotationId, charStart, charEnd, excerpt, edit.text.toString().trim(), highlightColor)
+        }
+
         return builder.create()
     }
 

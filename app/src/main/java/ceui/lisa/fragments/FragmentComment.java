@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -13,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.effective.android.panel.PanelSwitchHelper;
 import com.qmuiteam.qmui.skin.QMUISkinManager;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction;
 
 import java.util.List;
 
@@ -225,22 +225,16 @@ public class FragmentComment extends NetListFragment<FragmentCommentBinding,
         };
         baseBind.post.setOnClickListener(v -> {
             if (SessionManager.INSTANCE.isLoggedIn() && !SessionManager.INSTANCE.isMailAuthorized()) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-                builder.setMessage(R.string.string_158);
-                builder.setPositiveButton(R.string.string_159, (dialog, which) -> {
-                    Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "绑定邮箱");
-                    startActivity(intent);
-                });
-                builder.setNegativeButton(R.string.string_160, null);
-                AlertDialog alertDialog = builder.create();
-                alertDialog.show();
-                alertDialog
-                        .getButton(AlertDialog.BUTTON_POSITIVE)
-                        .setTextColor(androidx.appcompat.R.attr.colorPrimary);
-                alertDialog
-                        .getButton(AlertDialog.BUTTON_NEGATIVE)
-                        .setTextColor(androidx.appcompat.R.attr.colorPrimary);
+                new QMUIDialog.MessageDialogBuilder(mContext)
+                        .setMessage(R.string.string_158)
+                        .addAction(R.string.string_160, (d, i) -> d.dismiss())
+                        .addAction(0, R.string.string_159, QMUIDialogAction.ACTION_PROP_POSITIVE, (d, i) -> {
+                            Intent intent = new Intent(mContext, TemplateActivity.class);
+                            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "绑定邮箱");
+                            startActivity(intent);
+                            d.dismiss();
+                        })
+                        .show();
                 return;
             }
 

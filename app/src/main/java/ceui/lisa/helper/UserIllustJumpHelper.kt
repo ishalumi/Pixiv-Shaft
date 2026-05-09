@@ -1,19 +1,15 @@
 package ceui.lisa.helper
 
 import android.app.Activity
-import android.content.DialogInterface
 import android.text.InputType
-import android.view.Gravity
-import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.LinearLayout
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.FragmentActivity
 import ceui.lisa.R
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.http.Retro
 import ceui.lisa.repo.buildOffsetUrl
 import ceui.lisa.utils.Common
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.qmuiteam.qmui.widget.dialog.QMUITipDialog
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -96,9 +92,9 @@ object UserIllustJumpHelper {
         } else {
             arrayOf(earliest, byDate, byPage)
         }
-        AlertDialog.Builder(activity)
+        QMUIDialog.MenuDialogBuilder(activity)
             .setTitle(activity.getString(R.string.user_jump_dialog_title, total, totalPages))
-            .setItems(choices) { _, which ->
+            .addItems(choices) { dialog, which ->
                 when (choices[which]) {
                     earliest -> {
                         val offset = ((total - 1) / PAGE_SIZE) * PAGE_SIZE
@@ -107,37 +103,28 @@ object UserIllustJumpHelper {
                     byDate -> pickDate(activity, userID, kind, total, onJump)
                     byPage -> pickPage(activity, totalPages, onJump)
                 }
+                dialog.dismiss()
             }
-            .setNegativeButton(R.string.string_142, null)
+            .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
     private fun pickPage(activity: Activity, totalPages: Int, onJump: OnJumpPicked) {
-        val edit = EditText(activity).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            gravity = Gravity.CENTER
-            hint = activity.getString(R.string.user_jump_page_hint, totalPages)
-        }
-        val container = LinearLayout(activity).apply {
-            setPadding(64, 32, 64, 0)
-            addView(edit, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-        }
-        AlertDialog.Builder(activity)
-            .setTitle(R.string.user_jump_page_dialog_title)
-            .setMessage(activity.getString(R.string.user_jump_page_dialog_message, totalPages, PAGE_SIZE))
-            .setView(container)
-            .setPositiveButton(R.string.sure) { _: DialogInterface, _ ->
-                val page = edit.text.toString().toIntOrNull()
+        val builder = QMUIDialog.EditTextDialogBuilder(activity)
+        builder.setTitle(R.string.user_jump_page_dialog_title)
+            .setPlaceholder(activity.getString(R.string.user_jump_page_hint, totalPages))
+            .setInputType(InputType.TYPE_CLASS_NUMBER)
+            .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
+            .addAction(R.string.sure, QMUIDialogAction.ActionListener { dialog, _ ->
+                val page = builder.editText.text?.toString()?.toIntOrNull()
                 if (page == null || page < 1 || page > totalPages) {
                     Common.showToast(activity.getString(R.string.user_jump_page_range_error, totalPages))
-                    return@setPositiveButton
+                    dialog.dismiss()
+                    return@ActionListener
                 }
                 onJump.onPicked((page - 1) * PAGE_SIZE, null)
-            }
-            .setNegativeButton(R.string.string_142, null)
+                dialog.dismiss()
+            })
             .show()
     }
 
