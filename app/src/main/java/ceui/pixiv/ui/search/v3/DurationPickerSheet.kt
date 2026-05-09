@@ -102,6 +102,8 @@ class DurationPickerSheet : V3BottomSheetBase() {
         // 自定义日期 row —— 这俩 row 复用 cell_search_filter_row（title + value + chevron）
         binding.rowDateStart.rowTitle.setText(R.string.search_filter_v3_date_start)
         binding.rowDateEnd.rowTitle.setText(R.string.search_filter_v3_date_end)
+        binding.rowDateStart.rowValue.setTextColor(palette.textAccent)
+        binding.rowDateEnd.rowValue.setTextColor(palette.textAccent)
         binding.rowDateStart.root.setOnClick { showDatePicker(true) }
         binding.rowDateEnd.root.setOnClick { showDatePicker(false) }
         binding.btnClearDates.setTextColor(palette.textAccent)

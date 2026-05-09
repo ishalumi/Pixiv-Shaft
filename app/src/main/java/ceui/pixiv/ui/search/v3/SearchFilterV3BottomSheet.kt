@@ -110,13 +110,24 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // accent 色（取消按钮）—— V3Palette 派生于主题 colorPrimary
+        // accent 色（取消按钮 / 行右侧值 / 搜索按钮）—— V3Palette 派生于主题 colorPrimary
         binding.btnCancel.setTextColor(palette.textAccent)
         binding.btnCancel.setOnClick { dismissAllowingStateLoss() }
+        binding.btnSearch.background =
+            palette.pillPrimary(999f * resources.displayMetrics.density)
         binding.btnSearch.setOnClick {
             triggerRefresh()
             dismissAllowingStateLoss()
         }
+        listOf(
+            binding.rowTarget,
+            binding.rowSort,
+            binding.rowDuration,
+            binding.rowBookmark,
+            binding.rowToolOrGenre,
+            binding.rowLang,
+            binding.rowOther,
+        ).forEach { it.rowValue.setTextColor(palette.textAccent) }
 
         // 行点击路由
         binding.rowTarget.root.setOnClick { showTargetPicker() }
