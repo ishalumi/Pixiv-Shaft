@@ -1693,9 +1693,6 @@
     <string name="search_filter_v3_search">搜索</string>
     <string name="search_filter_v3_topbar_title">搜索条件</string>
     <string name="search_filter_v3_row_target">检索范围</string>
-    <string name="search_filter_v3_row_work_type">作品类别</string>
-    <string name="search_filter_v3_value_work_illust">插画、漫画、动图（动态插画）</string>
-    <string name="search_filter_v3_value_work_novel">小说</string>
     <string name="search_filter_v3_row_sort">排序</string>
     <string name="search_filter_v3_row_duration">投稿期间</string>
     <string name="search_filter_v3_row_bookmark">喜欢！数</string>

@@ -25,8 +25,8 @@ import timber.log.Timber
 /**
  * V3 Search Filter —— pixiv iOS 8.6.5「搜索条件」的 V3 投影。
  *
- * 视觉：top bar（取消/标题）+ 三段 settings card（A 段 检索范围/作品类别；
- * B 段 排序/投稿期间/喜欢！数/工具|类型/语种 [+ novel 仅限原创/单词置换]；C 段 其他条件）+
+ * 视觉：top bar（取消/标题）+ 三段 settings card（A 段 检索范围/排序；
+ * B 段 投稿期间/喜欢！数/工具|类型/语种 [+ novel 仅限原创/单词置换]；C 段 其他条件）+
  * 底部全宽 V3 primary pill「搜索」。
  *
  * 双模式（[ARG_LEGACY]）：
@@ -129,12 +129,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.rowLang.root.setOnClick { showLangPicker() }
         binding.rowOther.root.setOnClick { showOtherSheet() }
 
-        // 「作品类别」是展示型，不可点击 + 没 chevron
-        binding.rowWorkType.root.isClickable = false
-        binding.rowWorkType.root.isFocusable = false
-        binding.rowWorkType.root.background = null
-        binding.rowWorkType.rowChevron.isVisible = false
-
         // novel 专属两个开关行（illust 模式整段保持 GONE）
         if (isNovel) setupNovelSwitches()
 
@@ -229,10 +223,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
 
         bindRow(binding.rowTarget, R.string.search_filter_v3_row_target,
             searchTargetLabel(filter.searchTarget))
-        bindRow(binding.rowWorkType, R.string.search_filter_v3_row_work_type,
-            getString(if (isNovel) R.string.search_filter_v3_value_work_novel
-                      else R.string.search_filter_v3_value_work_illust))
-
         bindRow(binding.rowSort, R.string.search_filter_v3_row_sort, sortLabel(filter.sort))
         bindRow(binding.rowDuration, R.string.search_filter_v3_row_duration, durationSummary(filter))
         bindRow(binding.rowBookmark, R.string.search_filter_v3_row_bookmark, bookmarkLabel(filter.bookmarkBucket))

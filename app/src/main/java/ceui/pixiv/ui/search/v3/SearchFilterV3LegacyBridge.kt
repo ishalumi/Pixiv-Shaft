@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModelProvider
 import ceui.lisa.viewmodel.SearchModel
 import ceui.loxia.observeEvent
 import ceui.pixiv.ui.search.SearchViewModel
-import ceui.pixiv.ui.search.SortType
 import java.util.WeakHashMap
 
 /**
@@ -62,11 +61,15 @@ object SearchFilterV3LegacyBridge {
         val vm = resolveSearchViewModel(activity)
 
         // ── 1. seed：SearchModel → SearchViewModel.filter ──
-        // 仅在 SearchViewModel 还是默认状态时种一次，避免覆盖用户在 sheet 内的临时改动。
-        if (vm.illustFilter.value == SearchFilterV3()) {
+        // SearchViewModel.illust/novelFilter 默认值已经走 [SearchFilterV3.fromGlobalDefaults]，
+        // 把 sort/starSize/AI 三个全局偏好读进来；这里再用 SearchModel 的会话状态（用户在
+        // 老 fragment 里改的）覆盖默认值。仅在 VM 还是「全局默认」状态时种一次，避免覆盖
+        // 用户在 sheet 内的临时改动。
+        val baseline = SearchFilterV3.fromGlobalDefaults()
+        if (vm.illustFilter.value == baseline) {
             vm.illustFilter.value = seedFromLegacy(searchModel, isNovel = false)
         }
-        if (vm.novelFilter.value == SearchFilterV3()) {
+        if (vm.novelFilter.value == baseline) {
             vm.novelFilter.value = seedFromLegacy(searchModel, isNovel = true)
         }
 
@@ -101,35 +104,43 @@ object SearchFilterV3LegacyBridge {
      *    全局读，所以这里直接读全局 + 写到 filter。
      */
     private fun seedFromLegacy(searchModel: SearchModel, isNovel: Boolean): SearchFilterV3 {
-        val sort = searchModel.sortType.value ?: SortType.POPULAR_PREVIEW
-        val target = SearchTarget.values().firstOrNull { it.apiValue == searchModel.searchType.value }
-            ?: SearchTarget.PartialMatchForTags
+        // baseline = Shaft.sSettings 三项偏好；下面任一字段在 SearchModel 里有值就 override，
+        // 没值就回退到 baseline。SearchModel 全空 → 与 baseline 等价。
+        val baseline = SearchFilterV3.fromGlobalDefaults()
 
-        // 优先用 SearchModel.bookmarkMin（V3 原生 query 参数路径），兜底解析 starSize 后缀
+        val sort = searchModel.sortType.value ?: baseline.sort
+        val target = SearchTarget.values().firstOrNull { it.apiValue == searchModel.searchType.value }
+            ?: baseline.searchTarget
+
+        // 优先用 SearchModel.bookmarkMin（V3 原生 query 参数路径），其次 starSize 后缀，再回 baseline
         val storedMin = searchModel.bookmarkMin.value ?: 0
-        val bucketMin = if (storedMin > 0) storedMin else parseStarSizeMin(searchModel.starSize.value)
-        val bucket = BookmarkBucket.values().firstOrNull { it.min == bucketMin } ?: BookmarkBucket.None
+        val parsedFromStar = if (storedMin > 0) storedMin else parseStarSizeMin(searchModel.starSize.value)
+        val bucket = if (parsedFromStar > 0) {
+            BookmarkBucket.values().firstOrNull { it.min == parsedFromStar } ?: baseline.bookmarkBucket
+        } else baseline.bookmarkBucket
 
         val r18 = when (searchModel.r18Restriction.value) {
             1 -> R18Mode.SafeOnly
             2 -> R18Mode.R18Only
-            else -> R18Mode.All
+            else -> baseline.r18Mode
         }
         val storedDuration = searchModel.duration.value
         val duration = SearchDuration.values().firstOrNull { it.apiValue == storedDuration }
+            ?: baseline.duration
 
         return SearchFilterV3(
             sort = sort,
             searchTarget = target,
             bookmarkBucket = bucket,
-            tool = if (isNovel) null else searchModel.tool.value,
-            genre = if (isNovel) searchModel.genre.value else null,
-            lang = searchModel.lang.value,
+            tool = if (isNovel) null else (searchModel.tool.value ?: baseline.tool),
+            genre = if (isNovel) (searchModel.genre.value ?: baseline.genre) else null,
+            lang = searchModel.lang.value ?: baseline.lang,
             duration = duration,
-            startDate = searchModel.startDate.value,
-            endDate = searchModel.endDate.value,
+            startDate = searchModel.startDate.value ?: baseline.startDate,
+            endDate = searchModel.endDate.value ?: baseline.endDate,
             r18Mode = r18,
-            excludeAi = ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust,
+            // AI 屏蔽永远以全局设置为准（OtherFilterSheet 提交时同步落盘，所以 baseline 已是最新）
+            excludeAi = baseline.excludeAi,
             isOriginalOnly = isNovel && searchModel.isOriginalOnly.value == true,
             isReplaceableOnly = isNovel && searchModel.isReplaceableOnly.value == true,
         )

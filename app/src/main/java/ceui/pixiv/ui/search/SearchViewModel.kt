@@ -15,13 +15,18 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
 
     val tagList = MutableLiveData<List<Tag>>()
 
-    /** 兼容老的 radio_tab UI——存的是 0..3 索引；写时同步到 [illustFilter]/[novelFilter] 的 sort。 */
-    val illustSelectedRadioTabIndex = MutableLiveData(0)
-    val novelSelectedRadioTabIndex = MutableLiveData(0)
+    /** 兼容老的 radio_tab UI——存的是 0..3 索引；写时同步到 [illustFilter]/[novelFilter] 的 sort。
+     *  初始 1 = 「从新到旧」对齐 [SearchFilterV3] 的默认 [SortType.DATE_DESC]，避免首帧高亮闪一下。 */
+    val illustSelectedRadioTabIndex = MutableLiveData(1)
+    val novelSelectedRadioTabIndex = MutableLiveData(1)
 
-    /** V3 Filter 的真单源——sort/bookmark/tool/lang/genre/duration/dates/ai/r18 全在这里。 */
-    val illustFilter = MutableLiveData(SearchFilterV3())
-    val novelFilter = MutableLiveData(SearchFilterV3())
+    /**
+     * V3 Filter 的真单源——sort/bookmark/tool/lang/genre/duration/dates/ai/r18 全在这里。
+     * 初始值读 [Shaft.sSettings] 里用户配的「搜索默认排序方式 / 搜索结果收藏量筛选 /
+     * 不显示 AI 作品」三项，对齐老 [ceui.lisa.fragments.FragmentFilter] 行为。
+     */
+    val illustFilter = MutableLiveData(SearchFilterV3.fromGlobalDefaults())
+    val novelFilter = MutableLiveData(SearchFilterV3.fromGlobalDefaults())
 
     /** /v1/search/options 的缓存——拉一次给 illust + novel 共用。 */
     val searchOptions = MutableLiveData<SearchOptionsResponse?>()

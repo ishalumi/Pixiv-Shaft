@@ -1,5 +1,6 @@
 package ceui.pixiv.ui.search.v3
 
+import ceui.lisa.activities.Shaft
 import ceui.pixiv.ui.search.SortType
 
 /**
@@ -19,7 +20,7 @@ import ceui.pixiv.ui.search.SortType
  *  10. r18Mode        — R18 限制（沿用旧版「-R-18」「R-18」关键字 hack）
  */
 data class SearchFilterV3(
-    val sort: String = SortType.POPULAR_PREVIEW,
+    val sort: String = SortType.DATE_DESC,
     val searchTarget: SearchTarget = SearchTarget.PartialMatchForTags,
     val bookmarkBucket: BookmarkBucket = BookmarkBucket.None,
     val tool: String? = null,
@@ -35,10 +36,36 @@ data class SearchFilterV3(
     val isReplaceableOnly: Boolean = false,
 ) {
 
+    companion object {
+        /**
+         * 读 [Shaft.sSettings] 里的三项全局默认偏好——保证 V3 sheet 第一次打开就反映用户在
+         * 设置页配的偏好，与老 [ceui.lisa.fragments.FragmentFilter] 行为一致：
+         *   - sort：`getSearchDefaultSortType()`（默认 date_desc）
+         *   - bookmarkBucket：`getSearchFilter()`（"" / "1000users入り" 之类）
+         *   - excludeAi：`isDeleteAIIllust`
+         *
+         * 用户的「activeCount」基线也跟着跑——例如全局已开 AI 屏蔽，sheet 打开「其他条件」
+         * 行就会显示「屏蔽 AI」徽标，不再误以为没改过。
+         */
+        fun fromGlobalDefaults(): SearchFilterV3 {
+            val s = Shaft.sSettings
+            val sort = s.searchDefaultSortType.takeIf { it.isNotEmpty() } ?: SortType.DATE_DESC
+            val bucketMin = Regex("""\d+""").find(s.searchFilter.orEmpty())
+                ?.value?.toIntOrNull() ?: 0
+            val bucket = BookmarkBucket.values().firstOrNull { it.min == bucketMin }
+                ?: BookmarkBucket.None
+            return SearchFilterV3(
+                sort = sort,
+                bookmarkBucket = bucket,
+                excludeAi = s.isDeleteAIIllust,
+            )
+        }
+    }
+
     /** 已经设置了几个非默认维度——给入口按钮显示徽标用。 */
     fun activeCount(isNovel: Boolean): Int {
         var n = 0
-        if (sort != SortType.POPULAR_PREVIEW) n++
+        if (sort != SortType.DATE_DESC) n++
         if (searchTarget != SearchTarget.PartialMatchForTags) n++
         if (bookmarkBucket != BookmarkBucket.None) n++
         if (!isNovel && tool != null) n++

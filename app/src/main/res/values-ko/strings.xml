@@ -1188,9 +1188,6 @@
     <string name="search_filter_v3_search">검색</string>
     <string name="search_filter_v3_topbar_title">검색 조건</string>
     <string name="search_filter_v3_row_target">검색 범위</string>
-    <string name="search_filter_v3_row_work_type">작품 종류</string>
-    <string name="search_filter_v3_value_work_illust">일러스트, 만화, 우고이라</string>
-    <string name="search_filter_v3_value_work_novel">소설</string>
     <string name="search_filter_v3_row_sort">정렬</string>
     <string name="search_filter_v3_row_duration">투고 기간</string>
     <string name="search_filter_v3_row_bookmark">좋아요 수</string>

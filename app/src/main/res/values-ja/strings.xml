@@ -1280,9 +1280,6 @@
     <string name="search_filter_v3_search">検索</string>
     <string name="search_filter_v3_topbar_title">検索条件</string>
     <string name="search_filter_v3_row_target">検索範囲</string>
-    <string name="search_filter_v3_row_work_type">作品種別</string>
-    <string name="search_filter_v3_value_work_illust">イラスト、マンガ、うごイラ</string>
-    <string name="search_filter_v3_value_work_novel">小説</string>
     <string name="search_filter_v3_row_sort">並び順</string>
     <string name="search_filter_v3_row_duration">投稿期間</string>
     <string name="search_filter_v3_row_bookmark">いいね！数</string>

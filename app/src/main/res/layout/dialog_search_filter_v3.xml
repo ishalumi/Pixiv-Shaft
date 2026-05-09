@@ -53,7 +53,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- ── A 段：检索范围 / 作品类别 ── -->
+            <!-- ── A 段：检索范围 / 排序 ── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -72,7 +72,7 @@
                     android:background="@color/v3_border_2" />
 
                 <include
-                    android:id="@+id/row_work_type"
+                    android:id="@+id/row_sort"
                     layout="@layout/cell_search_filter_row" />
             </LinearLayout>
 
@@ -80,23 +80,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="20dp" />
 
-            <!-- ── B 段：排序 / 投稿期间 / 喜欢！数 / 工具|类型 / 语种 ── -->
+            <!-- ── B 段：投稿期间 / 喜欢！数 / 工具|类型 / 语种 ── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_v3_settings_card"
                 android:clipToOutline="true"
                 android:orientation="vertical">
-
-                <include
-                    android:id="@+id/row_sort"
-                    layout="@layout/cell_search_filter_row" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginStart="18dp"
-                    android:background="@color/v3_border_2" />
 
                 <include
                     android:id="@+id/row_duration"

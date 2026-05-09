@@ -1179,9 +1179,6 @@
     <string name="search_filter_v3_search">Ara</string>
     <string name="search_filter_v3_topbar_title">Arama koşulları</string>
     <string name="search_filter_v3_row_target">Arama kapsamı</string>
-    <string name="search_filter_v3_row_work_type">Eser türü</string>
-    <string name="search_filter_v3_value_work_illust">İllüstrasyon, manga, ugoira</string>
-    <string name="search_filter_v3_value_work_novel">Roman</string>
     <string name="search_filter_v3_row_sort">Sıralama</string>
     <string name="search_filter_v3_row_duration">Yayın tarihi</string>
     <string name="search_filter_v3_row_bookmark">Beğeni</string>

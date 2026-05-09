@@ -1276,9 +1276,6 @@
     <string name="search_filter_v3_search">Search</string>
     <string name="search_filter_v3_topbar_title">Search options</string>
     <string name="search_filter_v3_row_target">Search target</string>
-    <string name="search_filter_v3_row_work_type">Work type</string>
-    <string name="search_filter_v3_value_work_illust">Illustration, manga, ugoira</string>
-    <string name="search_filter_v3_value_work_novel">Novel</string>
     <string name="search_filter_v3_row_sort">Sort</string>
     <string name="search_filter_v3_row_duration">Posted</string>
     <string name="search_filter_v3_row_bookmark">Bookmarks</string>

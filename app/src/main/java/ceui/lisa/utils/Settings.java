@@ -695,7 +695,9 @@ public class Settings {
     }
 
     public String getSearchDefaultSortType() {
-        return TextUtils.isEmpty(searchDefaultSortType) ? PixivSearchParamUtil.POPULAR_SORT_VALUE : searchDefaultSortType;
+        // 默认排序：date_desc（从新到旧）—— pixiv 在 popular-preview 端点上 lang 过滤效果很弱，
+        // 默认走 date_desc（searchIllust/searchNovel 端点）能让语种筛选可见地生效。
+        return TextUtils.isEmpty(searchDefaultSortType) ? PixivSearchParamUtil.SORT_TYPE_VALUE[0] : searchDefaultSortType;
     }
 
     public void setSearchDefaultSortType(String searchDefaultSortType) {

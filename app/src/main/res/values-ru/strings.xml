@@ -1181,9 +1181,6 @@
     <string name="search_filter_v3_search">Поиск</string>
     <string name="search_filter_v3_topbar_title">Параметры поиска</string>
     <string name="search_filter_v3_row_target">Где искать</string>
-    <string name="search_filter_v3_row_work_type">Тип работы</string>
-    <string name="search_filter_v3_value_work_illust">Иллюстрации, манга, угоира</string>
-    <string name="search_filter_v3_value_work_novel">Новелла</string>
     <string name="search_filter_v3_row_sort">Сортировка</string>
     <string name="search_filter_v3_row_duration">Дата публикации</string>
     <string name="search_filter_v3_row_bookmark">Закладки</string>
