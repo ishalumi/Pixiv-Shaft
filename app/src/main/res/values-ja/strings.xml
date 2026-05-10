@@ -1237,7 +1237,7 @@
     <string name="setting_max_concurrent_downloads_changed">同時ダウンロード数を %1$d に設定</string>
     <string name="dlmgr_done_export_empty">エクスポート可能な完了作品がありません</string>
     <string name="dlmgr_done_export_share_title">完了したダウンロードをエクスポート</string>
-    <string name="dlmgr_done_export_summary">%1$d 件の作品をエクスポート</string>
+    <string name="dlmgr_done_export_summary">%1$d 件の画像直リンクをエクスポート</string>
     <string name="dlmgr_done_export_choose_save">.txt ファイルとして保存</string>
     <string name="dlmgr_done_export_choose_share">共有 / コピー</string>
     <string name="dlmgr_done_export_saved">%1$s に保存しました</string>

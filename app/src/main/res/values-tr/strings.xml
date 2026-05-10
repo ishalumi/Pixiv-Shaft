@@ -1136,7 +1136,7 @@
     <string name="setting_max_concurrent_downloads_changed">Eş zamanlı indirme sayısı %1$d olarak ayarlandı</string>
     <string name="dlmgr_done_export_empty">Dışa aktarılacak tamamlanan eser yok</string>
     <string name="dlmgr_done_export_share_title">Tamamlanan indirmeleri dışa aktar</string>
-    <string name="dlmgr_done_export_summary">%1$d eser dışa aktarıldı</string>
+    <string name="dlmgr_done_export_summary">%1$d resim doğrudan bağlantısı dışa aktarıldı</string>
     <string name="dlmgr_done_export_choose_save">.txt dosyası olarak kaydet</string>
     <string name="dlmgr_done_export_choose_share">Paylaş / kopyala</string>
     <string name="dlmgr_done_export_saved">%1$s konumuna kaydedildi</string>

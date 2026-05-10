@@ -11,6 +11,9 @@ import ceui.pixiv.db.queue.QueueStatus
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
@@ -86,5 +89,21 @@ class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
             queueFailed = counts.failed,
             activeCount = activeCount,
         )
+    }
+
+    /**
+     * 导出按钮的事件通道：host ([DownloadManagerV3Fragment]) 点击 toolbar 上的
+     * 导出 menu 时 emit 当前 tab pos，子 fragment ([QueueListV3Fragment]
+     * pos==0 / [DoneListV3Fragment] pos==2) collect 后各自触发自己的导出流程。
+     *
+     * replay=0：按钮事件不需要 replay，否则 fragment STARTED 时会重放历史点击。
+     * extraBufferCapacity=1：tryEmit 不会丢，host 的点击都能落到唯一一个监听
+     * 的 fragment（同一 tab 的 fragment 每次 onResume 才会 collect 起来）。
+     */
+    private val _exportRequest = MutableSharedFlow<Int>(replay = 0, extraBufferCapacity = 1)
+    val exportRequest: SharedFlow<Int> = _exportRequest.asSharedFlow()
+
+    fun requestExport(tabPos: Int) {
+        _exportRequest.tryEmit(tabPos)
     }
 }

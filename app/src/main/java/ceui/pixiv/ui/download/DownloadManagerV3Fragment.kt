@@ -31,6 +31,8 @@ class DownloadManagerV3Fragment : Fragment() {
     private val sharedVm: DownloadManagerSharedViewModel by activityViewModels()
 
     private var tabs: TabLayout? = null
+    private var pager: ViewPager2? = null
+    private var pageCallback: ViewPager2.OnPageChangeCallback? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -39,11 +41,12 @@ class DownloadManagerV3Fragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<Toolbar>(R.id.toolbar).setNavigationOnClickListener {
+        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
+        toolbar.setNavigationOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
-        val pager = view.findViewById<ViewPager2>(R.id.viewPager)
+        val pager = view.findViewById<ViewPager2>(R.id.viewPager).also { this.pager = it }
         tabs = view.findViewById<TabLayout>(R.id.tabLayout)
 
         pager.adapter = TabsAdapter(this)
@@ -52,6 +55,37 @@ class DownloadManagerV3Fragment : Fragment() {
         TabLayoutMediator(tabs!!, pager) { tab, pos ->
             tab.text = baseLabel(pos)
         }.attach()
+
+        // toolbar 最右侧的"导出"menu —— 只在批量队列 (pos 0) 和已完成 (pos 2)
+        // 这两个有 illust 列表的 tab 显示，正在下载 (pos 1) 是瞬态进度页，
+        // 没有稳定数据快照可导，直接隐藏避免误点。点击仅 emit 信号到
+        // [DownloadManagerSharedViewModel.exportRequest]，由当前可见的子
+        // fragment 自己拉数据 → [DownloadExportLinks.present]。
+        toolbar.inflateMenu(R.menu.menu_download_manager)
+        val exportItem = toolbar.menu.findItem(R.id.action_export)
+        // 必须清 iconTintList — Toolbar 默认会拿 colorControlNormal 强行覆盖
+        // menu icon 的颜色，把 vector 自带的 android:tint=v3_text_1 压成淡色
+        // （浅色主题下跟白底融合看不见）。同 BulkSelectV3.refreshSelectToggleIcon
+        // 末尾对 select_toggle 做的处理。
+        exportItem?.iconTintList = null
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_export -> {
+                    sharedVm.requestExport(pager.currentItem)
+                    true
+                }
+                else -> false
+            }
+        }
+        fun applyExportVisibility(pos: Int) {
+            exportItem.isVisible = pos == 0 || pos == 2
+        }
+        applyExportVisibility(pager.currentItem)
+        pageCallback = object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                applyExportVisibility(position)
+            }
+        }.also { pager.registerOnPageChangeCallback(it) }
 
         // 实时刷新 tab 文案末尾的数字
         viewLifecycleOwner.lifecycleScope.launch {
@@ -66,6 +100,9 @@ class DownloadManagerV3Fragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        pageCallback?.let { pager?.unregisterOnPageChangeCallback(it) }
+        pageCallback = null
+        pager = null
         tabs = null
         super.onDestroyView()
     }

@@ -1630,7 +1630,7 @@
     <string name="setting_max_concurrent_downloads_changed">同时下载数已设为 %1$d</string>
     <string name="dlmgr_done_export_empty">没有已完成的作品可导出</string>
     <string name="dlmgr_done_export_share_title">导出已完成下载</string>
-    <string name="dlmgr_done_export_summary">已导出 %1$d 个作品的链接</string>
+    <string name="dlmgr_done_export_summary">已导出 %1$d 张图片直链</string>
     <string name="dlmgr_done_export_choose_save">保存为 .txt 文件</string>
     <string name="dlmgr_done_export_choose_share">分享 / 复制</string>
     <string name="dlmgr_done_export_saved">已保存到 %1$s</string>

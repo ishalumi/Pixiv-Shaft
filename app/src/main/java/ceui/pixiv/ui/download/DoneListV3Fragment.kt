@@ -10,6 +10,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -29,9 +30,6 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Local
 import ceui.lisa.utils.Params
-import ceui.pixiv.download.DownloadsRegistry
-import ceui.pixiv.download.model.Bucket
-import ceui.pixiv.download.model.RelativePath
 import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -66,6 +64,7 @@ class DoneListV3Fragment : Fragment() {
     private val dao: DownloadDao by lazy {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao()
     }
+    private val sharedVm: DownloadManagerSharedViewModel by activityViewModels()
     private val adapter = DoneAdapterV3(
         initialMode = DoneLayoutMode.fromInt(Shaft.sSettings.doneListLayoutMode),
     ) { group, action ->
@@ -103,14 +102,9 @@ class DoneListV3Fragment : Fragment() {
             }
         }
         view.findViewById<Button>(R.id.btn2).visibility = View.GONE
-        // btn3 改为"导出"：把已完成下载的所有 illustId 拼成 pixiv 链接列表，
-        // 走 ACTION_SEND 让用户分享/保存。4.6.4 之前的 FragmentMultiDownload
-        // 有这个功能，重写后丢了，现在补回来。
-        view.findViewById<Button>(R.id.btn3).apply {
-            visibility = View.VISIBLE
-            text = getString(R.string.dlmgr_done_action_export)
-            setOnClickListener { exportDoneList() }
-        }
+        // 导出按钮已移到 host toolbar 的最右侧 menu (R.menu.menu_download_manager) ——
+        // tab 0 / tab 2 通用入口，tab 1 隐藏。这里的 btn3 不再承担导出职责。
+        view.findViewById<Button>(R.id.btn3).visibility = View.GONE
         view.findViewById<Button>(R.id.btn4).apply {
             text = getString(R.string.dlmgr_done_action_clear_history)
             setOnClickListener {
@@ -146,6 +140,38 @@ class DoneListV3Fragment : Fragment() {
                     }
             }
         }
+
+        // host toolbar 的导出 menu 通过 SharedFlow 通知子 fragment；只在 pos == 2
+        // 时响应（已完成 tab）。tab 切换走时 STARTED 状态切到 RESUMED→STARTED→...,
+        // STARTED 时 collect 还在跑，但其它 tab 的请求 (pos != 2) 会被过滤掉。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sharedVm.exportRequest.collect { pos ->
+                    if (pos == 2) triggerExport()
+                }
+            }
+        }
+    }
+
+    /**
+     * 已完成 tab 的导出 — 把 [DownloadDao.getAll] 拉到的全部行按 illustId 分组
+     * 去重（避免同一多 p illust 的 N 条 row 重复展开），跳过小说（NOVEL_KEY），
+     * 然后每个 illust 通过 [originalUrlsOf] 展开成 N 个 original 直链。
+     *
+     * 导出的 .txt 用户拿来给第三方下载器/IDM 重抓缺漏页（4.57 → 4.6.x 重构
+     * 丢的功能；用户反馈"保留 4.57 就为了导出"）。
+     */
+    private fun triggerExport() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val urls = withContext(Dispatchers.IO) {
+                val rows = runCatching { dao.getAll(EXPORT_HARD_CAP, 0) }.getOrDefault(emptyList())
+                groupByIllust(rows).flatMap { g ->
+                    if (g.isNovel) return@flatMap emptyList()
+                    g.parsedIllust?.let { originalUrlsOf(it) } ?: emptyList()
+                }
+            }
+            DownloadExportLinks.present(this@DoneListV3Fragment, urls)
+        }
     }
 
     private fun openDetail(group: DownloadGroup) {
@@ -156,123 +182,6 @@ class DoneListV3Fragment : Fragment() {
         intent.putExtra("dataType", "下载详情")
         intent.putExtra("index", 0)
         startActivity(intent)
-    }
-
-    /**
-     * 导出已完成下载的链接列表为纯文本。每行一个 pixiv 作品链接，按下载时间倒序，
-     * 按 illustId 去重（多 p illust 只占一行）。生成后弹一个二选一菜单：
-     *   - 保存为 .txt 文件（落到 [Bucket.Log]，方便用户事后对账缺失页）
-     *   - 通过系统分享面板发出（复制 / 微信 / 邮件 / 写入 SAF / ...）
-     *
-     * 不导出小说（NOVEL_KEY 标记的行）—— 小说没有标准 URL 模板。
-     *
-     * "保存为 .txt 文件"是 4.57 → 4.6.x 重构丢的功能，用户用它在多 p 下载崩溃后
-     * 比对哪些作品 / 哪些页缺漏（issue 跟踪：用户反馈"保留 4.57 就为了导出"）。
-     */
-    private fun exportDoneList() {
-        val ctx = requireContext()
-        viewLifecycleOwner.lifecycleScope.launch {
-            val (text, illustCount) = withContext(Dispatchers.IO) {
-                val rows = runCatching { dao.getAll(EXPORT_HARD_CAP, 0) }.getOrDefault(emptyList())
-                val groups = groupByIllust(rows)
-                val sb = StringBuilder()
-                var n = 0
-                for (g in groups) {
-                    if (g.isNovel) continue
-                    val id = (g.parsedIllust?.id?.toLong()?.takeIf { it > 0 })
-                        ?: extractIllustId(g.latest.illustGson).takeIf { it > 0 }
-                        ?: continue
-                    sb.append("https://www.pixiv.net/artworks/").append(id).append('\n')
-                    n++
-                }
-                sb.toString().trimEnd() to n
-            }
-            if (text.isEmpty()) {
-                Toast.makeText(ctx, getString(R.string.dlmgr_done_export_empty), Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            showExportChoiceDialog(text, illustCount)
-        }
-    }
-
-    private fun showExportChoiceDialog(text: String, illustCount: Int) {
-        val act = activity ?: return
-        if (act.isFinishing || act.isDestroyed) return
-        val items = arrayOf(
-            getString(R.string.dlmgr_done_export_choose_save),
-            getString(R.string.dlmgr_done_export_choose_share),
-        )
-        QMUIDialog.MenuDialogBuilder(act)
-            .setTitle(getString(R.string.dlmgr_done_export_summary, illustCount))
-            .setSkinManager(QMUISkinManager.defaultInstance(act))
-            .addItems(items) { d, which ->
-                d.dismiss()
-                when (which) {
-                    0 -> saveExportToFile(text)
-                    1 -> shareExportText(text)
-                }
-            }
-            .show()
-    }
-
-    private fun shareExportText(text: String) {
-        val title = getString(R.string.dlmgr_done_export_share_title)
-        val send = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, title)
-            putExtra(Intent.EXTRA_TEXT, text)
-        }
-        startActivity(Intent.createChooser(send, title))
-    }
-
-    /**
-     * 把链接列表落盘成 `ShaftFiles/pixiv-links-yyyyMMdd-HHmmss.txt`，跟
-     * [ceui.lisa.file.OutPut.outPutFile] 现有 Log bucket 写入路径保持一致。
-     * 用 [java.io.OutputStreamWriter] 直接把 String 编码到 stream，省一次
-     * `toByteArray` 中间数组（5w 行的硬上限下也才 2MB 上下，不致命，但能省
-     * 就省）。
-     */
-    private fun saveExportToFile(text: String) {
-        val ctx = requireContext().applicationContext
-        viewLifecycleOwner.lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    // Locale.US 强制 ASCII 数字 — 默认 locale 在 ar/fa/my 等会输出本地数字，
-                    // 文件名带非 ASCII 字符跨工具兼容性差。
-                    val ts = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-                    val rawPath = RelativePath.parse("ShaftFiles/pixiv-links-$ts.txt")
-                    val handle = DownloadsRegistry.downloads.openRaw(
-                        Bucket.Log, rawPath, "text/plain",
-                    ) ?: error("openRaw returned null")
-                    try {
-                        handle.stream.use { os ->
-                            java.io.OutputStreamWriter(os, Charsets.UTF_8).use { it.write(text) }
-                        }
-                        handle.onFinish()
-                    } catch (e: Exception) {
-                        runCatching { handle.onAbort() }
-                        throw e
-                    }
-                    rawPath.joinTo()
-                }
-            }
-            result.fold(
-                onSuccess = { path ->
-                    Toast.makeText(
-                        ctx,
-                        getString(R.string.dlmgr_done_export_saved, path),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                },
-                onFailure = { e ->
-                    Toast.makeText(
-                        ctx,
-                        getString(R.string.dlmgr_done_export_save_failed, e.message ?: e.javaClass.simpleName),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                },
-            )
-        }
     }
 
     private fun showClearDoneConfirmDialog(onConfirm: () -> Unit) {

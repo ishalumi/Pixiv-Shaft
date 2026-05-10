@@ -9,6 +9,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -62,6 +63,7 @@ class QueueListV3Fragment : Fragment() {
     private val dao: DownloadQueueDao by lazy {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
+    private val sharedVm: DownloadManagerSharedViewModel by activityViewModels()
     private lateinit var adapter: QueueAdapterV3
 
     override fun onCreateView(
@@ -191,6 +193,51 @@ class QueueListV3Fragment : Fragment() {
                     }
             }
         }
+
+        // host toolbar 的导出 menu 通过 SharedFlow 通知子 fragment；只在 pos == 0
+        // 时响应（批量队列 tab）。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sharedVm.exportRequest.collect { pos ->
+                    if (pos == 0) triggerExport()
+                }
+            }
+        }
+    }
+
+    /**
+     * 批量队列 tab 的导出 — 把 active（非 SUCCESS）队列里每个 illust 展开成
+     * 多张 image 的 original 直链。
+     *
+     * **不能**走 [DownloadQueueDao.pageActiveLight] —— light projection 没
+     * illustGson，没法重建 IllustsBean 拿到 meta_pages / meta_single_page。
+     * 这里走 [DownloadQueueDao.pageActive] 拉带 illustGson 的完整 entity，
+     * 反序列化后用 [originalUrlsOf] 抽 url。
+     *
+     * **EXPORT_HARD_CAP 较 light projection 路径下调到 5000**（跟 UI 上限
+     * [MAX_DISPLAY_ROWS] 一致）—— 5000 × 5–30KB JSON × Gson.fromJson 峰值
+     * 已经是 IO 线程几秒级别的开销 + 数百 MB 临时分配，再大就撑爆 heap。
+     * 同一 illust 多 row 用 illustId 去重，避免多 p 重复展开。
+     */
+    private fun triggerExport() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val urls = withContext(Dispatchers.IO) {
+                val rows = runCatching { dao.pageActive(EXPORT_HARD_CAP, 0) }
+                    .getOrDefault(emptyList())
+                val seen = HashSet<Long>()
+                val out = ArrayList<String>()
+                for (row in rows) {
+                    if (!seen.add(row.illustId)) continue
+                    val json = row.illustGson?.takeIf { it.isNotEmpty() } ?: continue
+                    val illust = runCatching {
+                        Shaft.sGson.fromJson(json, ceui.lisa.models.IllustsBean::class.java)
+                    }.getOrNull() ?: continue
+                    out.addAll(originalUrlsOf(illust))
+                }
+                out
+            }
+            DownloadExportLinks.present(this@QueueListV3Fragment, urls)
+        }
     }
 
     private fun openVActivity(ctx: android.content.Context, bean: IllustsBean) {
@@ -231,6 +278,13 @@ class QueueListV3Fragment : Fragment() {
          * 解决 issue #858（旧代码 pageActive 只拿前 200 条让用户感觉"中间丢了"）。
          */
         private const val MAX_DISPLAY_ROWS = 5000
+
+        /**
+         * 导出时一次拉的 active 队列硬上限。比 light projection（[MAX_DISPLAY_ROWS]）
+         * 路径限制更紧 —— 这条路径要 select * 拿 illustGson 再 Gson.fromJson，
+         * 5000 × 5–30KB × 反序列化峰值已经是几百 MB 临时分配，再大就 OOM。
+         */
+        private const val EXPORT_HARD_CAP = 5000
     }
 }
 

@@ -3,19 +3,17 @@
   Material Icons "check_box" — 实心方框带白勾 (☑)，"取消全选"按钮 icon。
   跟"全选"那个 ic_select_all_24 (☐) 形成 master-checkbox 模式自然对偶。
 
-  tint 用 ?attr/colorPrimary 让 icon 跟随用户选的主题切色（这 app 有 10
-  多种主题），跟 cell 选中态 badge / border 用同一个属性，视觉串起来。
-  fillColor 留 white 当 tint 的"画布"——用 white+tint 的标准模式而不是
-  fillColor 直接写 ?attr —— 后者在某些 vectordrawable-compat 版本上会
-  fallback 成黑色。
+  ⚠️ fillColor 直接写 @color/v3_text_1 (day=#1A1A2E / night=#F4F4F8)，
+  不走 android:tint。早期 ?attr/colorPrimary 的方案在浅色主题（黄/粉/浅蓝）
+  下被 toolbar menu pipeline 抹掉/淡化，渲染出来跟白底融合看不见。
+  fillColor 焊死后 drawable 不依赖 tint pipeline，跟 ic_v3_export_24 同 pattern。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="?attr/colorPrimary">
+    android:viewportHeight="24">
     <path
-        android:fillColor="@android:color/white"
+        android:fillColor="@color/v3_text_1"
         android:pathData="M19,3H5c-1.11,0 -2,0.9 -2,2v14c0,1.1 0.89,2 2,2h14c1.11,0 2,-0.9 2,-2V5C21,3.9 20.11,3 19,3zM10,17l-5,-5 1.41,-1.41L10,14.17l7.59,-7.59L19,8L10,17z" />
 </vector>

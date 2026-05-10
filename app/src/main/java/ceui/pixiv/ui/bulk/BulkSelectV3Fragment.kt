@@ -17,6 +17,8 @@ import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
+import ceui.pixiv.ui.download.DownloadExportLinks
+import ceui.pixiv.ui.download.originalUrlsOf
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,10 +68,18 @@ class BulkSelectV3Fragment : Fragment() {
         // 点击行为也跟 icon 一致 —— 没全选 → 全选；已全选 → 取消全选。
         // 反选已废，使用频率低 + 单按钮表达不出第三种状态。
         toolbar.inflateMenu(R.menu.menu_bulk_select_v3)
+        // 同 refreshSelectToggleIcon 末尾对 select_toggle 的处理 — Toolbar 默认
+        // 会拿 colorControlNormal 强行覆盖 menu icon 的 tint，把 ic_v3_export_24
+        // 自带的 android:tint=v3_text_1 压成淡色（浅色主题下跟白底融合看不见）。
+        toolbar.menu.findItem(R.id.action_export)?.iconTintList = null
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_select_toggle -> {
                     selectAllToggle()
+                    true
+                }
+                R.id.action_export -> {
+                    exportSelected()
                     true
                 }
                 else -> false
@@ -91,6 +101,7 @@ class BulkSelectV3Fragment : Fragment() {
             btnConfirm.text = "—"
             // 没东西可选，菜单也禁用了避免误导
             toolbar.menu.findItem(R.id.action_select_toggle)?.isEnabled = false
+            toolbar.menu.findItem(R.id.action_export)?.isEnabled = false
             return
         }
         hint.text = getString(R.string.bulk_select_loading)
@@ -133,6 +144,28 @@ class BulkSelectV3Fragment : Fragment() {
         }
     }
 
+    /**
+     * 导出当前已勾选作品**每张图的 original 直链**——多 P 一个 illust 占多行
+     * （每页一行）。跟 confirm 按钮的"下载"语义对称：勾完之后先导链接备查，
+     * 再点确认下载，事后用 .txt 给第三方下载器/IDM 对账或重抓缺漏页。
+     *
+     * IllustsBean 在内存里就有 meta_pages / meta_single_page —— 用户在
+     * 上层列表浏览时就抓到了，不需要二次反序列化。flatMap 走 IO 防卡帧
+     * （列表上限 10000+，每个再产 N 个 url，主线程会感知）。
+     */
+    private fun exportSelected() {
+        val snapshot = items.toList()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val urls = withContext(Dispatchers.IO) {
+                snapshot.asSequence()
+                    .filter { it.selected && it.selectable }
+                    .flatMap { originalUrlsOf(it.illust).asSequence() }
+                    .toList()
+            }
+            DownloadExportLinks.present(this@BulkSelectV3Fragment, urls)
+        }
+    }
+
     private fun selectAllToggle() {
         val anyUnselected = items.any { it.selectable && !it.selected }
         val target = anyUnselected // 有未选 → 全选；否则 → 全不选
@@ -166,6 +199,8 @@ class BulkSelectV3Fragment : Fragment() {
         } else {
             getString(R.string.bulk_select_confirm_empty)
         }
+        // 导出按钮跟 confirm 同步：没勾选 → 没东西可导
+        toolbar.menu.findItem(R.id.action_export)?.isEnabled = selected > 0
         refreshSelectToggleIcon(selected)
     }
 

@@ -10,6 +10,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!--
+      导出按钮：把当前**已勾选**的作品 id 拼成 pixiv 链接列表，走
+      [DownloadExportLinks.present] 弹二选一菜单（保存为 .txt / 分享）。
+      跟 confirm 按钮的"下载"语义对称：勾选后可下载，也可只导出链接事后对账。
+      没有勾选项时 disable。
+    -->
+    <item
+        android:id="@+id/action_export"
+        android:icon="@drawable/ic_v3_export_24"
+        android:title="@string/dlmgr_done_action_export"
+        app:showAsAction="always" />
+
     <item
         android:id="@+id/action_select_toggle"
         android:icon="@drawable/ic_select_all_24"
