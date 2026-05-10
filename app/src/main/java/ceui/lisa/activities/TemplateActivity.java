@@ -291,6 +291,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             intent.getStringExtra("sakura_model_name"));
                 case "Sakura翻译":
                     return new ceui.pixiv.ui.translate.SakuraTranslateDemoFragment();
+                case "API调试":
+                    return new ceui.pixiv.ui.apidemo.ApiDemoFragment();
                 case "绑定邮箱":
                     return new FragmentEditAccount();
                 case "编辑个人资料":

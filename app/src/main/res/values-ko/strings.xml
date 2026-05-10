@@ -1218,4 +1218,13 @@
     <string name="search_filter_v3_date_unset">미설정</string>
     <string name="search_filter_v3_row_original_only">오리지널 작품만</string>
     <string name="search_filter_v3_row_replaceable_only">단어 치환 가능 작품만</string>
+
+    <!-- API debug demo (shaft-api-v2) -->
+    <string name="api_demo_entry">API 디버그</string>
+    <string name="api_demo_btn_health">정상 /health (200)</string>
+    <string name="api_demo_btn_404">404 트리거 /does-not-exist</string>
+    <string name="api_demo_btn_parse_fail">파싱 실패 /ping (200 plain)</string>
+    <string name="api_demo_btn_clear">지우기</string>
+    <string name="api_demo_base_url_label">Base URL</string>
+    <string name="api_demo_output_label">출력</string>
 </resources>

@@ -1723,4 +1723,13 @@
     <string name="search_filter_v3_date_unset">未设置</string>
     <string name="search_filter_v3_row_original_only">仅限原创作品</string>
     <string name="search_filter_v3_row_replaceable_only">仅限支持单词置换的作品</string>
+
+    <!-- API debug demo (shaft-api-v2) -->
+    <string name="api_demo_entry">API 调试</string>
+    <string name="api_demo_btn_health">正常请求 /health (200)</string>
+    <string name="api_demo_btn_404">触发 404 /does-not-exist</string>
+    <string name="api_demo_btn_parse_fail">解析失败 /ping (200 plain)</string>
+    <string name="api_demo_btn_clear">清空</string>
+    <string name="api_demo_base_url_label">Base URL</string>
+    <string name="api_demo_output_label">输出</string>
 </resources>

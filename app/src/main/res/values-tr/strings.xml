@@ -1209,4 +1209,13 @@
     <string name="search_filter_v3_date_unset">Belirsiz</string>
     <string name="search_filter_v3_row_original_only">Yalnızca özgün eserler</string>
     <string name="search_filter_v3_row_replaceable_only">Yalnızca kelime değiştirilebilir</string>
+
+    <!-- API debug demo (shaft-api-v2) -->
+    <string name="api_demo_entry">API Hata Ayıklama</string>
+    <string name="api_demo_btn_health">Normal /health (200)</string>
+    <string name="api_demo_btn_404">404 Tetikle /does-not-exist</string>
+    <string name="api_demo_btn_parse_fail">Ayrıştırma Hatası /ping (200 plain)</string>
+    <string name="api_demo_btn_clear">Temizle</string>
+    <string name="api_demo_base_url_label">Base URL</string>
+    <string name="api_demo_output_label">Çıktı</string>
 </resources>
