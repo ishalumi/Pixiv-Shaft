@@ -601,6 +601,11 @@ object QueueDownloadManager {
             // 直接改 DownloadItem 字段不走 synchronized：跟 Manager.startAll 内部循环
             // 同源做法（state 是 volatile-style 单值，顺序不强）；只在 IO 线程做。
             for (p in existing) {
+                // 真在跑的 page（handles 里有 uuid）跳过 —— 否则把状态翻 INIT 会让
+                // 下一轮 pumpAvailableSlots 再 dispatch 一条 Observable，跟原 chain
+                // 抢同一个 stage 文件 + targetUri（实测出过同 uuid 两次 read-start）。
+                // 冷启动 stranded DOWNLOADING 的 handle 已随进程消失，不会被这条 continue 误伤。
+                if (Manager.get().isRunningHandle(p.uuid)) continue
                 val s = p.state
                 if (s == DownloadItem.DownloadState.FAILED
                     || s == DownloadItem.DownloadState.DOWNLOADING

@@ -57,6 +57,36 @@ public class Manager {
     private final Map<String, Disposable> handles = new ConcurrentHashMap<>();
     private boolean isRunning = false;
 
+    /**
+     * 下载专用 OkHttpClient —— **强制 HTTP/1.1**。
+     *
+     * 全局 {@code Shaft.getOkHttpClient()} 在非直连模式下默认 [H2, H1.1]，pixiv CDN
+     * 选 H2 后所有并发下载流复用一条 TCP 连接 + H2 多路复用，**服务器端 stream
+     * priority 严格串行**：stream 1 的 body 推完才发 stream 2/3 的 response headers，
+     * `client.newCall(req).execute()` 在 2/3 上分别卡到 600ms+ / 几秒（实测 4.4s），
+     * 用户视角"3 个 item 都标 DOWNLOADING 但只有第一个进度在跳"。
+     *
+     * 改用 H1.1：每个 sync 请求拿独立 TCP 连接（OkHttp ConnectionPool 默认
+     * maxIdleConnections=5 够 5 并发用），各自独立 flow control，真正并行。
+     *
+     * `newBuilder()` 继承全局 client 的 DNS / SSL / interceptor / ProgressManager
+     * 配置，只覆盖 protocols。直连模式下全局已经是 H1.1，这里再强制一次也无害（幂等）。
+     */
+    private volatile OkHttpClient mDownloadOkHttpClient;
+    private OkHttpClient getDownloadOkHttpClient() {
+        OkHttpClient cached = mDownloadOkHttpClient;
+        if (cached != null) return cached;
+        synchronized (this) {
+            if (mDownloadOkHttpClient == null) {
+                OkHttpClient base = ((Shaft) Shaft.getContext()).getOkHttpClient();
+                mDownloadOkHttpClient = base.newBuilder()
+                        .protocols(java.util.Collections.singletonList(okhttp3.Protocol.HTTP_1_1))
+                        .build();
+            }
+            return mDownloadOkHttpClient;
+        }
+    }
+
     private Manager() {
         uuid = "";
         currentIllustID = 0;
@@ -498,7 +528,8 @@ public class Manager {
 
     private void startDownloadChain(Context context, DownloadItem downloadItem,
             DownloadFileFactory factory, File cachedFile, Uri targetUri, String dlUrl, long passSize) {
-        OkHttpClient client = ((Shaft) Shaft.getContext()).getOkHttpClient();
+        // 下载专用 H1.1 client，规避 H2 stream priority 串行化（详见 getDownloadOkHttpClient）。
+        OkHttpClient client = getDownloadOkHttpClient();
 
         // ─── STAGED-DL 写入策略 ───
         // content:// 目标 (MediaStore / SAF) 直接 openOutputStream 是 Binder pipe，
@@ -868,5 +899,15 @@ public class Manager {
 
     public List<DownloadItem> getContent() {
         return content;
+    }
+
+    /**
+     * 是否有这个 uuid 的活动 disposable。QueueDownloadManager 的 retry path 用这个
+     * 区分"冷启动 Manager.restore 带回的 stranded DOWNLOADING（无 handle，应翻 INIT
+     * 重发）"vs"真在跑的 DOWNLOADING（有 handle，**绝不能**翻 INIT，否则 pump 会
+     * 再 dispatch 一条 Observable，跟原 chain 抢同一个 stage 文件 / targetUri）"。
+     */
+    public boolean isRunningHandle(String uuid) {
+        return handles.containsKey(uuid);
     }
 }
