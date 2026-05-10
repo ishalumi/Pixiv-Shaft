@@ -1146,6 +1146,10 @@
     <string name="dlmgr_done_export_empty">내보낼 완료된 작품이 없습니다</string>
     <string name="dlmgr_done_export_share_title">완료된 다운로드 내보내기</string>
     <string name="dlmgr_done_export_summary">%1$d개 작품을 내보냈습니다</string>
+    <string name="dlmgr_done_export_choose_save">.txt 파일로 저장</string>
+    <string name="dlmgr_done_export_choose_share">공유 / 복사</string>
+    <string name="dlmgr_done_export_saved">%1$s에 저장했습니다</string>
+    <string name="dlmgr_done_export_save_failed">저장 실패: %1$s</string>
 
     <string name="booked_tag_search_hint">태그 검색</string>
 

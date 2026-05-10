@@ -1137,6 +1137,10 @@
     <string name="dlmgr_done_export_empty">Dışa aktarılacak tamamlanan eser yok</string>
     <string name="dlmgr_done_export_share_title">Tamamlanan indirmeleri dışa aktar</string>
     <string name="dlmgr_done_export_summary">%1$d eser dışa aktarıldı</string>
+    <string name="dlmgr_done_export_choose_save">.txt dosyası olarak kaydet</string>
+    <string name="dlmgr_done_export_choose_share">Paylaş / kopyala</string>
+    <string name="dlmgr_done_export_saved">%1$s konumuna kaydedildi</string>
+    <string name="dlmgr_done_export_save_failed">Kaydedilemedi: %1$s</string>
 
     <string name="booked_tag_search_hint">Etiket ara</string>
 

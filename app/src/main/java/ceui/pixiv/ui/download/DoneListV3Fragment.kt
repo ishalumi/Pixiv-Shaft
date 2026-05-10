@@ -29,6 +29,9 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Local
 import ceui.lisa.utils.Params
+import ceui.pixiv.download.DownloadsRegistry
+import ceui.pixiv.download.model.Bucket
+import ceui.pixiv.download.model.RelativePath
 import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -156,11 +159,15 @@ class DoneListV3Fragment : Fragment() {
     }
 
     /**
-     * 导出已完成下载的链接列表为纯文本，走 [Intent.ACTION_SEND] 让用户选择
-     * 复制 / 保存为文件 / 发送到聊天工具。每行一个 pixiv 作品链接，按下载时间倒序，
-     * 按 illustId 去重（多 p illust 只占一行）。
+     * 导出已完成下载的链接列表为纯文本。每行一个 pixiv 作品链接，按下载时间倒序，
+     * 按 illustId 去重（多 p illust 只占一行）。生成后弹一个二选一菜单：
+     *   - 保存为 .txt 文件（落到 [Bucket.Log]，方便用户事后对账缺失页）
+     *   - 通过系统分享面板发出（复制 / 微信 / 邮件 / 写入 SAF / ...）
      *
-     * 不导出小说（NOVEL_KEY 标记的行）—— 小说没有标准 URL 模板，需要单独处理。
+     * 不导出小说（NOVEL_KEY 标记的行）—— 小说没有标准 URL 模板。
+     *
+     * "保存为 .txt 文件"是 4.57 → 4.6.x 重构丢的功能，用户用它在多 p 下载崩溃后
+     * 比对哪些作品 / 哪些页缺漏（issue 跟踪：用户反馈"保留 4.57 就为了导出"）。
      */
     private fun exportDoneList() {
         val ctx = requireContext()
@@ -172,7 +179,6 @@ class DoneListV3Fragment : Fragment() {
                 var n = 0
                 for (g in groups) {
                     if (g.isNovel) continue
-                    // 优先用预解析的 illust.id，回退到正则从 illustGson 抽 id
                     val id = (g.parsedIllust?.id?.toLong()?.takeIf { it > 0 })
                         ?: extractIllustId(g.latest.illustGson).takeIf { it > 0 }
                         ?: continue
@@ -185,15 +191,87 @@ class DoneListV3Fragment : Fragment() {
                 Toast.makeText(ctx, getString(R.string.dlmgr_done_export_empty), Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val title = getString(R.string.dlmgr_done_export_share_title)
-            val summary = getString(R.string.dlmgr_done_export_summary, illustCount)
-            Toast.makeText(ctx, summary, Toast.LENGTH_SHORT).show()
-            val send = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, title)
-                putExtra(Intent.EXTRA_TEXT, text)
+            showExportChoiceDialog(text, illustCount)
+        }
+    }
+
+    private fun showExportChoiceDialog(text: String, illustCount: Int) {
+        val act = activity ?: return
+        if (act.isFinishing || act.isDestroyed) return
+        val items = arrayOf(
+            getString(R.string.dlmgr_done_export_choose_save),
+            getString(R.string.dlmgr_done_export_choose_share),
+        )
+        QMUIDialog.MenuDialogBuilder(act)
+            .setTitle(getString(R.string.dlmgr_done_export_summary, illustCount))
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addItems(items) { d, which ->
+                d.dismiss()
+                when (which) {
+                    0 -> saveExportToFile(text)
+                    1 -> shareExportText(text)
+                }
             }
-            startActivity(Intent.createChooser(send, title))
+            .show()
+    }
+
+    private fun shareExportText(text: String) {
+        val title = getString(R.string.dlmgr_done_export_share_title)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(send, title))
+    }
+
+    /**
+     * 把链接列表落盘成 `ShaftFiles/pixiv-links-yyyyMMdd-HHmmss.txt`，跟
+     * [ceui.lisa.file.OutPut.outPutFile] 现有 Log bucket 写入路径保持一致。
+     * 用 [java.io.OutputStreamWriter] 直接把 String 编码到 stream，省一次
+     * `toByteArray` 中间数组（5w 行的硬上限下也才 2MB 上下，不致命，但能省
+     * 就省）。
+     */
+    private fun saveExportToFile(text: String) {
+        val ctx = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    // Locale.US 强制 ASCII 数字 — 默认 locale 在 ar/fa/my 等会输出本地数字，
+                    // 文件名带非 ASCII 字符跨工具兼容性差。
+                    val ts = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+                    val rawPath = RelativePath.parse("ShaftFiles/pixiv-links-$ts.txt")
+                    val handle = DownloadsRegistry.downloads.openRaw(
+                        Bucket.Log, rawPath, "text/plain",
+                    ) ?: error("openRaw returned null")
+                    try {
+                        handle.stream.use { os ->
+                            java.io.OutputStreamWriter(os, Charsets.UTF_8).use { it.write(text) }
+                        }
+                        handle.onFinish()
+                    } catch (e: Exception) {
+                        runCatching { handle.onAbort() }
+                        throw e
+                    }
+                    rawPath.joinTo()
+                }
+            }
+            result.fold(
+                onSuccess = { path ->
+                    Toast.makeText(
+                        ctx,
+                        getString(R.string.dlmgr_done_export_saved, path),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                },
+                onFailure = { e ->
+                    Toast.makeText(
+                        ctx,
+                        getString(R.string.dlmgr_done_export_save_failed, e.message ?: e.javaClass.simpleName),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                },
+            )
         }
     }
 

@@ -1238,6 +1238,10 @@
     <string name="dlmgr_done_export_empty">エクスポート可能な完了作品がありません</string>
     <string name="dlmgr_done_export_share_title">完了したダウンロードをエクスポート</string>
     <string name="dlmgr_done_export_summary">%1$d 件の作品をエクスポート</string>
+    <string name="dlmgr_done_export_choose_save">.txt ファイルとして保存</string>
+    <string name="dlmgr_done_export_choose_share">共有 / コピー</string>
+    <string name="dlmgr_done_export_saved">%1$s に保存しました</string>
+    <string name="dlmgr_done_export_save_failed">保存に失敗しました：%1$s</string>
 
     <string name="booked_tag_search_hint">タグを検索</string>
 

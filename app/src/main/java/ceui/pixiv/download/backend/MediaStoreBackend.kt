@@ -34,11 +34,72 @@ class MediaStoreBackend(
         }
     }
 
+    /**
+     * On Q+ "exists" means a [MediaStore] row exists *and* its backing on-disk
+     * file is still there. A row alone is not enough — when the user removes
+     * files via a third-party file manager / system "Files" app / `adb shell rm`,
+     * the bytes are gone but the row lingers because `ContentResolver.delete`
+     * was never called. Treating that orphan row as "the file exists" used to
+     * cause two distinct bad behaviours, both reported by users:
+     *
+     *   1. **Rename policy** ([Downloads.nextFreePath]) saw `exists() == true`
+     *      and started cycling through ` (1).jpg`, ` (2).jpg` ... even though
+     *      the original name was free on disk. A 100p illust re-downloaded
+     *      after the user wiped its folder came back as `XXX (1).jpg`.
+     *   2. **Skip policy** silently dropped legitimate downloads — the user
+     *      asked for "skip if exists", deleted the files, expected re-download
+     *      to refill the gap, and instead saw nothing happen.
+     *
+     * Detection strategy is conservative — drop the row only when we're
+     * confident the file is gone:
+     *   - Fast path: [legacyFile] reports the file present → keep the row,
+     *     no probe needed (covers ~all healthy cases).
+     *   - Slow path: legacy [File.exists] says no → some scoped-storage OEMs
+     *     refuse to read public-storage paths via [File], so cross-check via
+     *     [ContentResolver.openFileDescriptor]. `FileNotFoundException` is the
+     *     unambiguous "row points to nothing" signal — only then do we delete
+     *     the row. Any other failure (SecurityException from a foreign-owned
+     *     row, IOException, …) is treated as "unknown — keep the row" so we
+     *     never erase someone else's data on a flaky probe.
+     *
+     * [replace] has its own orphan reclaim path ([reclaimOrphanRow]) that
+     * **needs** the row to stay around long enough to update in place. That
+     * path doesn't go through [exists] (see [Downloads.applyOverwritePolicy]'s
+     * Replace branch), so the cleanup here is safe for Replace too.
+     */
     override fun exists(relPath: RelativePath): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return findUri(relPath) != null
+            val uri = findUri(relPath) ?: return false
+            if (legacyFile(relPath).exists()) return true
+            return when (probeFileBehindRow(uri)) {
+                ProbeResult.Present -> true
+                ProbeResult.Missing -> {
+                    // Row points to a file that no longer exists on disk.
+                    // Drop it so Skip / Rename treat this slot as truly free —
+                    // otherwise users see " (1)" suffixes after wiping the folder.
+                    runCatching { context.contentResolver.delete(uri, null, null) }
+                    false
+                }
+                ProbeResult.Unknown -> true
+            }
         }
         return legacyFile(relPath).exists()
+    }
+
+    private enum class ProbeResult { Present, Missing, Unknown }
+
+    /**
+     * Probe whether the on-disk file behind [uri] is still readable. Used to
+     * disambiguate a stale row from a legitimately existing file when
+     * [legacyFile] cannot see it (scoped-storage edge cases on certain OEMs).
+     */
+    private fun probeFileBehindRow(uri: Uri): ProbeResult = try {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { ProbeResult.Present }
+            ?: ProbeResult.Unknown
+    } catch (_: java.io.FileNotFoundException) {
+        ProbeResult.Missing
+    } catch (_: Exception) {
+        ProbeResult.Unknown
     }
 
     override fun delete(relPath: RelativePath): Boolean {

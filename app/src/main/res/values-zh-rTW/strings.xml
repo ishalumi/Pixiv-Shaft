@@ -1252,6 +1252,10 @@
     <string name="dlmgr_done_export_empty">沒有已完成的作品可匯出</string>
     <string name="dlmgr_done_export_share_title">匯出已完成下載</string>
     <string name="dlmgr_done_export_summary">已匯出 %1$d 個作品的連結</string>
+    <string name="dlmgr_done_export_choose_save">儲存為 .txt 檔案</string>
+    <string name="dlmgr_done_export_choose_share">分享 / 複製</string>
+    <string name="dlmgr_done_export_saved">已儲存至 %1$s</string>
+    <string name="dlmgr_done_export_save_failed">儲存失敗：%1$s</string>
 
     <string name="booked_tag_search_hint">搜尋標籤</string>
 
