@@ -324,6 +324,11 @@ class ArtworkDetailAdapter(
                 b.followBtn.text = ctx.getString(R.string.unfollow)
                 palette.applyUnfollowBtn(b.followBtn)
                 b.followBtn.setOnClick { fragment.unfollowUser(it as ProgressTextButton, user.id) }
+                // Drop the "long-press = private follow" handler set in the
+                // unfollowed branch — re-binds via ObjectPool can flip this VH
+                // between the two states without re-inflating.
+                b.followBtn.setOnLongClickListener(null)
+                b.followBtn.isLongClickable = false
             } else {
                 b.followBtn.text = ctx.getString(R.string.follow)
                 palette.applyFollowBtn(b.followBtn)
