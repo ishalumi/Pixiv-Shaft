@@ -6,6 +6,7 @@ import ceui.lisa.activities.Shaft
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.tencent.mmkv.MMKV
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +74,10 @@ object EventReporter {
     private const val MAX_PAYLOAD_BYTES = 200_000
 
     private val initialized = AtomicBoolean(false)
+    /** True while a POST is in flight. Prevents threshold-triggered flushes from
+     *  piling parallel sockets on top of a tick flush — important when the
+     *  server is dead/slow and every POST sits on the 15s read timeout. */
+    private val flushing = AtomicBoolean(false)
     private val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.IO +
             CoroutineExceptionHandler { _, e -> Timber.tag(TAG).e(e, "uncaught in scope") }
@@ -123,8 +128,18 @@ object EventReporter {
 
             scope.launch {
                 while (isActive) {
-                    delay(FLUSH_INTERVAL_MS)
-                    flushInternal(reason = "tick")
+                    try {
+                        delay(FLUSH_INTERVAL_MS)
+                        flushInternal(reason = "tick")
+                    } catch (ce: CancellationException) {
+                        throw ce
+                    } catch (t: Throwable) {
+                        // Belt-and-suspenders: flushInternal already catches its own
+                        // network errors. This guards the loop itself so an unexpected
+                        // throw (mutex, logging, OOM in a formatter) can't kill the
+                        // periodic flush for the rest of the process.
+                        Timber.tag(TAG).e(t, "tick loop iteration crashed; continuing")
+                    }
                 }
             }
         } catch (t: Throwable) {
@@ -222,43 +237,65 @@ object EventReporter {
     }
 
     private suspend fun flushInternal(reason: String) {
-        val batch = mutex.withLock {
-            if (queue.isEmpty()) {
-                Timber.tag(TAG).v("flush(reason=%s): queue empty", reason)
-                return
-            }
-            val take = minOf(queue.size, MAX_BATCH)
-            val taken = ArrayList<EventEntry>(take)
-            repeat(take) { taken.add(queue.removeFirst()) }
-            taken
+        // Only one in-flight POST at a time. The tick will retry the queue on
+        // its next pass, so a skipped flush is never lost — and during an
+        // outage we don't pile up parallel sockets all blocked on the same
+        // dead server.
+        if (!flushing.compareAndSet(false, true)) {
+            Timber.tag(TAG).v("flush(reason=%s): another flush in flight, skipping", reason)
+            return
         }
-        Timber.tag(TAG).d("flush(reason=%s) batch=%d", reason, batch.size)
         try {
-            sendBatch(batch)
-        } catch (t: Throwable) {
-            // Server-side / network failure. Re-queue at the FRONT (preserving
-            // order) and let the next tick try again. Entries that hit
-            // MAX_RETRIES are dropped to keep a flapping server from pinning
-            // unbounded memory.
-            mutex.withLock {
-                var requeued = 0
-                var dropped = 0
-                // Reverse to keep original order when addFirst()-ing.
-                for (e in batch.asReversed()) {
-                    e.attempts++
-                    if (e.attempts > MAX_RETRIES) {
-                        dropped++
-                    } else {
-                        queue.addFirst(e)
-                        requeued++
-                    }
+            val batch = mutex.withLock {
+                if (queue.isEmpty()) {
+                    Timber.tag(TAG).v("flush(reason=%s): queue empty", reason)
+                    return
                 }
-                Timber.tag(TAG).w(
-                    t,
-                    "flush failed: requeue=%d drop=%d (queue=%d, maxRetries=%d)",
-                    requeued, dropped, queue.size, MAX_RETRIES,
-                )
+                val take = minOf(queue.size, MAX_BATCH)
+                val taken = ArrayList<EventEntry>(take)
+                repeat(take) { taken.add(queue.removeFirst()) }
+                taken
             }
+            Timber.tag(TAG).d("flush(reason=%s) batch=%d", reason, batch.size)
+            try {
+                sendBatch(batch)
+            } catch (ce: CancellationException) {
+                // Scope cancellation: put the batch back so a future process
+                // restart could re-send (currently in-memory only, but the
+                // contract is "no silent loss on cancellation").
+                requeueOnFailure(batch, ce)
+                throw ce
+            } catch (t: Throwable) {
+                // Server-side / network failure. Re-queue at the FRONT (preserving
+                // order) and let the next tick try again. Entries that hit
+                // MAX_RETRIES are dropped to keep a flapping server from pinning
+                // unbounded memory.
+                requeueOnFailure(batch, t)
+            }
+        } finally {
+            flushing.set(false)
+        }
+    }
+
+    private suspend fun requeueOnFailure(batch: List<EventEntry>, cause: Throwable) {
+        mutex.withLock {
+            var requeued = 0
+            var dropped = 0
+            // Reverse to keep original order when addFirst()-ing.
+            for (e in batch.asReversed()) {
+                e.attempts++
+                if (e.attempts > MAX_RETRIES) {
+                    dropped++
+                } else {
+                    queue.addFirst(e)
+                    requeued++
+                }
+            }
+            Timber.tag(TAG).w(
+                cause,
+                "flush failed: requeue=%d drop=%d (queue=%d, maxRetries=%d)",
+                requeued, dropped, queue.size, MAX_RETRIES,
+            )
         }
     }
 
