@@ -277,10 +277,19 @@ object EventReporter {
             }
             obj
         }
+        // app_version carries a -debug suffix so server-side rankings can tell
+        // dev builds from production traffic. channel = build flavor (google /
+        // github) for the same purpose, on a separate dimension.
+        val versionTag = if (BuildConfig.IS_DEBUG_MODE) {
+            BuildConfig.VERSION_NAME + "-debug"
+        } else {
+            BuildConfig.VERSION_NAME
+        }
         val payload = mapOf(
             "client_id" to clientId,
             "platform" to "android",
-            "app_version" to BuildConfig.VERSION_NAME,
+            "channel" to BuildConfig.UPDATE_CHANNEL,
+            "app_version" to versionTag,
             "events" to eventList,
         )
         val json = gson.toJson(payload)

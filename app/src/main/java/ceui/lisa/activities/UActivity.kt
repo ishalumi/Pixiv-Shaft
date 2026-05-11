@@ -32,6 +32,7 @@ import ceui.lisa.viewmodel.UserViewModel
 import ceui.loxia.Client
 import ceui.loxia.Event
 import ceui.loxia.ObjectPool
+import ceui.loxia.User
 import ceui.loxia.ProgressIndicator
 import ceui.loxia.ProgressTextButton
 import ceui.pixiv.session.SessionManager
@@ -319,7 +320,16 @@ fun FragmentActivity.followUser(sender: ProgressIndicator, userId: Int, followTy
             sender.showProgress()
             Client.appApi.postFollow(userId.toLong(), pendingFollowType)
             RateAppManager.onUserEngaged()
-            EventReporter.report(EventReporter.Type.FOLLOW, EventReporter.Target.USER, userId.toLong())
+            // ObjectPool already holds the User from whichever screen led here
+            // (detail page, list cell). When we can attach it, the server can
+            // populate user_meta on first sight; otherwise we still report the
+            // action and rely on a future event with a fuller payload.
+            EventReporter.report(
+                EventReporter.Type.FOLLOW,
+                EventReporter.Target.USER,
+                userId.toLong(),
+                ObjectPool.get<User>(userId.toLong()).value,
+            )
             delay(500L)
             ObjectPool.followUser(userId.toLong())
             if (pendingFollowType == Params.TYPE_PUBLIC) {
@@ -353,7 +363,12 @@ fun FragmentActivity.unfollowUser(sender: ProgressIndicator, userId: Int) {
         try {
             sender.showProgress()
             Client.appApi.postUnFollow(userId.toLong())
-            EventReporter.report(EventReporter.Type.UNFOLLOW, EventReporter.Target.USER, userId.toLong())
+            EventReporter.report(
+                EventReporter.Type.UNFOLLOW,
+                EventReporter.Target.USER,
+                userId.toLong(),
+                ObjectPool.get<User>(userId.toLong()).value,
+            )
             delay(500L)
             Shaft.appViewModel.updateFollowUserStatus(
                 userId,
