@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Handler
 import android.text.SpannableString
@@ -47,7 +46,6 @@ import ceui.lisa.models.UserBean
 import ceui.lisa.notification.CallBackReceiver
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.DensityUtil
-import ceui.lisa.utils.GlideUrlChild
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
@@ -58,14 +56,11 @@ import ceui.loxia.ProgressTextButton
 import ceui.loxia.combineLatest
 import ceui.loxia.flag.FlagDescFragment
 import ceui.loxia.threadSafeArgs
+import ceui.pixiv.ui.share.shareFirstImage
 import ceui.pixiv.ui.upscale.IllustAiHelper
 import ceui.pixiv.utils.setOnClick
 
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
 import com.qmuiteam.qmui.skin.QMUISkinManager
@@ -299,7 +294,7 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                     true
                 }
                 R.id.action_share_image -> {
-                    shareImage(illust)
+                    shareFirstImage(illust)
                     false
                 }
                 R.id.action_dislike -> {
@@ -343,34 +338,6 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 else -> false
             }
         })
-    }
-
-    private fun shareImage(illust: IllustsBean) {
-        Glide.with(mContext)
-            .asBitmap()
-            .load(GlideUrlChild(IllustDownload.getUrl(illust, 0, Params.IMAGE_RESOLUTION_LARGE)))
-            .listener(object : RequestListener<Bitmap?> {
-                override fun onLoadFailed(
-                    e: GlideException?, model: Any?, target: Target<Bitmap?>, isFirstResource: Boolean
-                ): Boolean = false
-
-                override fun onResourceReady(
-                    resource: Bitmap, model: Any, target: Target<Bitmap?>?,
-                    dataSource: DataSource, isFirstResource: Boolean
-                ): Boolean {
-                    val uri = Common.copyBitmapToImageCacheFolder(resource, illust.id.toString() + ".png")
-                    if (uri != null) {
-                        val shareIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            setDataAndType(uri, mContext.contentResolver.getType(uri))
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                        }
-                        startActivity(Intent.createChooser(shareIntent, getString(R.string.share)))
-                    }
-                    return true
-                }
-            }).submit()
     }
 
     private fun setupLikeButton(illust: IllustsBean) {

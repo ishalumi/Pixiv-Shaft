@@ -13,7 +13,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -38,14 +37,12 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
+import ceui.pixiv.ui.share.shareFirstImage
 import ceui.pixiv.ui.task.PageLoadRetryController
 import ceui.pixiv.ui.task.renderImageLoadStatusBanner
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
@@ -469,7 +466,7 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                     }.execute()
                 }
                 item(getString(R.string.string_454), R.drawable.ic_share_black_24dp) {
-                    shareImage(illust)
+                    shareFirstImage(illust)
                 }
                 item(getString(R.string.string_355_2), R.drawable.ic_baseline_launch_24) {
                     Common.copy(mContext, ShareIllust.URL_Head + illust.id)
@@ -508,60 +505,6 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         }
     }
 
-
-    private fun shareImage(illust: IllustsBean) {
-        com.bumptech.glide.Glide.with(mContext)
-            .asBitmap()
-            .load(
-                ceui.lisa.utils.GlideUrlChild(
-                    ceui.lisa.download.IllustDownload.getUrl(
-                        illust,
-                        0,
-                        ceui.lisa.utils.Params.IMAGE_RESOLUTION_LARGE
-                    )
-                )
-            )
-            .listener(object :
-                com.bumptech.glide.request.RequestListener<android.graphics.Bitmap?> {
-                override fun onLoadFailed(
-                    e: com.bumptech.glide.load.engine.GlideException?,
-                    model: Any?,
-                    target: com.bumptech.glide.request.target.Target<android.graphics.Bitmap?>,
-                    isFirstResource: Boolean
-                ) = false
-
-                override fun onResourceReady(
-                    resource: android.graphics.Bitmap,
-                    model: Any,
-                    target: com.bumptech.glide.request.target.Target<android.graphics.Bitmap?>?,
-                    dataSource: com.bumptech.glide.load.DataSource,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    // PNG compress + disk write are heavy — keep them off the main thread.
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        val uri = withContext(Dispatchers.IO) {
-                            Common.copyBitmapToImageCacheFolder(
-                                resource,
-                                illust.id.toString() + ".png"
-                            )
-                        } ?: return@launch
-                        val shareIntent = android.content.Intent().apply {
-                            action = android.content.Intent.ACTION_SEND
-                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            setDataAndType(uri, mContext.contentResolver.getType(uri))
-                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                        }
-                        startActivity(
-                            android.content.Intent.createChooser(
-                                shareIntent,
-                                getString(R.string.share)
-                            )
-                        )
-                    }
-                    return true
-                }
-            }).submit()
-    }
 
     override fun vertical() {}
 
