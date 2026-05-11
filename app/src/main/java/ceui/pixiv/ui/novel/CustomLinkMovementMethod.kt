@@ -1,63 +1,74 @@
 package ceui.pixiv.ui.novel
 
+import android.text.Spannable
 import android.text.method.LinkMovementMethod
+import android.text.style.URLSpan
 import android.view.MotionEvent
 import android.widget.TextView
 import timber.log.Timber
+import kotlin.math.abs
 
 class CustomLinkMovementMethod(private val onLinkClick: (String) -> Unit) : LinkMovementMethod() {
 
-    private var isSliding = false  // 标记是否发生了滑动
-    private var startX = 0f  // 记录按下时的 X 坐标
-    private var startY = 0f  // 记录按下时的 Y 坐标
+    private var isSliding = false
+    private var startX = 0f
+    private var startY = 0f
+    private var pendingLink: String? = null
 
-    override fun onTouchEvent(widget: TextView, buffer: android.text.Spannable, event: MotionEvent): Boolean {
-        // 记录触摸事件的坐标
+    // 标记最近一次按下是否落在链接上。供 OnClickListener 判断要不要触发复制等默认动作。
+    // Why: TextView.onTouchEvent 先调用 super.onTouchEvent（在 ACTION_UP 时触发 performClick），
+    // 再走 movementMethod，因此 OnClickListener 总是先于这里的回调执行。
+    var wasLinkClicked: Boolean = false
+        private set
+
+    override fun onTouchEvent(widget: TextView, buffer: Spannable, event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // 记录按下时的位置
                 startX = x
                 startY = y
-                isSliding = false  // 初始状态没有滑动
+                isSliding = false
+                pendingLink = findLinkAt(widget, buffer, x, y)
+                wasLinkClicked = pendingLink != null
             }
             MotionEvent.ACTION_MOVE -> {
-                // 判断是否发生了滑动
-                val deltaX = Math.abs(x - startX)
-                val deltaY = Math.abs(y - startY)
-                if (deltaX > 20 || deltaY > 20) {  // 如果移动超过一定距离，就认为是滑动
+                val deltaX = abs(x - startX)
+                val deltaY = abs(y - startY)
+                if (deltaX > 20 || deltaY > 20) {
                     isSliding = true
+                    pendingLink = null
+                    wasLinkClicked = false
                 }
             }
             MotionEvent.ACTION_UP -> {
-                // 手指抬起时，如果没有滑动，处理点击事件
+                // super.onTouchEvent 已在此之前完成 performClick，OnClickListener 这一刻已经读过
+                // wasLinkClicked。在这里清掉，避免后续无 DOWN 的 performClick（如无障碍服务）读到残留状态。
+                wasLinkClicked = false
                 if (!isSliding) {
-                    val layout = widget.layout
-                    val line = layout.getLineForVertical(y.toInt())
-                    val offset = layout.getOffsetForHorizontal(line, x)
-                    val link = getClickedLink(buffer, offset)
-
-                    // 如果有链接，触发回调
+                    val link = pendingLink ?: findLinkAt(widget, buffer, x, y)
                     if (link != null) {
-                        onLinkClick(link)  // 调用回调
+                        onLinkClick(link)
                         Timber.d("Link clicked: $link")
                     }
                 }
+                pendingLink = null
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                pendingLink = null
+                wasLinkClicked = false
             }
         }
 
-        // 返回 true 表示事件已处理，系统不会继续处理
         return true
     }
 
-    // 获取点击位置的链接
-    private fun getClickedLink(buffer: android.text.Spannable, offset: Int): String? {
-        val spans = buffer.getSpans(offset, offset, android.text.style.URLSpan::class.java)
-        if (spans.isNotEmpty()) {
-            return spans[0].url
-        }
-        return null
+    private fun findLinkAt(widget: TextView, buffer: Spannable, x: Float, y: Float): String? {
+        val layout = widget.layout ?: return null
+        val line = layout.getLineForVertical(y.toInt())
+        val offset = layout.getOffsetForHorizontal(line, x)
+        val spans = buffer.getSpans(offset, offset, URLSpan::class.java)
+        return spans.firstOrNull()?.url
     }
 }
