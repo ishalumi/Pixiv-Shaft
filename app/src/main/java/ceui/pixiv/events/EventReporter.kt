@@ -49,7 +49,6 @@ object EventReporter {
     object Type {
         const val BOOKMARK = "bookmark"
         const val UNBOOKMARK = "unbookmark"
-        const val DOWNLOAD = "download"
         const val FOLLOW = "follow"
         const val UNFOLLOW = "unfollow"
     }
@@ -176,16 +175,6 @@ object EventReporter {
         scope.launch {
             val payloadJson = serializePayload(payload, targetType, targetId)
             enqueue(EventEntry(type, targetType, targetId, payloadJson))
-        }
-    }
-
-    /** For callers that already have the JSON in hand (e.g. DownloadQueueDao
-     *  has illustGson cached). Skips the Gson.toJson roundtrip. */
-    fun reportWithRawJson(type: String, targetType: String, targetId: Long, payloadJson: String?) {
-        if (!initialized.get() || !hmacEnabled || targetId <= 0) return
-        scope.launch {
-            val cleaned = clampPayloadJson(payloadJson, targetType, targetId)
-            enqueue(EventEntry(type, targetType, targetId, cleaned))
         }
     }
 
