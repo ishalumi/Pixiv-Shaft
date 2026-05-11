@@ -92,9 +92,9 @@ abstract class BaseStripWidgetWorker(
         val widthPx = (widthDp * density).toInt().coerceAtLeast((250 * density).toInt())
         val heightPx = (heightDp * density).toInt().coerceAtLeast((100 * density).toInt())
 
-        // Strip layout: 12dp padding × 2 + 8dp gap × 2 = 40dp. Divide rest by 3.
+        // Strip layout: 12dp padding × 2 + 2dp gap × 2 = 28dp. Divide rest by 3.
         // Hard pixel cap so the three bitmaps together don't blow the 2 MB IPC.
-        val coverWidthPx = ((widthPx - 40 * density) / 3f).toInt()
+        val coverWidthPx = ((widthPx - 28 * density) / 3f).toInt()
             .coerceIn(120, 360)
         val coverHeightPx = (heightPx - 24 * density).toInt()
             .coerceIn(120, 360)

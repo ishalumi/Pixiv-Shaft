@@ -106,14 +106,14 @@ class SpotlightWidgetWorker(
         val widthPx = (widthDp * density).toInt().coerceAtLeast((220 * density).toInt())
         val heightPx = (heightDp * density).toInt().coerceAtLeast((100 * density).toInt())
 
-        // ImageView size: card padding 12dp × 2 + 12dp gap between cover and column,
-        // cover takes 45/100 weight. Match the bitmap to that exact size so fitXY
+        // ImageView size: card padding 8dp × 2 + 10dp gap between cover and column = 26dp.
+        // Cover takes 62/100 weight. Match the bitmap to that exact size so fitXY
         // doesn't stretch (and the pre-baked rounded corners survive).
-        // Hard pixel cap: 2 MB IPC budget — 540×540 ARGB_8888 ≈ 1.16 MB.
-        val coverWidthPx = ((widthPx - 36 * density) * 0.45f).toInt()
-            .coerceIn(180, 540)
-        val coverHeightPx = (heightPx - 24 * density).toInt()
-            .coerceIn(180, 540)
+        // Hard pixel cap: 2 MB IPC budget — 600×600 ARGB_8888 ≈ 1.44 MB.
+        val coverWidthPx = ((widthPx - 26 * density) * 0.62f).toInt()
+            .coerceIn(200, 600)
+        val coverHeightPx = (heightPx - 16 * density).toInt()
+            .coerceIn(200, 600)
         val coverRadiusPx = (20 * density).toInt()
         val avatarPx = (20 * density).toInt().coerceAtMost(72)
 
