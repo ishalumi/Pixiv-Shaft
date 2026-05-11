@@ -105,9 +105,8 @@ public class PixivOperate {
     }
 
     public static void postFollowUser(int userID, String followType) {
-        String pendingFollowType = Shaft.sSettings.isPrivateStar() ? Params.TYPE_PRIVATE : followType;
         Retro.getAppApi().postFollow(
-                        userID, pendingFollowType)
+                        userID, followType)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new ErrorCtrl<NullResponse>() {
@@ -121,7 +120,7 @@ public class PixivOperate {
                         LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
 
                         ObjectPool.INSTANCE.followUser(userID);
-                        if (pendingFollowType.equals(Params.TYPE_PUBLIC)) {
+                        if (Params.TYPE_PUBLIC.equals(followType)) {
                             Shaft.appViewModel.updateFollowUserStatus(userID, AppLevelViewModel.FollowUserStatus.FOLLOWED_PUBLIC);
                             Common.showToast(getString(R.string.like_success_public));
                         } else {

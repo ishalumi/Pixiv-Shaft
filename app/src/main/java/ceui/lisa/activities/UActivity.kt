@@ -312,13 +312,8 @@ fun Fragment.followUser(sender: ProgressIndicator, userId: Int, followType: Stri
 fun FragmentActivity.followUser(sender: ProgressIndicator, userId: Int, followType: String) {
     lifecycleScope.launch {
         try {
-            val pendingFollowType = if (Shaft.sSettings.isPrivateStar) {
-                Params.TYPE_PRIVATE
-            } else {
-                followType
-            }
             sender.showProgress()
-            Client.appApi.postFollow(userId.toLong(), pendingFollowType)
+            Client.appApi.postFollow(userId.toLong(), followType)
             RateAppManager.onUserEngaged()
             // Best-effort attach a full User payload so server can fill
             // user_meta. Cheap path: ObjectPool (already cached on detail
@@ -336,7 +331,7 @@ fun FragmentActivity.followUser(sender: ProgressIndicator, userId: Int, followTy
             )
             delay(500L)
             ObjectPool.followUser(userId.toLong())
-            if (pendingFollowType == Params.TYPE_PUBLIC) {
+            if (followType == Params.TYPE_PUBLIC) {
                 Shaft.appViewModel.updateFollowUserStatus(
                     userId,
                     AppLevelViewModel.FollowUserStatus.FOLLOWED_PUBLIC
