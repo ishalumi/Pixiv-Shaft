@@ -13,6 +13,7 @@ import ceui.lisa.activities.Shaft
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
+import ceui.lisa.models.UserBean
 import ceui.lisa.utils.Common
 import ceui.loxia.Client
 import ceui.loxia.Comment
@@ -92,11 +93,29 @@ class ArtworkV3ViewModel(
             )
             illustBean = bean
             _isBookmarked.value = bean.isIs_bookmarked
+            attachArtistFollowObserver(bean.user?.id?.toLong() ?: 0L)
             buildHeaderItems()
             setupDownloadFab(bean)
         } else {
             Timber.tag("V3MultiP").w("[ViewModel.illustBeanObserver] FIRE illustId=$illustId, bean=NULL")
         }
+    }
+
+    // ObjectPool.followUser/unFollowUser republishes the artist's UserBean but
+    // does NOT republish the IllustsBean — so the illust observer above never
+    // fires on a follow click. Listen on the UserBean directly and trigger a
+    // header rebuild; the Artist item's isFollowed snapshot will flip and the
+    // adapter diff will notifyItemChanged on the artist row.
+    private var artistObservedUserId: Long = 0L
+    private val artistFollowObserver = Observer<UserBean> { _ -> buildHeaderItems() }
+
+    private fun attachArtistFollowObserver(authorId: Long) {
+        if (authorId <= 0L || authorId == artistObservedUserId) return
+        if (artistObservedUserId > 0L) {
+            ObjectPool.get<UserBean>(artistObservedUserId).removeObserver(artistFollowObserver)
+        }
+        artistObservedUserId = authorId
+        ObjectPool.get<UserBean>(authorId).observeForever(artistFollowObserver)
     }
 
     // ── download FAB state machine ──
@@ -235,6 +254,10 @@ class ArtworkV3ViewModel(
 
     override fun onCleared() {
         illustBeanLiveData.removeObserver(illustBeanObserver)
+        if (artistObservedUserId > 0L) {
+            ObjectPool.get<UserBean>(artistObservedUserId).removeObserver(artistFollowObserver)
+            artistObservedUserId = 0L
+        }
         mainHandler.removeCallbacks(rebuildRunnable)
         mainHandler.removeCallbacks(enableLoadMoreRunnable)
         mainHandler.removeCallbacks(recomputeFabRunnable)
