@@ -320,15 +320,19 @@ fun FragmentActivity.followUser(sender: ProgressIndicator, userId: Int, followTy
             sender.showProgress()
             Client.appApi.postFollow(userId.toLong(), pendingFollowType)
             RateAppManager.onUserEngaged()
-            // ObjectPool already holds the User from whichever screen led here
-            // (detail page, list cell). When we can attach it, the server can
-            // populate user_meta on first sight; otherwise we still report the
-            // action and rely on a future event with a fuller payload.
+            // Best-effort attach a full User payload so server can fill
+            // user_meta. Cheap path: ObjectPool (already cached on detail
+            // pages). Fallback: a single getUserProfile call — only on
+            // pool misses (quick-follow from list cells), so the hot path
+            // stays fast.
+            val userObj = ObjectPool.get<User>(userId.toLong()).value
+                ?: runCatching { Client.appApi.getUserProfile(userId.toLong()).user }
+                    .getOrNull()
             EventReporter.report(
                 EventReporter.Type.FOLLOW,
                 EventReporter.Target.USER,
                 userId.toLong(),
-                ObjectPool.get<User>(userId.toLong()).value,
+                userObj,
             )
             delay(500L)
             ObjectPool.followUser(userId.toLong())
@@ -363,11 +367,18 @@ fun FragmentActivity.unfollowUser(sender: ProgressIndicator, userId: Int) {
         try {
             sender.showProgress()
             Client.appApi.postUnFollow(userId.toLong())
+            // Same cache-then-fetch pattern as followUser; unfollow is
+            // probably preceded by a follow on the same user so ObjectPool
+            // usually hits, fallback only fires when going through old
+            // history list quick-actions.
+            val userObj = ObjectPool.get<User>(userId.toLong()).value
+                ?: runCatching { Client.appApi.getUserProfile(userId.toLong()).user }
+                    .getOrNull()
             EventReporter.report(
                 EventReporter.Type.UNFOLLOW,
                 EventReporter.Target.USER,
                 userId.toLong(),
-                ObjectPool.get<User>(userId.toLong()).value,
+                userObj,
             )
             delay(500L)
             Shaft.appViewModel.updateFollowUserStatus(
