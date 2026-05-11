@@ -921,6 +921,8 @@
     <string name="saf_create_file">Создать файл</string>
     <string name="saf_grant_success">Разрешение предоставлено</string>
     <string name="saf_no_file_picker">Системный диспетчер файлов не найден; невозможно авторизовать каталог SAF</string>
+    <string name="setting_saf_direct_pick">Указать папку SAF</string>
+    <string name="setting_saf_direct_pick_hint">Выбрать</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: Вход в загрузку серии -->

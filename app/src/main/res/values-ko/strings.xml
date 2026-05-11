@@ -928,6 +928,8 @@
     <string name="saf_create_file">파일 생성</string>
     <string name="saf_grant_success">권한이 부여되었습니다</string>
     <string name="saf_no_file_picker">시스템 파일 관리자를 찾을 수 없어 SAF 디렉터리를 인증할 수 없습니다</string>
+    <string name="setting_saf_direct_pick">SAF 폴더 설정</string>
+    <string name="setting_saf_direct_pick_hint">선택</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: 시리즈 상세 다운로드 진입 -->

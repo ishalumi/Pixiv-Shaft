@@ -1429,6 +1429,8 @@
     <string name="saf_write_failed">写入失败：%1$s</string>
     <string name="saf_grant_success">授权成功</string>
     <string name="saf_no_file_picker">未找到系统文件管理器，无法授权 SAF 目录</string>
+    <string name="setting_saf_direct_pick">设置 SAF 目录</string>
+    <string name="setting_saf_direct_pick_hint">点击选择</string>
     <string name="download_settings_save_failed">下载设置保存失败：%1$s</string>
     <string name="header_preset_save_failed">信息头预设保存失败：%1$s</string>
 

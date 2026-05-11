@@ -1020,6 +1020,8 @@
     <string name="saf_create_file">ファイル作成</string>
     <string name="saf_grant_success">権限を付与しました</string>
     <string name="saf_no_file_picker">システムのファイルマネージャーが見つかりません。SAF ディレクトリを認証できません</string>
+    <string name="setting_saf_direct_pick">SAF フォルダを設定</string>
+    <string name="setting_saf_direct_pick_hint">選択</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: シリーズ詳細のダウンロード導線 -->

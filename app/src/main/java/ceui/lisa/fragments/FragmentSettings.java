@@ -990,6 +990,21 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                         .show();
             });
 
+            // 「设置 SAF 目录」直拉入口 —— 不经 QMUIDialog,点了立刻 startActivityForResult。
+            // 这是为 vivo OriginOS 等 ROM 留的逃生口:在那些机器上,QMUIDialog 的 dismiss 动画
+            // 会和系统 picker 的 intent 投递抢 window focus,有概率 picker 起不来或选完不回调。
+            // 这条入口完全照搬 demo 的最朴素调用,跟 storageChoiceRela 那条平行,
+            // 用户哪条能用走哪条;两条最终都汇到 BaseActivity#onActivityResult(ASK_URI) 落库。
+            refreshSafDirectPickLabel();
+            baseBind.safDirectPickRela.setOnClickListener(v -> {
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                try {
+                    mActivity.startActivityForResult(intent, BaseActivity.ASK_URI);
+                } catch (Exception e) {
+                    Common.showToast(getString(R.string.saf_no_file_picker), true);
+                }
+            });
+
             // 多图页码起始（pageIndexFrom1）
             final String[] PAGE_INDEX_NAMES = new String[]{
                     getString(R.string.setting_page_index_from_0),
@@ -1564,12 +1579,51 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         baseBind.storageChoice.setText(storageNames()[currentStorageIndex()]);
     }
 
+    private void refreshSafDirectPickLabel() {
+        if (baseBind == null) return;
+        // 取「上一次选过的 SAF 目录」—— legacy rootPathUri 和 v3 DownloadConfig 在 BaseActivity 落库
+        // 时已经同步好,这里读 sSettings.rootPathUri 就够。空 = 没选过,显示「点击选择」hint;
+        // 有值 = 解出 human-readable 相对路径(primary:Pictures/MyPixiv → /Pictures/MyPixiv)。
+        String uriStr = Shaft.sSettings != null ? Shaft.sSettings.getRootPathUri() : null;
+        if (TextUtils.isEmpty(uriStr)) {
+            baseBind.safDirectPick.setText(R.string.setting_saf_direct_pick_hint);
+            return;
+        }
+        String hint;
+        try {
+            hint = safFolderHint(Uri.parse(uriStr));
+        } catch (Exception e) {
+            hint = "";
+        }
+        if (TextUtils.isEmpty(hint)) {
+            baseBind.safDirectPick.setText(R.string.setting_saf_direct_pick_hint);
+        } else {
+            baseBind.safDirectPick.setText(hint);
+        }
+    }
+
+    private static String safFolderHint(Uri treeUri) {
+        if (treeUri == null) return "";
+        try {
+            String docId = android.provider.DocumentsContract.getTreeDocumentId(treeUri);
+            int colon = docId.indexOf(':');
+            if (colon >= 0 && colon < docId.length() - 1) {
+                return "/" + docId.substring(colon + 1);
+            }
+            return docId;
+        } catch (Exception e) {
+            String last = treeUri.getLastPathSegment();
+            return last != null ? last : "";
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
         updateModelStatus();
-        // SAF picker 在 BaseActivity#onActivityResult 落库后，回到 fragment 时把 label 拉到现态。
+        // SAF picker 在 BaseActivity#onActivityResult 落库后，回到 fragment 时把 label 和直拉行右侧拉到现态。
         refreshStorageLabel();
+        refreshSafDirectPickLabel();
     }
 
     private void updateModelStatus() {

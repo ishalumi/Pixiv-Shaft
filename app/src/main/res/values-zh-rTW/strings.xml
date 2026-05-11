@@ -1034,6 +1034,8 @@
     <string name="saf_create_file">建立檔案</string>
     <string name="saf_grant_success">授權成功</string>
     <string name="saf_no_file_picker">未找到系統檔案管理器，無法授權 SAF 目錄</string>
+    <string name="setting_saf_direct_pick">設定 SAF 目錄</string>
+    <string name="setting_saf_direct_pick_hint">點擊選擇</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A 組：系列詳情頁下載入口 -->

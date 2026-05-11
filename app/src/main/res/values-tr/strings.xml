@@ -919,6 +919,8 @@
     <string name="saf_create_file">Dosya Oluştur</string>
     <string name="saf_grant_success">İzin verildi</string>
     <string name="saf_no_file_picker">Sistem dosya yöneticisi bulunamadı; SAF dizini yetkilendirilemiyor</string>
+    <string name="setting_saf_direct_pick">SAF klasörü ayarla</string>
+    <string name="setting_saf_direct_pick_hint">Seç</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: Seri detayı indirme girişi -->

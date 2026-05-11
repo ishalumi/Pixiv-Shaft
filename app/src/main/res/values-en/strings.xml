@@ -989,6 +989,8 @@
     <string name="saf_create_file">Create File</string>
     <string name="saf_grant_success">Permission granted</string>
     <string name="saf_no_file_picker">No system file picker found; cannot grant SAF directory</string>
+    <string name="setting_saf_direct_pick">Set SAF folder</string>
+    <string name="setting_saf_direct_pick_hint">Pick</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: Series detail download entry -->
