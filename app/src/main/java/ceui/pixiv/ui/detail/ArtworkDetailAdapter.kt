@@ -47,6 +47,7 @@ import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Comment
+import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressTextButton
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
@@ -320,7 +321,12 @@ class ArtworkDetailAdapter(
         }
 
         private fun bindFollowState(user: UserBean) {
-            if (user.isIs_followed) {
+            // illust.user may be an orphan (see ArtworkDetailItem.Artist.resolveIsFollowed).
+            // Always read isIs_followed from the canonical pool entry so the button
+            // text matches what Artist.isFollowed snapshotted.
+            val isFollowed = ObjectPool.get<UserBean>(user.id.toLong()).value?.isIs_followed
+                ?: user.isIs_followed
+            if (isFollowed) {
                 b.followBtn.text = ctx.getString(R.string.unfollow)
                 palette.applyUnfollowBtn(b.followBtn)
                 b.followBtn.setOnClick { fragment.unfollowUser(it as ProgressTextButton, user.id) }
