@@ -57,9 +57,8 @@ class CollapsibleIllustAdapter(
         expanded = true
         val added = itemCount - prev
         if (added > 0) notifyItemRangeInserted(prev, added)
-        // Refresh pos 0 so the CTA overlay is hidden on the next bind (if the
-        // click-driven fade-out was interrupted by a rebind).
-        notifyItemChanged(0, PAYLOAD_OVERLAY_ONLY)
+        // No notifyItemChanged(0) here — the caller's fade-out on the scrim
+        // would get clobbered. The next natural rebind will hide the overlay.
         onExpandedChanged?.invoke(true)
     }
 
@@ -69,14 +68,15 @@ class CollapsibleIllustAdapter(
         expanded = false
         val removed = prev - itemCount
         if (removed > 0) notifyItemRangeRemoved(itemCount, removed)
-        // Restore expand CTA on pos 0.
-        notifyItemChanged(0, PAYLOAD_OVERLAY_ONLY)
+        // Tell pos 0 to fade its expand CTA back IN (alpha 0 → 1), in sync
+        // with the host fragment's collapse-pill fade-out.
+        notifyItemChanged(0, PAYLOAD_OVERLAY_FADE_IN)
         onExpandedChanged?.invoke(false)
     }
 
     override fun onBindViewHolder(holder: ViewHolder<RecyIllustDetailBinding>, position: Int) {
         super.onBindViewHolder(holder, position)
-        bindExpandOverlay(holder, position)
+        bindExpandOverlay(holder, position, fadeIn = false)
     }
 
     override fun onBindViewHolder(
@@ -84,15 +84,21 @@ class CollapsibleIllustAdapter(
         position: Int,
         payloads: MutableList<Any>,
     ) {
-        if (payloads.contains(PAYLOAD_OVERLAY_ONLY)) {
-            bindExpandOverlay(holder, position)
-        } else {
-            super.onBindViewHolder(holder, position, payloads)
+        when {
+            payloads.contains(PAYLOAD_OVERLAY_FADE_IN) ->
+                bindExpandOverlay(holder, position, fadeIn = true)
+            payloads.contains(PAYLOAD_OVERLAY_ONLY) ->
+                bindExpandOverlay(holder, position, fadeIn = false)
+            else -> super.onBindViewHolder(holder, position, payloads)
         }
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun bindExpandOverlay(holder: ViewHolder<RecyIllustDetailBinding>, position: Int) {
+    private fun bindExpandOverlay(
+        holder: ViewHolder<RecyIllustDetailBinding>,
+        position: Int,
+        fadeIn: Boolean,
+    ) {
         val views = overlayOf(holder) ?: return
         val overlay = views.overlay
         val pill = views.expandPill
@@ -114,8 +120,13 @@ class CollapsibleIllustAdapter(
         }
 
         overlay.animate().cancel()
-        overlay.alpha = 1f
         overlay.visibility = View.VISIBLE
+        if (fadeIn) {
+            overlay.alpha = 0f
+            overlay.animate().alpha(1f).setDuration(FADE_MS).start()
+        } else {
+            overlay.alpha = 1f
+        }
         label.text = holder.itemView.context.getString(
             R.string.v3_expand_all_pages_title, hiddenCount
         )
@@ -132,12 +143,16 @@ class CollapsibleIllustAdapter(
         // Return false so the click still fires normally via setOnClickListener.
         applyPillTouchFeedback(pill)
         pill.setOnClickListener {
+            // Kick off the data change FIRST so onExpandedChanged(true) fires
+            // before the fade — the host pill fades IN concurrently with this
+            // scrim fading OUT, instead of after.
+            expand()
             overlay.animate()
                 .alpha(0f)
-                .setDuration(200)
+                .setDuration(FADE_MS)
                 .withEndAction {
                     overlay.visibility = View.GONE
-                    expand()
+                    overlay.alpha = 1f
                 }
                 .start()
         }
@@ -196,6 +211,8 @@ class CollapsibleIllustAdapter(
         }
 
         private val PAYLOAD_OVERLAY_ONLY = Any()
+        private val PAYLOAD_OVERLAY_FADE_IN = Any()
         private val TAG_OVERLAY = R.id.expand_overlay
+        private const val FADE_MS = 220L
     }
 }

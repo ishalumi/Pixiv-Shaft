@@ -220,8 +220,21 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                         false,
                         onComicReaderClick = comicReaderLauncher,
                         onExpandedChanged = { isExpanded ->
-                            baseBind.collapsePill.visibility =
-                                if (isExpanded) View.VISIBLE else View.GONE
+                            // Cross-fade with the adapter's scrim animation:
+                            //  - expand: scrim alpha 1→0 on pos 0, this pill 0→1
+                            //  - collapse: scrim alpha 0→1 on pos 0, this pill 1→0
+                            val pill = baseBind.collapsePill
+                            pill.animate().cancel()
+                            if (isExpanded) {
+                                pill.alpha = 0f
+                                pill.visibility = View.VISIBLE
+                                pill.animate().alpha(1f).setDuration(220).start()
+                            } else {
+                                pill.animate().alpha(0f).setDuration(220).withEndAction {
+                                    pill.visibility = View.GONE
+                                    pill.alpha = 1f
+                                }.start()
+                            }
                         },
                     )
                 } else {
