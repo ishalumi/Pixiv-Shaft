@@ -13,8 +13,8 @@ object SlideshowLauncher {
 
     /**
      * Launch the slideshow from a V2 list of [IllustsBean]. Single-page illusts contribute their
-     * one image; multi-page illusts contribute every page in order. The slideshow plays at LARGE
-     * resolution to balance quality and OOM risk, falling back to the user's preview setting.
+     * one image; multi-page illusts contribute every page in order. The slideshow plays at ORIGINAL
+     * resolution, falling back to LARGE if the original URL is missing.
      */
     @JvmStatic
     @JvmOverloads
@@ -32,28 +32,15 @@ object SlideshowLauncher {
             if (illust.getPage_count() <= 0) return@forEachIndexed
             val baseTitle = illust.getTitle().orEmpty()
             try {
-                if (illust.getPage_count() == 1) {
-                    val url = IllustDownload.getUrl(illust, 0, Params.IMAGE_RESOLUTION_LARGE)
-                    if (!url.isNullOrEmpty()) {
-                        if (i == startListIndex && !seenStart) {
-                            startUrlIndex = urls.size
-                            seenStart = true
-                        }
-                        urls.add(url)
-                        titles.add(baseTitle)
+                val pageCount = illust.getPage_count()
+                for (p in 0 until pageCount) {
+                    val url = bestUrlForV2(illust, p) ?: continue
+                    if (i == startListIndex && !seenStart) {
+                        startUrlIndex = urls.size
+                        seenStart = true
                     }
-                } else {
-                    for (p in 0 until illust.getPage_count()) {
-                        val url = IllustDownload.getUrl(illust, p, Params.IMAGE_RESOLUTION_LARGE)
-                        if (!url.isNullOrEmpty()) {
-                            if (i == startListIndex && !seenStart) {
-                                startUrlIndex = urls.size
-                                seenStart = true
-                            }
-                            urls.add(url)
-                            titles.add(if (illust.getPage_count() > 1) "$baseTitle (${p + 1})" else baseTitle)
-                        }
-                    }
+                    urls.add(url)
+                    titles.add(if (pageCount > 1) "$baseTitle (${p + 1})" else baseTitle)
                 }
             } catch (ex: Exception) {
                 Timber.w(ex, "[SlideshowLauncher] skipping illust ${illust.getId()}")
@@ -64,6 +51,16 @@ object SlideshowLauncher {
             return
         }
         startSession(context, urls, titles, startUrlIndex, random)
+    }
+
+    private fun bestUrlForV2(illust: IllustsBean, page: Int): String? {
+        val original = runCatching {
+            IllustDownload.getUrl(illust, page, Params.IMAGE_RESOLUTION_ORIGINAL)
+        }.getOrNull()
+        if (!original.isNullOrEmpty()) return original
+        return runCatching {
+            IllustDownload.getUrl(illust, page, Params.IMAGE_RESOLUTION_LARGE)
+        }.getOrNull()?.takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -102,19 +99,18 @@ object SlideshowLauncher {
         startSession(context, urls, titles, startUrlIndex, random)
     }
 
-    /** Both branches prefer LARGE for the same OOM/quality balance the V2 launcher uses;
-     *  fall back to original-size variants only if LARGE is missing. */
+    /** Prefer ORIGINAL; fall back to LARGE only if the original variant is missing. */
     private fun pagesOf(illust: Illust): List<String> {
         if (illust.page_count <= 0) return emptyList()
         return if (illust.page_count == 1) {
             listOfNotNull(
-                illust.image_urls?.large
-                    ?: illust.meta_single_page?.original_image_url
+                illust.meta_single_page?.original_image_url
                     ?: illust.image_urls?.original
+                    ?: illust.image_urls?.large
             )
         } else {
             illust.meta_pages.orEmpty().mapNotNull { mp ->
-                mp.image_urls?.large ?: mp.image_urls?.original
+                mp.image_urls?.original ?: mp.image_urls?.large
             }
         }
     }
