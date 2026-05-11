@@ -1,0 +1,24 @@
+package ceui.pixiv.widget
+
+import android.content.Context
+import androidx.work.WorkerParameters
+import ceui.lisa.http.Retro
+import ceui.lisa.models.IllustsBean
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class DailyRankStripWorker(
+    context: Context,
+    params: WorkerParameters,
+) : BaseStripWidgetWorker(context, params) {
+
+    override val providerClass = DailyRankStripWidgetProvider::class.java
+
+    override suspend fun fetchIllusts(): List<IllustsBean>? = withContext(Dispatchers.IO) {
+        Retro.getAppApi().getRank("day", null)
+            .blockingFirst()
+            ?.illusts
+            ?.filter { !it.isR18File }
+            ?.take(3)
+    }
+}

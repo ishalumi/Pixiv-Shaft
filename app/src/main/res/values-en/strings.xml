@@ -111,6 +111,8 @@
   <string name="v3_widget_loading_author">Just a moment</string>
   <string name="v3_widget_login_required">Sign in to see recommendations</string>
   <string name="v3_widget_failed">Couldn\'t load — try again later</string>
+  <string name="v3_widget_daily_rank_description">Pixiv Daily · Top 3</string>
+  <string name="v3_widget_recommend_strip_description">Pixiv Recommend · 3 picks</string>
   <string name="novel_tag">Novel tags</string>
   <string name="hot_tag">Popular Tags</string>  
   <string name="ranking_illust">Popular</string>  

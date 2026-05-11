@@ -111,6 +111,8 @@
   <string name="v3_widget_loading_author">Минутку</string>
   <string name="v3_widget_login_required">Войдите, чтобы видеть рекомендации</string>
   <string name="v3_widget_failed">Не удалось загрузить, попробуйте позже</string>
+  <string name="v3_widget_daily_rank_description">Pixiv: топ дня · 3</string>
+  <string name="v3_widget_recommend_strip_description">Pixiv: рекомендации · 3</string>
   <string name="novel_tag">художественная этикетка</string>
   <string name="hot_tag">горячая этикетка</string>  
   <string name="ranking_illust">рейтинг</string>  
