@@ -1332,4 +1332,7 @@
     <string name="api_demo_btn_clear">清空</string>
     <string name="api_demo_base_url_label">Base URL</string>
     <string name="api_demo_output_label">輸出</string>
+
+    <string name="slideshow_play">幻燈片播放</string>
+    <string name="slideshow_empty">沒有可播放的圖片</string>
 </resources>

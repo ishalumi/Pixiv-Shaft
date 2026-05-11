@@ -1217,4 +1217,7 @@
     <string name="api_demo_btn_clear">Temizle</string>
     <string name="api_demo_base_url_label">Base URL</string>
     <string name="api_demo_output_label">Çıktı</string>
+
+    <string name="slideshow_play">Slayt gösterisi</string>
+    <string name="slideshow_empty">Oynatılacak resim yok</string>
 </resources>

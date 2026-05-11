@@ -1219,4 +1219,7 @@
     <string name="api_demo_btn_clear">Очистить</string>
     <string name="api_demo_base_url_label">Base URL</string>
     <string name="api_demo_output_label">Вывод</string>
+
+    <string name="slideshow_play">Слайд-шоу</string>
+    <string name="slideshow_empty">Нет изображений для показа</string>
 </resources>

@@ -41,6 +41,7 @@ import ceui.lisa.page.ScreenUtils;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
+import ceui.pixiv.ui.slideshow.SlideshowLauncher;
 
 public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding> implements MultiDownload {
 
@@ -261,6 +262,13 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
                         intent.putExtra(Params.ILLUST_ID, illust.getId());
                         intent.putExtra(Params.ILLUST_TITLE, illust.getTitle());
                         mContext.startActivity(intent);
+                        mNormalPopup.dismiss();
+                    }
+                });
+                popView.findViewById(R.id.play_slideshow).setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        SlideshowLauncher.launchFromIllustsBeans(mContext, allItems, position, true);
                         mNormalPopup.dismiss();
                     }
                 });

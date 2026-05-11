@@ -218,6 +218,10 @@
         <activity
             android:name=".activities.NovelActivity"
             android:theme="@style/SplashTheme" />
+        <activity
+            android:name="ceui.pixiv.ui.slideshow.SlideshowActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
+            android:theme="@style/SplashTheme" />
 
         <receiver
             android:name="ceui.pixiv.widget.SpotlightWidgetProvider"

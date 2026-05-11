@@ -1226,4 +1226,7 @@
     <string name="api_demo_btn_clear">지우기</string>
     <string name="api_demo_base_url_label">Base URL</string>
     <string name="api_demo_output_label">출력</string>
+
+    <string name="slideshow_play">슬라이드쇼 재생</string>
+    <string name="slideshow_empty">재생할 이미지가 없습니다</string>
 </resources>
