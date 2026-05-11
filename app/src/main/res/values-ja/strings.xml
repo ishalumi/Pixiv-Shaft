@@ -1018,6 +1018,8 @@
     <string name="storage_request">リクエスト</string>
     <string name="saf_request_path">パス申請</string>
     <string name="saf_create_file">ファイル作成</string>
+    <string name="saf_grant_success">権限を付与しました</string>
+    <string name="saf_no_file_picker">システムのファイルマネージャーが見つかりません。SAF ディレクトリを認証できません</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: シリーズ詳細のダウンロード導線 -->
@@ -1327,4 +1329,6 @@
 
     <string name="slideshow_play">スライドショー再生</string>
     <string name="slideshow_empty">再生できる画像がありません</string>
+
+    <string name="v3_collapse_pages_title">折りたたむ</string>
 </resources>

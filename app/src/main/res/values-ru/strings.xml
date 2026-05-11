@@ -919,6 +919,8 @@
     <string name="storage_request">Запрос</string>
     <string name="saf_request_path">Запросить путь</string>
     <string name="saf_create_file">Создать файл</string>
+    <string name="saf_grant_success">Разрешение предоставлено</string>
+    <string name="saf_no_file_picker">Системный диспетчер файлов не найден; невозможно авторизовать каталог SAF</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: Вход в загрузку серии -->
@@ -1228,4 +1230,6 @@
 
     <string name="slideshow_play">Слайд-шоу</string>
     <string name="slideshow_empty">Нет изображений для показа</string>
+
+    <string name="v3_collapse_pages_title">Свернуть</string>
 </resources>

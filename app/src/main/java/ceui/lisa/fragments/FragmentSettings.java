@@ -1,6 +1,7 @@
 package ceui.lisa.fragments;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
@@ -15,6 +16,8 @@ import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.databinding.DataBindingUtil;
 
 import java.io.File;
@@ -34,8 +37,6 @@ import com.scwang.smart.refresh.layout.SmartRefreshLayout;
 
 import com.tbruyelle.rxpermissions3.RxPermissions;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -60,7 +61,6 @@ import ceui.lisa.utils.Local;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivSearchParamUtil;
 import ceui.lisa.utils.Settings;
-import ceui.lisa.utils.UserFolderNameUtil;
 import ceui.loxia.Client;
 import ceui.loxia.MoonSync;
 import ceui.pixiv.download.DownloadsRegistry;
@@ -76,6 +76,16 @@ import static ceui.lisa.helper.ThemeHelper.ThemeType.LIGHT_MODE;
 
 
 public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
+
+    private ActivityResultLauncher<Uri> mSafPickerLauncher;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mSafPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocumentTree(),
+                this::onSafTreePicked);
+    }
 
     @Override
     public void initLayout() {
@@ -763,16 +773,10 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
 
         // 下载
         {
-            // 以下行已被统一的"下载路径与文件名"设置页吸收——通过模板变量 / 条件块 /
-            // 按 bucket 的存储后端表达，用户应去新页面调整。这里直接隐藏旧入口，
-            // 避免两套并存互相覆盖。剩余保留的：长按下载开关、下载限制（WiFi）、
-            // 自动点赞——这些与路径 / 文件名无关，是 UX / 网络行为开关。
+            // R18 / AI 分目录开关：layout 里仍然存在，但路径 / 命名已收到「下载路径 / 文件名」页，
+            // 这两个 switch 在主设置页保持隐藏，避免和 v3 配置打架。
             baseBind.r18DivideSaveRela.setVisibility(View.GONE);
             baseBind.aiDivideSaveRela.setVisibility(View.GONE);
-            baseBind.saveForSeparateAuthorRela.setVisibility(View.GONE);
-            baseBind.downloadWayRela.setVisibility(View.GONE);
-            baseBind.singleIllustPath.setVisibility(View.GONE);
-            baseBind.novelPathRela.setVisibility(View.GONE);
 
             baseBind.r18DivideSave.setChecked(Shaft.sSettings.isR18DivideSave());
             baseBind.r18DivideSave.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -956,65 +960,24 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                         .show();
             });
 
-            // 存储位置（StorageChoice）
-            // 0 = Pictures, 1 = Downloads, 2 = SAF
-            final String[] STORAGE_NAMES = new String[]{
-                    getString(R.string.setting_storage_pictures),
-                    getString(R.string.setting_storage_downloads),
-                    getString(R.string.setting_storage_saf)
-            };
-            final Runnable refreshStorageLabel = () -> {
-                StorageChoice cur = DownloadsRegistry.currentImagesStorage();
-                int idx;
-                if (cur instanceof StorageChoice.Saf) {
-                    idx = 2;
-                } else if (cur instanceof StorageChoice.MediaStore
-                        && ((StorageChoice.MediaStore) cur).getCollection()
-                            == StorageChoice.MediaStore.Collection.Downloads) {
-                    idx = 1;
-                } else {
-                    idx = 0;
-                }
-                baseBind.storageChoice.setText(STORAGE_NAMES[idx]);
-            };
-            refreshStorageLabel.run();
+            // 存储位置（StorageChoice）—— 0 = Pictures, 1 = Downloads, 2 = SAF
+            refreshStorageLabel();
             baseBind.storageChoiceRela.setOnClickListener(v -> {
-                StorageChoice cur = DownloadsRegistry.currentImagesStorage();
-                int checkedIdx;
-                if (cur instanceof StorageChoice.Saf) {
-                    checkedIdx = 2;
-                } else if (cur instanceof StorageChoice.MediaStore
-                        && ((StorageChoice.MediaStore) cur).getCollection()
-                            == StorageChoice.MediaStore.Collection.Downloads) {
-                    checkedIdx = 1;
-                } else {
-                    checkedIdx = 0;
-                }
                 new QMUIDialog.CheckableDialogBuilder(mActivity)
-                        .setCheckedIndex(checkedIdx)
+                        .setCheckedIndex(currentStorageIndex())
                         .setSkinManager(QMUISkinManager.defaultInstance(mContext))
-                        .addItems(STORAGE_NAMES, (dialog, which) -> {
+                        .addItems(storageNames(), (dialog, which) -> {
                             dialog.dismiss();
                             if (which == 0) {
                                 DownloadsRegistry.applyGlobalStorage(
                                         new StorageChoice.MediaStore(StorageChoice.MediaStore.Collection.Images));
-                                refreshStorageLabel.run();
+                                refreshStorageLabel();
                             } else if (which == 1) {
                                 DownloadsRegistry.applyGlobalStorage(
                                         new StorageChoice.MediaStore(StorageChoice.MediaStore.Collection.Downloads));
-                                refreshStorageLabel.run();
+                                refreshStorageLabel();
                             } else {
-                                // SAF — launch document tree picker
-                                ((BaseActivity<?>)mActivity).setFeedBack(() -> {
-                                    String uriStr = Shaft.sSettings.getRootPathUri();
-                                    if (uriStr != null && !uriStr.isEmpty()) {
-                                        DownloadsRegistry.applyGlobalStorage(
-                                                new StorageChoice.Saf(android.net.Uri.parse(uriStr)));
-                                        refreshStorageLabel.run();
-                                    }
-                                });
-                                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                                mActivity.startActivityForResult(intent, BaseActivity.ASK_URI);
+                                launchSafPicker();
                             }
                         })
                         .show();
@@ -1049,37 +1012,6 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                             dialog.dismiss();
                         })
                         .show();
-            });
-
-            //按作者保存到单独文件夹
-            baseBind.saveForSeparateAuthor.setText(UserFolderNameUtil.getCurrentStatusName());
-            baseBind.saveForSeparateAuthor.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    new QMUIDialog.CheckableDialogBuilder(mActivity)
-                            .setCheckedIndex(Shaft.sSettings.getSaveForSeparateAuthorStatus())
-                            .setSkinManager(QMUISkinManager.defaultInstance(mContext))
-                            .addItems(UserFolderNameUtil.USER_FOLDER_NAME_NAMES, new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    if (which == Shaft.sSettings.getSaveForSeparateAuthorStatus()) {
-                                        Common.showLog("什么也不做");
-                                    } else {
-                                        Shaft.sSettings.setSaveForSeparateAuthorStatus(which);
-                                        baseBind.saveForSeparateAuthor.setText(UserFolderNameUtil.getCurrentStatusName());
-                                        Local.setSettings(Shaft.sSettings);
-                                    }
-                                    dialog.dismiss();
-                                }
-                            })
-                            .show();
-                }
-            });
-            baseBind.saveForSeparateAuthorRela.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    baseBind.saveForSeparateAuthor.performClick();
-                }
             });
 
             //插画详情长按下载
@@ -1181,65 +1113,6 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 @Override
                 public void onClick(View v) {
                     baseBind.maxConcurrentDownloads.performClick();
-                }
-            });
-
-            // 下载模式
-            String[] downloadWays = new String[]{
-                    getString(R.string.string_363),
-                    getString(R.string.string_364)
-            };
-            baseBind.downloadWay.setText(downloadWays[Shaft.sSettings.getDownloadWay()]);
-            baseBind.downloadWayRela.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    new QMUIDialog.CheckableDialogBuilder(mActivity)
-                            .setCheckedIndex(Shaft.sSettings.getDownloadWay())
-                            .setSkinManager(QMUISkinManager.defaultInstance(mContext))
-                            .addItems(downloadWays, new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    if (which == Shaft.sSettings.getDownloadWay()) {
-                                        Common.showLog("什么也不做");
-                                    } else {
-                                        Shaft.sSettings.setDownloadWay(which);
-                                        baseBind.downloadWay.setText(downloadWays[which]);
-                                        Local.setSettings(Shaft.sSettings);
-                                        updateIllustPathUI();
-                                    }
-                                    dialog.dismiss();
-                                }
-                            })
-                            .show();
-                }
-            });
-
-            updateIllustPathUI();
-            if(mActivity instanceof BaseActivity){
-                ((BaseActivity)mActivity).setFeedBack(this::updateIllustPathUI);
-            }
-            baseBind.singleIllustPath.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (Shaft.sSettings.getDownloadWay() == 0 && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                        Common.showToast(getString(R.string.string_329), true);
-                    } else {
-                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                        if (!TextUtils.isEmpty(Shaft.sSettings.getRootPathUri()) &&
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            Uri start = Uri.parse(Shaft.sSettings.getRootPathUri());
-                            intent.putExtra(EXTRA_INITIAL_URI, start);
-                        }
-                        mActivity.startActivityForResult(intent, BaseActivity.ASK_URI);
-                    }
-                }
-            });
-
-            baseBind.novelPath.setText(Settings.FILE_PATH_NOVEL);
-            baseBind.novelPathRela.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Common.showToast(getString(R.string.string_374), true);
                 }
             });
         }
@@ -1660,16 +1533,65 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         baseBind.colorSelect.setText(getString(FragmentColors.COLOR_NAME_CODES[index]));
     }
 
-    private void updateIllustPathUI(){
-        if (Shaft.sSettings.getDownloadWay() == 1) {
-            try {
-                baseBind.illustPath.setText(URLDecoder.decode(Shaft.sSettings.getRootPathUri(), "utf-8"));
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-        } else {
-            baseBind.illustPath.setText(Shaft.sSettings.getIllustPath());
+    private String[] storageNames() {
+        return new String[]{
+                getString(R.string.setting_storage_pictures),
+                getString(R.string.setting_storage_downloads),
+                getString(R.string.setting_storage_saf)
+        };
+    }
+
+    private int currentStorageIndex() {
+        StorageChoice cur = DownloadsRegistry.currentImagesStorage();
+        if (cur instanceof StorageChoice.Saf) return 2;
+        if (cur instanceof StorageChoice.MediaStore
+                && ((StorageChoice.MediaStore) cur).getCollection()
+                    == StorageChoice.MediaStore.Collection.Downloads) {
+            return 1;
         }
+        return 0;
+    }
+
+    private void refreshStorageLabel() {
+        if (baseBind == null) return;
+        baseBind.storageChoice.setText(storageNames()[currentStorageIndex()]);
+    }
+
+    private void launchSafPicker() {
+        Uri hint = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String existing = Shaft.sSettings.getRootPathUri();
+            if (!TextUtils.isEmpty(existing)) {
+                try {
+                    hint = Uri.parse(existing);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        try {
+            mSafPickerLauncher.launch(hint);
+        } catch (ActivityNotFoundException e) {
+            // 部分精简 ROM 不带 DocumentsUI，裸调 launch 会把进程带走。
+            Common.showToast(getString(R.string.saf_no_file_picker), true);
+        }
+    }
+
+    private void onSafTreePicked(@Nullable Uri treeUri) {
+        if (!isAdded() || baseBind == null) return;
+        if (treeUri == null) return;
+        try {
+            int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+            requireContext().getContentResolver()
+                    .takePersistableUriPermission(treeUri, takeFlags);
+        } catch (SecurityException ignored) {
+            // 某些 OEM 给了 tree URI 但拒绝持久化授权，本次会话内仍可用，不要卡死流程。
+        }
+        Shaft.sSettings.setRootPathUri(treeUri.toString());
+        Local.setSettings(Shaft.sSettings);
+        DownloadsRegistry.applyGlobalStorage(new StorageChoice.Saf(treeUri));
+        refreshStorageLabel();
+        Common.showToast(getString(R.string.saf_grant_success));
     }
 
     @Override
