@@ -219,6 +219,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                         maxHeight,
                         false,
                         onComicReaderClick = comicReaderLauncher,
+                        onExpandedChanged = { isExpanded ->
+                            baseBind.collapsePill.visibility =
+                                if (isExpanded) View.VISIBLE else View.GONE
+                        },
                     )
                 } else {
                     object : ceui.lisa.adapters.IllustAdapter(
@@ -253,6 +257,19 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                     }
                 }
                 illustAdapter = adapter
+                if (adapter is CollapsibleIllustAdapter) {
+                    baseBind.collapsePill.setOnClickListener {
+                        adapter.collapse()
+                        // Snap to the top after the data shrinks so the user
+                        // doesn't get stranded in the now-empty space below.
+                        val lm = baseBind.recyclerView.layoutManager
+                        if (lm is StaggeredGridLayoutManager) {
+                            lm.scrollToPositionWithOffset(0, 0)
+                        } else {
+                            baseBind.recyclerView.scrollToPosition(0)
+                        }
+                    }
+                }
                 adapter.setPageStatusListener { position, status ->
                     retryController.reportStatus(position, status)
                 }

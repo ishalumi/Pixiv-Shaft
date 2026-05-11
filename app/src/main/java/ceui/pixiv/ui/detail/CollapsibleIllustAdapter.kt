@@ -17,10 +17,15 @@ import ceui.lisa.models.IllustsBean
 
 /**
  * V3-only IllustAdapter that hides all but the first [collapsedCount] pages of a
- * multi-page illust. Call [expand] to reveal the rest.
+ * multi-page illust. Call [expand] to reveal the rest, [collapse] to fold back.
  *
  * The "展开剩余 X 张" CTA renders as a bottom scrim + glass pill overlaid on the
  * FIRST page's image itself — no separate adapter row needed.
+ *
+ * The collapse CTA is intentionally NOT placed on a list item: putting it at the
+ * end would force users to scroll through everything they just opened, defeating
+ * the purpose of the collapse. The host fragment owns a floating "收起" pill it
+ * toggles via [onExpandedChanged].
  */
 class CollapsibleIllustAdapter(
     activity: FragmentActivity,
@@ -30,13 +35,16 @@ class CollapsibleIllustAdapter(
     isForceOriginal: Boolean,
     private val collapsedCount: Int = DEFAULT_COLLAPSED,
     var onComicReaderClick: (() -> Unit)? = null,
+    var onExpandedChanged: ((expanded: Boolean) -> Unit)? = null,
 ) : IllustAdapter(activity, fragment, illust, maxHeight, isForceOriginal) {
 
     private var expanded = false
 
     val totalPages: Int get() = illust.page_count
     val hiddenCount: Int get() = (totalPages - collapsedCount).coerceAtLeast(0)
-    val isCollapsed: Boolean get() = !expanded && totalPages > collapsedCount
+    val isCollapsible: Boolean get() = totalPages > collapsedCount
+    val isCollapsed: Boolean get() = !expanded && isCollapsible
+    val isExpanded: Boolean get() = expanded && isCollapsible
 
     override fun getItemCount(): Int {
         val total = super.getItemCount()
@@ -52,6 +60,18 @@ class CollapsibleIllustAdapter(
         // Refresh pos 0 so the CTA overlay is hidden on the next bind (if the
         // click-driven fade-out was interrupted by a rebind).
         notifyItemChanged(0, PAYLOAD_OVERLAY_ONLY)
+        onExpandedChanged?.invoke(true)
+    }
+
+    fun collapse() {
+        if (!expanded) return
+        val prev = itemCount
+        expanded = false
+        val removed = prev - itemCount
+        if (removed > 0) notifyItemRangeRemoved(itemCount, removed)
+        // Restore expand CTA on pos 0.
+        notifyItemChanged(0, PAYLOAD_OVERLAY_ONLY)
+        onExpandedChanged?.invoke(false)
     }
 
     override fun onBindViewHolder(holder: ViewHolder<RecyIllustDetailBinding>, position: Int) {
