@@ -1,5 +1,7 @@
 package ceui.pixiv.widgets
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.text.InputType
@@ -11,16 +13,19 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import ceui.lisa.R
 import ceui.lisa.activities.SearchActivity
 import ceui.lisa.models.TagsBean
 import ceui.lisa.utils.Params
+import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Tag
 import ceui.pixiv.utils.ppppx
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexboxLayout
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 
 /**
  * V3 风格标签流 — 胶囊形背景 + `# name  译名` 格式 + 点击跳 SearchActivity。
@@ -174,8 +179,12 @@ class V3TagFlowView @JvmOverloads constructor(
                 // refreshChipsUI 再 setOnTagLongClick），所以监听器无条件挂、回调在长按
                 // 触发时再取——和 onTagClick 同套路。
                 setOnLongClickListener {
-                    val handler = onTagLongClick ?: return@setOnLongClickListener false
-                    handler.invoke(name)
+                    val handler = onTagLongClick
+                    if (handler != null) {
+                        handler.invoke(name)
+                    } else {
+                        showTagActionMenu(name, translated)
+                    }
                     true
                 }
             }
@@ -221,6 +230,44 @@ class V3TagFlowView @JvmOverloads constructor(
         }
         _editor = ed
         return ed
+    }
+
+    private fun showTagActionMenu(name: String, translated: String?) {
+        val hasTranslation = !translated.isNullOrBlank()
+        // 三个固定 action 顺序：原文 / 译文（可选）/ 屏蔽。译文不存在时直接跳过该项。
+        val labels = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+        labels.add(context.getString(R.string.v3_tag_menu_copy_original))
+        actions.add { copyToClipboard(name) }
+        if (hasTranslation) {
+            labels.add(context.getString(R.string.v3_tag_menu_copy_translation))
+            actions.add { copyToClipboard(translated!!) }
+        }
+        labels.add(context.getString(R.string.v3_tag_menu_mute))
+        actions.add { muteTag(name, translated) }
+
+        QMUIDialog.MenuDialogBuilder(context)
+            .addItems(labels.toTypedArray()) { dialog, which ->
+                actions[which].invoke()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun copyToClipboard(text: String) {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            ?: return
+        cm.setPrimaryClip(ClipData.newPlainText("pixiv-tag", text))
+        Toast.makeText(context, R.string.has_copyed, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun muteTag(name: String, translated: String?) {
+        val bean = TagsBean().apply {
+            this.name = name
+            this.translated_name = translated
+        }
+        PixivOperate.muteTag(bean)
+        Toast.makeText(context, R.string.string_382, Toast.LENGTH_SHORT).show()
     }
 
     private fun applyTouchScale(view: View, scale: Float) {

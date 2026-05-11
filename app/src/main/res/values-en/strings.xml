@@ -1326,4 +1326,8 @@
 
     <string name="slideshow_play">Play slideshow</string>
     <string name="slideshow_empty">No images to play</string>
+
+    <string name="v3_tag_menu_copy_original">Copy tag name</string>
+    <string name="v3_tag_menu_copy_translation">Copy translation</string>
+    <string name="v3_tag_menu_mute">Mute this tag</string>
 </resources>

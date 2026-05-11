@@ -1239,4 +1239,8 @@
     <string name="slideshow_empty">재생할 이미지가 없습니다</string>
 
     <string name="v3_collapse_pages_title">접기</string>
+
+    <string name="v3_tag_menu_copy_original">태그 원문 복사</string>
+    <string name="v3_tag_menu_copy_translation">번역 복사</string>
+    <string name="v3_tag_menu_mute">이 태그 차단</string>
 </resources>

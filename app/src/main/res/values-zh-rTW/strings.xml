@@ -1345,4 +1345,8 @@
     <string name="slideshow_empty">沒有可播放的圖片</string>
 
     <string name="v3_collapse_pages_title">收起</string>
+
+    <string name="v3_tag_menu_copy_original">複製 tag 原文</string>
+    <string name="v3_tag_menu_copy_translation">複製 tag 譯文</string>
+    <string name="v3_tag_menu_mute">封鎖此 tag</string>
 </resources>

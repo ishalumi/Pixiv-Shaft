@@ -1743,4 +1743,8 @@
 
     <string name="slideshow_play">幻灯片播放</string>
     <string name="slideshow_empty">没有可播放的图片</string>
+
+    <string name="v3_tag_menu_copy_original">复制 tag 原文</string>
+    <string name="v3_tag_menu_copy_translation">复制 tag 译文</string>
+    <string name="v3_tag_menu_mute">屏蔽此 tag</string>
 </resources>

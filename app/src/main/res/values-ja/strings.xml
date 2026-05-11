@@ -1331,4 +1331,8 @@
     <string name="slideshow_empty">再生できる画像がありません</string>
 
     <string name="v3_collapse_pages_title">折りたたむ</string>
+
+    <string name="v3_tag_menu_copy_original">タグ名をコピー</string>
+    <string name="v3_tag_menu_copy_translation">翻訳をコピー</string>
+    <string name="v3_tag_menu_mute">このタグをミュート</string>
 </resources>

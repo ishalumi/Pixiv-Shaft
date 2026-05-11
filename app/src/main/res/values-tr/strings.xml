@@ -1230,4 +1230,8 @@
     <string name="slideshow_empty">Oynatılacak resim yok</string>
 
     <string name="v3_collapse_pages_title">Daralt</string>
+
+    <string name="v3_tag_menu_copy_original">Etiketi kopyala</string>
+    <string name="v3_tag_menu_copy_translation">Çeviriyi kopyala</string>
+    <string name="v3_tag_menu_mute">Bu etiketi engelle</string>
 </resources>
