@@ -239,7 +239,7 @@
         <receiver
             android:name="ceui.pixiv.widget.DailyRankStripWidgetProvider"
             android:exported="false"
-            android:label="@string/v3_widget_spotlight_label">
+            android:label="@string/v3_widget_daily_rank_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -252,7 +252,7 @@
         <receiver
             android:name="ceui.pixiv.widget.RecommendStripWidgetProvider"
             android:exported="false"
-            android:label="@string/v3_widget_spotlight_label">
+            android:label="@string/v3_widget_recommend_strip_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

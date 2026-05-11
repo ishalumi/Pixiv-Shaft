@@ -111,7 +111,10 @@
   <string name="v3_widget_loading_author">少々お待ちください</string>
   <string name="v3_widget_login_required">ログインしておすすめを表示</string>
   <string name="v3_widget_failed">読み込めませんでした。後で再試行</string>
+  <string name="v3_widget_spotlight_label">Pixiv おすすめ・大</string>
+  <string name="v3_widget_daily_rank_label">Pixiv デイリー</string>
   <string name="v3_widget_daily_rank_description">Pixiv デイリー・Top 3</string>
+  <string name="v3_widget_recommend_strip_label">Pixiv おすすめ 3 枚</string>
   <string name="v3_widget_recommend_strip_description">Pixiv おすすめ・3 枚</string>
   <string name="novel_tag">小説のタグ</string>
   <string name="hot_tag">人気のタグ</string>  

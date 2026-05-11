@@ -111,7 +111,10 @@
   <string name="v3_widget_loading_author">Bir saniye</string>
   <string name="v3_widget_login_required">Önerileri görmek için oturum aç</string>
   <string name="v3_widget_failed">Yüklenemedi, daha sonra tekrar dene</string>
+  <string name="v3_widget_spotlight_label">Pixiv Öneri · Büyük</string>
+  <string name="v3_widget_daily_rank_label">Pixiv Günlük</string>
   <string name="v3_widget_daily_rank_description">Pixiv Günlük · İlk 3</string>
+  <string name="v3_widget_recommend_strip_label">Pixiv Öneri ×3</string>
   <string name="v3_widget_recommend_strip_description">Pixiv Öneri · 3 eser</string>
   <string name="novel_tag">Roman Etiketleri</string>
   <string name="hot_tag">Popüler Etiketler</string>  
