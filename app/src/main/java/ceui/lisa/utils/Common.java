@@ -518,7 +518,7 @@ public class Common {
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
             fileOutputStream.close();
-            return FileProvider.getUriForFile(Utils.getApp(), "ceui.lisa.pixiv.provider", file);
+            return FileProvider.getUriForFile(Utils.getApp(), Utils.getApp().getPackageName() + ".provider", file);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
