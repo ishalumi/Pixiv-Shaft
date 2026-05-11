@@ -1,6 +1,9 @@
 package ceui.pixiv.ui.novel
 
+import android.content.ActivityNotFoundException
+import android.net.Uri
 import android.widget.TextView
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.view.isVisible
 import ceui.lisa.R
 import ceui.lisa.annotations.ItemHolder
@@ -61,13 +64,15 @@ class NovelProfileViewHolder(bd: CellNovelProfileBinding) :
             val name = user.name.orEmpty()
             chip(binding.chipAuthor, R.string.novel_chip_author, name, name)
             chip(binding.chipAuthorId, R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
-            linkChip(binding.chipUserLink, R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
+            openLinkChip(binding.chipUserLink, R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
         } ?: run {
             binding.chipAuthor.isVisible = false
             binding.chipAuthorId.isVisible = false
             binding.chipUserLink.isVisible = false
         }
-        linkChip(binding.chipNovelLink, R.string.novel_chip_novel_link, NOVEL_URL_HEAD + novel.id)
+        val novelUrl = NOVEL_URL_HEAD + novel.id
+        linkChip(binding.chipNovelLink, R.string.novel_chip_novel_link, novelUrl)
+        openLinkChip(binding.chipOpenNovelLink, R.string.novel_chip_open_novel_link, novelUrl)
     }
 
     private fun chip(view: TextView, labelRes: Int, displayValue: String, copyValue: String) {
@@ -80,5 +85,17 @@ class NovelProfileViewHolder(bd: CellNovelProfileBinding) :
         view.text = context.getString(labelRes)
         view.isVisible = true
         view.setOnClick { Common.copy(context, url) }
+    }
+
+    private fun openLinkChip(view: TextView, labelRes: Int, url: String) {
+        view.text = context.getString(labelRes)
+        view.isVisible = true
+        view.setOnClick {
+            try {
+                CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+            } catch (_: ActivityNotFoundException) {
+                Common.showToast("未找到浏览器")
+            }
+        }
     }
 }

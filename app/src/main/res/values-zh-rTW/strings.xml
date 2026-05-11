@@ -1089,9 +1089,11 @@
     <string name="novel_chip_total_view">瀏覽  %1$s</string>
     <string name="novel_chip_total_bookmarks">收藏  %1$s</string>
     <string name="novel_chip_novel_link">作品連結</string>
-    <string name="novel_chip_user_link">作者主頁</string>
+    <string name="novel_chip_open_novel_link">開啟作品連結</string>
+    <string name="novel_chip_user_link">開啟作者主頁</string>
     <string name="novel_chip_series_id">系列ID  %1$s</string>
     <string name="novel_chip_series_link">系列連結</string>
+    <string name="novel_chip_open_series_link">開啟系列連結</string>
     <string name="novel_chip_series_content_count">章節數  %1$s</string>
     <string name="novel_chip_series_char_count">總字數  %1$s</string>
 

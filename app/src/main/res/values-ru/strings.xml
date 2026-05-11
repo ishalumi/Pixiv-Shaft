@@ -976,9 +976,11 @@
     <string name="novel_chip_total_view">Просмотры  %1$s</string>
     <string name="novel_chip_total_bookmarks">В избранном  %1$s</string>
     <string name="novel_chip_novel_link">Ссылка на работу</string>
-    <string name="novel_chip_user_link">Страница автора</string>
+    <string name="novel_chip_open_novel_link">Открыть ссылку</string>
+    <string name="novel_chip_user_link">Открыть страницу автора</string>
     <string name="novel_chip_series_id">ID серии  %1$s</string>
     <string name="novel_chip_series_link">Ссылка на серию</string>
+    <string name="novel_chip_open_series_link">Открыть ссылку</string>
     <string name="novel_chip_series_content_count">Глав  %1$s</string>
     <string name="novel_chip_series_char_count">Всего знаков  %1$s</string>
 

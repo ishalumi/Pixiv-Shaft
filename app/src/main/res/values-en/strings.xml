@@ -1043,9 +1043,11 @@
     <string name="novel_chip_total_view">Views  %1$s</string>
     <string name="novel_chip_total_bookmarks">Bookmarks  %1$s</string>
     <string name="novel_chip_novel_link">Novel link</string>
-    <string name="novel_chip_user_link">Author page</string>
+    <string name="novel_chip_open_novel_link">Open novel link</string>
+    <string name="novel_chip_user_link">Open author page</string>
     <string name="novel_chip_series_id">Series ID  %1$s</string>
     <string name="novel_chip_series_link">Series link</string>
+    <string name="novel_chip_open_series_link">Open series link</string>
     <string name="novel_chip_series_content_count">Chapters  %1$s</string>
     <string name="novel_chip_series_char_count">Total length  %1$s</string>
 

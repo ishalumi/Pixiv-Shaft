@@ -1075,9 +1075,11 @@
     <string name="novel_chip_total_view">閲覧数  %1$s</string>
     <string name="novel_chip_total_bookmarks">ブックマーク  %1$s</string>
     <string name="novel_chip_novel_link">作品リンク</string>
-    <string name="novel_chip_user_link">作者ページ</string>
+    <string name="novel_chip_open_novel_link">作品リンクを開く</string>
+    <string name="novel_chip_user_link">作者ページを開く</string>
     <string name="novel_chip_series_id">シリーズID  %1$s</string>
     <string name="novel_chip_series_link">シリーズリンク</string>
+    <string name="novel_chip_open_series_link">シリーズリンクを開く</string>
     <string name="novel_chip_series_content_count">話数  %1$s</string>
     <string name="novel_chip_series_char_count">総文字数  %1$s</string>
 

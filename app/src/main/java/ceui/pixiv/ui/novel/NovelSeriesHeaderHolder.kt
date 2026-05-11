@@ -1,7 +1,10 @@
 package ceui.pixiv.ui.novel
 
+import android.content.ActivityNotFoundException
 import android.content.res.ColorStateList
+import android.net.Uri
 import android.widget.TextView
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import ceui.lisa.R
@@ -159,7 +162,7 @@ class NovelSeriesProfileViewHolder(bd: CellNovelSeriesProfileBinding) :
             chip(binding.chipAuthor, R.string.novel_chip_author, name, name)
             chip(binding.chipAuthorId, R.string.novel_chip_author_id,
                 user.id.toString(), user.id.toString())
-            linkChip(binding.chipUserLink, R.string.novel_chip_user_link,
+            openLinkChip(binding.chipUserLink, R.string.novel_chip_user_link,
                 ShareIllust.USER_URL_Head + user.id)
         } ?: run {
             binding.chipAuthor.isVisible = false
@@ -178,8 +181,9 @@ class NovelSeriesProfileViewHolder(bd: CellNovelSeriesProfileBinding) :
         } else {
             binding.chipCharCount.isVisible = false
         }
-        linkChip(binding.chipSeriesLink, R.string.novel_chip_series_link,
-            "https://www.pixiv.net/novel/series/${series.id}")
+        val seriesUrl = "https://www.pixiv.net/novel/series/${series.id}"
+        linkChip(binding.chipSeriesLink, R.string.novel_chip_series_link, seriesUrl)
+        openLinkChip(binding.chipOpenSeriesLink, R.string.novel_chip_open_series_link, seriesUrl)
     }
 
     private fun chip(view: TextView, labelRes: Int, displayValue: String, copyValue: String) {
@@ -192,6 +196,18 @@ class NovelSeriesProfileViewHolder(bd: CellNovelSeriesProfileBinding) :
         view.text = context.getString(labelRes)
         view.isVisible = true
         view.setOnClick { Common.copy(context, url) }
+    }
+
+    private fun openLinkChip(view: TextView, labelRes: Int, url: String) {
+        view.text = context.getString(labelRes)
+        view.isVisible = true
+        view.setOnClick {
+            try {
+                CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+            } catch (_: ActivityNotFoundException) {
+                Common.showToast("未找到浏览器")
+            }
+        }
     }
 }
 

@@ -188,6 +188,11 @@
                         tools:text="作品链接" />
 
                     <TextView
+                        android:id="@+id/chip_open_novel_link"
+                        style="@style/NovelInfoChip"
+                        tools:text="打开作品链接" />
+
+                    <TextView
                         android:id="@+id/chip_user_link"
                         style="@style/NovelInfoChip"
                         tools:text="作者主页" />

@@ -974,9 +974,11 @@
     <string name="novel_chip_total_view">Görüntülenme  %1$s</string>
     <string name="novel_chip_total_bookmarks">Favori  %1$s</string>
     <string name="novel_chip_novel_link">Eser bağlantısı</string>
-    <string name="novel_chip_user_link">Yazar sayfası</string>
+    <string name="novel_chip_open_novel_link">Eser bağlantısını aç</string>
+    <string name="novel_chip_user_link">Yazar sayfasını aç</string>
     <string name="novel_chip_series_id">Seri ID  %1$s</string>
     <string name="novel_chip_series_link">Seri bağlantısı</string>
+    <string name="novel_chip_open_series_link">Seri bağlantısını aç</string>
     <string name="novel_chip_series_content_count">Bölüm sayısı  %1$s</string>
     <string name="novel_chip_series_char_count">Toplam karakter  %1$s</string>
 
