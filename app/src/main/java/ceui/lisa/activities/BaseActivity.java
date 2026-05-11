@@ -24,6 +24,8 @@ import ceui.lisa.R;
 import ceui.lisa.interfaces.FeedBack;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Local;
+import ceui.pixiv.download.DownloadsRegistry;
+import ceui.pixiv.download.config.StorageChoice;
 
 
 public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCompatActivity {
@@ -142,16 +144,28 @@ public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCo
                 return;
             }
             Uri treeUri = data.getData();
-            if (treeUri != null) {
-                Common.showLog(className + "onActivityResult " + treeUri.toString());
-                Shaft.sSettings.setRootPathUri(treeUri.toString());
+            if (treeUri == null) {
+                return;
+            }
+            Common.showLog(className + "onActivityResult " + treeUri.toString());
+            Shaft.sSettings.setRootPathUri(treeUri.toString());
+            Local.setSettings(Shaft.sSettings);
+            try {
                 final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
                         | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
-                mContext.getContentResolver().takePersistableUriPermission(treeUri,takeFlags);
-                Common.showToast("授权成功！");
-                Local.setSettings(Shaft.sSettings);
-                doAfterGranted();
+                mContext.getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
+            } catch (SecurityException ignored) {
+                // 某些 OEM 给了 tree URI 但拒绝持久化授权，本次会话内仍可用，不卡死流程。
             }
+            // 把全局存储拨到 SAF；之前 FragmentSettings 在 setFeedBack 里干这件事，
+            // 但 Activity 被回收时回调丢失，落库不完整。抬到 Activity 层后保证一定执行。
+            try {
+                DownloadsRegistry.applyGlobalStorage(new StorageChoice.Saf(treeUri));
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+            Common.showToast(getString(R.string.saf_grant_success));
+            doAfterGranted();
         }
     }
 

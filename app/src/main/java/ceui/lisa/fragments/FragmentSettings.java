@@ -1,7 +1,6 @@
 package ceui.lisa.fragments;
 
 import android.Manifest;
-import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
@@ -16,8 +15,6 @@ import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.databinding.DataBindingUtil;
 
 import java.io.File;
@@ -76,16 +73,6 @@ import static ceui.lisa.helper.ThemeHelper.ThemeType.LIGHT_MODE;
 
 
 public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
-
-    private ActivityResultLauncher<Uri> mSafPickerLauncher;
-
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        mSafPickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.OpenDocumentTree(),
-                this::onSafTreePicked);
-    }
 
     @Override
     public void initLayout() {
@@ -977,7 +964,27 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                                         new StorageChoice.MediaStore(StorageChoice.MediaStore.Collection.Downloads));
                                 refreshStorageLabel();
                             } else {
-                                launchSafPicker();
+                                // SAF：走 legacy Activity.startActivityForResult。
+                                // 之前用 AndroidX 的 registerForActivityResult，在 vivo OriginOS (iQOO 13
+                                // 实测) 上 picker 选完根本投递不回 fragment 的回调 —— 厂商定制的
+                                // DocumentsUI 走不通 ActivityResultRegistry 那条路。BaseActivity#onActivityResult
+                                // 的 ASK_URI 分支负责落 URI、拿 persistable 权限、applyGlobalStorage、toast；
+                                // 这边的 label 在 onResume 里再刷一次。
+                                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                                        && !TextUtils.isEmpty(Shaft.sSettings.getRootPathUri())) {
+                                    try {
+                                        intent.putExtra(EXTRA_INITIAL_URI,
+                                                Uri.parse(Shaft.sSettings.getRootPathUri()));
+                                    } catch (Exception ignored) {
+                                    }
+                                }
+                                try {
+                                    mActivity.startActivityForResult(intent, BaseActivity.ASK_URI);
+                                } catch (Exception e) {
+                                    // 部分精简 ROM 不带 DocumentsUI。
+                                    Common.showToast(getString(R.string.saf_no_file_picker), true);
+                                }
                             }
                         })
                         .show();
@@ -1557,47 +1564,12 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         baseBind.storageChoice.setText(storageNames()[currentStorageIndex()]);
     }
 
-    private void launchSafPicker() {
-        Uri hint = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            String existing = Shaft.sSettings.getRootPathUri();
-            if (!TextUtils.isEmpty(existing)) {
-                try {
-                    hint = Uri.parse(existing);
-                } catch (Exception ignored) {
-                }
-            }
-        }
-        try {
-            mSafPickerLauncher.launch(hint);
-        } catch (ActivityNotFoundException e) {
-            // 部分精简 ROM 不带 DocumentsUI，裸调 launch 会把进程带走。
-            Common.showToast(getString(R.string.saf_no_file_picker), true);
-        }
-    }
-
-    private void onSafTreePicked(@Nullable Uri treeUri) {
-        if (!isAdded() || baseBind == null) return;
-        if (treeUri == null) return;
-        try {
-            int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
-            requireContext().getContentResolver()
-                    .takePersistableUriPermission(treeUri, takeFlags);
-        } catch (SecurityException ignored) {
-            // 某些 OEM 给了 tree URI 但拒绝持久化授权，本次会话内仍可用，不要卡死流程。
-        }
-        Shaft.sSettings.setRootPathUri(treeUri.toString());
-        Local.setSettings(Shaft.sSettings);
-        DownloadsRegistry.applyGlobalStorage(new StorageChoice.Saf(treeUri));
-        refreshStorageLabel();
-        Common.showToast(getString(R.string.saf_grant_success));
-    }
-
     @Override
     public void onResume() {
         super.onResume();
         updateModelStatus();
+        // SAF picker 在 BaseActivity#onActivityResult 落库后，回到 fragment 时把 label 拉到现态。
+        refreshStorageLabel();
     }
 
     private void updateModelStatus() {
