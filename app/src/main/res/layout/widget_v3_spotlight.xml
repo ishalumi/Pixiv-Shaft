@@ -13,8 +13,8 @@
         android:layout_height="match_parent"
         android:layout_weight="45"
         android:background="@drawable/v3_widget_cover_placeholder"
-        android:contentDescription="@string/v3_widget_spotlight_label"
-        android:scaleType="centerCrop" />
+        android:contentDescription="@null"
+        android:scaleType="fitXY" />
 
     <LinearLayout
         android:layout_width="0dp"

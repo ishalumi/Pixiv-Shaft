@@ -106,10 +106,11 @@ class SpotlightWidgetWorker(
         val widthPx = (widthDp * density).toInt().coerceAtLeast((220 * density).toInt())
         val heightPx = (heightDp * density).toInt().coerceAtLeast((100 * density).toInt())
 
-        // Hard pixel cap: bitmap travels through the RemoteViews IPC, which has a
-        // ~2 MB transaction limit. 540×540 ARGB_8888 ≈ 1.16 MB, leaving headroom
-        // for avatar. Going by dp blew the budget on xxxhdpi devices.
-        val coverWidthPx = (widthPx * 0.45f - 24 * density).toInt()
+        // ImageView size: card padding 12dp × 2 + 12dp gap between cover and column,
+        // cover takes 45/100 weight. Match the bitmap to that exact size so fitXY
+        // doesn't stretch (and the pre-baked rounded corners survive).
+        // Hard pixel cap: 2 MB IPC budget — 540×540 ARGB_8888 ≈ 1.16 MB.
+        val coverWidthPx = ((widthPx - 36 * density) * 0.45f).toInt()
             .coerceIn(180, 540)
         val coverHeightPx = (heightPx - 24 * density).toInt()
             .coerceIn(180, 540)

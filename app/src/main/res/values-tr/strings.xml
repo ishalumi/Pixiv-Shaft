@@ -106,7 +106,6 @@
   <string name="recommend_illust">Önerilen eserler</string>
   <string name="recommend_novel">Önerilen Romanlar</string>
 
-  <string name="v3_widget_spotlight_label">Pixiv Öne Çıkan</string>
   <string name="v3_widget_spotlight_description">Düzenli olarak yenilenen önerilen bir eser</string>
   <string name="v3_widget_loading_title">Bir eser seçiliyor…</string>
   <string name="v3_widget_loading_author">Bir saniye</string>

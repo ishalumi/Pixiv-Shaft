@@ -106,7 +106,6 @@
   <string name="recommend_illust">Recommended works</string>
   <string name="recommend_novel">Recommended Novels</string>
 
-  <string name="v3_widget_spotlight_label">Pixiv Spotlight</string>
   <string name="v3_widget_spotlight_description">A hand-picked recommendation refreshed periodically</string>
   <string name="v3_widget_loading_title">Picking an artwork…</string>
   <string name="v3_widget_loading_author">Just a moment</string>

@@ -97,7 +97,6 @@
   <string name="download_manager">下載管理</string>
   <string name="recommend_illust">推薦作品</string>
 
-  <string name="v3_widget_spotlight_label">Pixiv 推薦</string>
   <string name="v3_widget_spotlight_description">定期為你挑選一張推薦作品</string>
   <string name="v3_widget_loading_title">正在挑選作品…</string>
   <string name="v3_widget_loading_author">稍候片刻</string>

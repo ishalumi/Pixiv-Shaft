@@ -106,7 +106,6 @@
   <string name="recommend_illust">추천 작품</string>
   <string name="recommend_novel">추천 소설</string>
 
-  <string name="v3_widget_spotlight_label">Pixiv 추천</string>
   <string name="v3_widget_spotlight_description">주기적으로 추천 작품을 골라드립니다</string>
   <string name="v3_widget_loading_title">작품을 고르는 중…</string>
   <string name="v3_widget_loading_author">잠시만 기다려 주세요</string>

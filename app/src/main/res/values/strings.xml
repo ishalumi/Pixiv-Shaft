@@ -114,7 +114,7 @@
     <string name="recommend_novel">推荐小说</string>
 
     <!-- V3 Spotlight 小组件 -->
-    <string name="v3_widget_spotlight_label">Pixiv 推荐</string>
+    <string name="v3_widget_spotlight_label" translatable="false"> </string>
     <string name="v3_widget_spotlight_description">每隔一段时间为你挑一张推荐作品</string>
     <string name="v3_widget_loading_title">正在挑选作品…</string>
     <string name="v3_widget_loading_author">稍候片刻</string>

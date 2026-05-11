@@ -106,7 +106,6 @@
   <string name="recommend_illust">рекомендовать произведение</string>
   <string name="recommend_novel">рекомендательный роман</string>
 
-  <string name="v3_widget_spotlight_label">Pixiv: подборка</string>
   <string name="v3_widget_spotlight_description">Подборка рекомендованных работ, обновляемая регулярно</string>
   <string name="v3_widget_loading_title">Выбираем работу…</string>
   <string name="v3_widget_loading_author">Минутку</string>
