@@ -17,7 +17,6 @@ import ceui.lisa.http.Retro
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
-import ceui.lisa.utils.V3Palette
 import ceui.pixiv.session.SessionManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
@@ -40,12 +39,9 @@ class SpotlightWidgetWorker(
         )
         if (widgetIds.isEmpty()) return Result.success()
 
-        val palette = V3Palette.from(context)
-
         if (SessionManager.getBearerTokenOrEmpty().isEmpty()) {
             widgetIds.forEach {
-                renderEmpty(manager, it, palette,
-                    context.getString(R.string.v3_widget_login_required))
+                renderEmpty(manager, it, context.getString(R.string.v3_widget_login_required))
             }
             return Result.success()
         }
@@ -65,14 +61,13 @@ class SpotlightWidgetWorker(
 
         if (illust == null) {
             widgetIds.forEach {
-                renderEmpty(manager, it, palette,
-                    context.getString(R.string.v3_widget_failed))
+                renderEmpty(manager, it, context.getString(R.string.v3_widget_failed))
             }
             return Result.retry()
         }
 
         for (widgetId in widgetIds) {
-            renderIllust(manager, widgetId, palette, illust)
+            renderIllust(manager, widgetId, illust)
         }
         return Result.success()
     }
@@ -80,7 +75,6 @@ class SpotlightWidgetWorker(
     private fun renderEmpty(
         manager: AppWidgetManager,
         widgetId: Int,
-        palette: V3Palette,
         message: String,
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_v3_spotlight)
@@ -88,7 +82,6 @@ class SpotlightWidgetWorker(
         views.setTextViewText(R.id.widget_author_name, "")
         views.setTextViewText(R.id.widget_bookmark_count, "—")
         views.setTextViewText(R.id.widget_view_count, "—")
-        applyPaletteAccents(views, palette)
 
         val openApp = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -98,18 +91,12 @@ class SpotlightWidgetWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_root, openPi)
-
-        views.setOnClickPendingIntent(
-            R.id.widget_refresh_btn,
-            SpotlightWidgetProvider.refreshPendingIntent(context, widgetId)
-        )
         manager.updateAppWidget(widgetId, views)
     }
 
     private suspend fun renderIllust(
         manager: AppWidgetManager,
         widgetId: Int,
-        palette: V3Palette,
         illust: IllustsBean,
     ) {
         val opts = manager.getAppWidgetOptions(widgetId)
@@ -121,13 +108,13 @@ class SpotlightWidgetWorker(
 
         // Hard pixel cap: bitmap travels through the RemoteViews IPC, which has a
         // ~2 MB transaction limit. 540×540 ARGB_8888 ≈ 1.16 MB, leaving headroom
-        // for avatar + state. Going by dp blew the budget on xxxhdpi devices.
-        val coverWidthPx = (widthPx * 0.42f - 28 * density).toInt()
+        // for avatar. Going by dp blew the budget on xxxhdpi devices.
+        val coverWidthPx = (widthPx * 0.45f - 24 * density).toInt()
             .coerceIn(180, 540)
-        val coverHeightPx = (heightPx - 64 * density).toInt()
+        val coverHeightPx = (heightPx - 24 * density).toInt()
             .coerceIn(180, 540)
         val coverRadiusPx = (20 * density).toInt()
-        val avatarPx = (18 * density).toInt().coerceAtMost(72)
+        val avatarPx = (20 * density).toInt().coerceAtMost(72)
 
         val cover = withContext(Dispatchers.IO) {
             try {
@@ -165,8 +152,6 @@ class SpotlightWidgetWorker(
         cover?.let { views.setImageViewBitmap(R.id.widget_cover, it) }
         avatar?.let { views.setImageViewBitmap(R.id.widget_author_avatar, it) }
 
-        applyPaletteAccents(views, palette)
-
         val openIntent = Intent(context, VActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             val pageData = PageData(listOf(illust))
@@ -181,21 +166,7 @@ class SpotlightWidgetWorker(
         )
         views.setOnClickPendingIntent(R.id.widget_root, openPi)
 
-        views.setOnClickPendingIntent(
-            R.id.widget_refresh_btn,
-            SpotlightWidgetProvider.refreshPendingIntent(context, widgetId)
-        )
-
         manager.updateAppWidget(widgetId, views)
-    }
-
-    private fun applyPaletteAccents(views: RemoteViews, palette: V3Palette) {
-        // setBackgroundColor replaces the drawable with a flat ColorDrawable —
-        // fine here because the line is only 2dp tall (rounded corners invisible).
-        views.setInt(R.id.widget_accent_line, "setBackgroundColor", palette.alpha60)
-        // Both targets are ImageView; setColorFilter is a @RemotableViewMethod.
-        views.setInt(R.id.widget_accent_dot, "setColorFilter", palette.primary)
-        views.setInt(R.id.widget_refresh_btn, "setColorFilter", palette.textAccent)
     }
 
     private fun formatCount(value: Int): String {

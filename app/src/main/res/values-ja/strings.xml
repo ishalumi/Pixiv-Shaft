@@ -112,8 +112,7 @@
   <string name="v3_widget_loading_author">少々お待ちください</string>
   <string name="v3_widget_login_required">ログインしておすすめを表示</string>
   <string name="v3_widget_failed">読み込めませんでした。後で再試行</string>
-  <string name="v3_widget_refresh">更新</string>
-  <string name="novel_tag">小説のタグ</string>  
+  <string name="novel_tag">小説のタグ</string>
   <string name="hot_tag">人気のタグ</string>  
   <string name="ranking_illust">ランキング</string>  
   <string name="see_more">もっと見る</string>  

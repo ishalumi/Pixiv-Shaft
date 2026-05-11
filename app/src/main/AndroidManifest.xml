@@ -225,7 +225,6 @@
             android:label="@string/v3_widget_spotlight_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="ceui.pixiv.widget.action.SPOTLIGHT_REFRESH" />
             </intent-filter>
 
             <meta-data

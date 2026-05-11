@@ -112,8 +112,7 @@
   <string name="v3_widget_loading_author">Just a moment</string>
   <string name="v3_widget_login_required">Sign in to see recommendations</string>
   <string name="v3_widget_failed">Couldn\'t load — try again later</string>
-  <string name="v3_widget_refresh">Refresh</string>
-  <string name="novel_tag">Novel tags</string>  
+  <string name="novel_tag">Novel tags</string>
   <string name="hot_tag">Popular Tags</string>  
   <string name="ranking_illust">Popular</string>  
   <string name="see_more">see more</string>  

@@ -103,7 +103,6 @@
   <string name="v3_widget_loading_author">稍候片刻</string>
   <string name="v3_widget_login_required">登入後查看推薦</string>
   <string name="v3_widget_failed">暫時無法載入，稍後再試</string>
-  <string name="v3_widget_refresh">重新整理</string>
 
   <string name="hot_tag">熱門標籤</string>
   <string name="ranking_illust">排行榜</string>

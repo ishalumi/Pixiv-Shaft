@@ -120,7 +120,6 @@
     <string name="v3_widget_loading_author">稍候片刻</string>
     <string name="v3_widget_login_required">登录后查看推荐</string>
     <string name="v3_widget_failed">暂时无法加载，稍后再试</string>
-    <string name="v3_widget_refresh">刷新</string>
     <string name="novel_tag">小说标签</string>
     <string name="hot_tag">热门标签</string>
     <string name="ranking_illust">排行榜</string>

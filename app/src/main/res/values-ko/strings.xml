@@ -112,8 +112,7 @@
   <string name="v3_widget_loading_author">잠시만 기다려 주세요</string>
   <string name="v3_widget_login_required">로그인 후 추천을 확인할 수 있습니다</string>
   <string name="v3_widget_failed">불러올 수 없습니다. 잠시 후 다시 시도하세요</string>
-  <string name="v3_widget_refresh">새로 고침</string>
-  <string name="novel_tag">소설 꼬리표</string>  
+  <string name="novel_tag">소설 꼬리표</string>
   <string name="hot_tag">인기 태그</string>  
   <string name="ranking_illust">순위표</string>  
   <string name="see_more">더 보기</string>  
