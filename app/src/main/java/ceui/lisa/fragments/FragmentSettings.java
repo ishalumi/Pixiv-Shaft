@@ -1360,6 +1360,10 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 intent.putExtra("manga_ocr_model_name", ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE.name());
                 startActivity(intent);
             });
+            bindLongPressDeleteModel(
+                    baseBind.ocrModelRela,
+                    ceui.pixiv.ui.translate.MangaOcrModelManager.INSTANCE,
+                    ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE);
         }
 
         // 翻译模型 (Sakura — ACG 日中翻译，漫画翻译和翻译 demo 都用它)
@@ -1370,6 +1374,10 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 intent.putExtra("sakura_model_name", ceui.pixiv.ui.translate.SakuraModel.SAKURA_1_5B.name());
                 startActivity(intent);
             });
+            bindLongPressDeleteModel(
+                    baseBind.translationModelRela,
+                    ceui.pixiv.ui.translate.SakuraModelManager.INSTANCE,
+                    ceui.pixiv.ui.translate.SakuraModel.SAKURA_1_5B);
         }
 
         // 缓存
@@ -1640,6 +1648,35 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 ? ceui.pixiv.ui.translate.SakuraModel.SAKURA_1_5B.getDisplayName()
                 : getString(R.string.string_model_not_ready,
                         ceui.pixiv.ui.translate.SakuraModel.SAKURA_1_5B.getSizeLabel()));
+    }
+
+    // 长按 Settings 模型行直接删除。未下载状态长按提示用户先下载；
+    // 已下载状态弹 QMUI 确认对话框，确认后删除并刷新右侧状态文字。
+    private void bindLongPressDeleteModel(View row,
+                                          ceui.pixiv.ui.common.ModelDownloadManager mgr,
+                                          ceui.pixiv.ui.common.DownloadableModel model) {
+        row.setOnLongClickListener(v -> {
+            if (mContext == null) return false;
+            if (!mgr.isModelReady(mContext, model)) {
+                Common.showToast(getString(R.string.string_rembg_model_long_press_to_delete));
+                return true;
+            }
+            new QMUIDialog.MessageDialogBuilder(getActivity())
+                    .setTitle(R.string.string_rembg_model_delete_confirm_title)
+                    .setMessage(getString(R.string.string_rembg_model_delete_confirm_message, model.getDisplayName()))
+                    .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                    .addAction(0, getString(R.string.string_cancel), QMUIDialogAction.ACTION_PROP_NEUTRAL,
+                            (d, i) -> d.dismiss())
+                    .addAction(0, getString(R.string.string_rembg_model_delete), QMUIDialogAction.ACTION_PROP_NEGATIVE,
+                            (d, i) -> {
+                                d.dismiss();
+                                mgr.deleteModel(mContext, model);
+                                updateModelStatus();
+                                Common.showToast(getString(R.string.string_rembg_model_delete_done, model.getDisplayName()));
+                            })
+                    .show();
+            return true;
+        });
     }
 
     @Override

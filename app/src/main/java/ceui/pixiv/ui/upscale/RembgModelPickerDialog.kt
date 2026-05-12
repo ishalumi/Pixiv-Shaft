@@ -14,6 +14,9 @@ import ceui.lisa.utils.Local
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.widgets.PixivDialog
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 
 class RembgModelPickerDialog : PixivDialog(R.layout.dialog_rembg_model_picker) {
 
@@ -36,6 +39,10 @@ class RembgModelPickerDialog : PixivDialog(R.layout.dialog_rembg_model_picker) {
 
         binding.cardIsnetAnime.setOnClick {
             selectModel(RembgModel.ISNET_ANIME)
+        }
+        binding.cardIsnetAnime.setOnLongClickListener {
+            promptDeleteIsnetAnime()
+            true
         }
 
         binding.cardU2netp.setOnClick {
@@ -72,6 +79,29 @@ class RembgModelPickerDialog : PixivDialog(R.layout.dialog_rembg_model_picker) {
             binding.isnetStatusBadge.setBackgroundResource(R.drawable.bg_rate_button_primary)
             binding.isnetStatusBadge.setTextColor(0xFFFFFFFF.toInt())
         }
+    }
+
+    private fun promptDeleteIsnetAnime() {
+        val ctx = context ?: return
+        val model = RembgModel.ISNET_ANIME
+        if (!RembgModelManager.isModelReady(ctx, model)) {
+            Common.showToast(getString(R.string.string_rembg_model_long_press_to_delete))
+            return
+        }
+        QMUIDialog.MessageDialogBuilder(ctx)
+            .setTitle(R.string.string_rembg_model_delete_confirm_title)
+            .setMessage(getString(R.string.string_rembg_model_delete_confirm_message, model.displayName))
+            .setSkinManager(QMUISkinManager.defaultInstance(ctx))
+            .addAction(0, getString(R.string.string_cancel), QMUIDialogAction.ACTION_PROP_NEUTRAL) { d, _ ->
+                d.dismiss()
+            }
+            .addAction(0, getString(R.string.string_rembg_model_delete), QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                RembgModelManager.deleteModel(ctx, model)
+                updateModelStatus()
+                Common.showToast(getString(R.string.string_rembg_model_delete_done, model.displayName))
+            }
+            .show()
     }
 
     private fun selectModel(model: RembgModel) {

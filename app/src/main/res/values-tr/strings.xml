@@ -1236,4 +1236,9 @@
     <string name="v3_tag_menu_copy_original">Etiketi kopyala</string>
     <string name="v3_tag_menu_copy_translation">Çeviriyi kopyala</string>
     <string name="v3_tag_menu_mute">Bu etiketi engelle</string>
+    <string name="string_rembg_model_delete">Modeli sil</string>
+    <string name="string_rembg_model_delete_confirm_title">Modeli sil</string>
+    <string name="string_rembg_model_delete_confirm_message">\"%1$s\" silinsin mi? İlgili özellikler kullanılamaz hale gelir ve bir sonraki kullanımda yeniden indirilmesi gerekir.</string>
+    <string name="string_rembg_model_delete_done">\"%1$s\" silindi</string>
+    <string name="string_rembg_model_long_press_to_delete">İndirilen modeli silmek için uzun basın</string>
 </resources>

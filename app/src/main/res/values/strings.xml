@@ -698,6 +698,11 @@
     <string name="string_rembg_model_cancel">取消下载</string>
     <string name="string_rembg_model_needs_download">需要下载</string>
     <string name="string_rembg_model_ready">已就绪</string>
+    <string name="string_rembg_model_delete">删除模型</string>
+    <string name="string_rembg_model_delete_confirm_title">删除模型</string>
+    <string name="string_rembg_model_delete_confirm_message">确认删除「%1$s」？相关功能将无法使用，下次使用需要重新下载。</string>
+    <string name="string_rembg_model_delete_done">已删除「%1$s」</string>
+    <string name="string_rembg_model_long_press_to_delete">长按可删除已下载的模型</string>
     <string name="string_translation_model_download_title">下载翻译模型</string>
     <string name="string_translation_model_download_subtitle">%1$s 需要额外下载才能使用离线翻译</string>
     <string name="string_translation_model_download_done">翻译模型下载完成</string>

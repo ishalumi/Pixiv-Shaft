@@ -1,11 +1,14 @@
 package ceui.pixiv.ui.common
 
 import androidx.annotation.StringRes
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentRembgModelDownloadBinding
 import ceui.lisa.fragments.SwipeFragment
 import ceui.pixiv.utils.setOnClick
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.scwang.smart.refresh.layout.SmartRefreshLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -85,6 +88,7 @@ abstract class ModelDownloadFragment : SwipeFragment<FragmentRembgModelDownloadB
         baseBind.btnPrimary.visibility = android.view.View.GONE
         baseBind.btnSecondary.visibility = android.view.View.VISIBLE
         baseBind.btnSecondary.text = getString(R.string.string_rembg_model_cancel)
+        applyDefaultSecondaryColor()
         baseBind.btnSecondary.setOnClick { cancelDownload() }
     }
 
@@ -101,7 +105,43 @@ abstract class ModelDownloadFragment : SwipeFragment<FragmentRembgModelDownloadB
         baseBind.btnPrimary.text = getString(R.string.string_rembg_model_start_use)
         baseBind.btnPrimary.setOnClick { activity?.finish() }
 
-        baseBind.btnSecondary.visibility = android.view.View.GONE
+        baseBind.btnSecondary.visibility = android.view.View.VISIBLE
+        baseBind.btnSecondary.text = getString(R.string.string_rembg_model_delete)
+        baseBind.btnSecondary.setTextColor(
+            ContextCompat.getColor(requireContext(), R.color.buttonTextRed)
+        )
+        baseBind.btnSecondary.setOnClick { confirmDeleteModel() }
+    }
+
+    private fun applyDefaultSecondaryColor() {
+        val ctx = context ?: return
+        baseBind.btnSecondary.setTextColor(
+            ContextCompat.getColor(ctx, R.color.secondary_text_color)
+        )
+    }
+
+    private fun confirmDeleteModel() {
+        val ctx = context ?: return
+        QMUIDialog.MessageDialogBuilder(ctx)
+            .setTitle(R.string.string_rembg_model_delete_confirm_title)
+            .setMessage(getString(R.string.string_rembg_model_delete_confirm_message, model.displayName))
+            .addAction(0, getString(R.string.string_cancel), QMUIDialogAction.ACTION_PROP_NEUTRAL) { d, _ ->
+                d.dismiss()
+            }
+            .addAction(0, getString(R.string.string_rembg_model_delete), QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                deleteModelAndReset()
+            }
+            .show()
+    }
+
+    private fun deleteModelAndReset() {
+        downloadJob?.cancel()
+        downloadJob = null
+        val ctx = context ?: return
+        getManager().deleteModel(ctx, model)
+        if (!isAdded || view == null) return
+        showInitState()
     }
 
     private fun showErrorState() {
@@ -116,6 +156,7 @@ abstract class ModelDownloadFragment : SwipeFragment<FragmentRembgModelDownloadB
 
         baseBind.btnSecondary.visibility = android.view.View.VISIBLE
         baseBind.btnSecondary.text = getString(R.string.string_cancel)
+        applyDefaultSecondaryColor()
         baseBind.btnSecondary.setOnClick { activity?.finish() }
     }
 

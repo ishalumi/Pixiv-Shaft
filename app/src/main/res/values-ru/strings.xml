@@ -1238,4 +1238,9 @@
     <string name="v3_tag_menu_copy_original">Скопировать тег</string>
     <string name="v3_tag_menu_copy_translation">Скопировать перевод</string>
     <string name="v3_tag_menu_mute">Заблокировать тег</string>
+    <string name="string_rembg_model_delete">Удалить модель</string>
+    <string name="string_rembg_model_delete_confirm_title">Удалить модель</string>
+    <string name="string_rembg_model_delete_confirm_message">Удалить «%1$s»? Связанные функции перестанут работать, и при следующем использовании модель придётся скачать заново.</string>
+    <string name="string_rembg_model_delete_done">«%1$s» удалено</string>
+    <string name="string_rembg_model_long_press_to_delete">Долгое нажатие удаляет загруженную модель</string>
 </resources>

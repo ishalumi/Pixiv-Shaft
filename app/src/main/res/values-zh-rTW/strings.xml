@@ -1351,4 +1351,9 @@
     <string name="v3_tag_menu_copy_original">複製 tag 原文</string>
     <string name="v3_tag_menu_copy_translation">複製 tag 譯文</string>
     <string name="v3_tag_menu_mute">封鎖此 tag</string>
+    <string name="string_rembg_model_delete">刪除模型</string>
+    <string name="string_rembg_model_delete_confirm_title">刪除模型</string>
+    <string name="string_rembg_model_delete_confirm_message">確認刪除「%1$s」？相關功能將無法使用，下次使用需要重新下載。</string>
+    <string name="string_rembg_model_delete_done">已刪除「%1$s」</string>
+    <string name="string_rembg_model_long_press_to_delete">長按可刪除已下載的模型</string>
 </resources>

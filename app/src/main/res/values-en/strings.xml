@@ -1332,4 +1332,9 @@
     <string name="v3_tag_menu_copy_original">Copy tag name</string>
     <string name="v3_tag_menu_copy_translation">Copy translation</string>
     <string name="v3_tag_menu_mute">Mute this tag</string>
+    <string name="string_rembg_model_delete">Delete model</string>
+    <string name="string_rembg_model_delete_confirm_title">Delete model</string>
+    <string name="string_rembg_model_delete_confirm_message">Delete \"%1$s\"? Features that rely on it will stop working and you\'ll need to download it again next time.</string>
+    <string name="string_rembg_model_delete_done">\"%1$s\" deleted</string>
+    <string name="string_rembg_model_long_press_to_delete">Long-press to delete a downloaded model</string>
 </resources>
