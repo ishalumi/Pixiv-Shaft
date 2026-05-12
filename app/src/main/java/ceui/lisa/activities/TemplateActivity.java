@@ -10,6 +10,9 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import com.jaredrummler.android.colorpicker.ColorPickerDialogListener;
 
 import ceui.lisa.R;
@@ -94,6 +97,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
     public static final String EXTRA_KEYWORD = "keyword";
     protected Fragment childFragment;
     private String dataType;
+    // 阅读器消费过 ACTION_DOWN 的音量键 keyCode 集合，待配对吃掉对应 ACTION_UP (issue #874)。
+    // 用 Set 而非单个 int，是因为 VOL_UP / VOL_DOWN 可能近乎同时按下，单字段会被后者覆盖导致前者 UP 泄漏到系统。
+    private final Set<Integer> volumeKeysAwaitingUp = new HashSet<>(2);
 
     @Override
     protected void initBundle(Bundle bundle) {
@@ -415,22 +421,37 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
     }
 
     @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        // 音量键翻页：在 dispatchKeyEvent 这一最早入口拦截，避免 Android 16 / HyperOS 3+ 的
+        // 多应用音量面板在事件抵达 onKeyDown 之前就被 SystemUI 弹出 (issue #874)。
+        // 同时配对消费 ACTION_UP，防止部分 ROM 在 UP 时再次触发系统音量 UI。
+        final int keyCode = event.getKeyCode();
+        if (keyCode != KeyEvent.KEYCODE_VOLUME_UP && keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) {
+            return super.dispatchKeyEvent(event);
+        }
+        final int action = event.getAction();
+        if (action == KeyEvent.ACTION_DOWN) {
+            boolean handled = false;
+            if (childFragment instanceof NovelReaderV3Fragment) {
+                handled = ((NovelReaderV3Fragment) childFragment).handleVolumeKey(keyCode);
+            } else if (childFragment instanceof ComicReaderV3Fragment) {
+                handled = ((ComicReaderV3Fragment) childFragment).handleVolumeKey(keyCode);
+            }
+            if (handled) {
+                volumeKeysAwaitingUp.add(keyCode);
+                return true;
+            }
+        } else if (action == KeyEvent.ACTION_UP && volumeKeysAwaitingUp.remove(keyCode)) {
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (childFragment instanceof FragmentWebView) {
             return ((FragmentWebView) childFragment).getAgentWeb().handleKeyEvent(keyCode, event) ||
                     super.onKeyDown(keyCode, event);
-        }
-        if ((keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
-                && childFragment instanceof NovelReaderV3Fragment) {
-            if (((NovelReaderV3Fragment) childFragment).handleVolumeKey(keyCode)) {
-                return true;
-            }
-        }
-        if ((keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
-                && childFragment instanceof ComicReaderV3Fragment) {
-            if (((ComicReaderV3Fragment) childFragment).handleVolumeKey(keyCode)) {
-                return true;
-            }
         }
         return super.onKeyDown(keyCode, event);
     }
