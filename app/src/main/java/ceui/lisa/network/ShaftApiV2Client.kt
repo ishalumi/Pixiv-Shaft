@@ -1,5 +1,6 @@
 package ceui.lisa.network
 
+import ceui.lisa.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -9,7 +10,13 @@ import java.util.concurrent.TimeUnit
 
 object ShaftApiV2Client {
 
-    const val BASE_URL = "http://36.138.103.18:30009/"
+    // Same server as ShaftEventsClient — read endpoints (trending / health) ride
+    // the SHAFT_EVENTS_BASE_URL gradle property so custom builds pointing at a
+    // private server work without two separate overrides.
+    @JvmField val BASE_URL: String = run {
+        val raw = BuildConfig.SHAFT_EVENTS_BASE_URL
+        if (raw.endsWith('/')) raw else "$raw/"
+    }
 
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -17,7 +24,11 @@ object ShaftApiV2Client {
         .writeTimeout(15, TimeUnit.SECONDS)
         .addInterceptor(
             HttpLoggingInterceptor { Timber.tag("ShaftApiV2").i(it) }
-                .apply { level = HttpLoggingInterceptor.Level.BODY }
+                .apply {
+                    level = if (BuildConfig.IS_DEBUG_MODE)
+                        HttpLoggingInterceptor.Level.BODY
+                    else HttpLoggingInterceptor.Level.BASIC
+                }
         )
         .build()
 

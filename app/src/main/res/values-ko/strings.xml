@@ -1251,4 +1251,7 @@
     <string name="string_rembg_model_delete_confirm_message">「%1$s」을(를) 삭제하시겠습니까? 관련 기능을 사용할 수 없으며 다음에 사용하려면 다시 다운로드해야 합니다.</string>
     <string name="string_rembg_model_delete_done">「%1$s」을(를) 삭제했습니다</string>
     <string name="string_rembg_model_long_press_to_delete">길게 눌러 다운로드한 모델을 삭제할 수 있습니다</string>
+
+    <string name="experimental_section">실험적</string>
+    <string name="site_recommend">픽시브 추천</string>
 </resources>

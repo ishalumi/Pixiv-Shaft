@@ -1244,4 +1244,7 @@
     <string name="string_rembg_model_delete_confirm_message">Удалить «%1$s»? Связанные функции перестанут работать, и при следующем использовании модель придётся скачать заново.</string>
     <string name="string_rembg_model_delete_done">«%1$s» удалено</string>
     <string name="string_rembg_model_long_press_to_delete">Долгое нажатие удаляет загруженную модель</string>
+
+    <string name="experimental_section">Экспериментально</string>
+    <string name="site_recommend">Рекомендации Pixiv</string>
 </resources>

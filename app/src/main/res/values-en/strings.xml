@@ -1338,4 +1338,7 @@
     <string name="string_rembg_model_delete_confirm_message">Delete \"%1$s\"? Features that rely on it will stop working and you\'ll need to download it again next time.</string>
     <string name="string_rembg_model_delete_done">\"%1$s\" deleted</string>
     <string name="string_rembg_model_long_press_to_delete">Long-press to delete a downloaded model</string>
+
+    <string name="experimental_section">Experimental</string>
+    <string name="site_recommend">Featured by Pixiv</string>
 </resources>

@@ -25,6 +25,14 @@ public class ListNovel implements ListShow<NovelBean>, Serializable {
         this.ranking_novels = ranking_novels;
     }
 
+    public List<NovelBean> getNovels() {
+        return novels;
+    }
+
+    public void setNovels(List<NovelBean> novels) {
+        this.novels = novels;
+    }
+
     @Override
     public List<NovelBean> getList() {
         return novels;

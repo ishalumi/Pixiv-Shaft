@@ -378,6 +378,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             intent.putExtra(Params.URL, "https://www.pixiv.net/upload.php");
             intent.putExtra(Params.TITLE, getString(R.string.string_444));
             intent.putExtra(Params.PREFER_PRESERVE, true);
+        } else if (id == R.id.nav_site_recommend) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "站长推荐");
         }
         if (intent != null) {
             startActivity(intent);
