@@ -274,13 +274,18 @@ object QueueDownloadManager {
             try {
                 settleCompleted()
                 val didAdd = fillSlots()
-                // 只在真加了 P 时才 startAll —— ManagerReactive.contentFlow 桥到 tickle
-                // 后，每个 progress 1% 都会唤醒主循环；空跑也调 startAll 就是每秒做几百
-                // 次"全 content 扫描 + flip FAILED→INIT + pump"，纯 CPU 浪费，还会把
-                // settle 还没来得及 clearOne 的 FAILED P 短暂回弹到 INIT。
+                // 只在真加了 P 时才 trigger pump —— ManagerReactive.contentFlow 桥到
+                // tickle 后，每个 progress 1% 都会唤醒主循环；空跑也调一遍就是每秒做
+                // 几百次"全 content 扫描 + pump"，纯 CPU 浪费。
+                //
+                // triggerPump() 而不是 startAll()：startAll 会对 content 每条跑
+                // resurrectIfStranded，对刚 setState(DOWNLOADING) 但 handles.put 还在
+                // Schedulers.io→mainThread 异步队列里的 in-flight item 误判 stranded
+                // → 翻 INIT + nonius=0 → pump 又再 dispatch 一次（双 chain 抢同
+                // stage / UI 进度闪烁回弹）。
                 if (didAdd) {
-                    runCatching { Manager.get().startAll() }
-                        .onFailure { Timber.tag(TAG).w(it, "[QUEUE-CONSUMER] startAll failed") }
+                    runCatching { Manager.get().triggerPump() }
+                        .onFailure { Timber.tag(TAG).w(it, "[QUEUE-CONSUMER] triggerPump failed") }
                 }
             } catch (t: kotlinx.coroutines.CancellationException) {
                 throw t

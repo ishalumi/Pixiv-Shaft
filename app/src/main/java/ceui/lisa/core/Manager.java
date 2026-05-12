@@ -169,7 +169,9 @@ public class Manager {
                         + " dedupMs=" + dedupMs + " safeAddMs=" + safeAddMs);
             }
             if(DownloadLimitTypeUtil.startTaskWhenCreate()){
-                startAll();
+                // 见 triggerPump 的 javadoc —— addTask 是连续调用 hot path
+                // （fillSlots 一轮要 addTask N 次），绝不能走 startAll。
+                triggerPump();
             }
         }
         ManagerReactive.invalidate();
@@ -257,13 +259,14 @@ public class Manager {
             ManagerReactive.invalidate();
             AndroidSchedulers.mainThread().scheduleDirect(() -> {
                 if (DownloadLimitTypeUtil.startTaskWhenCreate()) {
-                    startAll();
+                    triggerPump();
                 }
             });
         });
     }
 
     public void startAll() {
+        Common.showLog("[DL-RACE] startAll (用户态 resume / 冷启动残留路径，走 resurrect)");
         if (!Common.isEmpty(content)) {
             for (DownloadItem item : content) {
                 item.setPaused(false);
@@ -275,6 +278,28 @@ public class Manager {
         // 自动驱动下一条；并发模式下需要每次都 pumpAvailableSlots() 来填满空闲槽位。
         pumpAvailableSlots();
         ManagerReactive.invalidate();
+    }
+
+    /**
+     * 内部 dispatch trigger —— 等价于 {@code isRunning = true; pumpAvailableSlots();}，
+     * 但 **不走 startAll 的 [resurrectIfStranded] 循环**。
+     *
+     * 用于"刚 addTask 一批 / fillSlots 末尾想 trigger pump"等场景：这时 content 里
+     * 可能有刚 [pumpAvailableSlots] 抢占式 setState(DOWNLOADING) 但 [startDownloadChain]
+     * 里 [handles].put(uuid) 还在 Schedulers.io → mainThread 异步排队中的 in-flight item。
+     * 走 startAll 会让 resurrectIfStranded 看到"DOWNLOADING && !handles.containsKey"
+     * 误判 stranded → setState(INIT) + setNonius(0) → pump 又把它当 INIT 挑出来再
+     * dispatch 一次，导致：
+     *   - 同 uuid 两条 Observable 抢同一个 stage 文件 / targetUri（实测出过两次 read-start）
+     *   - UI 进度一会儿前进一会儿回到 0% 闪烁
+     *
+     * 用户态 "全部继续" 按钮 / 冷启动 restore 后的残留清理仍然走 [startAll]——
+     * 那些场景 handles 是干净的（stopAll dispose 完或进程刚启动）不会撞到 race。
+     */
+    public synchronized void triggerPump() {
+        Common.showLog("[DL-RACE] triggerPump (addTask / QueueDownloadManager.didAdd 路径，无 resurrect)");
+        isRunning = true;
+        pumpAvailableSlots();
     }
 
     public void startOne(String uuid) {
@@ -317,14 +342,29 @@ public class Manager {
     private void resurrectIfStranded(DownloadItem item) {
         int s = item.getState();
         if (s == DownloadItem.DownloadState.FAILED) {
+            // FAILED→INIT 是预期 retry 路径，常态会触发；DEBUG 级别看就行
+            Common.showLog("[DL-RACE] resurrect FAILED→INIT uuid=" + item.getUuid()
+                    + " nonius=" + item.getNonius());
             item.setState(DownloadItem.DownloadState.INIT);
             return;
         }
         if (s == DownloadItem.DownloadState.DOWNLOADING
                 && !handles.containsKey(item.getUuid())) {
+            // 只翻状态。**不再** setNonius(0) / setCurrentSize(0) —— 来这里的两种场景：
+            //   - 用户 pause → resume：stage 文件仍在 cacheDir，下次 downloadOne 用
+            //     stageFile.length() 做 Range 头续传，第一个 chunk 进度直接回到原值
+            //     （比如 47%）。归零会让 UI 看到一瞬 "47% → 0% → 47%" 回弹（state
+            //     翻 INIT 时 progress bar GONE 不可见，但 pumpAvailableSlots 立刻翻回
+            //     DOWNLOADING，那一帧暴露的就是被归零的脏值，第一个 chunk callback
+            //     才会更新成真实续传位置）。
+            //   - 冷启动 restore 后 stranded：同理，stage 文件跨进程仍在。
+            // 481b06e0 当初归零是想"UI 不留进度残影"，但 ActiveListV3Fragment 在 INIT
+            // 状态 progress.visibility = GONE，根本不会显示残影；归零反而把脏值
+            // 暴露在 re-dispatch 后那一帧。
+            Common.showLog("[DL-RACE] resurrect DOWNLOADING→INIT uuid=" + item.getUuid()
+                    + " nonius=" + item.getNonius() + " currentSize=" + item.getCurrentSize()
+                    + " (preserving progress for stage-resume)");
             item.setState(DownloadItem.DownloadState.INIT);
-            item.setNonius(0);
-            item.setCurrentSize(0);
         }
     }
 
