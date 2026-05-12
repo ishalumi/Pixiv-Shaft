@@ -31,6 +31,8 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Local
 import ceui.lisa.utils.Params
+import ceui.pixiv.db.queue.QueueStatus
+import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -64,6 +66,9 @@ class DoneListV3Fragment : Fragment() {
 
     private val dao: DownloadDao by lazy {
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao()
+    }
+    private val queueDao by lazy {
+        AppDatabase.getAppDatabase(Shaft.getContext()).downloadQueueDao()
     }
     private val sharedVm: DownloadManagerSharedViewModel by activityViewModels()
     private val adapter = DoneAdapterV3(
@@ -115,6 +120,11 @@ class DoneListV3Fragment : Fragment() {
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { dao.deleteAllDownload() }
                         ManagerReactive.pokeDoneTable()
+                        // 已完成 tab 末尾的数字来自 download_queue 的 SUCCESS 行
+                        // (DownloadManagerSharedViewModel.queueSuccess),不是
+                        // illust_download_table。光删上面那张表,tab 数字不会变。
+                        runCatching { queueDao.deleteByStatus(QueueStatus.SUCCESS) }
+                        QueueDownloadManager.queueListInvalidations.tryEmit(Unit)
                     }
                 }
             }
