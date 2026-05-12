@@ -1360,4 +1360,14 @@
 
     <string name="experimental_section">試驗性</string>
     <string name="site_recommend">站長推薦</string>
+    <string name="event_history">操作記錄</string>
+    <string name="event_history_empty">尚無操作記錄</string>
+    <string name="event_history_copy_client_id">複製本機指紋</string>
+    <string name="event_history_client_id_copied">已複製本機指紋 %1$s…</string>
+    <string name="event_history_client_id_not_ready">本機指紋還沒產生好</string>
+    <string name="event_verb_bookmark">收藏了</string>
+    <string name="event_verb_unbookmark">取消收藏</string>
+    <string name="event_verb_download">下載了</string>
+    <string name="event_verb_follow">關注了</string>
+    <string name="event_verb_unfollow">取消關注</string>
 </resources>

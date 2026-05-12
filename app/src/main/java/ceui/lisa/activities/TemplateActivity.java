@@ -377,6 +377,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return FragmentDiscovery.newInstance();
                 case "站长推荐":
                     return new ceui.pixiv.ui.recommend.FragmentSiteRecommend();
+                case "操作记录":
+                    return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 default:
                     return new Fragment();
             }

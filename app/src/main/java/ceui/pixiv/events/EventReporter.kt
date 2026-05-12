@@ -91,6 +91,10 @@ object EventReporter {
     @Volatile private var clientId: String = ""
     @Volatile private var hmacEnabled: Boolean = false
 
+    /** Read-only access for the "操作记录" page (or anything else that needs to query
+     *  the server about THIS client's own events). Empty string before init() finishes. */
+    fun currentClientId(): String = clientId
+
     private data class EventEntry(
         val type: String,
         val targetType: String,

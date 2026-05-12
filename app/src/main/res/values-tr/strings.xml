@@ -1245,4 +1245,14 @@
 
     <string name="experimental_section">Deneysel</string>
     <string name="site_recommend">Pixiv Önerileri</string>
+    <string name="event_history">Etkinlik geçmişi</string>
+    <string name="event_history_empty">Henüz etkinlik yok</string>
+    <string name="event_history_copy_client_id">Cihaz parmak izini kopyala</string>
+    <string name="event_history_client_id_copied">%1$s… parmak izi kopyalandı</string>
+    <string name="event_history_client_id_not_ready">Parmak izi henüz hazır değil</string>
+    <string name="event_verb_bookmark">Yer imine eklendi</string>
+    <string name="event_verb_unbookmark">Yer imi kaldırıldı</string>
+    <string name="event_verb_download">İndirildi</string>
+    <string name="event_verb_follow">Takip edildi</string>
+    <string name="event_verb_unfollow">Takip bırakıldı</string>
 </resources>

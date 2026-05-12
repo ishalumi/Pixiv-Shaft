@@ -1254,4 +1254,14 @@
 
     <string name="experimental_section">실험적</string>
     <string name="site_recommend">픽시브 추천</string>
+    <string name="event_history">활동 기록</string>
+    <string name="event_history_empty">아직 활동 기록이 없습니다</string>
+    <string name="event_history_copy_client_id">기기 지문 복사</string>
+    <string name="event_history_client_id_copied">지문 %1$s… 을(를) 복사했습니다</string>
+    <string name="event_history_client_id_not_ready">아직 지문이 생성되지 않았습니다</string>
+    <string name="event_verb_bookmark">북마크함</string>
+    <string name="event_verb_unbookmark">북마크 취소</string>
+    <string name="event_verb_download">다운로드함</string>
+    <string name="event_verb_follow">팔로우함</string>
+    <string name="event_verb_unfollow">팔로우 취소</string>
 </resources>

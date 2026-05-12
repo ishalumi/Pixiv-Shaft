@@ -381,6 +381,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         } else if (id == R.id.nav_site_recommend) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "站长推荐");
+        } else if (id == R.id.nav_event_history) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "操作记录");
         }
         if (intent != null) {
             startActivity(intent);

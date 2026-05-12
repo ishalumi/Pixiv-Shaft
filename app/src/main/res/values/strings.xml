@@ -1758,4 +1758,14 @@
 
     <string name="experimental_section">试验性</string>
     <string name="site_recommend">站长推荐</string>
+    <string name="event_history">操作记录</string>
+    <string name="event_history_empty">还没有操作记录</string>
+    <string name="event_history_copy_client_id">复制本机指纹</string>
+    <string name="event_history_client_id_copied">已复制本机指纹 %1$s…</string>
+    <string name="event_history_client_id_not_ready">本机指纹还没生成好</string>
+    <string name="event_verb_bookmark">收藏了</string>
+    <string name="event_verb_unbookmark">取消收藏</string>
+    <string name="event_verb_download">下载了</string>
+    <string name="event_verb_follow">关注了</string>
+    <string name="event_verb_unfollow">取消关注</string>
 </resources>

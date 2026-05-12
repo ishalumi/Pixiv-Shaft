@@ -1346,4 +1346,14 @@
 
     <string name="experimental_section">実験的</string>
     <string name="site_recommend">ピクシブのおすすめ</string>
+    <string name="event_history">操作履歴</string>
+    <string name="event_history_empty">まだ操作履歴はありません</string>
+    <string name="event_history_copy_client_id">端末指紋をコピー</string>
+    <string name="event_history_client_id_copied">指紋 %1$s… をコピーしました</string>
+    <string name="event_history_client_id_not_ready">指紋がまだ生成されていません</string>
+    <string name="event_verb_bookmark">ブックマークした</string>
+    <string name="event_verb_unbookmark">ブックマーク解除</string>
+    <string name="event_verb_download">ダウンロードした</string>
+    <string name="event_verb_follow">フォローした</string>
+    <string name="event_verb_unfollow">フォロー解除</string>
 </resources>

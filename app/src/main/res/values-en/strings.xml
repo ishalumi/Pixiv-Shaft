@@ -1341,4 +1341,14 @@
 
     <string name="experimental_section">Experimental</string>
     <string name="site_recommend">Featured by Pixiv</string>
+    <string name="event_history">Activity log</string>
+    <string name="event_history_empty">No activity yet</string>
+    <string name="event_history_copy_client_id">Copy device fingerprint</string>
+    <string name="event_history_client_id_copied">Copied fingerprint %1$s…</string>
+    <string name="event_history_client_id_not_ready">Fingerprint not ready yet</string>
+    <string name="event_verb_bookmark">Bookmarked</string>
+    <string name="event_verb_unbookmark">Unbookmarked</string>
+    <string name="event_verb_download">Downloaded</string>
+    <string name="event_verb_follow">Followed</string>
+    <string name="event_verb_unfollow">Unfollowed</string>
 </resources>

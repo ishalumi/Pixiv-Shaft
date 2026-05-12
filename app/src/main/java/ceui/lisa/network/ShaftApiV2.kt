@@ -62,4 +62,38 @@ interface ShaftApiV2 {
         /** 完整 IllustsBean / NovelBean JSON，仅 include_meta=1 时存在。 */
         val bean: JsonObject?,
     )
+
+    /**
+     * 当前客户端自己的操作日志。client_id 是本地生成的 sha256(UUID)，只能查到自己的事件。
+     * - eventType: null=全部；bookmark / unbookmark / download / follow / unfollow
+     * - before: 上一页最后一条的 id（服务端按 id DESC 排），首页传 null
+     * 每条 item.meta 直接是当时上报的 IllustsBean / NovelBean / UserBean JSON。
+     */
+    @GET("api/v1/events/history")
+    suspend fun eventsHistory(
+        @Query("client_id") clientId: String,
+        @Query("limit") limit: Int = 50,
+        @Query("event_type") eventType: String? = null,
+        @Query("before") before: Long? = null,
+    ): EventsHistoryResponse
+
+    data class EventsHistoryResponse(
+        val client_id: String,
+        val limit: Int,
+        val event_type: String?,
+        val items: List<EventHistoryItem>,
+        val next_before: Long?,
+    )
+
+    data class EventHistoryItem(
+        val id: Long,
+        val ts: Long,
+        val event_type: String,
+        val target_type: String,
+        val target_id: Long,
+        val platform: String?,
+        val channel: String?,
+        val app_version: String?,
+        val meta: JsonObject?,
+    )
 }

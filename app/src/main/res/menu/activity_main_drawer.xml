@@ -126,6 +126,10 @@
                 android:id="@+id/nav_site_recommend"
                 android:icon="@drawable/ic_baseline_star_24"
                 android:title="@string/site_recommend" />
+            <item
+                android:id="@+id/nav_event_history"
+                android:icon="@drawable/ic_history_black_24dp"
+                android:title="@string/event_history" />
         </menu>
     </item>
 

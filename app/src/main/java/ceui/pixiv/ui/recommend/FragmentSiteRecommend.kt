@@ -29,9 +29,12 @@ class FragmentSiteRecommend : Fragment(R.layout.viewpager_with_tablayout) {
             getString(R.string.type_manga),
             getString(R.string.type_novel),
         )
+        // dataType 传 server 端的稳定 enum,不传 localized 的 R.string.type_*。
+        // 否则系统语言切换后 ViewPager 从 SavedState 恢复出的旧 dataType 跟新的
+        // getString(...) 对不上,漫画 tab 会落到 else 分支变成插画 tab。
         val fragments: List<Fragment> = listOf(
-            FragmentTrendingIllust.newInstance(getString(R.string.type_illust)),
-            FragmentTrendingIllust.newInstance(getString(R.string.type_manga)),
+            FragmentTrendingIllust.newInstance(FragmentTrendingIllust.TYPE_ILLUST),
+            FragmentTrendingIllust.newInstance(FragmentTrendingIllust.TYPE_MANGA),
             FragmentTrendingNovel(),
         )
 

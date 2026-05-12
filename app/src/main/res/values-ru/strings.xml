@@ -1247,4 +1247,14 @@
 
     <string name="experimental_section">Экспериментально</string>
     <string name="site_recommend">Рекомендации Pixiv</string>
+    <string name="event_history">Журнал действий</string>
+    <string name="event_history_empty">Пока нет действий</string>
+    <string name="event_history_copy_client_id">Скопировать отпечаток устройства</string>
+    <string name="event_history_client_id_copied">Отпечаток %1$s… скопирован</string>
+    <string name="event_history_client_id_not_ready">Отпечаток ещё не сгенерирован</string>
+    <string name="event_verb_bookmark">Добавлено в закладки</string>
+    <string name="event_verb_unbookmark">Убрано из закладок</string>
+    <string name="event_verb_download">Загружено</string>
+    <string name="event_verb_follow">Подписка</string>
+    <string name="event_verb_unfollow">Отписка</string>
 </resources>
