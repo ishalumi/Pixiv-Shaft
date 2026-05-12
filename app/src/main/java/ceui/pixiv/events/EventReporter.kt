@@ -3,6 +3,9 @@ package ceui.pixiv.events
 import android.content.Context
 import ceui.lisa.BuildConfig
 import ceui.lisa.activities.Shaft
+import ceui.loxia.Client
+import ceui.loxia.ObjectPool
+import ceui.loxia.User
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.tencent.mmkv.MMKV
@@ -16,6 +19,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
@@ -175,6 +179,48 @@ object EventReporter {
         scope.launch {
             val payloadJson = serializePayload(payload, targetType, targetId)
             enqueue(EventEntry(type, targetType, targetId, payloadJson))
+        }
+    }
+
+    /**
+     * Java-friendly entry point for USER-targeted follow / unfollow events.
+     *
+     * The modern Kotlin call sites in UActivity.kt resolve a [User] payload
+     * inline (ObjectPool, else a single getUserProfile fetch) and hand it to
+     * [report]. Legacy RxJava call sites in PixivOperate.java can't await a
+     * suspend lookup, so this helper runs the same resolve on EventReporter's
+     * own scope before enqueueing. Best-effort: pool miss + network failure
+     * falls back to a null payload, matching the existing behavior for
+     * unattachable events.
+     */
+    fun reportFollowUser(userId: Long, isFollow: Boolean) {
+        val type = if (isFollow) Type.FOLLOW else Type.UNFOLLOW
+        if (!initialized.get()) {
+            Timber.tag(TAG).v("drop %s/%s/%d (not initialized)", type, Target.USER, userId)
+            return
+        }
+        if (!hmacEnabled) {
+            Timber.tag(TAG).v("drop %s/%s/%d (build has no HMAC secret)", type, Target.USER, userId)
+            return
+        }
+        if (userId <= 0) {
+            Timber.tag(TAG).w("drop %s/%s/%d (bad target_id)", type, Target.USER, userId)
+            return
+        }
+        scope.launch {
+            // ObjectPool's backing store is a plain HashMap mutated only on
+            // the main thread (UActivity.kt et al go through lifecycleScope,
+            // which defaults to Dispatchers.Main). Reading it from IO would
+            // race with those writes and could throw CME — switch to Main
+            // for the lookup, then drop back to IO for the network fallback
+            // and serialize / enqueue work.
+            val cached = withContext(Dispatchers.Main) {
+                runCatching { ObjectPool.get<User>(userId).value }.getOrNull()
+            }
+            val payload = cached
+                ?: runCatching { Client.appApi.getUserProfile(userId).user }.getOrNull()
+            val payloadJson = serializePayload(payload, Target.USER, userId)
+            enqueue(EventEntry(type, Target.USER, userId, payloadJson))
         }
     }
 

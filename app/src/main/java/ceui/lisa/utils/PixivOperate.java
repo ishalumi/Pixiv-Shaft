@@ -132,10 +132,7 @@ public class PixivOperate {
                         Common.showLog("Discovery/Hook followUser userId=" + userID);
                         ceui.pixiv.db.discovery.ProfileManager.INSTANCE.onFollowUser((long) userID);
 
-                        EventReporter.INSTANCE.report(
-                                EventReporter.Type.FOLLOW,
-                                EventReporter.Target.USER,
-                                (long) userID);
+                        EventReporter.INSTANCE.reportFollowUser((long) userID, true);
                     }
                 });
     }
@@ -160,10 +157,7 @@ public class PixivOperate {
                         Common.showLog("Discovery/Hook unfollowUser userId=" + userID);
                         ceui.pixiv.db.discovery.ProfileManager.INSTANCE.onUnfollowUser((long) userID);
 
-                        EventReporter.INSTANCE.report(
-                                EventReporter.Type.UNFOLLOW,
-                                EventReporter.Target.USER,
-                                (long) userID);
+                        EventReporter.INSTANCE.reportFollowUser((long) userID, false);
                     }
                 });
     }
