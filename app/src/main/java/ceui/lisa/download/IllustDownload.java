@@ -1,8 +1,6 @@
 package ceui.lisa.download;
 
-import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.text.TextUtils;
 
 import androidx.core.content.FileProvider;
@@ -43,8 +41,6 @@ import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
 import ceui.pixiv.download.config.DownloadItems;
 import ceui.pixiv.download.model.RelativePath;
-
-import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
 
 public class IllustDownload {
 
@@ -394,24 +390,8 @@ public class IllustDownload {
                                 (dialog, index) -> dialog.dismiss())
                         .addAction(0, activity.getResources().getString(R.string.string_312),
                                 (dialog, index) -> {
-                                    try {
-                                        new Thread(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                                                if (!TextUtils.isEmpty(Shaft.sSettings.getRootPathUri()) &&
-                                                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                    Uri start = Uri.parse(Shaft.sSettings.getRootPathUri());
-                                                    intent.putExtra(EXTRA_INITIAL_URI, start);
-                                                }
-                                                activity.startActivityForResult(intent, BaseActivity.ASK_URI);
-                                            }
-                                        }).start();
-                                    } catch (Exception e) {
-                                        Common.showToast(e.toString());
-                                        e.printStackTrace();
-                                    }
                                     dialog.dismiss();
+                                    BaseActivity.launchSafTreePicker(activity);
                                 })
                         .show();
             } else {
@@ -427,24 +407,8 @@ public class IllustDownload {
                                     (dialog, index) -> dialog.dismiss())
                             .addAction(0, activity.getResources().getString(R.string.string_366),
                                     (dialog, index) -> {
-                                        try {
-                                            new Thread(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                                                    if (!TextUtils.isEmpty(Shaft.sSettings.getRootPathUri()) &&
-                                                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                        Uri start = Uri.parse(Shaft.sSettings.getRootPathUri());
-                                                        intent.putExtra(EXTRA_INITIAL_URI, start);
-                                                    }
-                                                    activity.startActivityForResult(intent, BaseActivity.ASK_URI);
-                                                }
-                                            }).start();
-                                        } catch (Exception e) {
-                                            Common.showToast(e.toString());
-                                            e.printStackTrace();
-                                        }
                                         dialog.dismiss();
+                                        BaseActivity.launchSafTreePicker(activity);
                                     })
                             .show();
                 } else {

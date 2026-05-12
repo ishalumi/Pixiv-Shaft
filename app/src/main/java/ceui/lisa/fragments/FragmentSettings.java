@@ -964,27 +964,14 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                                         new StorageChoice.MediaStore(StorageChoice.MediaStore.Collection.Downloads));
                                 refreshStorageLabel();
                             } else {
-                                // SAF：走 legacy Activity.startActivityForResult。
-                                // 之前用 AndroidX 的 registerForActivityResult，在 vivo OriginOS (iQOO 13
-                                // 实测) 上 picker 选完根本投递不回 fragment 的回调 —— 厂商定制的
-                                // DocumentsUI 走不通 ActivityResultRegistry 那条路。BaseActivity#onActivityResult
-                                // 的 ASK_URI 分支负责落 URI、拿 persistable 权限、applyGlobalStorage、toast；
-                                // 这边的 label 在 onResume 里再刷一次。
-                                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                                        && !TextUtils.isEmpty(Shaft.sSettings.getRootPathUri())) {
-                                    try {
-                                        intent.putExtra(EXTRA_INITIAL_URI,
-                                                Uri.parse(Shaft.sSettings.getRootPathUri()));
-                                    } catch (Exception ignored) {
-                                    }
-                                }
-                                try {
-                                    mActivity.startActivityForResult(intent, BaseActivity.ASK_URI);
-                                } catch (Exception e) {
-                                    // 部分精简 ROM 不带 DocumentsUI。
-                                    Common.showToast(getString(R.string.saf_no_file_picker), true);
-                                }
+                                // SAF：走 BaseActivity.launchSafTreePicker。
+                                // 1) 必须 legacy Activity.startActivityForResult —— 之前用 AndroidX 的
+                                //    registerForActivityResult,vivo/iQOO 上 picker 选完投递不回回调。
+                                // 2) 必须 explicit setComponent —— vivo OriginOS 非 debuggable apk 会拦掉
+                                //    implicit ACTION_OPEN_DOCUMENT_TREE 重定向到 LAUNCHER。详见 helper 注释。
+                                // BaseActivity#onActivityResult 的 ASK_URI 分支负责落 URI、拿 persistable
+                                // 权限、applyGlobalStorage、toast;这边的 label 在 onResume 里再刷一次。
+                                BaseActivity.launchSafTreePicker(mActivity);
                             }
                         })
                         .show();
@@ -997,12 +984,7 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
             // 用户哪条能用走哪条;两条最终都汇到 BaseActivity#onActivityResult(ASK_URI) 落库。
             refreshSafDirectPickLabel();
             baseBind.safDirectPickRela.setOnClickListener(v -> {
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                try {
-                    mActivity.startActivityForResult(intent, BaseActivity.ASK_URI);
-                } catch (Exception e) {
-                    Common.showToast(getString(R.string.saf_no_file_picker), true);
-                }
+                BaseActivity.launchSafTreePicker(mActivity);
             });
 
             // 多图页码起始（pageIndexFrom1）

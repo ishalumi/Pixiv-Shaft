@@ -1,5 +1,7 @@
 package ceui.lisa.activities;
 
+import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -7,7 +9,10 @@ import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.view.View;
 
 import androidx.activity.EdgeToEdge;
@@ -26,6 +31,8 @@ import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Local;
 import ceui.pixiv.download.DownloadsRegistry;
 import ceui.pixiv.download.config.StorageChoice;
+
+import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
 
 
 public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCompatActivity {
@@ -225,5 +232,43 @@ public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCo
             ex.printStackTrace();
         }
         return 0;
+    }
+
+    /**
+     * 唯一一处启动 SAF 目录选择器的入口。所有「设置 SAF 目录」按钮都汇到这里。
+     *
+     * vivo OriginOS / Funtouch 在非 debuggable apk 上会拦掉 implicit
+     * {@link Intent#ACTION_OPEN_DOCUMENT_TREE},silently 把请求重定向到 app 自己的
+     * LAUNCHER —— 用户体感就是点 SAF 后切到 MainActivity 重启,落到首启动语言选择页;
+     * debug apk 不走这条管控所以正常。这里先 resolveActivity 找到 DocumentsUI 的
+     * ComponentName,再 setComponent 把 intent 改成 explicit,vivo 才不会动它。
+     */
+    public static void launchSafTreePicker(Activity activity) {
+        if (activity == null) return;
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            activity.runOnUiThread(() -> launchSafTreePicker(activity));
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && Shaft.sSettings != null
+                && !TextUtils.isEmpty(Shaft.sSettings.getRootPathUri())) {
+            try {
+                intent.putExtra(EXTRA_INITIAL_URI,
+                        Uri.parse(Shaft.sSettings.getRootPathUri()));
+            } catch (Exception ignored) {
+            }
+        }
+        ComponentName component = intent.resolveActivity(activity.getPackageManager());
+        if (component == null) {
+            Common.showToast(activity.getString(R.string.saf_no_file_picker), true);
+            return;
+        }
+        intent.setComponent(component);
+        try {
+            activity.startActivityForResult(intent, ASK_URI);
+        } catch (Exception e) {
+            Common.showToast(activity.getString(R.string.saf_no_file_picker), true);
+        }
     }
 }
