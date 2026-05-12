@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.activities.ImageDetailActivity
 import ceui.lisa.activities.Shaft
+import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.core.ManagerReactive
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.DownloadDao
@@ -175,12 +176,31 @@ class DoneListV3Fragment : Fragment() {
     }
 
     private fun openDetail(group: DownloadGroup) {
+        if (group.isNovel) {
+            openNovel(group)
+            return
+        }
         // 取该 illust 全部 page 的 filePath（按 fileName 自然顺序）
         val paths: ArrayList<String> = ArrayList(group.allFilePaths)
         val intent = Intent(requireContext(), ImageDetailActivity::class.java)
         intent.putExtra("illust", paths as Serializable)
         intent.putExtra("dataType", "下载详情")
         intent.putExtra("index", 0)
+        startActivity(intent)
+    }
+
+    // fileName 形如 "pixiv_shaft_novel_<id>"；老纪录 / Cache key 改名等异常时
+    // 回退到 illustGson 里的 "id" 字段（NovelBean / loxia.Novel 都带）。
+    private fun openNovel(group: DownloadGroup) {
+        val novelId = extractNovelId(group.latest)
+        if (novelId <= 0L) {
+            Toast.makeText(requireContext(), R.string.dlmgr_open_novel_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(requireContext(), TemplateActivity::class.java).apply {
+            putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说正文")
+            putExtra(Params.NOVEL_ID, novelId)
+        }
         startActivity(intent)
     }
 
@@ -231,6 +251,16 @@ private val ILLUST_ID_REGEX = Regex("\"id\":(\\d+)")
 private fun extractIllustId(json: String?): Long {
     if (json.isNullOrEmpty()) return -1L
     return ILLUST_ID_REGEX.find(json)?.groupValues?.get(1)?.toLongOrNull() ?: -1L
+}
+
+private fun extractNovelId(entity: DownloadEntity): Long {
+    val name = entity.fileName.orEmpty()
+    val idx = name.indexOf(Params.NOVEL_KEY)
+    if (idx >= 0) {
+        val tail = name.substring(idx + Params.NOVEL_KEY.length)
+        tail.toLongOrNull()?.let { return it }
+    }
+    return extractIllustId(entity.illustGson).takeIf { it > 0 } ?: -1L
 }
 
 internal data class DownloadGroup(

@@ -1129,6 +1129,7 @@
     <string name="dlmgr_active_size_paused">Пауза</string>
     <string name="dlmgr_active_size_failed">Ошибка</string>
 
+    <string name="dlmgr_open_novel_failed">Не удалось определить ID новеллы. Перезагрузите её.</string>
     <string name="dlmgr_done_empty_title">Пока нет завершенных загрузок</string>
     <string name="dlmgr_done_empty_hint">Завершенные работы появятся здесь</string>
     <string name="dlmgr_done_action_refresh">Обновить</string>
