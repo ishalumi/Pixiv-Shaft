@@ -68,6 +68,8 @@ jobs:
 
       - name: Build debug apk
         if: github.ref_type == 'branch'
+        env:
+          SHAFT_EVENTS_HMAC: ${{ secrets.SHAFT_EVENTS_HMAC }}
         run: ./gradlew assembleGithubDebug
 
       - name: Upload debug artifact
