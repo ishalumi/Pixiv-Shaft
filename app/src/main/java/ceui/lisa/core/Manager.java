@@ -266,11 +266,8 @@ public class Manager {
     public void startAll() {
         if (!Common.isEmpty(content)) {
             for (DownloadItem item : content) {
-                //item.setProcessed(false);
                 item.setPaused(false);
-                if (item.getState() == DownloadItem.DownloadState.FAILED) {
-                    item.setState(DownloadItem.DownloadState.INIT);
-                }
+                resurrectIfStranded(item);
             }
         }
         isRunning = true;
@@ -284,11 +281,8 @@ public class Manager {
         for (int i = 0; i < content.size(); i++) {
             DownloadItem downloadItem = content.get(i);
             if (downloadItem != null && downloadItem.getUuid().equals(uuid)) {
-                //downloadItem.setProcessed(false);
                 downloadItem.setPaused(false);
-                if(downloadItem.getState() == DownloadItem.DownloadState.FAILED){
-                    downloadItem.setState(DownloadItem.DownloadState.INIT);
-                }
+                resurrectIfStranded(downloadItem);
                 Common.showLog("已开始 " + uuid);
                 break;
             }
@@ -297,6 +291,41 @@ public class Manager {
         isRunning = true;
         pumpAvailableSlots();
         ManagerReactive.invalidate();
+    }
+
+    /**
+     * 把"看似在跑但实际已经没有 disposable 在背后撑着"的 item 翻回 INIT，让
+     * [pumpAvailableSlots] 重新挑选派发。两种来源：
+     *
+     *  1. **stopAll() 之后**：stopAll 把 paused=true、dispose 全部 handles，但
+     *     **不动 state 字段**——getState() 在 paused=true 时直接返回 PAUSED，
+     *     UI 也显示 PAUSED，没问题。但 startAll 的 paused=false 一翻，state 字段
+     *     原值（DOWNLOADING）就暴露出来；这时 handles 已经空了，没人真在传。
+     *     pumpAvailableSlots 的 activeCount() 把它们算进活跃数，getFirstReady 又
+     *     只挑 INIT —— 槽位永远拉不到，下载彻底卡死（issue #873）。
+     *
+     *  2. **冷启动 restore 带回的 stranded DOWNLOADING**：进程被杀时正在传的 item，
+     *     restore 之后 state 字段是 DOWNLOADING，但原 Disposable 已随进程消失。
+     *     QueueDownloadManager.kt:596 的 retry path 历史上自己处理过这种情况，
+     *     现在统一收口到这里。
+     *
+     * FAILED 也一起翻 INIT，让 retry 自然走 pump 路径。
+     * 正在跑的 page（handles 里有 uuid）绝不能动 —— 否则把 DOWNLOADING 翻 INIT 后
+     * pump 会再 dispatch 一条 Observable，跟原 chain 抢同一个 stage 文件 / targetUri，
+     * 实测出过同 uuid 两次 read-start。
+     */
+    private void resurrectIfStranded(DownloadItem item) {
+        int s = item.getState();
+        if (s == DownloadItem.DownloadState.FAILED) {
+            item.setState(DownloadItem.DownloadState.INIT);
+            return;
+        }
+        if (s == DownloadItem.DownloadState.DOWNLOADING
+                && !handles.containsKey(item.getUuid())) {
+            item.setState(DownloadItem.DownloadState.INIT);
+            item.setNonius(0);
+            item.setCurrentSize(0);
+        }
     }
 
     public void stopAll() {
