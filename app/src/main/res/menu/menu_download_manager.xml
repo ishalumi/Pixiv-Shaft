@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!--
+      pause_toggle 只在「正在下载」(pos==1) tab 显示, 单按钮在「全部暂停」/
+      「全部继续」之间切换 - icon + title 由 host 跟 QueueDownloadManager.pausedFlow
+      联动。原本卡片底部 btn1/btn2 搬上来,给 statusHeader 让出横向空间, 速度
+      文本不再换行。可见性切换在 DownloadManagerV3Fragment.applyMenuVisibility 里。
+    -->
+    <item
+        android:id="@+id/action_pause_toggle"
+        android:icon="@drawable/ic_v3_pause_all_24"
+        android:title="@string/dlmgr_active_action_pause_all"
+        app:showAsAction="always" />
     <item
         android:id="@+id/action_export"
         android:icon="@drawable/ic_v3_export_24"

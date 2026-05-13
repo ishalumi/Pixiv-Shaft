@@ -135,30 +135,26 @@ class ActiveListV3Fragment : Fragment() {
         view.findViewById<TextView>(R.id.emptyTitle).text = getString(R.string.dlmgr_active_empty_title)
         view.findViewById<TextView>(R.id.emptyHint).text = getString(R.string.dlmgr_active_empty_hint)
 
-        // 顶部状态行（占用 btn3 这个空位 button 改为只读 TextView 风格）
+        // 顶部状态行(占用 btn3 这个空位 button 改为只读 TextView 风格)。
+        // singleLine + ellipsize 兜底:btn1/btn2 已经搬去 toolbar menu 让出了大半
+        // 横向空间,但极端长度的状态串 (4 counts + 速度) 仍可能挤超宽,直接末尾省略。
         statusHeader = view.findViewById<Button>(R.id.btn3).apply {
             text = "—"
             isEnabled = false
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
             // 视觉去按钮化
             setTextColor(Color.parseColor("#7CB668"))
         }
 
-        // 操作 bar —— mutation 后 Manager 内部会 invalidate，contentFlow
-        // 自动 emit 新快照，UI 即时刷新；不需要业务层手动 tickle / 刷 UI。
-        val btnResume = view.findViewById<Button>(R.id.btn1).apply {
-            text = getString(R.string.dlmgr_active_action_resume_all)
-            setOnClickListener {
-                Manager.get().startAll()
-                QueueDownloadManager.resume()
-            }
-        }
-        val btnPause = view.findViewById<Button>(R.id.btn2).apply {
-            text = getString(R.string.dlmgr_active_action_pause_all)
-            setOnClickListener {
-                Manager.get().stopAll()
-                QueueDownloadManager.pause()
-            }
-        }
+        // btn1 (Resume) / btn2 (Pause) 已合一为 host toolbar 的 action_pause_toggle
+        // (见 [DownloadManagerV3Fragment.applyMenuVisibility], pos==1 时可见)。
+        // 卡片底部不再渲染这两个按钮 — 给 statusHeader (btn3) 让出宽度,
+        // 「正在 N · 等待 M · 暂停 K · 失败 L · 1.2 MB/s」就不会再换行。
+        // pause/resume 是 Manager + QueueDownloadManager 全局动作,host 直接调,
+        // 不再绕 SharedVM,本 fragment 不需要订阅。
+        view.findViewById<Button>(R.id.btn1).visibility = View.GONE
+        view.findViewById<Button>(R.id.btn2).visibility = View.GONE
         val btnClear = view.findViewById<Button>(R.id.btn4).apply {
             text = getString(R.string.dlmgr_active_action_clear)
             // 联动：清空 active 同时把批量队列 DB 也清掉，避免用户清完 active 又被
@@ -235,11 +231,9 @@ class ActiveListV3Fragment : Fragment() {
                         adapter.submit(snapshot, ugoiras)
                         val anyWork = snapshot.isNotEmpty() || ugoiras.isNotEmpty()
                         empty.visibility = if (anyWork) View.GONE else View.VISIBLE
-                        // 没有任何活跃任务时把操作按钮置灰，避免用户在空列表上反复点
-                        btnResume.isEnabled = anyWork
-                        btnResume.alpha = if (anyWork) 1f else 0.4f
-                        btnPause.isEnabled = anyWork
-                        btnPause.alpha = if (anyWork) 1f else 0.4f
+                        // 没有任何活跃任务时把"清空"按钮置灰,避免用户在空列表上反复点。
+                        // pause/resume 改走 toolbar menu 后不在这控制 enable 状态 —
+                        // 跨 fragment 同步 menu enable 不值得专开通道,允许空态点击 (no-op)。
                         btnClear.isEnabled = anyWork
                         btnClear.alpha = if (anyWork) 1f else 0.4f
                     }

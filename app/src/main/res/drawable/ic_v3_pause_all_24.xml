@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Icons "pause" — 跟 ic_v3_export_24 同样的色处理:fillColor 直接焊死
+  v3_text_1,不走 android:tint。Toolbar ActionMenuView 会对 menu icon 套 alpha
+  filter,任何依赖 tint pipeline 的颜色都会被压成淡灰看不见。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/v3_text_1"
+        android:pathData="M6,19h4V5H6v14zM14,5v14h4V5h-4z" />
+</vector>

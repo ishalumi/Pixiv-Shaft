@@ -53,10 +53,12 @@
 
                 <TextView
                     android:id="@+id/sizeText"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
+                    android:ellipsize="end"
                     android:fontFamily="monospace"
+                    android:singleLine="true"
                     android:textColor="@color/v3_text_3"
                     android:textSize="11sp"
                     tools:text="1.2 MB / 3.5 MB" />

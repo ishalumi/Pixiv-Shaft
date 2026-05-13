@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Icons "play_arrow" — 跟 ic_v3_pause_all_24 / ic_v3_export_24 同样
+  fillColor=v3_text_1,不走 tint。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/v3_text_1"
+        android:pathData="M8,5v14l11,-7z" />
+</vector>

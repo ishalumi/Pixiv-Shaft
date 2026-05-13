@@ -13,6 +13,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import ceui.lisa.R
+import ceui.lisa.core.Manager
+import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import kotlinx.coroutines.launch
@@ -56,36 +58,74 @@ class DownloadManagerV3Fragment : Fragment() {
             tab.text = baseLabel(pos)
         }.attach()
 
-        // toolbar 最右侧的"导出"menu —— 只在批量队列 (pos 0) 和已完成 (pos 2)
-        // 这两个有 illust 列表的 tab 显示，正在下载 (pos 1) 是瞬态进度页，
-        // 没有稳定数据快照可导，直接隐藏避免误点。点击仅 emit 信号到
-        // [DownloadManagerSharedViewModel.exportRequest]，由当前可见的子
-        // fragment 自己拉数据 → [DownloadExportLinks.present]。
+        // toolbar 右侧 menu —— 2 个 action 按 tab 分发可见性:
+        //   - 导出 (action_export):pos 0 (批量队列) / pos 2 (已完成),「正在下载」
+        //     是瞬态进度页没稳定快照可导,隐藏避免误点。点击 emit 到 SharedVM,
+        //     由当前可见的子 fragment collect 后跑 [DownloadExportLinks]。
+        //   - 暂停/继续切换 (action_pause_toggle):pos 1 (正在下载) 专属,
+        //     icon + title 由 QueueDownloadManager.pausedFlow 动态切换。原本是
+        //     Active fragment 卡片底部 btn1/btn2,搬上来后 statusHeader (btn3) 占
+        //     一半行宽,「正在 N · 等待 M · 暂停 K · 失败 L · 1.2 MB/s」不再换行。
+        //     pause/resume 是 Manager + QueueDownloadManager 全局 singleton 动作,
+        //     host 直接调,不绕 SharedVM (Active fragment 不需要参与)。
         toolbar.inflateMenu(R.menu.menu_download_manager)
         val exportItem = toolbar.menu.findItem(R.id.action_export)
+        val pauseToggleItem = toolbar.menu.findItem(R.id.action_pause_toggle)
         // 必须清 iconTintList — Toolbar 默认会拿 colorControlNormal 强行覆盖
-        // menu icon 的颜色，把 vector 自带的 android:tint=v3_text_1 压成淡色
-        // （浅色主题下跟白底融合看不见）。同 BulkSelectV3.refreshSelectToggleIcon
-        // 末尾对 select_toggle 做的处理。
+        // menu icon 的颜色,把 vector 自带的 fillColor=v3_text_1 压成淡色
+        // (浅色主题下跟白底融合看不见)。同 BulkSelectV3.refreshSelectToggleIcon
+        // 末尾对 select_toggle 做的处理。setIcon() 后 iconTintList 仍是 null
+        // (MenuItem property 跟 drawable 解耦),不需要反复重设。
         exportItem?.iconTintList = null
+        pauseToggleItem?.iconTintList = null
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_export -> {
                     sharedVm.requestExport(pager.currentItem)
                     true
                 }
+                R.id.action_pause_toggle -> {
+                    // 读当前 pausedFlow 决定方向:暂停态 → 继续;运行态 → 暂停。
+                    // 不存第二份 UI 状态,跟 host 的 icon/title 联动用同一个 source of truth。
+                    if (QueueDownloadManager.isPaused()) {
+                        Manager.get().startAll()
+                        QueueDownloadManager.resume()
+                    } else {
+                        Manager.get().stopAll()
+                        QueueDownloadManager.pause()
+                    }
+                    true
+                }
                 else -> false
             }
         }
-        fun applyExportVisibility(pos: Int) {
-            exportItem.isVisible = pos == 0 || pos == 2
+        fun applyMenuVisibility(pos: Int) {
+            exportItem?.isVisible = pos == 0 || pos == 2
+            pauseToggleItem?.isVisible = pos == 1
         }
-        applyExportVisibility(pager.currentItem)
+        applyMenuVisibility(pager.currentItem)
         pageCallback = object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
-                applyExportVisibility(position)
+                applyMenuVisibility(position)
             }
         }.also { pager.registerOnPageChangeCallback(it) }
+
+        // pausedFlow → 切 pause_toggle 的 icon + title。StateFlow 自带初始值,
+        // 第一次 collect 就立刻把按钮渲染成当前真实状态 (避免冷启 icon 跟
+        // 实际暂停态错位)。distinctUntilChanged 隐含 (StateFlow 不会重发同值)。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                QueueDownloadManager.pausedFlow.collect { paused ->
+                    if (paused) {
+                        pauseToggleItem?.setIcon(R.drawable.ic_v3_resume_all_24)
+                        pauseToggleItem?.setTitle(R.string.dlmgr_active_action_resume_all)
+                    } else {
+                        pauseToggleItem?.setIcon(R.drawable.ic_v3_pause_all_24)
+                        pauseToggleItem?.setTitle(R.string.dlmgr_active_action_pause_all)
+                    }
+                }
+            }
+        }
 
         // 实时刷新 tab 文案末尾的数字
         viewLifecycleOwner.lifecycleScope.launch {
