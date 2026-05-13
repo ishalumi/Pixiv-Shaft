@@ -389,16 +389,26 @@ private class DoneAdapterV3(
         if (group.isNovel) {
             h.typeBadge.visibility = View.VISIBLE
             h.typeBadge.text = "NOVEL"
-            Glide.with(h.thumb).clear(h.thumb)
-            h.thumb.setImageDrawable(null)
             // issue #876: DB 里 PK 是 NOVEL_KEY+id（仅是去重 key,不带标题）,
-            // 真正的小说名/作者从 illustGson 解出来的 Novel 里取;老纪录 / 解析
-            // 失败 fallback 回 fileName,至少能看出是哪条记录。
+            // 真正的小说名/作者/封面从 illustGson 解出来的 Novel 里取;老纪录 /
+            // 解析失败 fallback 回 fileName + 空封面,至少能看出是哪条记录。
             val novel = group.parsedNovel
             h.title.text = novel?.title?.takeIf { it.isNotBlank() }
                 ?: entity.fileName.orEmpty()
             h.author.text = novel?.user?.name?.takeIf { it.isNotBlank() }
                 ?.let { "by: $it" } ?: ""
+            val coverUrl = novel?.image_urls?.let {
+                it.medium ?: it.square_medium ?: it.large
+            }
+            if (!coverUrl.isNullOrEmpty()) {
+                Glide.with(h.thumb)
+                    .load(GlideUtil.getUrl(coverUrl))
+                    .placeholder(android.R.color.transparent)
+                    .into(h.thumb)
+            } else {
+                Glide.with(h.thumb).clear(h.thumb)
+                h.thumb.setImageDrawable(null)
+            }
         } else {
             // 用预解析的 illust（reload 时 IO 线程已 fromJson 完）—— 绑卡 0 解析
             val illust: IllustsBean? = group.parsedIllust
