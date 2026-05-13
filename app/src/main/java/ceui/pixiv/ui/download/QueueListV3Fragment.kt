@@ -77,6 +77,10 @@ class QueueListV3Fragment : Fragment() {
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = adapter
         list.setHasFixedSize(true)
+        // 跟 ActiveListV3Fragment 一致 — 关掉 ItemAnimator。批量队列的 row 在
+        // consumer pump 进度时高频 notify,默认 DefaultItemAnimator 的预测式
+        // move/change 动画会让列表抖。瞬时 snap 比花哨动画对管队列场景更可读。
+        list.itemAnimator = null
 
         // 点击 row → VActivity 看一级详情。
         //
