@@ -1255,4 +1255,9 @@
     <string name="event_verb_download">İndirildi</string>
     <string name="event_verb_follow">Takip edildi</string>
     <string name="event_verb_unfollow">Takip bırakıldı</string>
+    <string name="debug_bulk_dl_entry">Toplu İndirme Hata Ayıklama</string>
+    <string name="debug_bulk_dl_refresh">Yenile</string>
+    <string name="debug_bulk_dl_copy">Çıktıyı kopyala</string>
+    <string name="debug_bulk_dl_copied">Panoya kopyalandı</string>
+    <string name="debug_bulk_dl_running">Toplanıyor…</string>
 </resources>

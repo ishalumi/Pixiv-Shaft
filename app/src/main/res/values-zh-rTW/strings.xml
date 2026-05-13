@@ -1370,4 +1370,9 @@
     <string name="event_verb_download">下載了</string>
     <string name="event_verb_follow">關注了</string>
     <string name="event_verb_unfollow">取消關注</string>
+    <string name="debug_bulk_dl_entry">批量下載 Debug</string>
+    <string name="debug_bulk_dl_refresh">重新統計</string>
+    <string name="debug_bulk_dl_copy">複製結果</string>
+    <string name="debug_bulk_dl_copied">已複製到剪貼簿</string>
+    <string name="debug_bulk_dl_running">正在統計…</string>
 </resources>

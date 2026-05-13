@@ -1356,4 +1356,9 @@
     <string name="event_verb_download">ダウンロードした</string>
     <string name="event_verb_follow">フォローした</string>
     <string name="event_verb_unfollow">フォロー解除</string>
+    <string name="debug_bulk_dl_entry">一括ダウンロード デバッグ</string>
+    <string name="debug_bulk_dl_refresh">再集計</string>
+    <string name="debug_bulk_dl_copy">結果をコピー</string>
+    <string name="debug_bulk_dl_copied">クリップボードにコピーしました</string>
+    <string name="debug_bulk_dl_running">集計中…</string>
 </resources>

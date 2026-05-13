@@ -1351,4 +1351,9 @@
     <string name="event_verb_download">Downloaded</string>
     <string name="event_verb_follow">Followed</string>
     <string name="event_verb_unfollow">Unfollowed</string>
+    <string name="debug_bulk_dl_entry">Bulk Download Debug</string>
+    <string name="debug_bulk_dl_refresh">Refresh</string>
+    <string name="debug_bulk_dl_copy">Copy output</string>
+    <string name="debug_bulk_dl_copied">Copied to clipboard</string>
+    <string name="debug_bulk_dl_running">Collecting…</string>
 </resources>

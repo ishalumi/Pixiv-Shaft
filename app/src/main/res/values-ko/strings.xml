@@ -1264,4 +1264,9 @@
     <string name="event_verb_download">다운로드함</string>
     <string name="event_verb_follow">팔로우함</string>
     <string name="event_verb_unfollow">팔로우 취소</string>
+    <string name="debug_bulk_dl_entry">일괄 다운로드 디버그</string>
+    <string name="debug_bulk_dl_refresh">다시 집계</string>
+    <string name="debug_bulk_dl_copy">결과 복사</string>
+    <string name="debug_bulk_dl_copied">클립보드에 복사됨</string>
+    <string name="debug_bulk_dl_running">수집 중…</string>
 </resources>

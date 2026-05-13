@@ -1257,4 +1257,9 @@
     <string name="event_verb_download">Загружено</string>
     <string name="event_verb_follow">Подписка</string>
     <string name="event_verb_unfollow">Отписка</string>
+    <string name="debug_bulk_dl_entry">Отладка массовой загрузки</string>
+    <string name="debug_bulk_dl_refresh">Обновить</string>
+    <string name="debug_bulk_dl_copy">Скопировать вывод</string>
+    <string name="debug_bulk_dl_copied">Скопировано в буфер обмена</string>
+    <string name="debug_bulk_dl_running">Сбор данных…</string>
 </resources>
