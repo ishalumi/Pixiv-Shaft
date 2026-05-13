@@ -21,6 +21,14 @@ import java.util.Calendar
  * 「投稿期间」picker —— relative duration（一日/一周/一月/半年/一年）+ 自定义起止日期。
  * 选 relative 清掉自定义日期，选自定义日期清掉 relative，互斥。
  *
+ * 起止日期沿用 wdullaer DatePickerDialog（项目其它地方都用这个），但选完起始日后**自动弹出
+ * 结束日期 picker**——少一次回到 sheet 再点结束行的操作（issue #718）。仅在结束日还没设、
+ * 又是从起始日入口选的情况下才自动续；如果用户只是在改起始日（end 已设），不自动弹避免打断。
+ *
+ * MaterialDatePicker.dateRangePicker 才是「一个屏选两端」的正统解法，但在本项目 QMUI/AppCompat
+ * 主题链下走不通——picker 子 fragment 里的 MaterialButton 强校验 Material 主题、`.Dialog`
+ * flavor 又缺 `materialCalendarStyle` 等 picker attr，每补一项又冒新坑，性价比不行。
+ *
  * 比 [SimplePickerSheet] 多个「确定」按钮 —— 日期选完不会立刻 dismiss，要让用户改完起止
  * 两个日期再 commit。draft 状态在 [onSaveInstanceState] 持久化，旋屏不丢。
  *
@@ -104,8 +112,8 @@ class DurationPickerSheet : V3BottomSheetBase() {
         binding.rowDateEnd.rowTitle.setText(R.string.search_filter_v3_date_end)
         binding.rowDateStart.rowValue.setTextColor(palette.textAccent)
         binding.rowDateEnd.rowValue.setTextColor(palette.textAccent)
-        binding.rowDateStart.root.setOnClick { showDatePicker(true) }
-        binding.rowDateEnd.root.setOnClick { showDatePicker(false) }
+        binding.rowDateStart.root.setOnClick { showDatePicker(isStart = true) }
+        binding.rowDateEnd.root.setOnClick { showDatePicker(isStart = false) }
         binding.btnClearDates.setTextColor(palette.textAccent)
         binding.btnClearDates.setOnClick {
             draftStart = null
@@ -157,6 +165,8 @@ class DurationPickerSheet : V3BottomSheetBase() {
             val parts = current.split("-")
             if (parts.size == 3) cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
         }
+        // 进 picker 时记住「end 之前是不是空」——决定选完起始日要不要自动续弹结束 picker
+        val endWasUnsetBefore = isStart && draftEnd == null
         val listener = DatePickerDialog.OnDateSetListener { _, year, month, day ->
             val picked = LocalDate.of(year, month + 1, day).toString()
             if (isStart) {
@@ -171,6 +181,11 @@ class DurationPickerSheet : V3BottomSheetBase() {
             // 选了具体日期，相对时间互斥清除
             draftDuration = null
             renderState()
+            // issue #718：第一次设区间时，选完起始日自动续弹结束日 picker，
+            // 用户不用先把 sheet 关回去再点结束行。改起始日（end 已有值）不自动续，避免打断。
+            if (isStart && endWasUnsetBefore) {
+                showDatePicker(isStart = false)
+            }
         }
         val dpd = DatePickerDialog.newInstance(
             listener,
