@@ -1,6 +1,7 @@
 package ceui.pixiv.ui.download
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -397,8 +398,9 @@ private class DoneAdapterV3(
                 ?: entity.fileName.orEmpty()
             h.author.text = novel?.user?.name?.takeIf { it.isNotBlank() }
                 ?.let { "by: $it" } ?: ""
+            // 卡片 thumb 100–160dp,square_medium (~360px) 已足够清晰且体积更小
             val coverUrl = novel?.image_urls?.let {
-                it.medium ?: it.square_medium ?: it.large
+                it.square_medium ?: it.medium ?: it.large
             }
             if (!coverUrl.isNullOrEmpty()) {
                 Glide.with(h.thumb)
@@ -428,15 +430,35 @@ private class DoneAdapterV3(
             }
             h.title.text = illust?.title?.takeIf { it.isNotBlank() } ?: entity.fileName.orEmpty()
             h.author.text = illust?.user?.name?.let { "by: $it" } ?: ""
-            val showUrl = illust?.image_urls?.medium
-            if (!showUrl.isNullOrEmpty()) {
+            // 缩略图优先 load 本地下载文件 —— 已完成 illust 本地就有完整图,
+            // 走磁盘比回 pixiv CDN 快一个数量级且离线可用。
+            // filePath 可能是 content:// (SAF) 或 file:// (legacy),Glide 都吃。
+            // 文件丢了/无权限读 → .error() 链回退到 square_medium 网图。
+            val localUri = entity.filePath
+                ?.takeIf { it.isNotBlank() }
+                ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+            // 网图首选 square_medium (~360px),比 medium (~540px) 小,正方形也跟卡片裁切吻合
+            val networkUrl = illust?.image_urls?.let {
+                it.square_medium ?: it.medium ?: it.large
+            }
+            val networkLoader = if (!networkUrl.isNullOrEmpty()) {
                 Glide.with(h.thumb)
-                    .load(GlideUtil.getUrl(showUrl))
+                    .load(GlideUtil.getUrl(networkUrl))
                     .placeholder(android.R.color.transparent)
-                    .into(h.thumb)
-            } else {
-                Glide.with(h.thumb).clear(h.thumb)
-                h.thumb.setImageDrawable(null)
+            } else null
+            when {
+                localUri != null -> {
+                    Glide.with(h.thumb)
+                        .load(localUri)
+                        .placeholder(android.R.color.transparent)
+                        .let { if (networkLoader != null) it.error(networkLoader) else it }
+                        .into(h.thumb)
+                }
+                networkLoader != null -> networkLoader.into(h.thumb)
+                else -> {
+                    Glide.with(h.thumb).clear(h.thumb)
+                    h.thumb.setImageDrawable(null)
+                }
             }
         }
 

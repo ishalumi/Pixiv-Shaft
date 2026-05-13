@@ -395,7 +395,10 @@ private class QueueAdapterV3(
     private fun renderIllust(h: VH, item: DownloadQueueRow, illust: IllustsBean) {
         h.title.text = illust.title.orEmpty().ifBlank { "illustId ${item.illustId}" }
         h.author.text = illust.user?.name?.let { "by: $it" } ?: ""
-        val showUrl = runCatching { illust.image_urls?.medium }.getOrNull()
+        // 64dp 方 thumb 用 square_medium 减体积; square_medium 缺时 medium → large
+        val showUrl = runCatching {
+            illust.image_urls?.let { it.square_medium ?: it.medium ?: it.large }
+        }.getOrNull()
         if (!showUrl.isNullOrEmpty()) {
             Glide.with(h.thumb)
                 .load(GlideUtil.getUrl(showUrl))

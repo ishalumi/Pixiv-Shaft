@@ -423,7 +423,11 @@ private sealed class ActiveSnapshot {
                 rowId = u.rowId,
                 bean = u.bean,
                 title = u.bean.title.orEmpty().ifEmpty { "ugoira " + u.bean.id },
-                showUrl = u.bean.image_urls?.medium,
+                // 跟 illust 行一致:64dp 方 thumb 用 square_medium 减网络体积,
+                // 缺时降级 medium → large
+                showUrl = u.bean.image_urls?.let {
+                    it.square_medium ?: it.medium ?: it.large
+                },
                 phase = u.phase,
             )
         }

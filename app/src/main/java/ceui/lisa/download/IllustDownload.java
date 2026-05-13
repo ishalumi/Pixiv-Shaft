@@ -151,7 +151,7 @@ public class IllustDownload {
         DownloadItem item = new DownloadItem(illust, 0);
         item.setAutoSave(autoSave);
         item.setUrl((response.getUgoira_metadata().getZip_urls().getMedium()));
-        item.setShowUrl((illust.getImage_urls().getMedium()));
+        item.setShowUrl(getShowUrl(illust, 0));
         Manager.get().addTask(item);
         return item;
     }
@@ -370,11 +370,16 @@ public class IllustDownload {
     }
 
     public static String getShowUrl(IllustsBean illust, int index) {
-        if (illust.getPage_count() == 1) {
-            return illust.getImage_urls().getMedium();
-        } else {
-            return illust.getMeta_pages().get(index).getImage_urls().getMedium();
-        }
+        // 下载管理列表只显示 64dp 缩略图,square_medium (~360px) 比 medium (~540px)
+        // 体积小一截,且本身就是方形裁切,跟下载卡片的方形 thumb 视觉吻合。
+        // square_medium 缺时按 medium → large 兜底。
+        ImageUrlsBean urls = illust.getPage_count() == 1
+                ? illust.getImage_urls()
+                : illust.getMeta_pages().get(index).getImage_urls();
+        if (urls == null) return null;
+        if (!TextUtils.isEmpty(urls.getSquare_medium())) return urls.getSquare_medium();
+        if (!TextUtils.isEmpty(urls.getMedium())) return urls.getMedium();
+        return urls.getLarge();
     }
 
     public static void check(BaseActivity<?> activity, FeedBack feedBack) {
