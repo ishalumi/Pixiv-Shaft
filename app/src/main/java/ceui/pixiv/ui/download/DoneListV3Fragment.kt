@@ -31,6 +31,7 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Local
 import ceui.lisa.utils.Params
+import ceui.loxia.Novel
 import ceui.pixiv.db.queue.QueueStatus
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.bumptech.glide.Glide
@@ -281,6 +282,10 @@ internal data class DownloadGroup(
     val allEntities: List<DownloadEntity>,
     /** 预解析的 IllustsBean —— 在 IO 线程做完 Gson；UI 绑卡时直接用，不再 fromJson 卡帧 */
     val parsedIllust: IllustsBean? = null,
+    /** 预解析的 loxia Novel —— 同 [parsedIllust]，仅小说行有值。issue #876:
+     *  DB 里 fileName 是 PK（NOVEL_KEY+id），不带标题；下载记录卡片要从这里
+     *  取真正的小说名 + 作者展示。 */
+    val parsedNovel: Novel? = null,
     val isNovel: Boolean = false,
 )
 
@@ -303,16 +308,20 @@ private fun groupByIllust(rows: List<DownloadEntity>): List<DownloadGroup> {
         val sortedByName = list.sortedBy { it.fileName.orEmpty() }
         val latest = list.maxByOrNull { it.downloadTime } ?: list.first()
         val isNovel = latest.fileName?.contains(Params.NOVEL_KEY) == true
-        val parsed = if (isNovel) null else runCatching {
+        val parsedIllust = if (isNovel) null else runCatching {
             Shaft.sGson.fromJson(latest.illustGson, IllustsBean::class.java)
         }.getOrNull()
+        val parsedNovel = if (isNovel) runCatching {
+            Shaft.sGson.fromJson(latest.illustGson, Novel::class.java)
+        }.getOrNull() else null
         DownloadGroup(
             key = k,
             latest = latest,
             pageCount = list.size,
             allFilePaths = sortedByName.map { it.filePath.orEmpty() },
             allEntities = sortedByName,
-            parsedIllust = parsed,
+            parsedIllust = parsedIllust,
+            parsedNovel = parsedNovel,
             isNovel = isNovel,
         )
     }
@@ -382,8 +391,14 @@ private class DoneAdapterV3(
             h.typeBadge.text = "NOVEL"
             Glide.with(h.thumb).clear(h.thumb)
             h.thumb.setImageDrawable(null)
-            h.title.text = entity.fileName.orEmpty()
-            h.author.text = ""
+            // issue #876: DB 里 PK 是 NOVEL_KEY+id（仅是去重 key,不带标题）,
+            // 真正的小说名/作者从 illustGson 解出来的 Novel 里取;老纪录 / 解析
+            // 失败 fallback 回 fileName,至少能看出是哪条记录。
+            val novel = group.parsedNovel
+            h.title.text = novel?.title?.takeIf { it.isNotBlank() }
+                ?: entity.fileName.orEmpty()
+            h.author.text = novel?.user?.name?.takeIf { it.isNotBlank() }
+                ?.let { "by: $it" } ?: ""
         } else {
             // 用预解析的 illust（reload 时 IO 线程已 fromJson 完）—— 绑卡 0 解析
             val illust: IllustsBean? = group.parsedIllust
