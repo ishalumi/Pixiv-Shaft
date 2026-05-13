@@ -15,6 +15,8 @@ object AppUpdateChecker {
 
     private const val KEY_LAST_CHECK_TIME = "update_last_check_time"
     private const val KEY_SKIPPED_VERSION = "update_skipped_version"
+    private const val KEY_DOWNLOAD_ID = "update_download_id"
+    private const val KEY_DOWNLOAD_TAG = "update_download_tag"
     private const val CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L
 
     private val api: GitHubApi by lazy {
@@ -71,6 +73,27 @@ object AppUpdateChecker {
 
     fun isVersionSkipped(version: String): Boolean {
         return MMKV.defaultMMKV().decodeString(KEY_SKIPPED_VERSION, "") == version
+    }
+
+    fun saveOngoingDownload(downloadId: Long, versionTag: String) {
+        MMKV.defaultMMKV().apply {
+            encode(KEY_DOWNLOAD_ID, downloadId)
+            encode(KEY_DOWNLOAD_TAG, versionTag)
+        }
+    }
+
+    fun clearOngoingDownload() {
+        MMKV.defaultMMKV().apply {
+            removeValueForKey(KEY_DOWNLOAD_ID)
+            removeValueForKey(KEY_DOWNLOAD_TAG)
+        }
+    }
+
+    fun getOngoingDownloadId(versionTag: String): Long {
+        val mmkv = MMKV.defaultMMKV()
+        val savedTag = mmkv.decodeString(KEY_DOWNLOAD_TAG, "")
+        if (savedTag != versionTag) return -1L
+        return mmkv.decodeLong(KEY_DOWNLOAD_ID, -1L)
     }
 
     fun isNewerVersion(remote: String, current: String): Boolean {

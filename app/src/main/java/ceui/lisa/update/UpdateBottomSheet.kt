@@ -131,6 +131,8 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
             startDownload(asset, progressBar, progressText, btnDownload, progressContainer)
         }
 
+        restoreOngoingDownload(rel.tagName, progressBar, progressText, btnDownload, btnSkip, progressContainer)
+
         // Expand the bottom sheet fully
         (dialog as? BottomSheetDialog)?.apply {
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
@@ -154,30 +156,63 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
         progressContainer: LinearLayout
     ) {
         val ctx = requireContext().applicationContext
+        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val tag = release?.tagName ?: ""
         val downloadDir = ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return
         val apkFile = File(downloadDir, APK_FILE_NAME)
+
+        // If we already have a live record for this version, attach to it instead of re-enqueuing
+        // (otherwise DownloadManager would discard the partial file and restart from 0)
+        val existingId = AppUpdateChecker.getOngoingDownloadId(tag)
+        if (existingId != -1L) {
+            when (queryDownloadStatus(dm, existingId)) {
+                DownloadManager.STATUS_PENDING,
+                DownloadManager.STATUS_RUNNING,
+                DownloadManager.STATUS_PAUSED -> {
+                    attachToDownload(existingId, apkFile, progressBar, progressText, btnDownload, progressContainer)
+                    return
+                }
+                DownloadManager.STATUS_SUCCESSFUL -> {
+                    if (apkFile.exists()) {
+                        onDownloadSuccess(apkFile, progressBar, progressText, btnDownload)
+                        return
+                    }
+                }
+            }
+            try { dm.remove(existingId) } catch (_: Exception) {}
+            AppUpdateChecker.clearOngoingDownload()
+        }
+
         if (apkFile.exists()) apkFile.delete()
 
         val request = DownloadManager.Request(Uri.parse(asset.downloadUrl))
             .setTitle(getString(R.string.update_download_title))
-            .setDescription("Shaft ${release?.tagName ?: ""}")
+            .setDescription("Shaft $tag")
             .setDestinationInExternalFilesDir(ctx, Environment.DIRECTORY_DOWNLOADS, APK_FILE_NAME)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
 
-        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        downloadId = dm.enqueue(request)
+        val newId = dm.enqueue(request)
+        AppUpdateChecker.saveOngoingDownload(newId, tag)
+        attachToDownload(newId, apkFile, progressBar, progressText, btnDownload, progressContainer)
+    }
 
-        // Register receiver for download completion
+    private fun attachToDownload(
+        id: Long,
+        apkFile: File,
+        progressBar: ProgressBar,
+        progressText: TextView,
+        btnDownload: Button,
+        progressContainer: LinearLayout
+    ) {
+        downloadId = id
+        val ctx = requireContext().applicationContext
+        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+
         downloadReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    stopProgressPolling()
-                    progressBar.progress = 100
-                    progressText.text = "100%"
-                    btnDownload.isEnabled = true
-                    btnDownload.setText(R.string.update_install)
-                    btnDownload.setOnClickListener { installApk(apkFile) }
+                val received = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                if (received == downloadId) {
+                    onDownloadSuccess(apkFile, progressBar, progressText, btnDownload)
                 }
             }
         }
@@ -194,8 +229,81 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
             )
         }
 
-        // Poll for progress
         startProgressPolling(dm, progressBar, progressText, btnDownload, progressContainer, apkFile)
+    }
+
+    private fun onDownloadSuccess(
+        apkFile: File,
+        progressBar: ProgressBar,
+        progressText: TextView,
+        btnDownload: Button
+    ) {
+        stopProgressPolling()
+        AppUpdateChecker.clearOngoingDownload()
+        progressBar.progress = 100
+        progressText.text = "100%"
+        btnDownload.isEnabled = true
+        btnDownload.setText(R.string.update_install)
+        btnDownload.setOnClickListener { installApk(apkFile) }
+    }
+
+    private fun queryDownloadStatus(dm: DownloadManager, id: Long): Int {
+        var cursor: Cursor? = null
+        try {
+            cursor = dm.query(DownloadManager.Query().setFilterById(id))
+            if (cursor != null && cursor.moveToFirst()) {
+                val statusIdx = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                if (statusIdx >= 0) return cursor.getInt(statusIdx)
+            }
+        } catch (_: Exception) {
+        } finally {
+            cursor?.close()
+        }
+        return -1
+    }
+
+    private fun restoreOngoingDownload(
+        versionTag: String,
+        progressBar: ProgressBar,
+        progressText: TextView,
+        btnDownload: Button,
+        btnSkip: Button,
+        progressContainer: LinearLayout
+    ) {
+        val ctx = requireContext().applicationContext
+        val downloadDir = ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return
+        val apkFile = File(downloadDir, APK_FILE_NAME)
+        val existingId = AppUpdateChecker.getOngoingDownloadId(versionTag)
+        if (existingId == -1L) return
+
+        val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        when (queryDownloadStatus(dm, existingId)) {
+            DownloadManager.STATUS_PENDING,
+            DownloadManager.STATUS_RUNNING,
+            DownloadManager.STATUS_PAUSED -> {
+                btnDownload.isEnabled = false
+                btnDownload.setText(R.string.update_downloading)
+                btnSkip.visibility = View.GONE
+                progressContainer.visibility = View.VISIBLE
+                attachToDownload(existingId, apkFile, progressBar, progressText, btnDownload, progressContainer)
+            }
+            DownloadManager.STATUS_SUCCESSFUL -> {
+                if (apkFile.exists()) {
+                    btnSkip.visibility = View.GONE
+                    progressContainer.visibility = View.VISIBLE
+                    progressBar.progress = 100
+                    progressText.text = "100%"
+                    btnDownload.setText(R.string.update_install)
+                    btnDownload.setOnClickListener { installApk(apkFile) }
+                } else {
+                    AppUpdateChecker.clearOngoingDownload()
+                }
+            }
+            else -> {
+                try { dm.remove(existingId) } catch (_: Exception) {}
+                AppUpdateChecker.clearOngoingDownload()
+            }
+        }
     }
 
     private fun startProgressPolling(
@@ -232,7 +340,12 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
                                     progressText.text = String.format("%.1fMB / %.1fMB (%d%%)", downloadedMB, totalMB, percent)
                                 }
                             }
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                onDownloadSuccess(apkFile, progressBar, progressText, btnDownload)
+                                return
+                            }
                             DownloadManager.STATUS_FAILED -> {
+                                AppUpdateChecker.clearOngoingDownload()
                                 progressText.setText(R.string.update_download_failed)
                                 btnDownload.isEnabled = true
                                 btnDownload.setText(R.string.update_retry)
