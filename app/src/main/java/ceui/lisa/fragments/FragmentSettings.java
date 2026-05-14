@@ -1383,6 +1383,18 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                     loadCacheSizeAsync(baseBind.gifCacheSize, LegacyFile.gifCacheFolder(mContext));
                 }
             });
+
+            // 清除批量下载关联数据 —— illust_download_table / download_queue 两张表
+            // 的 illustGson 列是重度用户存储占用的大头 (单条 10–30 KB,几万行就上 GB);
+            // 加这一行让用户能把"下载管理"reset 回初始状态。落盘的图不会被删,
+            // 已下载的内容仍能在系统相册看到。
+            loadBulkDownloadCacheSizeAsync(baseBind.bulkDownloadCacheSize);
+            baseBind.clearBulkDownloadCache.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showClearBulkDownloadConfirmDialog();
+                }
+            });
         }
 
         // 备份与还原
@@ -1686,6 +1698,87 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
         }, "cache-size-calc").start();
+    }
+
+    /**
+     * Settings 右侧"清除批量下载关联数据"那一行的大小估算 —— 算 illust_download_table /
+     * download_queue 里 illustGson 列的字节 + staging_dl/ 实际占用。SQL 计数走子线程,
+     * 大表 (Mio 用户 50k 行) 仍是毫秒级。
+     */
+    private void loadBulkDownloadCacheSizeAsync(TextView target) {
+        target.setText("…");
+        new Thread(() -> {
+            long bytes;
+            try {
+                bytes = ceui.pixiv.db.bulkclean.BulkDownloadCacheCleaner
+                        .computeReclaimableBytes(mContext.getApplicationContext());
+            } catch (Throwable t) {
+                bytes = 0L;
+            }
+            final String size = android.text.format.Formatter.formatShortFileSize(mContext, bytes);
+            target.post(() -> {
+                if (isAdded()) {
+                    target.setText(size);
+                }
+            });
+        }, "bulk-dl-size-calc").start();
+    }
+
+    /**
+     * 跟 DoneListV3Fragment.showClearDoneConfirmDialog 一样的 destructive 二次确认 ——
+     * 文案明确说"已下好的图不会被删",避免用户因恐慌而不敢清理。
+     */
+    private void showClearBulkDownloadConfirmDialog() {
+        if (getActivity() == null || getActivity().isFinishing() || getActivity().isDestroyed()) return;
+        new QMUIDialog.MessageDialogBuilder(getActivity())
+                .setTitle(R.string.clear_bulk_download_cache)
+                .setMessage(R.string.clear_bulk_download_cache_message)
+                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                .addAction(R.string.cancel, (d, idx) -> d.dismiss())
+                .addAction(0, R.string.sure, QMUIDialogAction.ACTION_PROP_NEGATIVE, (d, idx) -> {
+                    d.dismiss();
+                    runBulkDownloadCacheWipe();
+                })
+                .create()
+                .show();
+    }
+
+    /**
+     * 真正执行 wipe。VACUUM 1.5GB DB 在低端机上能跑 30s+,期间挂个 progress dialog
+     * 不让用户重复点;wipe 内部把队列 / Manager 都 stop 了,再次写库的入口已经关掉。
+     */
+    private void runBulkDownloadCacheWipe() {
+        if (getActivity() == null || getActivity().isFinishing() || getActivity().isDestroyed()) return;
+        final android.content.Context appCtx = mContext.getApplicationContext();
+        final com.qmuiteam.qmui.widget.dialog.QMUITipDialog progress =
+                new com.qmuiteam.qmui.widget.dialog.QMUITipDialog.Builder(getActivity())
+                        .setIconType(com.qmuiteam.qmui.widget.dialog.QMUITipDialog.Builder.ICON_TYPE_LOADING)
+                        .setTipWord(getString(R.string.clear_bulk_download_cache_progress))
+                        .create();
+        progress.setCancelable(false);
+        progress.show();
+
+        // 用 Main looper 的 Handler 而不是绑某个 View 的 post —— 旋屏时 baseBind 会被
+        // DataBinding 重建,绑 view 的 post 可能根本不跑,留下孤儿 progress dialog
+        // 抓着旧 activity 触发 WindowLeaked。Handler 是 activity-agnostic,稳。
+        final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+
+        new Thread(() -> {
+            try {
+                ceui.pixiv.db.bulkclean.BulkDownloadCacheCleaner.wipe(appCtx);
+            } catch (Throwable t) {
+                android.util.Log.w("FragmentSettings", "bulk download wipe failed", t);
+            }
+            main.post(() -> {
+                // 先无条件 dismiss —— 即使 fragment 已被销毁,旧 activity 上挂着的
+                // 这个 dialog 也必须解掉,否则 WindowLeaked。
+                try { progress.dismiss(); } catch (Throwable ignored) {}
+                if (isAdded() && baseBind != null) {
+                    Common.showToast(getString(R.string.success_clear_bulk_download_cache));
+                    loadBulkDownloadCacheSizeAsync(baseBind.bulkDownloadCacheSize);
+                }
+            });
+        }, "bulk-dl-wipe").start();
     }
 
     private String currentLanguageDisplay() {

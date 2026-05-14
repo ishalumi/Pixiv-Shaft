@@ -79,6 +79,13 @@ public interface DownloadDao {
     @Query("DELETE FROM illust_download_table")
     void deleteAllDownload();
 
+    /**
+     * 给 BulkDownloadCacheCleaner 估"清出来多少字节"用 —— 单 illustGson 列就是占用大头,
+     * 元数据/index 不算在用户感知的"瘦身额度"里。
+     */
+    @Query("SELECT IFNULL(SUM(LENGTH(illustGson)), 0) FROM illust_download_table")
+    long sumIllustGsonBytes();
+
     @Query("DELETE FROM illust_downloading_table")
     void deleteAllDownloading();
 

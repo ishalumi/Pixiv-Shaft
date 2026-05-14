@@ -284,7 +284,11 @@
   <string name="string_97">중국어 간 체</string>
   <string name="string_100">캐 시 메모리</string>
   <string name="string_101">이미지 캐 시 삭제</string>  
-  <string name="string_102">GIF 캐 시 삭제</string>  
+  <string name="string_102">GIF 캐 시 삭제</string>
+  <string name="clear_bulk_download_cache">일괄 다운로드 관련 데이터 삭제</string>
+  <string name="clear_bulk_download_cache_message">다운로드 관리의 \'완료\', \'대기열\' 목록이 비워집니다. 앱을 처음 켰을 때와 같은 상태가 됩니다.\n(이미 저장된 이미지/소설 파일은 삭제되지 않습니다.)</string>
+  <string name="clear_bulk_download_cache_progress">일괄 다운로드 관련 데이터를 삭제하는 중…</string>
+  <string name="success_clear_bulk_download_cache">일괄 다운로드 관련 데이터가 삭제되었습니다</string>
   <string name="string_103">클릭 하여 펼 치기</string>
   <string name="string_105">클릭 하여 펼 치기</string>
   <string name="string_107">--- 끝 -</string>

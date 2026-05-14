@@ -278,7 +278,11 @@
   <string name="string_97">упрощенный китайский язык</string>
   <string name="string_100">Кэш</string>
   <string name="string_101">Очистить кеш изображений</string>  
-  <string name="string_102">Очистить кеш GIF</string>  
+  <string name="string_102">Очистить кеш GIF</string>
+  <string name="clear_bulk_download_cache">Очистить данные пакетных загрузок</string>
+  <string name="clear_bulk_download_cache_message">Списки «Завершено» и «Очередь» в менеджере загрузок будут очищены — как при первом запуске приложения.\n(Файлы, уже сохранённые на устройстве, не удаляются.)</string>
+  <string name="clear_bulk_download_cache_progress">Очистка данных пакетных загрузок…</string>
+  <string name="success_clear_bulk_download_cache">Данные пакетных загрузок очищены</string>
   <string name="string_103">щелчок развернуть</string>
   <string name="string_105">щелчок развернуть</string>
   <string name="string_107">- конец - - -</string>

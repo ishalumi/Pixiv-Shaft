@@ -277,7 +277,11 @@
   <string name="string_97">Basitleştirilmiş Çince</string>
   <string name="string_100">Önbellek</string>
   <string name="string_101">Resim önbelleğini temizle</string>  
-  <string name="string_102">GIF önbelleğini temizle</string>  
+  <string name="string_102">GIF önbelleğini temizle</string>
+  <string name="clear_bulk_download_cache">Toplu indirme verilerini temizle</string>
+  <string name="clear_bulk_download_cache_message">İndirme yöneticisindeki «Tamamlandı» ve «Sıra» listeleri temizlenecek — uygulamayı ilk açtığınız andaki gibi.\n(Cihaza zaten indirilmiş dosyalar silinmez.)</string>
+  <string name="clear_bulk_download_cache_progress">Toplu indirme verileri temizleniyor…</string>
+  <string name="success_clear_bulk_download_cache">Toplu indirme verileri temizlendi</string>
   <string name="string_103">Açmak için tıkla</string>
   <string name="string_105">Açmak için tıkla</string>
   <string name="string_107">--- SON ---</string>

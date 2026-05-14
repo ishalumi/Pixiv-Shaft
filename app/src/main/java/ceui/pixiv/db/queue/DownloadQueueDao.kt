@@ -106,6 +106,10 @@ interface DownloadQueueDao {
     @Query("DELETE FROM download_queue")
     suspend fun deleteAll()
 
+    /** 给 BulkDownloadCacheCleaner 估"清出来多少字节"用。 */
+    @Query("SELECT IFNULL(SUM(LENGTH(illustGson)), 0) FROM download_queue")
+    suspend fun sumIllustGsonBytes(): Long
+
     @Query("SELECT MAX(seq) FROM download_queue")
     suspend fun maxSeq(): Long?
 
