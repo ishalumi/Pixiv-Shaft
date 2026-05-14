@@ -3,7 +3,6 @@ package ceui.pixiv.chat.api
 import ceui.pixiv.chat.core.ChatMessageStream
 import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.websocket.IncomingMessage
-import ceui.pixiv.websocket.WebSocketClient
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,23 +13,25 @@ import kotlinx.coroutines.flow.onEach
 import timber.log.Timber
 
 /**
- * [ChatMessageStream] backed by a shaft-api-v2 WebSocket connection.
+ * [ChatMessageStream] over a [Flow] of [IncomingMessage] frames. Constructor
+ * takes the flow directly instead of a [ceui.pixiv.websocket.WebSocketClient]
+ * so the stream can sit on top of either a fragment-owned client or — the
+ * production path — [ceui.pixiv.websocket.WebSocketManager.incoming] which
+ * auto-switches across reconnects.
  *
- * Filters [WebSocketClient.incoming] for `msg` frames, decodes them via
- * [ChatFrameDecoder], and maps to [ChatMessageEntity] using the same
- * field mapping as [HttpChatHistorySource] so HTTP backfill and WS push
- * upsert into Room without producing duplicate rows.
+ * Filters text frames, decodes via [ChatFrameDecoder], maps `msg` frames to
+ * [ChatMessageEntity] using the same field mapping as [HttpChatHistorySource]
+ * so HTTP backfill and WS push upsert into Room without dup rows.
  *
- * Side channels exposed for callers that need them:
+ * Side channels for callers that need them:
  *  - [helloFrames] — server-pushed `hello` frame after every successful
- *    handshake; useful for "show display name" / "we're really connected
- *    now" UI states.
- *  - [errorFrames] — `err` frames (rate-limit, bad-request, etc.). Server
- *    does NOT close the connection on these, so the stream stays alive
- *    and the caller chooses how to surface them in the UI.
+ *    handshake (useful for "we're really connected now" UI state and for
+ *    resetting reconnect counters per docs §10).
+ *  - [errorFrames] — `err` frames (`rate_limited`, `frame_too_large`, …).
+ *    Server does NOT close the connection on these — stream stays alive.
  */
 class WsChatMessageStream(
-    private val client: WebSocketClient,
+    private val incoming: Flow<IncomingMessage>,
     private val threadId: Long = HttpChatHistorySource.GLOBAL_THREAD_ID,
     private val gson: Gson = Gson(),
 ) : ChatMessageStream<ChatMessageEntity> {
@@ -46,26 +47,47 @@ class WsChatMessageStream(
     val errorFrames: Flow<ChatFrame.Err> get() = _errorFrames
 
     override fun observe(threadId: Long): Flow<ChatMessageEntity> =
-        client.incoming
+        incoming
             .filterIsInstance<IncomingMessage.Text>()
             .map { ChatFrameDecoder.decode(it.text) }
             .onEach { frame ->
-                // Route side-channel frames into their dedicated flows so the
-                // emitter ordering (hello → first msg) is preserved upstream
-                // of the mapNotNull filter.
+                // Side-channel routing + visibility logging. Keep the side
+                // effect inside the same upstream so ordering (hello → first
+                // msg) is preserved upstream of the mapNotNull filter below.
                 when (frame) {
                     is ChatFrame.Hello -> {
                         Timber.tag(TAG).i(
-                            "HELLO received: name=%s room=%s",
-                            frame.displayName, frame.room,
+                            "⇣ hello name=%s room=%s server_ts=%d",
+                            frame.displayName, frame.room, frame.serverTs,
                         )
                         _helloFrames.tryEmit(frame)
                     }
+                    is ChatFrame.Msg -> {
+                        // INFO-level so it's visible in default logcat alongside
+                        // RobustWebSocketClient's "WS" tag. Truncate long text
+                        // to keep logs scrollable.
+                        Timber.tag(TAG).i(
+                            "⇣ msg ts=%d cid=%s name=%s illust=%s text=%s",
+                            frame.ts,
+                            frame.clientId.take(8),
+                            frame.displayName ?: "-",
+                            frame.illustId?.toString() ?: "-",
+                            frame.text?.take(80) ?: "-",
+                        )
+                    }
                     is ChatFrame.Err -> {
-                        Timber.tag(TAG).w("err.%s", frame.code)
+                        Timber.tag(TAG).w("⇣ err code=%s", frame.code)
                         _errorFrames.tryEmit(frame)
                     }
-                    else -> Unit
+                    is ChatFrame.Pong -> {
+                        // Server's app-level pong (not RFC 6455 pong which OkHttp
+                        // handles transparently below). Logging it makes the
+                        // app-level heartbeat audit-able if someone sends `{kind:ping}`.
+                        Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)
+                    }
+                    is ChatFrame.Unknown -> {
+                        Timber.tag(TAG).d("⇣ unknown frame dropped to dead-letter")
+                    }
                 }
             }
             .mapNotNull { (it as? ChatFrame.Msg)?.let(::toEntity) }

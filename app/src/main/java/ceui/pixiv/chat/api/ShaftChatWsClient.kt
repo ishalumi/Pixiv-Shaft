@@ -3,6 +3,8 @@ package ceui.pixiv.chat.api
 import android.content.Context
 import ceui.lisa.BuildConfig
 import ceui.pixiv.events.EventReporter
+import okhttp3.logging.HttpLoggingInterceptor
+import timber.log.Timber
 import ceui.pixiv.websocket.ExponentialBackoffWithJitter
 import ceui.pixiv.websocket.NetworkMonitor
 import ceui.pixiv.websocket.RobustWebSocketClient
@@ -25,10 +27,15 @@ import java.util.concurrent.TimeUnit
 object ShaftChatWsClient {
 
     /**
-     * Build a fresh, not-yet-connected chat WS client. The caller owns its
-     * lifecycle — call [WebSocketClient.connect] when the chat screen
-     * appears, [WebSocketClient.close] when it goes away. Each instance is
-     * a one-shot bound to a single fragment / session; don't try to share.
+     * Build a fresh, not-yet-connected chat WS client.
+     *
+     * **Sole caller** is [ShaftChatGateway]'s `createClient` lambda passed
+     * to [ceui.pixiv.websocket.WebSocketManager]. The manager calls this
+     * exactly once per "activation" (chat is anonymous, pinned to
+     * activation=`true` for process lifetime, so one client per process).
+     * **Don't call from anywhere else** — fragment-local construction
+     * would put a second WS client on the wire and break the single-
+     * lifecycle invariant the gateway exists to enforce.
      */
     fun create(context: Context): WebSocketClient {
         val authProvider = ShaftHmacAuthProvider(
@@ -41,13 +48,23 @@ object ShaftChatWsClient {
             BuildConfig.SHAFT_EVENTS_BASE_URL
         ) + "/api/v1/chat/ws"
 
-        val okHttp = OkHttpClient.Builder()
+        val okHttpBuilder = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             // readTimeout is enforced inside RobustWebSocketClient (set to 0
             // there). writeTimeout is fine to set on the base client.
             .writeTimeout(10, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
-            .build()
+        if (BuildConfig.IS_DEBUG_MODE) {
+            // Logs the upgrade handshake (101 / 401 / 429 / 503 — see docs
+            // §1.1). OkHttp drops the interceptor after the upgrade succeeds
+            // so this never logs business frames; those come from
+            // RobustWebSocketClient's payload logging below.
+            okHttpBuilder.addInterceptor(
+                HttpLoggingInterceptor { Timber.tag("ChatWS-HTTP").i(it) }
+                    .apply { level = HttpLoggingInterceptor.Level.HEADERS }
+            )
+        }
+        val okHttp = okHttpBuilder.build()
 
         val config = WebSocketConfig(
             url = placeholderUrl,
@@ -63,6 +80,10 @@ object ShaftChatWsClient {
             // all unfixable by retry with same credentials). ShaftHmacAuthProvider.onAuthFailure
             // already returns false; this just keeps the budget tight for safety.
             maxAuthRefreshAttempts = 0,
+            // Dump every WS frame body to logcat on tag "WS" (debug only).
+            // Combined with WsChatMessageStream's INFO-level frame summaries
+            // this gives full visibility into what crosses the wire.
+            logPayloads = BuildConfig.IS_DEBUG_MODE,
         )
 
         return RobustWebSocketClient(

@@ -17,11 +17,7 @@ import ceui.lisa.R
 import ceui.lisa.databinding.ChatFragmentDemoListBinding
 import ceui.pixiv.events.EventReporter
 import ceui.pixiv.chat.api.HttpChatHistorySource
-import ceui.pixiv.chat.api.ShaftChatWsClient
-import ceui.pixiv.chat.api.WsChatMessageStream
-import ceui.pixiv.websocket.WebSocketState
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
+import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.chat.base.PagingFooterAdapter
 import ceui.pixiv.chat.base.PagingState
 import ceui.pixiv.chat.base.launchSuspend
@@ -33,19 +29,22 @@ import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.chat.data.ChatDatabase
 import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.chat.data.RoomChatMessageStore
-import ceui.pixiv.chat.vm.ShaftChatListViewModel
+import ceui.pixiv.chat.vm.ChatListViewModel
+import ceui.pixiv.websocket.WebSocketState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
  * Chat screen wired to the **real** shaft-api-v2 chat WebSocket. The
- * local-first pipeline (Room as single source of truth, with HTTP backfill
- * + WS push both feeding Room) is preserved from the original Peanut demo
- * — only the sources are swapped:
+ * fragment owns no WebSocket — the app-scoped [ShaftChatGateway] does, on
+ * top of [ceui.pixiv.websocket.WebSocketManager]. Fragment just consumes
+ * the gateway's flows and dispatches send through it.
  *
  *  - history: [HttpChatHistorySource] → `GET /api/v1/chat/history`
- *  - live:    [WsChatMessageStream]   → WS `msg` frames
- *  - send:    [ShaftChatListViewModel.sendText] → WS `msg` frame,
- *             render on echo (no optimistic Room insert)
+ *  - live:    [ShaftChatGateway.chatStream] → WS `msg` frames
+ *  - send:    [ShaftChatGateway.send] → WS `msg` frame, render on echo
+ *             (no optimistic Room insert; docs §1.3 "应当以回声为准")
  *
  * ## RecyclerView orientation
  *
@@ -57,16 +56,15 @@ import kotlinx.coroutines.launch
  */
 class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
-    private val viewModel: ShaftChatListViewModel by viewModels {
+    private val viewModel: ChatListViewModel<ChatMessageEntity> by viewModels {
         val appCtx = requireContext().applicationContext
-        val wsClient = ShaftChatWsClient.create(appCtx)
-        ShaftChatListViewModel(
-            wsClient = wsClient,
-            wsStream = WsChatMessageStream(wsClient),
-            historySource = HttpChatHistorySource(),
+        ChatListViewModel(
+            threadId = HttpChatHistorySource.GLOBAL_THREAD_ID,
             store = RoomChatMessageStore(
                 ChatDatabase.getInstance(appCtx).chatMessageDao()
             ),
+            historySource = HttpChatHistorySource(),
+            stream = ShaftChatGateway.chatStream,
         )
     }
 
@@ -239,7 +237,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         // Server echoes the message back over WS — that echo is what renders.
         // No local Room insert here; rendering on the echo prevents the
         // "shown locally but never landed on the server" failure mode.
-        val accepted = viewModel.sendText(text)
+        val accepted = ShaftChatGateway.send(text)
         if (!accepted) {
             Toast.makeText(requireContext(), "发送失败,请稍后重试", Toast.LENGTH_SHORT).show()
             return
@@ -271,7 +269,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
      * one).
      */
     private suspend fun observeConnection() {
-        viewModel.wsState.collect { state ->
+        ShaftChatGateway.state.collect { state ->
             wsConnected = state is WebSocketState.Connected
             refreshSendEnabled()
         }
@@ -284,7 +282,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
      * — log only, don't pop a toast.
      */
     private suspend fun observeServerErrors() {
-        viewModel.errors.collectLatest { err ->
+        ShaftChatGateway.errorFrames.collectLatest { err ->
             if (err.code == "rate_limited") {
                 rateLimitCoolDown = true
                 refreshSendEnabled()

@@ -211,6 +211,12 @@ public class Shaft extends Application implements ServicesProvider {
         // 任何崩溃都被它自己捕获。安全顺序：必须在 MMKV.initialize 之后。
         ceui.pixiv.events.EventReporter.INSTANCE.init(this);
 
+        // shaft-api-v2 chat WebSocket gateway. App-scoped — 一个 WebSocketManager
+        // 全局复用,生命周期与进程一致(匿名协议没有"退登")。必须在
+        // EventReporter.init 之后,因为 ShaftHmacAuthProvider 要靠
+        // currentClientId() 签 URL,init 同步把 clientId 写好。
+        ceui.pixiv.chat.api.ShaftChatGateway.INSTANCE.bootstrap(this);
+
         // 初始化发现池 + 异步构建用户画像
         Timber.d("Discovery/Init >>> initializing DiscoveryPool");
         ceui.pixiv.db.discovery.DiscoveryPool.INSTANCE.initialize();
