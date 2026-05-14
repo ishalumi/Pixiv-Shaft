@@ -6,7 +6,6 @@ import ceui.loxia.Client
 import ceui.pixiv.chat.api.ChatConversationsRepository
 import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.ui.ChatRoomEntry
-import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -200,14 +199,6 @@ class ChatRoomListViewModel(
     }
 
     companion object {
-        // Suppressed-unused: this is the gateway field the doc references
-        // for the WS subscription that the fragment maintains; pulling it
-        // into a `val` here keeps the dependency visible from the VM file
-        // for future test wiring without forcing it through the constructor
-        // (which would tangle a real WS singleton into unit tests).
-        @Suppress("unused")
-        private val gateway = ShaftChatGateway
-
         private const val TAG = "Chat-RoomListVM"
     }
 }

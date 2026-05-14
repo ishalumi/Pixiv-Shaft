@@ -482,4 +482,95 @@ class ManagerStagingConcurrencyTest {
             tmpDir.delete()
         }
     }
+
+    // ---------- openStageStream: cacheDir 被外部抹掉时的兜底 ----------
+
+    /**
+     * Issue #885：批量队列 PENDING 排队若干分钟以上，等 pump 调度到时
+     * /data/user/0/<pkg>/cache/staging_dl/ 已经被系统/「清除缓存」/ 第三方
+     * 清理软件抹掉。FileOutputStream 不会递归建目录 → 报
+     * `java.io.FileNotFoundException: …/{uuid}.part: open failed: ENOENT
+     * (No such file or directory)`，整批 FAILED。
+     *
+     * 修法 (Manager.openStageStream)：捕 FNF 后看 effectivePassSize:
+     *   - 0：从头下（没带 Range 头），重建父目录后开新文件，零数据损失。
+     *   - >0：续传（已带 Range:bytes={N}-），前 N 字节也没了，硬重试会出
+     *     截断图，直接 throw 让 retry path 整段重下。
+     *
+     * 下面三条 case 固定这三个行为。
+     */
+    @Test
+    fun `openStageStream — fresh download recreates parent dir wiped by cache cleanup`() {
+        val parent = File.createTempFile("stage_wipe_fresh_", "_dir").apply { delete(); mkdir() }
+        val stageFile = File(parent, "uuid-abc.part")
+        // 模拟「pump 调度到这条 task 时父目录已经没了」
+        parent.delete()
+        check(!parent.exists()) { "setup: parent should not exist" }
+
+        try {
+            // effectivePassSize=0 ⇒ append=false ⇒ 进恢复路径
+            val out = Manager.openStageStream(stageFile, 0L)
+            out.use { it.write(byteArrayOf(1, 2, 3, 4, 5)) }
+
+            assertTrue("parent dir should be recreated", parent.isDirectory)
+            assertTrue("stage file should be created and written", stageFile.exists()
+                && stageFile.readBytes().contentEquals(byteArrayOf(1, 2, 3, 4, 5)))
+        } finally {
+            stageFile.delete()
+            parent.delete()
+        }
+    }
+
+    /**
+     * 续传场景：request 已经发出去带了 Range 头，stage 前 N 字节没了 = 整段
+     * 数据完整性已经破裂，再去重建目录硬写会落出截断图、commit 进相册。
+     * openStageStream 必须 throw 让 retry path 走整段重下。
+     */
+    @Test
+    fun `openStageStream — resume path refuses to recreate dir, throws to force fresh retry`() {
+        val parent = File.createTempFile("stage_wipe_resume_", "_dir").apply { delete(); mkdir() }
+        val stageFile = File(parent, "uuid-xyz.part")
+        parent.delete()
+        check(!parent.exists()) { "setup: parent should not exist" }
+
+        try {
+            // effectivePassSize=1024 ⇒ append=true ⇒ 拒绝恢复
+            var threw = false
+            try {
+                Manager.openStageStream(stageFile, 1024L).close()
+            } catch (_: java.io.FileNotFoundException) {
+                threw = true
+            }
+            assertTrue("openStageStream MUST throw on resume + wiped dir, not recreate", threw)
+            assertTrue("parent dir must NOT be recreated on resume path", !parent.exists())
+            assertTrue("stage file must NOT exist after refused resume", !stageFile.exists())
+        } finally {
+            stageFile.delete()
+            parent.delete()
+        }
+    }
+
+    /**
+     * 正常路径（父目录在）零行为变化：fresh / append 两条分支都拿到能写的 stream。
+     * 防止 fix 引入 regression 让普通下载也走错路。
+     */
+    @Test
+    fun `openStageStream — normal path unchanged for both fresh and append modes`() {
+        val parent = File.createTempFile("stage_normal_", "_dir").apply { delete(); mkdir() }
+        val stageFile = File(parent, "uuid-norm.part")
+        try {
+            // fresh: append=false
+            Manager.openStageStream(stageFile, 0L).use { it.write(byteArrayOf(10, 20)) }
+            assertTrue("fresh write should produce exactly the bytes written",
+                stageFile.readBytes().contentEquals(byteArrayOf(10, 20)))
+
+            // append: effectivePassSize>0 → append=true，接着写
+            Manager.openStageStream(stageFile, 2L).use { it.write(byteArrayOf(30, 40)) }
+            assertTrue("append write should extend the file",
+                stageFile.readBytes().contentEquals(byteArrayOf(10, 20, 30, 40)))
+        } finally {
+            stageFile.delete()
+            parent.delete()
+        }
+    }
 }

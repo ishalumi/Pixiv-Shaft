@@ -80,23 +80,21 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             v.layoutParams = lp
             windowInsets
         }
-        val infoItems = listOf(
-            baseBind?.bottomRela,
-            btnAi
-        )
+        // btnAi 只在「二级详情」可用；放进 infoItems 会被 animateFadeInQuickly() 顶掉 GONE 状态 (issue #872)
+        val infoItems = mutableListOf<View>()
+        baseBind?.bottomRela?.let { infoItems.add(it) }
+        if ("二级详情" == dataType) {
+            infoItems.add(btnAi)
+        }
         windowInsetsController.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         viewModel.isFullscreenMode.observe(this) { isFullScreen ->
             if (isFullScreen) {
                 windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-                infoItems.forEach {
-                    it?.animateFadeOutQuickly()
-                }
+                infoItems.forEach { it.animateFadeOutQuickly() }
             } else {
                 windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
-                infoItems.forEach {
-                    it?.animateFadeInQuickly()
-                }
+                infoItems.forEach { it.animateFadeInQuickly() }
             }
         }
         if ("二级详情" == dataType) {

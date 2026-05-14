@@ -703,8 +703,11 @@ public class Manager {
                         + " source=" + (cachedFile != null ? "cache" : "network"));
 
                 if (useStaging) {
-                    // staging：写本地 cacheDir，effectivePassSize 已基于 stage 文件长度
-                    outputStream = new java.io.FileOutputStream(stageFile, effectivePassSize > 0);
+                    // staging：写本地 cacheDir，effectivePassSize 已基于 stage 文件长度。
+                    // 父目录可能在排队期间被系统/「清除缓存」/ 第三方清理软件抹掉
+                    //（issue #885），openStageStream 兜底重建一次。续传场景下不重建
+                    // ——前 N 字节没法找回，硬接着写会落出截断图。
+                    outputStream = openStageStream(stageFile, effectivePassSize);
                 } else if ("file".equals(targetUri.getScheme())) {
                     String path = targetUri.getPath();
                     java.io.FileOutputStream fos = new java.io.FileOutputStream(path, effectivePassSize > 0);
@@ -935,6 +938,43 @@ public class Manager {
             }
         });
         handles.put(itemUuid, d);
+    }
+
+    /**
+     * 打开 staging .part 文件做写入，兜底 cacheDir 被外部抹掉的情形。
+     *
+     * Android 在低存储时会主动清 app 的 cacheDir，用户也能从「设置→应用→
+     * 清除缓存」一键清掉，第三方清理软件、StorageManager.allocateBytes 触发
+     * 的回收同理。批量队列在 PENDING 排队若干分钟到几小时是常态（issue #885
+     * 截图里 34 条 PENDING），等真正调度到时 staging_dl 子目录大概率已经被
+     * 抹掉。FileOutputStream 不会递归建目录 → ENOENT 直接抛，整批 FAILED。
+     *
+     * 这里捕到 FNF 后看 effectivePassSize:
+     *   - == 0：从头下，request 没带 Range 头。重建父目录后开新文件，零数据
+     *     损失。即便 mkdirs 又失败（权限 / 磁盘满），原 FNF 照 throw，外层
+     *     onError 走标 FAILED 流程，不会比修前更差。
+     *   - >  0：续传，request 已经带 Range:bytes={N}- 头让服务器跳过前 N
+     *     字节。父目录没了 = stage 前 N 字节也没了，重建空目录硬接着写会
+     *     落出一张 (totalSize - N) 字节的损坏图、commit 进相册。不能救，
+     *     直接 throw 让 retry path 再进来一次 —— 下次 stageFile.length()==0
+     *     自然走整段重下。
+     *
+     * package-private 是给同包测试 (ManagerStagingConcurrencyTest) 直接调，
+     * 不暴露给外部。
+     */
+    static java.io.FileOutputStream openStageStream(
+            java.io.File stageFile, long effectivePassSize) throws IOException {
+        final boolean append = effectivePassSize > 0;
+        try {
+            return new java.io.FileOutputStream(stageFile, append);
+        } catch (java.io.FileNotFoundException fnf) {
+            if (append) throw fnf;
+            java.io.File parent = stageFile.getParentFile();
+            if (parent != null && (parent.isDirectory() || parent.mkdirs())) {
+                return new java.io.FileOutputStream(stageFile, false);
+            }
+            throw fnf;
+        }
     }
 
     private String uuid;
