@@ -61,7 +61,7 @@ class RealBannerManager(
     }
 
     override fun enqueue(request: BannerRequest): Boolean {
-        if (isShutdown) return false
+        check(!isShutdown) { "BannerManager is shut down" }
         scope.launch { handleEnqueue(request) }
         return true
     }
@@ -72,7 +72,7 @@ class RealBannerManager(
     }
 
     override fun dismissCategory(category: BannerCategory) {
-        if (isShutdown) return
+        check(!isShutdown) { "BannerManager is shut down" }
         scope.launch {
             val removed = queue.removeByCategory(category)
             for (r in removed) {
@@ -87,7 +87,7 @@ class RealBannerManager(
     }
 
     override fun clearAll() {
-        if (isShutdown) return
+        check(!isShutdown) { "BannerManager is shut down" }
         scope.launch {
             val cleared = queue.clear()
             for (r in cleared) {
