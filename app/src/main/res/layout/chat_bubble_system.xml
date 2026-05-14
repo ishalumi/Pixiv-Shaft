@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingHorizontal="48dp"
-    android:paddingVertical="8dp">
+    android:paddingVertical="8dp"
+    android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
     <TextView
         android:id="@+id/tv_content"

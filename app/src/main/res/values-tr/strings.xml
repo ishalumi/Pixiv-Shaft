@@ -1266,6 +1266,7 @@
     <string name="debug_bulk_dl_running">Toplanıyor…</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_drawer_entry">Sohbet Odası</string>
     <string name="chat_action_copy">Kopyala</string>
     <string name="chat_action_delete">Sil</string>
     <string name="chat_action_forward">İlet</string>

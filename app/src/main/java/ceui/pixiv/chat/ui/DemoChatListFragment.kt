@@ -88,7 +88,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupToolbar(title = "Chat Demo")
+        setupToolbar(title = getString(R.string.chat_drawer_entry), showBack = true)
 
         // ── Bottom panel (emoji ↔ keyboard) ──────────────────────────
         attachBottomPanel(

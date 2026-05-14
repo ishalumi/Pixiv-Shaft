@@ -1268,6 +1268,7 @@
     <string name="debug_bulk_dl_running">Сбор данных…</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_drawer_entry">Чат</string>
     <string name="chat_action_copy">Копировать</string>
     <string name="chat_action_delete">Удалить</string>
     <string name="chat_action_forward">Переслать</string>

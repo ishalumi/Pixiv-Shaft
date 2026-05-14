@@ -381,6 +381,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 case "批量下载Debug":
                     return new ceui.pixiv.ui.debug.BulkDownloadDebugFragment();
+                case "聊天室":
+                    return new ceui.pixiv.chat.ui.DemoChatListFragment();
                 default:
                     return new Fragment();
             }

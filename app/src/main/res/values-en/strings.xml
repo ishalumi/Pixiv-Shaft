@@ -1362,6 +1362,7 @@
     <string name="debug_bulk_dl_running">Collecting…</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_drawer_entry">Chat Room</string>
     <string name="chat_action_copy">Copy</string>
     <string name="chat_action_delete">Delete</string>
     <string name="chat_action_forward">Forward</string>

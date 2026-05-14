@@ -1275,6 +1275,7 @@
     <string name="debug_bulk_dl_running">수집 중…</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_drawer_entry">채팅방</string>
     <string name="chat_action_copy">복사</string>
     <string name="chat_action_delete">삭제</string>
     <string name="chat_action_forward">전달</string>

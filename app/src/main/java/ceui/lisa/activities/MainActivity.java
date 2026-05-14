@@ -99,6 +99,7 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(isDebugBuild);
         baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(isDebugBuild);
         baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(isDebugBuild);
+        baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(
@@ -394,6 +395,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         } else if (id == R.id.nav_debug_bulk_dl) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "批量下载Debug");
+        } else if (id == R.id.nav_chat_room) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "聊天室");
         }
         if (intent != null) {
             startActivity(intent);

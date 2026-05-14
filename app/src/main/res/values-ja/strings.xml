@@ -1367,6 +1367,7 @@
     <string name="debug_bulk_dl_running">集計中…</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_drawer_entry">チャットルーム</string>
     <string name="chat_action_copy">コピー</string>
     <string name="chat_action_delete">削除</string>
     <string name="chat_action_forward">転送</string>

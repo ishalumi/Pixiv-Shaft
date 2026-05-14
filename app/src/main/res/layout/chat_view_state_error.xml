@@ -4,7 +4,8 @@
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="24dp"
+    android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
     <!-- Large HTTP status code, shown for HTTP errors (e.g. "404") -->
     <TextView
