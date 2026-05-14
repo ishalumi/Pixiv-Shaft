@@ -98,6 +98,15 @@ class ChatListViewModel(
     private var pagingJob: Job? = null
     private var syncJob: Job? = null
 
+    /**
+     * Self-sent messages awaiting their broadcast echo. Key = `clientMsgId`,
+     * value = elapsed-realtime nanos at the optimistic-write moment. When
+     * the matching WS echo flows through [startLiveSync] we read this entry
+     * to log the round-trip latency — a direct ground-truth signal of WS
+     * health (≈ network RTT + server queue depth).
+     */
+    private val inFlightSends = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     init {
         Timber.tag(TAG_PERF).d(
             "init: selfUid=%d toUid=%s room=%s pageSize=%d",
@@ -229,9 +238,10 @@ class ChatListViewModel(
         val oldWindow = windowSize.value
         windowSize.value++
         store.upsert(listOf(optimistic))
-        Timber.tag(TAG_PERF).d(
-            "sendText: optimistic write cmid=%s windowSize %d → %d",
-            clientMsgId, oldWindow, windowSize.value,
+        Timber.tag(TAG).i(
+            "⇡ sendText optimistic cmid=%s room=%s to=%s len=%d windowSize %d→%d",
+            clientMsgId, room, toUid?.toString() ?: "global",
+            trimmed.length, oldWindow, windowSize.value,
         )
 
         // If we were in Empty state, flip to Content.
@@ -239,10 +249,18 @@ class ChatListViewModel(
             _pageState.value = PageState.Content(Unit)
         }
 
+        // Record send-start so [startLiveSync] can compute round-trip
+        // latency when the echo arrives.
+        inFlightSends[clientMsgId] = System.nanoTime()
+
         val accepted = sender.send(toUid = toUid, clientMsgId = clientMsgId, text = trimmed, illustId = illustId)
         if (!accepted) {
+            inFlightSends.remove(clientMsgId)
             store.upsert(listOf(optimistic.copy(state = SendState.Failed)))
-            Timber.tag(TAG).w("sendText: WS dispatch rejected, marked Failed cmid=%s", clientMsgId)
+            Timber.tag(TAG).w(
+                "⇡ sendText WS REJECTED cmid=%s → state=Failed (no active session?)",
+                clientMsgId,
+            )
         }
         return accepted
     }
@@ -326,10 +344,24 @@ class ChatListViewModel(
                 val oldWindow = windowSize.value
                 windowSize.value++
                 store.upsert(listOf(msg))
-                Timber.tag(TAG_PERF).d(
-                    "liveSync: cmid=%s windowSize %d → %d",
-                    msg.clientMsgId, oldWindow, windowSize.value,
-                )
+
+                // Echo correlation: if this msg matches an in-flight
+                // optimistic-send, log the round-trip and clean up.
+                val cmid = msg.clientMsgId
+                val sendStartNs = if (cmid != null) inFlightSends.remove(cmid) else null
+                if (sendStartNs != null) {
+                    val roundTripMs = (System.nanoTime() - sendStartNs) / 1_000_000.0
+                    Timber.tag(TAG).i(
+                        "✓ echo received cmid=%s rtt=%.1fms (Sending→Delivered) room=%s",
+                        cmid, roundTripMs, room,
+                    )
+                } else {
+                    Timber.tag(TAG_PERF).d(
+                        "liveSync: cmid=%s uid=%d windowSize %d→%d",
+                        cmid ?: "-", msg.uid, oldWindow, windowSize.value,
+                    )
+                }
+
                 if (_pageState.value is PageState.Empty) {
                     _pageState.value = PageState.Content(Unit)
                 }

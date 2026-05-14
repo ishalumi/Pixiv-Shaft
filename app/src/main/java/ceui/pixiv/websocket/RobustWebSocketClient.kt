@@ -801,7 +801,10 @@ class RobustWebSocketClient internal constructor(
     }
 
     companion object {
-        private const val TAG = "Ws-Client"
+        // Tag is in the unified Chat-* prefix family even though the class
+        // lives in the generic websocket package — chat is the only consumer
+        // today and shared filtering matters more than future-purity.
+        private const val TAG = "Chat-WsClient"
 
         /** RFC 6455 §7.4.1 — normal closure. */
         const val NORMAL_CLOSURE: Int = 1000

@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
+import timber.log.Timber
 
 /**
  * Application-scoped source of network connectivity state, backed by
@@ -64,16 +66,24 @@ class NetworkMonitor(
     // one Android NetworkCallback. shareIn() below guarantees we only ever
     // execute it once at a time regardless of subscriber count.
     private val source: Flow<Boolean> = callbackFlow {
+        Timber.tag(TAG).d("registering NetworkCallback")
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { trySend(true) }
+            override fun onAvailable(network: Network) {
+                Timber.tag(TAG).d("onAvailable: network=%s", network)
+                trySend(true)
+            }
             override fun onLost(network: Network) {
                 // A specific Network was lost, but another (e.g. cellular after
                 // WiFi disconnect) may still be active. Re-check the active network
                 // instead of blindly emitting false.
-                trySend(isConnected)
+                val nowConnected = isConnected
+                Timber.tag(TAG).d("onLost: network=%s, fallback connected=%b", network, nowConnected)
+                trySend(nowConnected)
             }
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                trySend(caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET))
+                val hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                Timber.tag(TAG).v("onCapabilitiesChanged: network=%s, internet=%b", network, hasInternet)
+                trySend(hasInternet)
             }
         }
         val request = NetworkRequest.Builder()
@@ -81,9 +91,20 @@ class NetworkMonitor(
             .build()
         cm.registerNetworkCallback(request, callback)
         // Emit initial state
-        trySend(isConnected)
-        awaitClose { cm.unregisterNetworkCallback(callback) }
+        val initial = isConnected
+        Timber.tag(TAG).i("initial connectivity = %s", if (initial) "ONLINE" else "OFFLINE")
+        trySend(initial)
+        awaitClose {
+            Timber.tag(TAG).d("unregistering NetworkCallback")
+            cm.unregisterNetworkCallback(callback)
+        }
     }.distinctUntilChanged()
+        // Log every transition AFTER distinctUntilChanged so we only see real
+        // edges (not the dozens of redundant onCapabilitiesChanged that fire
+        // when WiFi roams between APs at the same capability level).
+        .onEach { online ->
+            Timber.tag(TAG).i("⇒ %s", if (online) "ONLINE" else "OFFLINE")
+        }
 
     /**
      * Hot, replay-1, multi-subscriber view of connectivity. See the class
@@ -97,4 +118,10 @@ class NetworkMonitor(
         ),
         replay = 1,
     )
+
+    private companion object {
+        // Unified Chat-* prefix so `package:mine & tag~:^Chat-` captures all
+        // chat-related logs in one filter (incl. the underlying WS transport).
+        private const val TAG = "Chat-Network"
+    }
 }

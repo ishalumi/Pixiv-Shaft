@@ -38,22 +38,32 @@ class HttpChatHistorySource(
         pageSize: Int,
     ): AppResult<MessagePage<ChatMessageEntity>> {
         val before = pageToken?.toLongOrNull()
+        val limit = pageSize.coerceIn(1, 200)
+        Timber.tag(TAG).i("→ GET /chat/history room=%s limit=%d before=%s", room, limit, before)
+        val t0 = System.nanoTime()
         return runCatching {
-            api.history(
-                room = room,
-                limit = pageSize.coerceIn(1, 200),
-                before = before,
-            )
+            api.history(room = room, limit = limit, before = before)
         }.fold(
             onSuccess = { resp ->
+                val apiMs = (System.nanoTime() - t0) / 1_000_000.0
                 // Server returns ts-ascending (oldest→newest); MessagePage contract is
                 // descending. Reverse so downstream code can trust it.
                 val entities = resp.items.asReversed().map { toEntity(it, resp.room) }
                 val nextCursor = resp.items.firstOrNull()?.id?.toString()
+                val oldestTs = resp.items.firstOrNull()?.ts
+                val newestTs = resp.items.lastOrNull()?.ts
+                Timber.tag(TAG).i(
+                    "← /chat/history room=%s %d items in %.1fms ts=[%s..%s] nextCursor=%s",
+                    resp.room, entities.size, apiMs,
+                    oldestTs?.toString() ?: "-",
+                    newestTs?.toString() ?: "-",
+                    nextCursor ?: "(end)",
+                )
                 AppResult.Success(MessagePage(entities, nextCursor))
             },
             onFailure = { t ->
-                Timber.tag(TAG).w(t, "history failed (room=%s, before=%s)", room, before)
+                val apiMs = (System.nanoTime() - t0) / 1_000_000.0
+                Timber.tag(TAG).w(t, "← /chat/history FAILED in %.1fms (room=%s, before=%s)", apiMs, room, before)
                 AppResult.Error(t.toAppError())
             },
         )
