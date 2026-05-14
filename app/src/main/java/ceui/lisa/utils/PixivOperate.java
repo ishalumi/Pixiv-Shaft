@@ -40,7 +40,6 @@ import ceui.lisa.core.Container;
 import ceui.lisa.core.PageData;
 import ceui.lisa.core.RxRun;
 import ceui.lisa.core.RxRunnable;
-import ceui.lisa.download.IllustDownload;
 import ceui.lisa.core.TryCatchObserverImpl;
 import ceui.lisa.database.AppDatabase;
 import ceui.lisa.database.IllustHistoryEntity;
@@ -243,11 +242,8 @@ public class PixivOperate {
                                 illustsBean.getUser().setIs_followed(true);
                             }
 
-                            //收藏后自动下载（issue #722）—— ugoira 走 IllustDownload.downloadGif，
-                            //单图 / 多图都被 downloadIllustAllPages 内部分流覆盖。
-                            if (Shaft.sSettings.isAutoDownloadAfterStar()) {
-                                IllustDownload.downloadIllustAllPages(illustsBean);
-                            }
+                            // 收藏后自动下载（issue #722 / #880）由 UI 主动收藏调用点触发,
+                            // 不在公共 postLike 回调里下,避免"下载时自动收藏 -> 又触发全本下载"循环。
                         }
                     });
 

@@ -88,6 +88,7 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
         bindView.baseBind.likeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                boolean willBookmark = !target.isIs_bookmarked();
                 if (target.isIs_bookmarked()) {
                     bindView.baseBind.likeButton.setImageTintList(
                             ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.not_bookmarked)));
@@ -99,6 +100,10 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
                     PixivOperate.postLike(target, Params.TYPE_PRIVATE, showRelated, (position + 2));
                 } else {
                     PixivOperate.postLike(target, Params.TYPE_PUBLIC, showRelated, (position + 2));
+                }
+                // 收藏后自动下载只在用户主动收藏(非取消)时触发,避免和"下载时自动收藏"循环联动(issue #880)。
+                if (willBookmark && Shaft.sSettings.isAutoDownloadAfterStar()) {
+                    IllustDownload.downloadIllustAllPages(target);
                 }
             }
         });

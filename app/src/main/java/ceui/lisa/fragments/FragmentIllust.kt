@@ -347,12 +347,17 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
             baseBind.postLike.setImageResource(R.drawable.ic_favorite_grey_24dp)
         }
         baseBind.postLike.setOnClick {
+            val willBookmark = !illust.isIs_bookmarked
             if (illust.isIs_bookmarked) {
                 baseBind.postLike.setImageResource(R.drawable.ic_favorite_grey_24dp)
             } else {
                 baseBind.postLike.setImageResource(R.drawable.ic_favorite_red_24dp)
             }
             PixivOperate.postLikeDefaultStarType(illust)
+            // 收藏后自动下载只在用户主动收藏(非取消)时触发,避免和"下载时自动收藏"循环联动(issue #880)。
+            if (willBookmark && Shaft.sSettings.isAutoDownloadAfterStar) {
+                IllustDownload.downloadIllustAllPages(illust)
+            }
         }
         baseBind.postLike.setOnLongClickListener(object : OnLongClickListener {
             override fun onLongClick(v: View): Boolean {

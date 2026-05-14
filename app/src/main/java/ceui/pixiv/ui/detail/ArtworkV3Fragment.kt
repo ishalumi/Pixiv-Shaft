@@ -472,6 +472,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 if (willBookmark) mContext.getColor(R.color.has_bookmarked) else android.graphics.Color.WHITE
             )
             PixivOperate.postLikeDefaultStarType(illust)
+            // 收藏后自动下载只在用户主动收藏(非取消)时触发,避免和"下载时自动收藏"循环联动(issue #880)。
+            if (willBookmark && Shaft.sSettings.isAutoDownloadAfterStar) {
+                IllustDownload.downloadIllustAllPages(illust)
+            }
         }
 
         baseBind.fabBookmark.setOnLongClickListener {
