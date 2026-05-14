@@ -87,7 +87,7 @@ class ChatHapticBridge(
                 .map { ChatFrameDecoder.decode(it.text) }
                 .filterIsInstance<ChatFrame.Msg>()
                 .collect { msg ->
-                    if (shouldBuzz(msg)) fire(v)
+                    if (tryAcquireBuzz(msg)) fire(v)
                 }
         }
         Timber.tag(TAG).i("ChatHapticBridge started")
@@ -99,12 +99,18 @@ class ChatHapticBridge(
     }
 
     /**
-     * Returns true and records the buzz timestamp when the frame should
-     * trigger vibration. Side-effects the [lastBuzzMs] gate so a single
-     * call per accepted frame keeps the cooldown correct without callers
-     * having to thread it through.
+     * Check + claim. Returns true if this frame is eligible to vibrate AND
+     * "claims" the cooldown slot ([lastBuzzMs] = now); returns false (no
+     * mutation) when the frame should be ignored.
+     *
+     * Why claim *before* [fire] rather than after: if [fire] throws (rare
+     * OEM-side `SecurityException`), we deliberately do NOT retry the next
+     * frame within the cooldown window. Treating a hardware failure as
+     * "consumed the buzz slot" prevents flapping fire() against a broken
+     * Vibrator at full WS frame rate. The cost is one missed buzz on the
+     * very next msg — acceptable since vibrate failures are themselves rare.
      */
-    private fun shouldBuzz(msg: ChatFrame.Msg): Boolean {
+    private fun tryAcquireBuzz(msg: ChatFrame.Msg): Boolean {
         if (msg.room == ChatThreadId.ROOM_GLOBAL) return false
         val selfUid = SessionManager.loggedInUid
         if (selfUid != 0L && msg.uid == selfUid) return false
