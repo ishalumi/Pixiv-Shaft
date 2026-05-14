@@ -114,8 +114,7 @@
             <item
                 android:id="@+id/nav_api_demo"
                 android:icon="@drawable/ic_error_black_24dp"
-                android:title="@string/api_demo_entry"
-                android:visible="false" />
+                android:title="@string/api_demo_entry" />
 
             <item
                 android:id="@+id/nav_debug_bulk_dl"

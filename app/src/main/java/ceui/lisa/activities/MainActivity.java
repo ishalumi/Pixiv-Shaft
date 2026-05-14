@@ -92,6 +92,10 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         // 发现入口默认隐藏，画像完备后才展示
         baseBind.navView.getMenu().findItem(R.id.nav_discovery).setVisible(false);
         updateDiscoveryVisibility();
+        // 调试入口仅 debug 构建可见,release build 不暴露给用户
+        boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
+        baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
+        baseBind.navView.getMenu().findItem(R.id.nav_debug_bulk_dl).setVisible(isDebugBuild);
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(
