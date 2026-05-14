@@ -66,7 +66,7 @@ class ShaftHmacAuthProvider(
     }
 
     companion object {
-        private const val TAG = "ShaftHmacAuth"
+        private const val TAG = "Chat-Auth"
         /** Set true to dump signed handshake URLs at DEBUG; off by default —
          *  URLs contain the rotating HMAC sig which is mildly sensitive. */
         private const val LOG_URLS = false

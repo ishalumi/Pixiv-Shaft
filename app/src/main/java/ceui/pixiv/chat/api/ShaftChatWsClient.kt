@@ -60,7 +60,7 @@ object ShaftChatWsClient {
             // so this never logs business frames; those come from
             // RobustWebSocketClient's payload logging below.
             okHttpBuilder.addInterceptor(
-                HttpLoggingInterceptor { Timber.tag("ChatWS-HTTP").i(it) }
+                HttpLoggingInterceptor { Timber.tag("Chat-Handshake").i(it) }
                     .apply { level = HttpLoggingInterceptor.Level.HEADERS }
             )
         }

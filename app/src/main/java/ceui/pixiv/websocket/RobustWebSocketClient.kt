@@ -801,7 +801,7 @@ class RobustWebSocketClient internal constructor(
     }
 
     companion object {
-        private const val TAG = "WS"
+        private const val TAG = "Ws-Client"
 
         /** RFC 6455 §7.4.1 — normal closure. */
         const val NORMAL_CLOSURE: Int = 1000

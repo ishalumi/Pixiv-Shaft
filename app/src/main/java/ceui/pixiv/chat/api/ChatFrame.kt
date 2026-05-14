@@ -47,7 +47,7 @@ sealed interface ChatFrame {
 
 object ChatFrameDecoder {
 
-    private const val TAG = "ChatFrame"
+    private const val TAG = "Chat-Frame"
 
     fun decode(raw: String): ChatFrame = try {
         decodeOrThrow(raw)

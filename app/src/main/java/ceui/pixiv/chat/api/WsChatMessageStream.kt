@@ -108,6 +108,6 @@ class WsChatMessageStream(
     }
 
     companion object {
-        private const val TAG = "ChatStream"
+        private const val TAG = "Chat-Stream"
     }
 }

@@ -27,7 +27,7 @@ object ShaftChatHttpClient {
 
         if (BuildConfig.IS_DEBUG_MODE) {
             builder.addInterceptor(
-                HttpLoggingInterceptor { Timber.tag("ShaftChat").i(it) }
+                HttpLoggingInterceptor { Timber.tag("Chat-Http").i(it) }
                     .apply { level = HttpLoggingInterceptor.Level.BODY }
             )
         }

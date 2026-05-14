@@ -51,9 +51,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 object ShaftChatGateway {
 
-    private const val TAG = "ChatGateway"
-    private const val TAG_HB = "ChatHB"
-    private const val TAG_RAW = "ChatRaw"
+    private const val TAG = "Chat-Gateway"
+    private const val TAG_HB = "Chat-Heartbeat"
+    private const val TAG_RAW = "Chat-Raw"
 
     private val bootstrapped = AtomicBoolean(false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

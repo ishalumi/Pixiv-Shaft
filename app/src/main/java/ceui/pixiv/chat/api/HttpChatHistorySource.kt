@@ -89,7 +89,7 @@ class HttpChatHistorySource(
         /** Single-room chat for now (`global`). schema reserves room_id for future. */
         const val GLOBAL_THREAD_ID = 1L
         const val TYPE_USER_MESSAGE = 1
-        private const val TAG = "ChatHttp"
+        private const val TAG = "Chat-History"
 
         /**
          * Stable mapping `64-hex-char client_id → Long uid`. Takes the first
