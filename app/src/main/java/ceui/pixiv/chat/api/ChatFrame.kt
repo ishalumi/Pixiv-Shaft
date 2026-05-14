@@ -46,8 +46,18 @@ sealed interface ChatFrame {
         val ts: Long,
     ) : ChatFrame
 
-    /** `{ "kind": "err", "code" }` — protocol / rate-limit / validation error. Connection stays open. */
-    data class Err(val code: String) : ChatFrame
+    /**
+     * `{ "kind": "err", "code", "client_msg_id"? }` — protocol / rate-limit
+     * / validation error. Connection stays open.
+     *
+     * When the offending inbound frame carried a `client_msg_id`, server
+     * echoes it on the err so the client can anchor the failure to that
+     * exact optimistic row (per doc §3.2 / §12). Frame-level errors that
+     * happen BEFORE per-msg parsing (`bad_json`, `bad_envelope`,
+     * `frame_too_large` of unparseable bytes, …) leave [clientMsgId]
+     * `null` — callers fall back to "most recent Sending" heuristic.
+     */
+    data class Err(val code: String, val clientMsgId: String?) : ChatFrame
 
     /** `{ "kind": "pong", "server_ts" }` — reply to client app-level `ping`. */
     data class Pong(val serverTs: Long) : ChatFrame
@@ -110,7 +120,10 @@ object ChatFrameDecoder {
                     ts = ts,
                 )
             }
-            "err" -> ChatFrame.Err(code = obj.get("code")?.asStringOrNull() ?: "unknown")
+            "err" -> ChatFrame.Err(
+                code = obj.get("code")?.asStringOrNull() ?: "unknown",
+                clientMsgId = obj.get("client_msg_id")?.asStringOrNull(),
+            )
             "pong" -> ChatFrame.Pong(serverTs = obj.get("server_ts")?.asLongOrNull() ?: 0L)
             else -> ChatFrame.Unknown(raw).also {
                 Timber.tag(TAG).d("unknown kind=%s — ignored", kind)

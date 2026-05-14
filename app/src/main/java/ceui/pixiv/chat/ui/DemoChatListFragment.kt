@@ -160,6 +160,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             launch { observeMessages(chatAdapter, footerAdapter, layoutManager) }
             launch { observeConnection() }
             launch { observeServerErrors() }
+            launch { observeReplacedByOtherDevice() }
         }
     }
 
@@ -274,8 +275,22 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         }
     }
 
+    /**
+     * Per doc §3.2 / §12: server `err` frames with `client_msg_id` anchor
+     * to a specific local row (mark Failed); without cmid, the VM
+     * falls back to "most recent Sending". Additionally, `rate_limited`
+     * triggers the 1-second input cool-down.
+     *
+     * `collectLatest` cancels the prior body on each new err so a back-to-
+     * back rate_limited resets the cool-down timer rather than stacking.
+     */
     private suspend fun observeServerErrors() {
         ShaftChatGateway.errorFrames.collectLatest { err ->
+            // Always: anchor the failure to the local row so UI shows Failed
+            // instead of stuck-Sending. cmid==null falls back to "most recent
+            // Sending" inside the VM.
+            viewModel.markFailedByClientMsgId(err.clientMsgId)
+
             if (err.code == "rate_limited") {
                 rateLimitCoolDown = true
                 refreshSendEnabled()
@@ -283,7 +298,26 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
                 delay(1_000)
                 rateLimitCoolDown = false
                 refreshSendEnabled()
+            } else {
+                Toast.makeText(requireContext(), "发送失败: ${err.code}", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    /**
+     * Doc §1.1 "同 uid 顶号": server sent close(1008, "replaced") because
+     * the same uid logged in on another device and pushed the max-5
+     * per-uid connection cap over. Show a dedicated toast — do NOT
+     * trigger reconnect (`DEFAULT_SHOULD_RECONNECT` already excludes 1008
+     * from FATAL_CLOSE_CODES; user must explicitly come back).
+     */
+    private suspend fun observeReplacedByOtherDevice() {
+        ShaftChatGateway.replacedByOtherDevice.collect {
+            Toast.makeText(
+                requireContext(),
+                "账号在其它设备登录,聊天已断开",
+                Toast.LENGTH_LONG,
+            ).show()
         }
     }
 

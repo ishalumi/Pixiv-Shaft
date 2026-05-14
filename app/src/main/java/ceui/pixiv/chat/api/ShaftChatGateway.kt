@@ -11,10 +11,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import ceui.pixiv.websocket.WebSocketEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -152,6 +155,28 @@ object ShaftChatGateway {
     val chatStream: ChatMessageStream<ChatMessageEntity> get() = stream
     val helloFrames: Flow<ChatFrame.Hello> get() = stream.helloFrames
     val errorFrames: Flow<ChatFrame.Err> get() = stream.errorFrames
+
+    /**
+     * Fires once per `onClose(1008, "replaced")` — doc §1.1 "同 uid 顶号"
+     * (server kicked this connection because the user logged in elsewhere
+     * and we exceeded the 5-connection-per-uid cap as the oldest).
+     *
+     * Per doc §7.3 the client **must not auto-reconnect** in this case;
+     * `ReconnectStrategy.DEFAULT_SHOULD_RECONNECT` already excludes 1008
+     * from `FATAL_CLOSE_CODES`. This flow exists so the UI can surface a
+     * dedicated message ("another device just logged in") instead of a
+     * generic "disconnected".
+     */
+    // `get()` accessor (not eager `val =`) so the property doesn't touch
+    // [manager] until after [bootstrap] has set it — eager evaluation runs
+    // inside the gateway's `<clinit>` and crashed with
+    // UninitializedPropertyAccessException ("manager has not been initialized")
+    // the first time Shaft.onCreate referenced the `object`.
+    val replacedByOtherDevice: Flow<Unit>
+        get() = manager.events
+            .filterIsInstance<WebSocketEvent.Closed>()
+            .filter { it.code == 1008 && it.reason == "replaced" }
+            .map { Unit }
 
     /**
      * Dispatch a `msg` frame. Routes by [toUid]:

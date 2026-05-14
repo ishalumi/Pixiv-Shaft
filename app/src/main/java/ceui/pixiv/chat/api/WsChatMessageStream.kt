@@ -76,7 +76,7 @@ class WsChatMessageStream(
                 )
             }
             is ChatFrame.Err -> {
-                Timber.tag(TAG).w("⇣ err code=%s", frame.code)
+                Timber.tag(TAG).w("⇣ err code=%s cmid=%s", frame.code, frame.clientMsgId ?: "-")
                 _errorFrames.tryEmit(frame)
             }
             is ChatFrame.Pong -> Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)

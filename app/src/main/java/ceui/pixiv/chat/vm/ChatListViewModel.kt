@@ -265,6 +265,48 @@ class ChatListViewModel(
         return accepted
     }
 
+    /**
+     * Mark a Sending row Failed in response to a server `err` frame.
+     *
+     * Per doc §3.2 / §12: when the offending inbound frame carried a
+     * `client_msg_id`, server echoes it on the err, and we anchor on that
+     * exact cmid — no ambiguity, even with multiple in-flight sends.
+     *
+     * For frame-level errors that happen before per-msg parsing
+     * (`bad_json`, `bad_envelope`, `frame_too_large` of an unparseable
+     * envelope, …), [cmid] is `null`. Fall back to "mark the most recent
+     * still-Sending row Failed" — the user's last action is overwhelmingly
+     * the source of frame-level errors at this layer.
+     */
+    fun markFailedByClientMsgId(cmid: String?) {
+        viewModelScope.launch {
+            val target: String? = if (cmid != null) {
+                cmid // exact localKey match (self-sent rows store cmid as localKey)
+            } else {
+                // Fallback: most recent Sending row in the visible window.
+                messages.value.firstOrNull { it.state == SendState.Sending }?.localKey
+            }
+            if (target == null) {
+                Timber.tag(TAG).w("markFailed: no in-flight Sending row to anchor (cmid=%s)", cmid ?: "-")
+                return@launch
+            }
+            // Stop any pending echo correlation for this cmid — we now know
+            // the server will never broadcast it.
+            inFlightSends.remove(target)
+
+            val row = messages.value.firstOrNull { it.localKey == target }
+            if (row == null) {
+                Timber.tag(TAG).w("markFailed: cmid=%s not in current window", target)
+                return@launch
+            }
+            store.upsert(listOf(row.copy(state = SendState.Failed)))
+            Timber.tag(TAG).i(
+                "✗ markFailed cmid=%s (exact=%b) → state=Failed",
+                target, cmid != null,
+            )
+        }
+    }
+
     fun trimWindow() {
         if (windowSize.value > pageSize) {
             Timber.tag(TAG_PERF).d("trimWindow: %d → %d", windowSize.value, pageSize)
