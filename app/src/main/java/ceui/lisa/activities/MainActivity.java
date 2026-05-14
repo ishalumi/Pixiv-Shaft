@@ -96,6 +96,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
         baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
         baseBind.navView.getMenu().findItem(R.id.nav_debug_bulk_dl).setVisible(isDebugBuild);
+        baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(isDebugBuild);
+        baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(isDebugBuild);
+        baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(isDebugBuild);
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(

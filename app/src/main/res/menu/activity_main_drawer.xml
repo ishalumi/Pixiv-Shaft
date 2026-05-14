@@ -125,19 +125,17 @@
     </item>
 
     <item
-        android:title="@string/experimental_section"
-        android:visible="false">
+        android:id="@+id/nav_experimental_section"
+        android:title="@string/experimental_section">
         <menu>
             <item
                 android:id="@+id/nav_site_recommend"
                 android:icon="@drawable/ic_baseline_star_24"
-                android:title="@string/site_recommend"
-                android:visible="false" />
+                android:title="@string/site_recommend" />
             <item
                 android:id="@+id/nav_event_history"
                 android:icon="@drawable/ic_history_black_24dp"
-                android:title="@string/event_history"
-                android:visible="false" />
+                android:title="@string/event_history" />
         </menu>
     </item>
 
