@@ -217,6 +217,10 @@ public class Shaft extends Application implements ServicesProvider {
         // currentClientId() 签 URL,init 同步把 clientId 写好。
         ceui.pixiv.chat.api.ShaftChatGateway.INSTANCE.bootstrap(this);
 
+        // In-app banner system. 必须在 ShaftChatGateway.bootstrap 之后,
+        // ChatBannerBridge 订阅 gateway.incoming。
+        ceui.pixiv.banner.InAppBanners.INSTANCE.bootstrap(this);
+
         // 初始化发现池 + 异步构建用户画像
         Timber.d("Discovery/Init >>> initializing DiscoveryPool");
         ceui.pixiv.db.discovery.DiscoveryPool.INSTANCE.initialize();

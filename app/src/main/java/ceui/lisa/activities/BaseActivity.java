@@ -29,13 +29,14 @@ import ceui.lisa.R;
 import ceui.lisa.interfaces.FeedBack;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Local;
+import ceui.pixiv.banner.BannerHostOwner;
 import ceui.pixiv.download.DownloadsRegistry;
 import ceui.pixiv.download.config.StorageChoice;
 
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
 
 
-public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCompatActivity {
+public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCompatActivity implements BannerHostOwner {
 
     protected Context mContext;
     protected FragmentActivity mActivity;
