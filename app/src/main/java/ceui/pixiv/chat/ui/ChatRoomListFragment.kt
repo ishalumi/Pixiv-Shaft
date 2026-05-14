@@ -15,57 +15,31 @@ import ceui.lisa.databinding.ChatFragmentRoomListBinding
 import ceui.pixiv.chat.api.ChatConversationsRepository
 import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatFrameDecoder
-import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.chat.base.setupToolbar
 import ceui.pixiv.chat.base.viewBinding
-import ceui.pixiv.session.SessionManager
+import ceui.pixiv.chat.base.viewModels
+import ceui.pixiv.chat.vm.ChatRoomListViewModel
 import ceui.pixiv.websocket.IncomingMessage
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import timber.log.Timber
 
 /**
- * Conversation list (Figma 3201:18523 adapted). Data flow:
- *
- *   onResume / pull-to-refresh
- *      └─→ GET /api/v1/chat/conversations (page 1)
- *           └─→ replace [state] items
- *
- *   scroll-near-bottom
- *      └─→ GET /api/v1/chat/conversations?cursor=<next>
- *           └─→ append to [state] items
- *
- *   WS msg frame arrives for a known room
- *      └─→ optimistic: update preview + bump unread_count locally
- *
- *   WS msg arrives for an unknown room (a stranger DM'd us)
- *      └─→ trigger a debounced refresh on next resume
- *
- * Local-only stuff (peer reverse-XOR, DAO scans) is gone — server is the
- * authoritative source of "what conversations does this user have".
+ * Conversation list view. The hard part — paging, avatar resolution,
+ * WS-driven optimistic updates, unread bookkeeping — lives in
+ * [ChatRoomListViewModel]. This fragment is purely the binding layer:
+ * inflate, observe, render, dispatch user events.
  */
 class ChatRoomListFragment : Fragment(R.layout.chat_fragment_room_list) {
 
     private val binding by viewBinding(ChatFragmentRoomListBinding::bind)
-    private val repo = ChatConversationsRepository()
+
+    private val viewModel: ChatRoomListViewModel by viewModels {
+        ChatRoomListViewModel(repo = ChatConversationsRepository())
+    }
 
     private val adapter by lazy { ChatRoomListAdapter(onClick = ::openRoom) }
-
-    private data class UiState(
-        val items: List<ChatRoomEntry> = emptyList(),
-        val nextCursor: String? = null,
-        val loadingMore: Boolean = false,
-        val hasUnknownRoomSinceLastRefresh: Boolean = false,
-    )
-
-    private val state = MutableStateFlow(UiState())
-    private var loadJob: Job? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -75,22 +49,27 @@ class ChatRoomListFragment : Fragment(R.layout.chat_fragment_room_list) {
         binding.recyclerView.adapter = adapter
         binding.recyclerView.addOnScrollListener(loadMoreOnScroll())
 
-        // Render whenever the state changes.
+        // Render VM state. localizeTitle swaps the "global" sentinel for the
+        // locale-aware "公屏闲聊" string — done here (not in VM) because
+        // string resources need a Context.
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                state.collect { s -> adapter.submitList(s.items) }
+                viewModel.state.collect { s ->
+                    adapter.submitList(s.items.map(::localizeTitle))
+                }
             }
         }
 
-        // WS-driven optimistic updates while the list is visible. Reuses the
-        // already-open gateway socket; no extra connection.
+        // WS-driven optimistic updates while the list is visible. Decode
+        // here (not in the VM) so the VM stays decoupled from the wire
+        // format — easier to unit-test by feeding it ChatFrame.Msg directly.
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 ShaftChatGateway.incoming
                     .filterIsInstance<IncomingMessage.Text>()
                     .map { ChatFrameDecoder.decode(it.text) }
                     .filterIsInstance<ChatFrame.Msg>()
-                    .collect(::onWsMsg)
+                    .collect(viewModel::onWsMsg)
             }
         }
     }
@@ -99,58 +78,7 @@ class ChatRoomListFragment : Fragment(R.layout.chat_fragment_room_list) {
         super.onResume()
         // Authoritative refresh on every resume — picks up unread changes
         // from /read calls made by other devices, new DMs, expired entries.
-        refresh()
-    }
-
-    private fun refresh() {
-        val uid = SessionManager.loggedInUid
-        if (uid <= 0L) {
-            Timber.tag(TAG).w("refresh: not logged in (uid=%d) — skip", uid)
-            state.update { UiState() }
-            return
-        }
-        loadJob?.cancel()
-        loadJob = viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val page = repo.load(uid = uid, cursor = null, limit = 50)
-                state.update {
-                    UiState(
-                        items = page.items.map(::localizeTitle),
-                        nextCursor = page.nextCursor,
-                        loadingMore = false,
-                        hasUnknownRoomSinceLastRefresh = false,
-                    )
-                }
-            } catch (t: Throwable) {
-                Timber.tag(TAG).w(t, "refresh failed")
-            }
-        }
-    }
-
-    private fun loadMore() {
-        val current = state.value
-        if (current.loadingMore || current.nextCursor == null) return
-        val uid = SessionManager.loggedInUid
-        if (uid <= 0L) return
-        state.update { it.copy(loadingMore = true) }
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val page = repo.load(uid = uid, cursor = current.nextCursor, limit = 50)
-                state.update {
-                    // Server contract: page 2+ never includes 'global'. Plain
-                    // append; the adapter's diffCallback keys on room so any
-                    // accidental dup would be collapsed.
-                    it.copy(
-                        items = it.items + page.items.map(::localizeTitle),
-                        nextCursor = page.nextCursor,
-                        loadingMore = false,
-                    )
-                }
-            } catch (t: Throwable) {
-                Timber.tag(TAG).w(t, "loadMore failed")
-                state.update { it.copy(loadingMore = false) }
-            }
-        }
+        viewModel.refresh()
     }
 
     private fun loadMoreOnScroll() = object : RecyclerView.OnScrollListener() {
@@ -161,44 +89,13 @@ class ChatRoomListFragment : Fragment(R.layout.chat_fragment_room_list) {
             val total = lm.itemCount
             // Trigger ~5 rows before the bottom so the user doesn't see the
             // scroll deck.
-            if (last >= total - 5) loadMore()
+            if (last >= total - 5) viewModel.loadMore()
         }
-    }
-
-    private fun onWsMsg(frame: ChatFrame.Msg) {
-        val current = state.value
-        val idx = current.items.indexOfFirst { it.room == frame.room }
-        if (idx < 0) {
-            // Stranger room we don't have locally yet. We could insert a
-            // synthetic row, but server's `peer_display_name` resolution +
-            // proper `last_message.id` (we don't get an `id` for WS pushes,
-            // only for /history rows) are best done by re-fetching. Flag the
-            // state and let the next resume / refresh pull a fresh page.
-            state.update { it.copy(hasUnknownRoomSinceLastRefresh = true) }
-            return
-        }
-        val selfUid = SessionManager.loggedInUid
-        val existing = current.items[idx]
-        val bumpUnread = existing.kind == ChatRoomEntry.Kind.ONE_ON_ONE &&
-            frame.uid != selfUid
-        val updated = existing.copy(
-            previewText = frame.text.orEmpty(),
-            previewSenderUid = frame.uid,
-            previewSenderDisplayName = frame.displayName,
-            lastTs = frame.ts,
-            unreadCount = if (bumpUnread) existing.unreadCount + 1 else existing.unreadCount,
-        )
-        // Move the bumped row to the top (after Global which is index 0 if present).
-        val rest = current.items.toMutableList().apply { removeAt(idx) }
-        val insertAt = if (rest.firstOrNull()?.kind == ChatRoomEntry.Kind.GLOBAL) 1 else 0
-        rest.add(insertAt, updated)
-        state.update { it.copy(items = rest) }
     }
 
     /**
-     * Server returns the title as a sentinel for the global room ("global"
-     * has no human display name) — swap for the locale-aware string here so
-     * the adapter stays UI-dumb.
+     * Swap the VM's "__global__" sentinel for the locale-aware title. Kept
+     * in the fragment because string resource lookup needs a Context.
      */
     private fun localizeTitle(entry: ChatRoomEntry): ChatRoomEntry =
         if (entry.title == ChatConversationsRepository.CONVENTION_GLOBAL_TITLE) {
@@ -222,19 +119,6 @@ class ChatRoomListFragment : Fragment(R.layout.chat_fragment_room_list) {
             }
         }
         startActivity(intent)
-        // Optimistic: clear the local unread for this row so the badge
-        // doesn't linger while /read is in flight (next refresh will be
-        // authoritative).
-        val idx = state.value.items.indexOfFirst { it.room == entry.room }
-        if (idx >= 0 && state.value.items[idx].unreadCount > 0) {
-            val updated = state.value.items[idx].copy(unreadCount = 0)
-            state.update { s ->
-                s.copy(items = s.items.toMutableList().apply { set(idx, updated) })
-            }
-        }
-    }
-
-    companion object {
-        private const val TAG = "Chat-RoomList"
+        viewModel.onRoomTapped(entry.room)
     }
 }

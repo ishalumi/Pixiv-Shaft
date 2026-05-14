@@ -127,6 +127,10 @@ object ShaftChatGateway {
         startAlwaysOnRawLog()
         startAlwaysOnPersister()
         startFatalAuthMonitor()
+
+        // 收到 DM 消息时短震一下。subscribe 到同一份 manager.incoming SharedFlow,
+        // 跟 persister / banner bridge 共用单 socket,无额外开销。
+        ChatHapticBridge(app, manager.incoming, scope).start()
     }
 
     /**

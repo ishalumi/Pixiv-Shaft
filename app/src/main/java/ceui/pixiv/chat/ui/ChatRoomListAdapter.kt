@@ -6,7 +6,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.databinding.ChatItemRoomBinding
+import ceui.lisa.utils.GlideUrlChild
 import ceui.pixiv.chat.base.BaseListAdapter
+import com.bumptech.glide.Glide
 
 /**
  * Renders [ChatRoomEntry] rows in the chat conversation list (Figma 3201:18523
@@ -35,6 +37,21 @@ class ChatRoomListAdapter(
 
     class VH(private val binding: ChatItemRoomBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: ChatRoomEntry, onClick: (ChatRoomEntry) -> Unit) {
+            // Avatar: peer's pixiv image for 1v1 once the fragment has
+            // looked it up; otherwise the chat placeholder. Loading goes
+            // through GlideUrlChild + the .pximg.net referer headers Pixiv
+            // requires, so it works without a separate proxy.
+            val url = item.avatarUrl
+            if (url.isNullOrBlank()) {
+                Glide.with(binding.ivAvatar).clear(binding.ivAvatar)
+                binding.ivAvatar.setImageResource(R.drawable.chat_avatar_placeholder)
+            } else {
+                Glide.with(binding.ivAvatar)
+                    .load(GlideUrlChild(url))
+                    .placeholder(R.drawable.chat_avatar_placeholder)
+                    .into(binding.ivAvatar)
+            }
+
             binding.tvName.text = item.title
             binding.tvPreview.text = buildPreview(item).ifBlank { "—" }
             binding.tvTime.text = if (item.lastTs > 0L) formatRelative(item.lastTs) else ""
@@ -104,6 +121,10 @@ data class ChatRoomEntry(
     /** Server-authoritative unread count for DM; 0 for global (server returns null,
      *  we coerce). */
     val unreadCount: Int = 0,
+    /** Peer's pixiv profile-image URL for 1v1 rows; filled in lazily by the
+     *  fragment after a `getUserProfile` lookup, null until then. Always null
+     *  for the Global row (no single peer). */
+    val avatarUrl: String? = null,
 ) {
     enum class Kind { GLOBAL, ONE_ON_ONE }
 }
