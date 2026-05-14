@@ -17,13 +17,19 @@
     android:id="@+id/app_bar_layout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?attr/colorPrimary"
     android:elevation="@dimen/six_dp"
-    android:fitsSystemWindows="true"
+    android:minHeight="?attr/actionBarSize"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toTopOf="parent"
-    app:navigationIcon="@drawable/baseline_arrow_back_24">
+    app:navigationIcon="@drawable/baseline_arrow_back_24"><!--
+        background + top status-bar padding are applied at runtime by
+        NavExt.setupToolbar:
+          - bg = Shaft.getThemeColor()    (brand color per user's AppTheme_IndexX)
+          - paddingTop = status bar inset  (fitsSystemWindows used to do this
+            but also wrongly inhaled the bottom nav inset under edge-to-edge,
+            leaving a tall purple band below the title)
+    -->
 
     <!-- Toolbar children are centered horizontally via layout_gravity. We
          use a vertical LinearLayout (title + subtitle) so the 1v1 view can
