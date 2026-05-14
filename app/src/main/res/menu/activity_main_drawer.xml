@@ -111,16 +111,6 @@
                 android:icon="@mipmap/jinhua"
                 android:title="@string/string_248" />
 
-            <item
-                android:id="@+id/nav_api_demo"
-                android:icon="@drawable/ic_error_black_24dp"
-                android:title="@string/api_demo_entry" />
-
-            <item
-                android:id="@+id/nav_debug_bulk_dl"
-                android:icon="@drawable/ic_baseline_settings_24"
-                android:title="@string/debug_bulk_dl_entry" />
-
         </menu>
     </item>
 
@@ -128,6 +118,14 @@
         android:id="@+id/nav_experimental_section"
         android:title="@string/experimental_section">
         <menu>
+            <item
+                android:id="@+id/nav_api_demo"
+                android:icon="@drawable/ic_error_black_24dp"
+                android:title="@string/api_demo_entry" />
+            <item
+                android:id="@+id/nav_debug_bulk_dl"
+                android:icon="@drawable/ic_baseline_settings_24"
+                android:title="@string/debug_bulk_dl_entry" />
             <item
                 android:id="@+id/nav_site_recommend"
                 android:icon="@drawable/ic_baseline_star_24"
