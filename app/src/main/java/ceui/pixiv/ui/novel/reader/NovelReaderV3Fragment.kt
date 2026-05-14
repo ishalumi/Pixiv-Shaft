@@ -538,6 +538,15 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 return@launch
             }
             showV3Menu {
+                // 从下载管理直接进二级正文时,back stack 里没有一级详情;
+                // 这里提供回到作品详情的入口,普通路径下也能当快捷跳转。
+                item(getString(R.string.v3_label_artwork_details), R.drawable.ic_baseline_menu_book_24) {
+                    val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
+                        putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "小说详情")
+                        putExtra(Params.NOVEL_ID, novelId)
+                    }
+                    startActivity(intent)
+                }
                 item(getString(R.string.view_comments), R.drawable.ic_baseline_comment_24) {
                     val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
                         putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "相关评论")
