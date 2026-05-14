@@ -191,11 +191,10 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         // Peer avatar — fetched lazily (1v1 only); no-op in the global room.
         bindSelfAvatar(chatAdapter)
         peerUidArg?.let { peerUid ->
-            // Toolbar avatar/title route to the peer's profile. In the
-            // global room there's no single peer, so this stays inert.
-            view.findViewById<View>(R.id.iv_peer_avatar)?.setOnClickListener {
-                openUserProfile(peerUid)
-            }
+            // Title tap → peer profile. The classic Shaft toolbar doesn't
+            // host a peer avatar (unlike the previous Material3 design);
+            // the per-bubble avatar tap (wired by the adapter) is still
+            // the primary affordance for opening the peer profile.
             view.findViewById<View>(R.id.tv_title)?.setOnClickListener {
                 openUserProfile(peerUid)
             }
@@ -301,17 +300,10 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             }
             val avatarUrl = user.profile_image_urls?.findMaxSizeUrl()
             adapter.peerAvatarUrl = avatarUrl
-            view?.findViewById<ImageView>(R.id.iv_peer_avatar)?.let { iv ->
-                if (avatarUrl.isNullOrBlank()) {
-                    iv.setImageResource(R.drawable.chat_avatar_placeholder)
-                } else {
-                    Glide.with(iv)
-                        .load(GlideUrlChild(avatarUrl))
-                        .placeholder(R.drawable.chat_avatar_placeholder)
-                        .circleCrop()
-                        .into(iv)
-                }
-            }
+            // Toolbar no longer hosts a peer-avatar slot (classic Shaft
+            // toolbar = title + nav back only). Peer avatar still lives
+            // on each inbound bubble via the adapter — same Glide load
+            // path, just at the message level.
         }
     }
 

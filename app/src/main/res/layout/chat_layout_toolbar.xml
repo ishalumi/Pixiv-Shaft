@@ -1,102 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.appbar.AppBarLayout
+<!-- Classic Shaft toolbar — same shape as fragment_settings.xml:
+       - AppCompat Toolbar (not Material AppBarLayout)
+       - bg = ?attr/colorPrimary  (brand-tinted top bar, white text)
+       - navigationIcon = back arrow, wired by setupToolbar
+       - elevation = six_dp (matches the app-wide settings toolbar)
+       - fitsSystemWindows = true so the toolbar handles its own status-bar inset
+
+     Keeps id `app_bar_layout` so existing constraints in
+     chat_fragment_demo_list.xml that anchor to @id/app_bar_layout don't
+     need rewiring. setupToolbar finds it by the same id and treats it as
+     a Toolbar — there's no separate AppBarLayout anymore. -->
+<androidx.appcompat.widget.Toolbar
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/app_bar_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorPrimary"
+    android:elevation="@dimen/six_dp"
+    android:fitsSystemWindows="true"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toTopOf="parent"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="?attr/colorSurfaceContainerLow"
-    app:liftOnScroll="false"
-    app:elevation="0dp"
-    android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+    app:navigationIcon="@drawable/baseline_arrow_back_24">
 
-    <View
-        android:id="@+id/toolbar_top_placeholder"
-        android:layout_width="match_parent"
-        android:background="?attr/colorSurfaceContainerLow"
-        android:layout_height="0dp" />
-
+    <!-- Toolbar children are centered horizontally via layout_gravity. We
+         use a vertical LinearLayout (title + subtitle) so the 1v1 view can
+         show a peer's @-style subtitle below the name. Subtitle is `gone`
+         by default — global / no-subtitle rooms only see the single title. -->
     <LinearLayout
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:background="?attr/colorSurfaceContainerLow">
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="vertical">
 
-        <ImageButton
-            android:id="@+id/btn_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/chat_circle_btn_bg"
-            android:scaleType="centerInside"
-            android:padding="8dp"
-            android:src="@drawable/baseline_arrow_back_24"
-            app:tint="?attr/colorOnSurface"
-            android:contentDescription="@string/chat_action_back" />
-
-        <com.google.android.material.imageview.ShapeableImageView
-            android:id="@+id/iv_peer_avatar"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="12dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/chat_avatar_placeholder"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Chat.Avatar" />
-
-        <LinearLayout
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:orientation="vertical">
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            tools:text="聊天室" />
 
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                tools:text="Gabrielle Roth" />
-
-            <TextView
-                android:id="@+id/tv_subtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="13sp"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:visibility="gone"
-                tools:visibility="visible"
-                tools:text="\@melodygardot" />
-
-        </LinearLayout>
-
-        <ImageButton
-            android:id="@+id/btn_more"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/chat_circle_btn_bg"
-            android:scaleType="centerInside"
-            android:padding="8dp"
-            android:src="@drawable/ic_more_vert_black_24dp"
-            app:tint="?attr/colorOnSurface"
-            android:contentDescription="@string/chat_action_more"
+        <TextView
+            android:id="@+id/tv_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="#CFFFFFFF"
+            android:textSize="12sp"
             android:visibility="gone"
+            tools:text="\@melodygardot"
             tools:visibility="visible" />
 
     </LinearLayout>
-</com.google.android.material.appbar.AppBarLayout>
+
+</androidx.appcompat.widget.Toolbar>

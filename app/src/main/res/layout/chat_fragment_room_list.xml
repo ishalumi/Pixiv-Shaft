@@ -1,88 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Conversation list — adapts the Figma 3201:18523 header pattern
-     (large left-aligned 24sp bold title + right-side circular action
-     chips) to Pixiv-Shaft's TemplateActivity host. Theme overlay is the
-     same Material3 NoActionBar the rest of the chat module uses so
-     ?attr/colorSurface* etc. all resolve. -->
+<!-- Conversation list. Uses the shared classic-Shaft toolbar
+     (chat_layout_toolbar.xml) so this surface visually matches the rest
+     of the app (fragment_settings et al.). The Material3 theme overlay
+     is still applied on the root because the row layout uses
+     ?attr/colorOnSurface / ?attr/colorOutlineVariant. -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurfaceContainerLow"
     android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
-    <!-- Status-bar inset reservation (same pattern as chat_layout_toolbar). -->
-    <View
-        android:id="@+id/toolbar_top_placeholder"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="?attr/colorSurfaceContainerLow"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- App-style header: big bold title on the left, circular action
-         chips on the right. Sized in dp per Figma:
-           padding 16h / 12v, title 24sp bold,
-           buttons 40dp circle, 8dp gap.
-         Back button gets the same circle treatment so it visually rhymes
-         with the action chips on the right of the Figma row. -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/header"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorSurfaceContainerLow"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar_top_placeholder">
-
-        <ImageButton
-            android:id="@+id/btn_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/chat_circle_btn_bg"
-            android:contentDescription="@string/chat_action_back"
-            android:padding="8dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/baseline_arrow_back_24"
-            app:layout_constraintBottom_toBottomOf="@id/tv_title"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_title"
-            app:tint="?attr/colorOnSurface" />
-
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            android:singleLine="true"
-            android:text="@string/chat_drawer_entry"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/btn_back"
-            app:layout_constraintTop_toTopOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Hairline between header and list, same tone as the per-row dividers. -->
-    <View
-        android:id="@+id/header_divider"
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:background="?attr/colorOutlineVariant"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/header" />
+    <include layout="@layout/chat_layout_toolbar" />
 
     <ceui.pixiv.chat.base.widget.StateLayout
         android:id="@+id/state_layout"
@@ -91,7 +22,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/header_divider">
+        app:layout_constraintTop_toBottomOf="@id/app_bar_layout">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view"

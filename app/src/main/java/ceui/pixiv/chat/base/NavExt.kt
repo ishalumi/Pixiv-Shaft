@@ -1,32 +1,34 @@
 package ceui.pixiv.chat.base
 
-import android.view.View
-import android.widget.ImageButton
 import android.widget.TextView
+import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.Fragment
-import com.blankj.utilcode.util.BarUtils
 import ceui.lisa.R
 
 /**
- * Wires the custom chat toolbar (see `chat_layout_toolbar.xml`):
- *  - reserves the status-bar inset on `toolbar_top_placeholder`
- *  - sets the title text
- *  - shows / hides the framed circular back button and routes its
- *    click through the host activity's [androidx.activity.OnBackPressedDispatcher]
+ * Wires the classic Shaft toolbar (`chat_layout_toolbar.xml`):
+ *   - sets the title text on the centered inner TextView
+ *   - hides the nav icon when [showBack] is false
+ *   - routes the back arrow through the host activity's
+ *     [androidx.activity.OnBackPressedDispatcher] when [showBack] is true,
+ *     mirroring FragmentSettings' `toolbar.setNavigationOnClickListener`
+ *     pattern (but going through the dispatcher so the activity can
+ *     intercept back if needed — e.g. closing an open emoji panel before
+ *     popping the fragment).
  *
- * The peer avatar / subtitle / more button are bound separately by the
- * fragment (they depend on data the toolbar helper has no business
- * fetching).
+ * The 1v1 chat's subtitle (`tv_subtitle`) and any peer-avatar / overflow
+ * affordances are bound separately by the fragment — they depend on
+ * per-screen data the helper has no business fetching.
  */
 fun Fragment.setupToolbar(title: String, showBack: Boolean = false) {
-    view?.findViewById<View>(R.id.toolbar_top_placeholder)?.apply {
-        layoutParams = layoutParams.also { it.height = BarUtils.getStatusBarHeight() }
-    }
-    view?.findViewById<TextView>(R.id.tv_title)?.text = title
-    view?.findViewById<ImageButton>(R.id.btn_back)?.apply {
-        visibility = if (showBack) View.VISIBLE else View.GONE
-        if (showBack) {
-            setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
+    val v = view ?: return
+    v.findViewById<TextView>(R.id.tv_title)?.text = title
+    val toolbar = v.findViewById<Toolbar>(R.id.app_bar_layout) ?: return
+    if (showBack) {
+        toolbar.setNavigationOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
+    } else {
+        toolbar.navigationIcon = null
     }
 }
