@@ -1,7 +1,9 @@
 package ceui.pixiv.banner
 
+import ceui.lisa.activities.TemplateActivity
 import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatFrameDecoder
+import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.websocket.IncomingMessage
@@ -18,11 +20,15 @@ import java.util.UUID
  * Bridges every inbound chat [ChatFrame.Msg] from [ShaftChatGateway.incoming]
  * into a [BannerRequest.Text] on the [BannerManager].
  *
- * Behaviour:
- *  - Filters out the user's own echo (`uid == SessionManager.loggedInUid`).
- *  - Uses `Replace` policy keyed by `dedupKey = "chat-<room>"` so a newer
- *    message in the same conversation supersedes the older banner instead
- *    of stacking.
+ * Suppression rules:
+ *  - User's own echo (`uid == SessionManager.loggedInUid`) — pointless to
+ *    banner a message you just sent.
+ *  - Foreground activity is already showing the same chat room — the user
+ *    is reading the conversation, an overlay would be redundant and obscure
+ *    the very content they want to see.
+ *
+ * Newer messages in the same room use `Replace` (dedupKey="chat-<room>") so
+ * they supersede the previous banner instead of stacking.
  */
 class ChatBannerBridge(
     private val bannerManager: BannerManager,
@@ -52,6 +58,10 @@ class ChatBannerBridge(
     private fun toBannerRequest(msg: ChatFrame.Msg): BannerRequest.Text? {
         val selfUid = SessionManager.loggedInUid
         if (selfUid != 0L && msg.uid == selfUid) return null
+        if (isViewingRoom(msg.room, selfUid)) {
+            Timber.tag(TAG).d("suppress banner: foreground is room=%s", msg.room)
+            return null
+        }
         val body = msg.text?.takeIf { it.isNotBlank() }
             ?: msg.illustId?.let { "[illust:$it]" }
             ?: return null
@@ -59,7 +69,7 @@ class ChatBannerBridge(
         // 1v1 room id is a hashed pair → cannot reverse to peer uid. But the
         // sender (msg.uid, already filtered against self) IS the peer for 1v1,
         // so encode that directly. Global rooms drop the peer param.
-        val deepLink = if (msg.room == "global") {
+        val deepLink = if (msg.room == ChatThreadId.ROOM_GLOBAL) {
             "shaft://chat?room=global"
         } else {
             "shaft://chat?peer=${msg.uid}"
@@ -79,6 +89,31 @@ class ChatBannerBridge(
                 "uid" to msg.uid.toString(),
             ),
         )
+    }
+
+    /**
+     * Is the user already looking at the chat room that produced [msgRoom]?
+     *
+     * The chat fragment lives inside [TemplateActivity] with
+     * `EXTRA_FRAGMENT="聊天室"` (+ `EXTRA_CHAT_PEER_UID` for 1v1). Reconstruct
+     * the active room id from those extras the same way `ChatListViewModel`
+     * does — global is literal "global", 1v1 is
+     * `ChatThreadId.oneOnOneThreadId(self, peer)`.
+     */
+    private fun isViewingRoom(msgRoom: String, selfUid: Long): Boolean {
+        val activity = InAppBanners.currentActivity() ?: return false
+        if (activity !is TemplateActivity) return false
+        val intent = activity.intent ?: return false
+        if (intent.getStringExtra(TemplateActivity.EXTRA_FRAGMENT) != "聊天室") return false
+        val peerUid = intent.getLongExtra(TemplateActivity.EXTRA_CHAT_PEER_UID, 0L)
+        val activeRoom = if (peerUid > 0L) {
+            if (selfUid == 0L || selfUid == peerUid) return false
+            runCatching { ChatThreadId.oneOnOneThreadId(selfUid, peerUid) }.getOrNull()
+                ?: return false
+        } else {
+            ChatThreadId.ROOM_GLOBAL
+        }
+        return activeRoom == msgRoom
     }
 
     companion object {

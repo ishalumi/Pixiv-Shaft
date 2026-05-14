@@ -42,6 +42,13 @@ object InAppBanners {
     lateinit var manager: BannerManager
         private set
 
+    /**
+     * Currently-resumed Activity, or `null` if no Activity is in the foreground.
+     * Exposed for the WS → banner bridge to suppress banners while the user is
+     * already viewing the source room.
+     */
+    fun currentActivity(): Activity? = foreground.current()
+
     fun bootstrap(app: Application) {
         if (!bootstrapped.compareAndSet(false, true)) return
 
