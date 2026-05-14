@@ -24,7 +24,10 @@ import kotlinx.coroutines.launch
  *
  * Tab 0: 批量队列  · count → 持久化 download_queue 中 PENDING+DOWNLOADING
  * Tab 1: 正在下载  · count → Manager.content 内存队列大小
- * Tab 2: 已完成    · count → download_queue 里 SUCCESS 的累积
+ * Tab 2: 已完成    · count → illust_download_table 分组后的实际卡片数
+ *                            (由 [DoneListV3Fragment] 回填到 sharedVm.doneCardCount)
+ *                            —— 历史上从 download_queue.SUCCESS 取,跟列表数据源
+ *                            是两张表,Auto Backup 部分还原后会出现 "1944 / 空列表"。
  *
  * 数字直接追加到 tab 文字后面，避免单独占一行。
  */
@@ -133,8 +136,14 @@ class DownloadManagerV3Fragment : Fragment() {
                 sharedVm.snapshots().collect { s ->
                     setTabCount(0, s.queuePending + s.queueDownloading)
                     setTabCount(1, s.activeCount)
-                    setTabCount(2, s.queueSuccess)
                 }
+            }
+        }
+        // tab 2 数字独立 collect:数据源是 DoneListV3Fragment 回填的分组卡片数,
+        // 跟列表用同一份数据,杜绝 "1944 / 空列表" 那种错位。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sharedVm.doneCardCount.collect { setTabCount(2, it) }
             }
         }
     }

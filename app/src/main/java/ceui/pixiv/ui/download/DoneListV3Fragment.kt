@@ -122,9 +122,9 @@ class DoneListV3Fragment : Fragment() {
                     viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                         runCatching { dao.deleteAllDownload() }
                         ManagerReactive.pokeDoneTable()
-                        // 已完成 tab 末尾的数字来自 download_queue 的 SUCCESS 行
-                        // (DownloadManagerSharedViewModel.queueSuccess),不是
-                        // illust_download_table。光删上面那张表,tab 数字不会变。
+                        // 顺手清掉 download_queue 里的 SUCCESS 行 —— 数字已经不依赖
+                        // 这张表了(改为 illust_download_table 分组数),但 SUCCESS 行
+                        // 也是历史垃圾,跟着一起清。
                         runCatching { queueDao.deleteByStatus(QueueStatus.SUCCESS) }
                         QueueDownloadManager.queueListInvalidations.tryEmit(Unit)
                     }
@@ -150,6 +150,9 @@ class DoneListV3Fragment : Fragment() {
                     .collect { groups ->
                         adapter.submitList(groups)
                         empty.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE
+                        // tab 标题数字回填:数字必须 = 实际可见卡片数,否则会出现 "已完成
+                        // 1944 / 列表却为空" 这种数据源错位(参考 DownloadManagerSharedViewModel.doneCardCount)。
+                        sharedVm.publishDoneCardCount(groups.size)
                     }
             }
         }
