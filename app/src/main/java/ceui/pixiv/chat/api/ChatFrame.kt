@@ -1,6 +1,5 @@
 package ceui.pixiv.chat.api
 
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import timber.log.Timber
 
@@ -50,43 +49,56 @@ object ChatFrameDecoder {
 
     private const val TAG = "ChatFrame"
 
-    fun decode(raw: String): ChatFrame {
-        val root = try {
-            JsonParser.parseString(raw)
-        } catch (t: Throwable) {
-            Timber.tag(TAG).w("malformed JSON dropped: %s", raw.take(120))
-            return ChatFrame.Unknown(raw)
-        }
+    fun decode(raw: String): ChatFrame = try {
+        decodeOrThrow(raw)
+    } catch (t: Throwable) {
+        // Per docs §7: "onMessage 解析失败 → IncomingMessage.Unknown(raw) 落到
+        // dead-letter, 不挂掉流". Any decode-time exception (malformed JSON,
+        // non-numeric ts, weird type, …) gets logged and downgraded to
+        // Unknown so the message-stream coroutine stays alive.
+        Timber.tag(TAG).w(t, "decode failed, dead-lettered: %s", raw.take(120))
+        ChatFrame.Unknown(raw)
+    }
+
+    private fun decodeOrThrow(raw: String): ChatFrame {
+        val root = JsonParser.parseString(raw)
         if (!root.isJsonObject) return ChatFrame.Unknown(raw)
         val obj = root.asJsonObject
-        return when (val kind = obj.get("kind")?.asStringOrNull()) {
+        val kind = obj.get("kind")?.asStringOrNull()?.takeIf { it.isNotEmpty() }
+            ?: run {
+                Timber.tag(TAG).w("envelope missing 'kind': %s", raw.take(120))
+                return ChatFrame.Unknown(raw)
+            }
+        return when (kind) {
             "hello" -> ChatFrame.Hello(
-                clientId   = obj.req("client_id"),
+                clientId    = obj.get("client_id")?.asStringOrNull().orEmpty(),
                 displayName = obj.get("display_name")?.asStringOrNull(),
-                room       = obj.get("room")?.asStringOrNull() ?: "global",
-                serverTs   = obj.get("server_ts")?.asLongOrNull() ?: 0L,
+                room        = obj.get("room")?.asStringOrNull() ?: "global",
+                serverTs    = obj.get("server_ts")?.asLongOrNull() ?: 0L,
             )
-            "msg" -> ChatFrame.Msg(
-                clientId   = obj.req("client_id"),
-                displayName = obj.get("display_name")?.asStringOrNull(),
-                text       = obj.get("text")?.asStringOrNull(),
-                illustId   = obj.get("illust_id")?.asLongOrNull(),
-                ts         = obj.req("ts").toLong(),
-            )
+            "msg" -> {
+                // Required fields per docs §1.3 msg. Missing either means
+                // we can't dedup or attribute the message — drop to Unknown
+                // rather than synthesise placeholder values.
+                val ts = obj.get("ts")?.asLongOrNull()
+                val cid = obj.get("client_id")?.asStringOrNull()
+                if (ts == null || cid == null) {
+                    Timber.tag(TAG).w("msg frame missing ts/client_id: %s", raw.take(120))
+                    ChatFrame.Unknown(raw)
+                } else ChatFrame.Msg(
+                    clientId    = cid,
+                    displayName = obj.get("display_name")?.asStringOrNull(),
+                    text        = obj.get("text")?.asStringOrNull(),
+                    illustId    = obj.get("illust_id")?.asLongOrNull(),
+                    ts          = ts,
+                )
+            }
             "err"  -> ChatFrame.Err(code = obj.get("code")?.asStringOrNull() ?: "unknown")
             "pong" -> ChatFrame.Pong(serverTs = obj.get("server_ts")?.asLongOrNull() ?: 0L)
-            null, "" -> ChatFrame.Unknown(raw).also {
-                Timber.tag(TAG).w("envelope missing 'kind': %s", raw.take(120))
-            }
             else -> ChatFrame.Unknown(raw).also {
                 Timber.tag(TAG).d("unknown kind=%s — ignored", kind)
             }
         }
-    }
-
-    private fun JsonObject.req(key: String): String {
-        val el = get(key) ?: error("missing field: $key")
-        return el.asStringOrNull() ?: el.toString()
     }
 
     private fun com.google.gson.JsonElement.asStringOrNull(): String? = when {

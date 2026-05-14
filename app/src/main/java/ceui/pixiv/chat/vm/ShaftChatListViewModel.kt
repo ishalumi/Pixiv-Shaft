@@ -2,6 +2,7 @@ package ceui.pixiv.chat.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatFrameEncoder
 import ceui.pixiv.chat.api.HttpChatHistorySource
 import ceui.pixiv.chat.api.ShaftChatWsClient
@@ -49,10 +50,10 @@ class ShaftChatListViewModel(
      * [WebSocketClient.state] flips to `Connected` on the OkHttp `onOpen` —
      * one step *earlier* than the chat-protocol's notion of ready).
      */
-    val hello: Flow<*> get() = wsStream.helloFrames
+    val hello: Flow<ChatFrame.Hello> get() = wsStream.helloFrames
 
     /** Server `err` frames (rate_limited, frame_too_large, …). Connection stays open. */
-    val errors: Flow<*> get() = wsStream.errorFrames
+    val errors: Flow<ChatFrame.Err> get() = wsStream.errorFrames
 
     init {
         wsClient.connect()

@@ -19,6 +19,9 @@ import ceui.pixiv.events.EventReporter
 import ceui.pixiv.chat.api.HttpChatHistorySource
 import ceui.pixiv.chat.api.ShaftChatWsClient
 import ceui.pixiv.chat.api.WsChatMessageStream
+import ceui.pixiv.websocket.WebSocketState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import ceui.pixiv.chat.base.PagingFooterAdapter
 import ceui.pixiv.chat.base.PagingState
 import ceui.pixiv.chat.base.launchSuspend
@@ -71,6 +74,17 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     private var chatAdapter: ChatMessageAdapter? = null
     private var scrollToBottomOnNextUpdate = false
+
+    /**
+     * Gates the send button. Composed from:
+     *  - WebSocket reached `Connected` (transport-level — spec §0 allows sends
+     *    while still Connecting since OkHttp queues them, but UI feedback is
+     *    clearer if we wait for the socket to actually open)
+     *  - not currently in a `rate_limited` cooldown (docs §10: "收到
+     *    err.rate_limited 在 UI 上 1s 内 disable 输入框")
+     */
+    private var wsConnected = false
+    private var rateLimitCoolDown = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -144,6 +158,8 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             launch { observePageState() }
             launch { observePagingFooter(footerAdapter) }
             launch { observeMessages(chatAdapter, footerAdapter, layoutManager) }
+            launch { observeConnection() }
+            launch { observeServerErrors() }
         }
     }
 
@@ -206,10 +222,14 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     // ── Input bar ───────────────────────────────────────────────────────
 
     private fun setupInput() {
-        binding.etInput.doAfterTextChanged { text ->
-            binding.btnSend.isEnabled = !text.isNullOrBlank()
-        }
+        binding.etInput.doAfterTextChanged { refreshSendEnabled() }
         binding.btnSend.setOnClickListener { sendMessage() }
+        refreshSendEnabled()
+    }
+
+    private fun refreshSendEnabled() {
+        val hasText = !binding.etInput.text.isNullOrBlank()
+        binding.btnSend.isEnabled = hasText && wsConnected && !rateLimitCoolDown
     }
 
     private fun sendMessage() {
@@ -240,6 +260,38 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         viewModel.pagingState.collect { state ->
             if (state is PagingState.LoadingMore || state is PagingState.Error) {
                 footerAdapter.setPagingState(state)
+            }
+        }
+    }
+
+    /**
+     * Track WS connection so the send button only enables once the socket
+     * actually opens. Spec §0 notes OkHttp queues sends issued while
+     * Connecting, so this is purely a UX clarity choice (not a correctness
+     * one).
+     */
+    private suspend fun observeConnection() {
+        viewModel.wsState.collect { state ->
+            wsConnected = state is WebSocketState.Connected
+            refreshSendEnabled()
+        }
+    }
+
+    /**
+     * Spec §10 checklist: "收到 err.rate_limited 在 UI 上 1s 内 disable 输入框".
+     * `collectLatest` so a second rate_limited frame mid-cooldown restarts
+     * the timer instead of stacking. Other err codes are client-bug signals
+     * — log only, don't pop a toast.
+     */
+    private suspend fun observeServerErrors() {
+        viewModel.errors.collectLatest { err ->
+            if (err.code == "rate_limited") {
+                rateLimitCoolDown = true
+                refreshSendEnabled()
+                Toast.makeText(requireContext(), "发送太频繁,请稍候", Toast.LENGTH_SHORT).show()
+                delay(1_000)
+                rateLimitCoolDown = false
+                refreshSendEnabled()
             }
         }
     }
