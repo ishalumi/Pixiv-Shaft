@@ -61,7 +61,7 @@ import timber.log.Timber
  *   serialisation dependencies; `:app` binds `M` to its concrete
  *   entity).
  */
-class ChatListViewModel<M>(
+open class ChatListViewModel<M>(
     private val threadId: Long,
     private val store: ChatMessageStore<M>,
     private val historySource: ChatHistorySource<M>,

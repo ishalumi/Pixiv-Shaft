@@ -41,6 +41,25 @@ interface WebSocketAuthProvider {
     fun headers(): Map<String, String>
 
     /**
+     * Optional dynamic URL override. Returning a non-null value replaces
+     * [WebSocketConfig.url] for the next (re)connect attempt; returning
+     * `null` (the default) keeps the static config URL.
+     *
+     * This exists for schemes like the shaft-api-v2 chat WebSocket, which
+     * authenticates on the upgrade-request query string
+     * (`?client_id=…&ts=…&sig=…`) and demands a fresh signature per attempt
+     * because `ts` is bound into the signature. Header-only auth schemes
+     * (Bearer tokens, cookies, `Sec-WebSocket-Protocol`) should leave this
+     * `null` — header refresh via [headers] is enough.
+     *
+     * **Threading.** Same rules as [headers]: called on whichever thread is
+     * driving the connect (typically the client's lifecycle lock holder),
+     * must be cheap, must not block on I/O. Compute the signature in memory,
+     * don't make a network call here.
+     */
+    fun dynamicUrl(): String? = null
+
+    /**
      * Decide whether [failure] indicates that the credentials are no longer
      * valid and a refresh should be attempted before the next reconnect.
      *

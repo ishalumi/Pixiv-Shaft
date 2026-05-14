@@ -671,8 +671,12 @@ class RobustWebSocketClient internal constructor(
             config.headers + dynamicHeaders
         }
 
+        // Static config URL by default; auth providers that authenticate on
+        // the upgrade request's query string (e.g. HMAC-signed shaft-api-v2
+        // chat WS) override here to produce a fresh signature per attempt.
+        val effectiveUrl = authProvider?.dynamicUrl() ?: config.url
         val request = Request.Builder()
-            .url(config.url)
+            .url(effectiveUrl)
             .apply {
                 mergedHeaders.forEach { (k, v) -> addHeader(k, v) }
                 if (config.subProtocols.isNotEmpty()) {

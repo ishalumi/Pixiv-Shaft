@@ -3,6 +3,7 @@ package ceui.pixiv.events
 import android.content.Context
 import ceui.lisa.BuildConfig
 import ceui.lisa.activities.Shaft
+import ceui.pixiv.shaftapi.ShaftHmac
 import ceui.loxia.Client
 import ceui.loxia.ObjectPool
 import ceui.loxia.User
@@ -26,8 +27,6 @@ import timber.log.Timber
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * Sends bookmark / follow / download events to shaft-api-v2 for community
@@ -369,7 +368,7 @@ object EventReporter {
             "events" to eventList,
         )
         val json = gson.toJson(payload)
-        val sig = hmacSha256Hex(json, BuildConfig.SHAFT_EVENTS_HMAC)
+        val sig = ShaftHmac.signHex(json, BuildConfig.SHAFT_EVENTS_HMAC)
         val withPayload = events.count { it.payloadJson != null }
         Timber.tag(TAG).d(
             "POST batch=%d (with-payload=%d) bytes=%d sig=%s..%s",
@@ -389,17 +388,6 @@ object EventReporter {
     private fun sha256Hex(s: String): String {
         val md = MessageDigest.getInstance("SHA-256")
         return md.digest(s.toByteArray(Charsets.UTF_8)).toHex()
-    }
-
-    /**
-     * Server treats the secret as ASCII bytes (the hex *string* itself),
-     * not as raw bytes decoded from hex — matches Node's
-     * `createHmac('sha256', secret)` default behavior.
-     */
-    private fun hmacSha256Hex(payload: String, secretAscii: String): String {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(secretAscii.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        return mac.doFinal(payload.toByteArray(Charsets.UTF_8)).toHex()
     }
 
     private fun ByteArray.toHex(): String {

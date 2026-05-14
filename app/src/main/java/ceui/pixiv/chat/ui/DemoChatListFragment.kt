@@ -15,6 +15,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ceui.lisa.R
 import ceui.lisa.databinding.ChatFragmentDemoListBinding
+import ceui.pixiv.events.EventReporter
+import ceui.pixiv.chat.api.HttpChatHistorySource
+import ceui.pixiv.chat.api.ShaftChatWsClient
+import ceui.pixiv.chat.api.WsChatMessageStream
 import ceui.pixiv.chat.base.PagingFooterAdapter
 import ceui.pixiv.chat.base.PagingState
 import ceui.pixiv.chat.base.launchSuspend
@@ -26,19 +30,19 @@ import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.chat.data.ChatDatabase
 import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.chat.data.RoomChatMessageStore
-import ceui.pixiv.chat.mock.MockChatData
-import ceui.pixiv.chat.mock.MockChatHistorySource
-import ceui.pixiv.chat.vm.ChatListViewModel
-import kotlinx.coroutines.flow.emptyFlow
+import ceui.pixiv.chat.vm.ShaftChatListViewModel
 import kotlinx.coroutines.launch
 
 /**
- * Demo screen for the local-first chat message list.
+ * Chat screen wired to the **real** shaft-api-v2 chat WebSocket. The
+ * local-first pipeline (Room as single source of truth, with HTTP backfill
+ * + WS push both feeding Room) is preserved from the original Peanut demo
+ * — only the sources are swapped:
  *
- * Uses [MockChatHistorySource] (backed by [MockChatData]) as the API
- * source and an empty WS stream. Messages flow through Room so the
- * full local-first pipeline is exercised: API fetch → Room insert →
- * Room Flow re-emit → DiffUtil → RecyclerView.
+ *  - history: [HttpChatHistorySource] → `GET /api/v1/chat/history`
+ *  - live:    [WsChatMessageStream]   → WS `msg` frames
+ *  - send:    [ShaftChatListViewModel.sendText] → WS `msg` frame,
+ *             render on echo (no optimistic Room insert)
  *
  * ## RecyclerView orientation
  *
@@ -50,13 +54,16 @@ import kotlinx.coroutines.launch
  */
 class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
-    private val viewModel: ChatListViewModel<ChatMessageEntity> by viewModels {
-        val chatDb = ChatDatabase.getInstance(requireContext())
-        ChatListViewModel(
-            threadId = MockChatData.THREAD_ID,
-            store = RoomChatMessageStore(chatDb.chatMessageDao()),
-            historySource = MockChatHistorySource(),
-            stream = { _ -> emptyFlow() }, // no live WS in demo
+    private val viewModel: ShaftChatListViewModel by viewModels {
+        val appCtx = requireContext().applicationContext
+        val wsClient = ShaftChatWsClient.create(appCtx)
+        ShaftChatListViewModel(
+            wsClient = wsClient,
+            wsStream = WsChatMessageStream(wsClient),
+            historySource = HttpChatHistorySource(),
+            store = RoomChatMessageStore(
+                ChatDatabase.getInstance(appCtx).chatMessageDao()
+            ),
         )
     }
 
@@ -92,8 +99,15 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         setupInput()
 
         // ── RecyclerView ─────────────────────────────────────────────
+        // Adapter needs to know which messages are "mine" so it right-aligns
+        // them. The chat protocol identifies us by `client_id` (hex); we use
+        // the same `client_id → uid` mapping HttpChatHistorySource +
+        // WsChatMessageStream use, so the round-trip stays consistent.
+        val selfClientId = EventReporter.currentClientId()
+        val selfUid = if (selfClientId.isNotEmpty())
+            HttpChatHistorySource.clientIdToUid(selfClientId) else 0L
         val chatAdapter = ChatMessageAdapter(
-            selfUid = MockChatData.BUYER_UID,
+            selfUid = selfUid,
             onLongClick = { msg -> showMessageActions(msg) },
         ).also { this.chatAdapter = it }
         val footerAdapter = PagingFooterAdapter().apply {
@@ -202,16 +216,14 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         val text = binding.etInput.text?.toString()?.trim() ?: return
         if (text.isEmpty()) return
 
-        val message = ChatMessageEntity(
-            messageId = System.currentTimeMillis() * 10_000 + (System.nanoTime() % 10_000),
-            threadId = MockChatData.THREAD_ID,
-            uid = MockChatData.BUYER_UID,
-            createdTime = System.currentTimeMillis() / 1000,
-            type = 1,
-            content = text,
-        )
-
-        viewModel.send(message)
+        // Server echoes the message back over WS — that echo is what renders.
+        // No local Room insert here; rendering on the echo prevents the
+        // "shown locally but never landed on the server" failure mode.
+        val accepted = viewModel.sendText(text)
+        if (!accepted) {
+            Toast.makeText(requireContext(), "发送失败,请稍后重试", Toast.LENGTH_SHORT).show()
+            return
+        }
         binding.etInput.text?.clear()
         scrollToBottomOnNextUpdate = true
     }
