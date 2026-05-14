@@ -2,29 +2,69 @@ package ceui.pixiv.banner
 
 import android.app.Activity
 import android.app.Application
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import timber.log.Timber
 import java.util.WeakHashMap
 
 /**
  * Installs a [BannerHost] overlay onto every [BannerHostOwner] Activity.
- * Register once at [Application.onCreate].
+ *
+ * **Timing.** API 29 added `onActivityPostCreated`, which fires *after* the
+ * subclass's `onCreate` has fully run (so `setContentView` and any theme
+ * switch are done). On API 24-28 we use `onActivityCreated`, which the
+ * framework dispatches from *inside* `Activity.onCreate` — i.e. from
+ * `super.onCreate(...)` of the subclass, **before** `setContentView` and
+ * before BaseActivity's `updateTheme()` have run. Touching
+ * `findViewById(android.R.id.content)` at that point forces AppCompat to
+ * inflate its subDecor on whatever (potentially non-AppCompat) launch theme
+ * the activity is still on and crashes with "You need to use a Theme.AppCompat
+ * theme". We therefore post the install to the main looper from
+ * `onActivityCreated`, which guarantees the runnable executes *after* the
+ * full launch dispatch (`onCreate` + `onStart` + `onResume`) returns control
+ * to the looper.
  */
 class BannerHostInstaller(
     private val manager: BannerManager,
 ) : Application.ActivityLifecycleCallbacks {
 
     private val presenters = WeakHashMap<Activity, BannerPresenter>()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
-    // `onActivityPostCreated` only fires on API 29+. minSdk here is 24, so we
-    // install during `onActivityCreated` which also runs after the Activity's
-    // own onCreate has returned (and therefore after setContentView).
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+        // API 29+ has a dedicated post-create callback that fires after the
+        // subclass's onCreate — use it directly and skip the post.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return
+        scheduleInstall(activity)
+    }
+
+    override fun onActivityPostCreated(activity: Activity, savedInstanceState: Bundle?) {
+        installIfNeeded(activity)
+    }
+
+    private fun scheduleInstall(activity: Activity) {
         if (activity !is BannerHostOwner) return
+        mainHandler.post {
+            // Activity may have been destroyed before the post runs (fast
+            // back-out, dialog finish, etc.). Guard so we don't operate on
+            // a dead window.
+            if (activity.isFinishing) return@post
+            if (activity is LifecycleOwner &&
+                activity.lifecycle.currentState == Lifecycle.State.DESTROYED) return@post
+            installIfNeeded(activity)
+        }
+    }
+
+    private fun installIfNeeded(activity: Activity) {
+        if (activity !is BannerHostOwner) return
+        if (presenters.containsKey(activity)) return
         if (activity !is LifecycleOwner) {
             Timber.tag(TAG).e(
                 "Activity %s implements BannerHostOwner but not LifecycleOwner; banner host will not be installed.",
@@ -33,7 +73,12 @@ class BannerHostInstaller(
             return
         }
 
-        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        val content = try {
+            activity.findViewById<ViewGroup>(android.R.id.content)
+        } catch (t: Throwable) {
+            Timber.tag(TAG).w(t, "findViewById(content) failed on %s", activity.javaClass.simpleName)
+            return
+        }
         if (content == null) {
             Timber.tag(TAG).e("android.R.id.content not found on %s", activity.javaClass.simpleName)
             return
