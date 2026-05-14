@@ -161,6 +161,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             launch { observeConnection() }
             launch { observeServerErrors() }
             launch { observeReplacedByOtherDevice() }
+            launch { observeFatalAuth() }
         }
     }
 
@@ -316,6 +317,22 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             Toast.makeText(
                 requireContext(),
                 "账号在其它设备登录,聊天已断开",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+
+    /**
+     * Doc §2.2 / §7.3: 401 on the handshake (`bad_sig` / `bad_ts` /
+     * `ts_skew` / `bad_uid`) is **fatal** — retrying with the same
+     * credentials won't help. Surface a concrete user-actionable message
+     * so they aren't left wondering why the input is greyed out forever.
+     */
+    private suspend fun observeFatalAuth() {
+        ShaftChatGateway.fatalAuth.collect {
+            Toast.makeText(
+                requireContext(),
+                "聊天认证失败 — 请检查系统时间是否正确,或重新登录",
                 Toast.LENGTH_LONG,
             ).show()
         }

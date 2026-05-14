@@ -13,10 +13,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import androidx.lifecycle.asFlow
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.websocket.WebSocketEvent
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
@@ -66,6 +69,11 @@ object ShaftChatGateway {
     private lateinit var stream: WsChatMessageStream
     private lateinit var persistDao: ChatMessageDao
 
+    private val _fatalAuth = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+    )
+
     /**
      * Idempotent. Safe to call from `Application.onCreate` after
      * `EventReporter.init`. Subsequent calls are no-ops.
@@ -73,15 +81,32 @@ object ShaftChatGateway {
     fun bootstrap(app: Application) {
         if (!bootstrapped.compareAndSet(false, true)) return
 
-        // Chat is anonymous — there's no "logout" signal. Pin activation to
-        // `true` and let the manager treat the process lifetime as one
-        // continuous session.
-        val ready: StateFlow<Boolean> = MutableStateFlow(true)
+        // Activation tracks pixiv login. Server requires `uid > 0` for the
+        // HMAC handshake; without it ShaftHmacAuthProvider throws and
+        // RobustWebSocketClient enters a permanent backoff loop. Driving
+        // the manager off SessionManager solves two cases:
+        //
+        //   1. **Fresh launch, not logged in** — flow emits `false`,
+        //      manager stays Idle, no wasted handshake attempts
+        //   2. **Logout** — flow flips to `false`, manager closes the
+        //      socket; no more "uid=0 → IllegalStateException → retry"
+        //      thrashing
+        //   3. **Re-login** — flow flips back to `true`, manager builds a
+        //      fresh client with the new uid in the auth provider
+        //
+        // `LiveData.asFlow()` emits the current value to each subscriber
+        // (manager only subscribes once via its single internal collect).
+        // `distinctUntilChanged` makes sure the manager's `flatMapLatest`
+        // doesn't tear down + rebuild on every irrelevant LiveData write
+        // (e.g. token refresh that keeps the same uid).
+        val ready: Flow<Boolean> = SessionManager.loggedInAccount.asFlow()
+            .map { account -> (account?.user?.id ?: 0L) > 0L }
+            .distinctUntilChanged()
 
         manager = WebSocketManager(
             loggedIn = ready,
             createClient = { _ ->
-                Timber.tag(TAG).i("createClient: building shaft chat WS")
+                Timber.tag(TAG).i("createClient: building shaft chat WS (uid=%d)", SessionManager.loggedInUid)
                 ShaftChatWsClient.create(app)
             },
             // WebSocketConfig is required by the manager's signature but
@@ -90,7 +115,7 @@ object ShaftChatGateway {
             config = WebSocketConfig(url = "ws://placeholder.invalid/"),
         )
         manager.start()
-        Timber.tag(TAG).i("bootstrap complete — manager.start() invoked")
+        Timber.tag(TAG).i("bootstrap complete — manager.start() invoked (loggedInUid=%d)", SessionManager.loggedInUid)
 
         // Wire the shared stream that the chat fragment consumes. Built
         // here so its hello/err side flows are app-scoped (a fragment that
@@ -101,6 +126,7 @@ object ShaftChatGateway {
         startHeartbeatProbe()
         startAlwaysOnRawLog()
         startAlwaysOnPersister()
+        startFatalAuthMonitor()
     }
 
     /**
@@ -161,6 +187,35 @@ object ShaftChatGateway {
     }
 
     /**
+     * Surface 401 handshake failures (`bad_sig` / `bad_uid` / `bad_ts` /
+     * `ts_skew`) as a side flow the UI can latch onto. Per doc §7.3 these
+     * are **fatal** — `ReconnectStrategy.DEFAULT_SHOULD_RECONNECT` already
+     * stops auto-retries, and `ShaftHmacAuthProvider.onAuthFailure`
+     * returns `false`. But the user still needs a hint that "the input
+     * is greyed out because the configured key is wrong / your clock is
+     * off", not because the network blipped.
+     *
+     * `replay=0` (don't replay stale failures to a fragment that opens
+     * after the user has already re-logged in and recovered) +
+     * `extraBufferCapacity=1` so a single fast 401 isn't lost between
+     * `tryEmit` and the fragment's first `collect`.
+     */
+    private fun startFatalAuthMonitor() {
+        scope.launch {
+            manager.events
+                .filterIsInstance<WebSocketEvent.Failure>()
+                .filter { it.responseCode == 401 }
+                .collect { failure ->
+                    Timber.tag(TAG).w(
+                        "⚠ auth fatal — 401 on WS handshake (cause=%s)",
+                        failure.throwable.message ?: failure.throwable.javaClass.simpleName,
+                    )
+                    _fatalAuth.tryEmit(Unit)
+                }
+        }
+    }
+
+    /**
      * Periodic state log so OkHttp's invisible RFC ping/pong has a
      * visible app-level analogue. 30s aligns with the configured
      * `pingInterval` (docs §3.1). One line every cycle while the app
@@ -197,6 +252,16 @@ object ShaftChatGateway {
     val chatStream: ChatMessageStream<ChatMessageEntity> get() = stream
     val helloFrames: Flow<ChatFrame.Hello> get() = stream.helloFrames
     val errorFrames: Flow<ChatFrame.Err> get() = stream.errorFrames
+
+    /**
+     * 401 handshake failure — `bad_sig` / `bad_ts` / `ts_skew` / `bad_uid`
+     * (server can't tell them apart from this side; see doc §2.2). Server
+     * 401 is **fatal**: `ShaftHmacAuthProvider.onAuthFailure` returns
+     * `false` and `ReconnectStrategy.DEFAULT_SHOULD_RECONNECT` treats 401
+     * as terminal. Emit so the UI can prompt the user with a concrete
+     * recovery action ("check system clock" / "contact dev").
+     */
+    val fatalAuth: Flow<Unit> get() = _fatalAuth
 
     /**
      * Fires once per `onClose(1008, "replaced")` — doc §1.1 "同 uid 顶号"
