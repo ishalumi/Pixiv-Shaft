@@ -1,8 +1,10 @@
 package ceui.pixiv.chat.api
 
 import android.app.Application
-import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.chat.core.ChatMessageStream
+import ceui.pixiv.chat.data.ChatDatabase
+import ceui.pixiv.chat.data.ChatMessageDao
+import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.websocket.IncomingMessage
 import ceui.pixiv.websocket.WebSocketConfig
 import ceui.pixiv.websocket.WebSocketManager
@@ -62,6 +64,7 @@ object ShaftChatGateway {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var manager: WebSocketManager
     private lateinit var stream: WsChatMessageStream
+    private lateinit var persistDao: ChatMessageDao
 
     /**
      * Idempotent. Safe to call from `Application.onCreate` after
@@ -93,9 +96,48 @@ object ShaftChatGateway {
         // here so its hello/err side flows are app-scoped (a fragment that
         // arrives mid-session can still see the last hello via replay=1).
         stream = WsChatMessageStream(manager.incoming)
+        persistDao = ChatDatabase.getInstance(app).chatMessageDao()
 
         startHeartbeatProbe()
         startAlwaysOnRawLog()
+        startAlwaysOnPersister()
+    }
+
+    /**
+     * Doc §0 ("自动接收 ... 无论自己有没有打开那个聊天") requires the
+     * local store to mirror every msg the WS receives, not just the ones
+     * arriving while a chat fragment happens to be open.
+     *
+     * This subscriber decodes every incoming msg frame and UPSERTs into
+     * Room — independent of any fragment's lifecycle. Result:
+     *  - Messages from a peer who DMs you while you're on the home feed
+     *    land in `chat_messages` immediately; when you later open the
+     *    1v1 thread, the row is already there
+     *  - When the fragment's `ChatListViewModel.startLiveSync` also
+     *    observes the same frame, it just touches windowSize + echo
+     *    correlation; the actual UPSERT is no-op since the row already
+     *    exists with identical `localKey` content
+     *
+     * Underlying `manager.incoming` is a SharedFlow inside
+     * `RobustWebSocketClient`, so adding this collector does **not** open
+     * a second WS — both this persister and the per-fragment stream
+     * subscription fan out from the one socket.
+     */
+    private fun startAlwaysOnPersister() {
+        scope.launch {
+            manager.incoming
+                .filterIsInstance<IncomingMessage.Text>()
+                .map { ChatFrameDecoder.decode(it.text) }
+                .filterIsInstance<ChatFrame.Msg>()
+                .collect { frame ->
+                    val entity = frame.toChatMessageEntity() ?: return@collect
+                    persistDao.upsert(listOf(entity))
+                    Timber.tag(TAG).d(
+                        "⇣ persisted cmid=%s room=%s uid=%d",
+                        entity.clientMsgId, entity.room, entity.uid,
+                    )
+                }
+        }
     }
 
     /**

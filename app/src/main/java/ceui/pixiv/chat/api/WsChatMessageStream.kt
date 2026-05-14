@@ -84,30 +84,43 @@ class WsChatMessageStream(
         }
     }
 
-    private fun toEntity(f: ChatFrame.Msg): ChatMessageEntity? {
-        val localKey = f.clientMsgId ?: run {
-            // No clientMsgId on a WS broadcast is anomalous — server populates
-            // it for every msg. Without it we can't dedup against the
-            // optimistic-send row, so dropping is safer than synthesizing
-            // a per-frame UUID (which would always be unique → never dedup).
-            Timber.tag(TAG).w("msg frame without client_msg_id, dropping (ts=%d uid=%d)", f.ts, f.uid)
-            return null
-        }
-        return ChatMessageEntity(
-            localKey = localKey,
-            serverId = null,
-            clientMsgId = f.clientMsgId,
-            uid = f.uid,
-            room = f.room,
-            displayName = f.displayName,
-            text = f.text,
-            illustId = f.illustId,
-            ts = f.ts,
-            state = SendState.Delivered,
-        )
-    }
+    private fun toEntity(f: ChatFrame.Msg): ChatMessageEntity? = f.toChatMessageEntity()
 
     companion object {
         private const val TAG = "Chat-Stream"
     }
+}
+
+/**
+ * Map a server-broadcast `msg` frame to a Room entity. Shared between the
+ * gateway's always-on persister and [WsChatMessageStream]'s per-room
+ * fragment observer — both call this so the wire→entity mapping has
+ * exactly one definition.
+ *
+ * Returns `null` when [ChatFrame.Msg.clientMsgId] is absent: without it
+ * we have no stable dedup key against the optimistic-send row, and
+ * synthesizing a per-frame UUID would always produce a unique key →
+ * **never dedup** → UPSERT degenerates into INSERT, doubling rows.
+ * Dropping the frame is the safer behaviour.
+ */
+internal fun ChatFrame.Msg.toChatMessageEntity(): ChatMessageEntity? {
+    val cmid = clientMsgId ?: run {
+        Timber.tag("Chat-Stream").w(
+            "msg frame without client_msg_id, dropping (ts=%d uid=%d room=%s)",
+            ts, uid, room,
+        )
+        return null
+    }
+    return ChatMessageEntity(
+        localKey = cmid,
+        serverId = null,
+        clientMsgId = cmid,
+        uid = uid,
+        room = room,
+        displayName = displayName,
+        text = text,
+        illustId = illustId,
+        ts = ts,
+        state = SendState.Delivered,
+    )
 }

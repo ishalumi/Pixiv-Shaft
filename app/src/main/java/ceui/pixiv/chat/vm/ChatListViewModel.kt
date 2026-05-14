@@ -378,17 +378,24 @@ class ChatListViewModel(
         }
     }
 
+    /**
+     * VM-side reactive side effects per inbound msg in this room:
+     *  - Grow [windowSize] so the new row stays within the LIMIT-bounded
+     *    Room query result
+     *  - Correlate echoes against [inFlightSends] for end-to-end latency
+     *  - Flip Empty → Content on the first message
+     *
+     * **No `store.upsert` here.** Persistence is now owned exclusively by
+     * `ShaftChatGateway.startAlwaysOnPersister` so messages received while
+     * the fragment is closed also land in Room. Doing the UPSERT here too
+     * would be redundant (same `localKey`, same content → no-op write).
+     */
     private fun startLiveSync() {
         syncJob = viewModelScope.launch {
             stream.observe(room).collect { msg ->
-                // Grow window BEFORE inserting so LIMIT covers the new row
-                // when Room's invalidation fires.
                 val oldWindow = windowSize.value
                 windowSize.value++
-                store.upsert(listOf(msg))
 
-                // Echo correlation: if this msg matches an in-flight
-                // optimistic-send, log the round-trip and clean up.
                 val cmid = msg.clientMsgId
                 val sendStartNs = if (cmid != null) inFlightSends.remove(cmid) else null
                 if (sendStartNs != null) {
