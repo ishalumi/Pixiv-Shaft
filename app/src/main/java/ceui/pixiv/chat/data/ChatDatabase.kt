@@ -25,7 +25,13 @@ import androidx.room.RoomDatabase
  */
 @Database(
     entities = [ChatMessageEntity::class],
-    version = 1,
+    // v2 (2026-05-14): schema migration for uid-routing protocol (doc
+    // §9.2). PK changed from Long messageId → String localKey, threadId
+    // dropped in favour of String room, plus serverId/clientMsgId/displayName/state
+    // columns added. fallbackToDestructiveMigration drops the old table on
+    // the next open — chat had no real users on the old protocol so the
+    // wipe is fine.
+    version = 2,
     exportSchema = true,
 )
 abstract class ChatDatabase : RoomDatabase() {

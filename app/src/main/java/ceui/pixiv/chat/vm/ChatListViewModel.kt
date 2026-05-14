@@ -2,72 +2,73 @@ package ceui.pixiv.chat.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ceui.pixiv.chat.core.ChatHistorySource
-import ceui.pixiv.chat.core.ChatMessageStore
-import ceui.pixiv.chat.core.ChatMessageStream
-import ceui.pixiv.chat.core.AppResult
+import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.base.LoadReason
 import ceui.pixiv.chat.base.PageState
 import ceui.pixiv.chat.base.PagingState
+import ceui.pixiv.chat.core.AppResult
+import ceui.pixiv.chat.core.ChatHistorySource
+import ceui.pixiv.chat.core.ChatMessageStore
+import ceui.pixiv.chat.core.ChatMessageStream
+import ceui.pixiv.chat.data.ChatMessageEntity
+import ceui.pixiv.chat.data.SendState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.UUID
 
 /**
- * Local-first chat list ViewModel.
- *
- * ## Data flow
+ * Local-first chat list ViewModel for shaft-api-v2 (uid-routing protocol).
  *
  * ```
- * RecyclerView  ← observe ←  [messages]  ← Room Flow ← ChatMessageStore
- *                                                          ↑ upsert
- *                              ┌───────────────────────────┤
- *                              │                           │
- *                     ChatHistorySource              ChatMessageStream
- *                      (API pagination)               (WS live push)
+ * RecyclerView ← observe ← [messages] ← Room Flow ← ChatMessageStore
+ *                                            ↑ UPSERT (by localKey)
+ *                            ┌───────────────┤
+ *                            │               │
+ *                  ChatHistorySource    ChatMessageStream (filtered by room)
+ *                   (HTTP pagination)    (WS broadcast)
  * ```
  *
- * The UI **only** reads [messages], which comes from the local store.
- * Both remote sources (API and WS) write INTO the store. Room's Flow
- * re-emits on every insert, so the UI updates automatically via
- * DiffUtil — no list manipulation in the ViewModel.
+ * UI **only** reads [messages] (Room Flow). All writes — optimistic-send,
+ * WS echo, history backfill — UPSERT by `localKey`. Doc §4 / §9.2.
  *
- * ## Cold-start behaviour
+ * ## Room derivation
  *
- * 1. Check local store for cached messages.
- * 2. **Cache hit** → show instantly, background-refresh from API.
- * 3. **Cache miss** → show loading spinner, fetch first page from API.
+ * - `toUid == null` → [room] = `"global"`
+ * - `toUid != null` → [room] = `ChatThreadId.oneOnOneThreadId(selfUid, toUid)`
  *
- * In both cases the WS live stream starts immediately.
+ * The stream subscriber filters by `frame.room == room`, so a fragment
+ * scoped to the global room never sees 1v1 traffic and vice versa.
  *
- * ## Paging (load older)
+ * ## Send (doc §3.1 + §4.3)
  *
- * Chat is reverse-chronological: newest at bottom, older at top.
- * Scrolling to the top triggers [loadOlder], which fetches the next
- * page from [ChatHistorySource], inserts into the store, and grows
- * [windowSize] so the Room query includes the newly-inserted rows.
- *
- * When a WS message arrives, [windowSize] is also incremented so
- * that no previously-visible old message drops off the query result.
- *
- * @param M the message type (generic so `:base` stays free of Room /
- *   serialisation dependencies; `:app` binds `M` to its concrete
- *   entity).
+ * 1. Generate UUIDv4 `client_msg_id`
+ * 2. Optimistic UPSERT local row `state=Sending`
+ * 3. Build `msg` frame (`msgGlobal` or `msg1v1`) and dispatch via [sender]
+ * 4. WS broadcast echo arrives → stream emits the same row → UPSERT
+ *    keyed on the same localKey → `state=Delivered`
+ * 5. On WS dispatch rejection → mark local row `state=Failed`
  */
-open class ChatListViewModel<M>(
-    private val threadId: Long,
-    private val store: ChatMessageStore<M>,
-    private val historySource: ChatHistorySource<M>,
-    private val stream: ChatMessageStream<M>,
+class ChatListViewModel(
+    val selfUid: Long,
+    /** `null` = global broadcast room; non-null = peer pixiv uid for 1v1. */
+    val toUid: Long?,
+    private val store: ChatMessageStore<ChatMessageEntity>,
+    private val historySource: ChatHistorySource<ChatMessageEntity>,
+    private val stream: ChatMessageStream<ChatMessageEntity>,
+    private val sender: WsMsgSender,
     private val pageSize: Int = 30,
 ) : ViewModel() {
+
+    /** Derived from `(selfUid, toUid)` per doc §3.2. Single source of truth for the filter. */
+    val room: String = if (toUid == null) ChatThreadId.ROOM_GLOBAL
+                       else ChatThreadId.oneOnOneThreadId(selfUid, toUid)
 
     // ── Page state (loading / error / empty / content-ready) ────────────
 
@@ -78,22 +79,10 @@ open class ChatListViewModel<M>(
 
     private val windowSize = MutableStateFlow(pageSize)
 
-    /**
-     * The rendered message list, always newest-first. Backed by a Room
-     * Flow that re-emits on every table change. Combined with
-     * `reverseLayout = true` on the RecyclerView, position 0 renders
-     * at the bottom of the screen.
-     *
-     * [windowSize] is a [StateFlow] which is already
-     * `distinctUntilChanged` — `flatMapLatest` only triggers when the
-     * LIMIT actually changes (from [loadOlder], WS arrivals, or
-     * [trimWindow]). Room's own invalidation tracker handles
-     * per-INSERT re-emission without a Flow switch.
-     */
-    val messages: StateFlow<List<M>> = windowSize
+    val messages: StateFlow<List<ChatMessageEntity>> = windowSize
         .flatMapLatest { limit ->
-            Timber.tag(TAG_PERF).d("flatMapLatest: re-subscribe with limit=%d", limit)
-            store.observe(threadId, limit)
+            Timber.tag(TAG_PERF).d("flatMapLatest: re-subscribe room=%s limit=%d", room, limit)
+            store.observe(room, limit)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -110,18 +99,16 @@ open class ChatListViewModel<M>(
     private var syncJob: Job? = null
 
     init {
-        Timber.tag(TAG_PERF).d("init: threadId=%d, pageSize=%d", threadId, pageSize)
+        Timber.tag(TAG_PERF).d(
+            "init: selfUid=%d toUid=%s room=%s pageSize=%d",
+            selfUid, toUid?.toString() ?: "global", room, pageSize,
+        )
         startLiveSync()
         viewModelScope.launch { initialLoad() }
     }
 
     // ── Public API ──────────────────────────────────────────────────────
 
-    /**
-     * Pull-to-refresh: re-fetch the newest page and reset the window.
-     * Cached data is NOT cleared — the user keeps seeing messages while
-     * the refresh is in flight.
-     */
     fun refresh() {
         Timber.tag(TAG_PERF).d("refresh: windowSize %d → %d", windowSize.value, pageSize)
         pagingJob?.cancel()
@@ -135,7 +122,6 @@ open class ChatListViewModel<M>(
         }
     }
 
-    /** Retry after an initial-load error. */
     fun retry() {
         Timber.tag(TAG_PERF).d("retry")
         viewModelScope.launch {
@@ -144,11 +130,6 @@ open class ChatListViewModel<M>(
         }
     }
 
-    /**
-     * Load the next (older) page. Called by a scroll listener when the
-     * user reaches the top of the list. Idempotent while a page is
-     * already in flight or all pages have been loaded.
-     */
     fun loadOlder() {
         if (_pagingState.value != PagingState.Idle) {
             Timber.tag(TAG_PERF).d("loadOlder: skip (pagingState=%s)", _pagingState.value)
@@ -157,7 +138,7 @@ open class ChatListViewModel<M>(
         if (nextPageToken == null && messages.value.isNotEmpty()) {
             if (!firstPageLoaded) {
                 Timber.tag(TAG_PERF).d("loadOlder: skip (firstPage not loaded yet)")
-                return // backgroundRefresh still in flight; don't commit to EndReached
+                return
             }
             Timber.tag(TAG_PERF).d("loadOlder: EndReached (no nextPageToken)")
             _pagingState.value = PagingState.EndReached
@@ -167,10 +148,10 @@ open class ChatListViewModel<M>(
             _pagingState.value = PagingState.LoadingMore
             val t0 = System.nanoTime()
             Timber.tag(TAG_PERF).d(
-                "loadOlder: start threadId=%d, pageToken=%s, pageSize=%d, windowSize=%d",
-                threadId, nextPageToken, pageSize, windowSize.value,
+                "loadOlder: start room=%s, pageToken=%s, pageSize=%d, windowSize=%d",
+                room, nextPageToken, pageSize, windowSize.value,
             )
-            when (val result = historySource.loadPage(threadId, nextPageToken, pageSize)) {
+            when (val result = historySource.loadPage(room, nextPageToken, pageSize)) {
                 is AppResult.Success -> {
                     val apiMs = (System.nanoTime() - t0) / 1_000_000.0
                     val page = result.data
@@ -179,14 +160,11 @@ open class ChatListViewModel<M>(
                         apiMs, page.messages.size, page.nextPageToken,
                     )
                     if (page.messages.isNotEmpty()) {
-                        val t1 = System.nanoTime()
                         store.upsert(page.messages)
-                        val upsertMs = (System.nanoTime() - t1) / 1_000_000.0
                         val oldWindow = windowSize.value
                         windowSize.value += page.messages.size
                         Timber.tag(TAG_PERF).d(
-                            "loadOlder: upsert %.1f ms, windowSize %d → %d",
-                            upsertMs, oldWindow, windowSize.value,
+                            "loadOlder: windowSize %d → %d", oldWindow, windowSize.value,
                         )
                     }
                     nextPageToken = page.nextPageToken
@@ -195,19 +173,15 @@ open class ChatListViewModel<M>(
                     } else {
                         PagingState.Idle
                     }
-                    val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-                    Timber.tag(TAG_PERF).d("loadOlder: done in %.1f ms total", totalMs)
                 }
                 is AppResult.Error -> {
-                    val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-                    Timber.tag(TAG_PERF).w("loadOlder: failed in %.1f ms: %s", totalMs, result.error)
+                    Timber.tag(TAG_PERF).w("loadOlder: failed: %s", result.error)
                     _pagingState.value = PagingState.Error(result.error)
                 }
             }
         }
     }
 
-    /** Retry a failed [loadOlder]. */
     fun retryPaging() {
         Timber.tag(TAG_PERF).d("retryPaging")
         _pagingState.value = PagingState.Idle
@@ -215,30 +189,64 @@ open class ChatListViewModel<M>(
     }
 
     /**
-     * Insert a locally-created message into the store. Grows the
-     * window so the new message doesn't push an old one out of the
-     * query result. The Room Flow re-emission + DiffUtil handles UI.
+     * Send a `msg` frame. Returns `true` if the frame was accepted into the
+     * WS outgoing buffer (not an end-to-end ACK — broadcast echo is the
+     * actual ACK; see doc §3.2 / §4).
+     *
+     * Lifecycle:
+     *  1. Generate UUIDv4 `client_msg_id`
+     *  2. Optimistic UPSERT row `state=Sending` so UI shows the message
+     *     instantly with a "sending…" indicator
+     *  3. Dispatch via [sender]; on rejection mark row `state=Failed`
+     *  4. WS echo arrives later (via [stream]) → UPSERT same localKey
+     *     `state=Delivered` (the echo path overwrites this row)
      */
-    fun send(message: M) {
-        viewModelScope.launch {
-            val t0 = System.nanoTime()
-            val oldWindow = windowSize.value
-            windowSize.value++
-            store.upsert(listOf(message))
-            val ms = (System.nanoTime() - t0) / 1_000_000.0
-            Timber.tag(TAG_PERF).d("send: upsert %.1f ms, windowSize %d → %d", ms, oldWindow, windowSize.value)
-            if (_pageState.value is PageState.Empty) {
-                _pageState.value = PageState.Content(Unit)
-            }
+    suspend fun sendText(text: String, illustId: Long? = null): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return false
+        if (trimmed.length > MAX_TEXT_LENGTH) {
+            Timber.tag(TAG).w("send rejected: text.length=%d > %d", trimmed.length, MAX_TEXT_LENGTH)
+            return false
         }
+
+        val clientMsgId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val optimistic = ChatMessageEntity(
+            localKey = clientMsgId,
+            serverId = null,
+            clientMsgId = clientMsgId,
+            uid = selfUid,
+            room = room,
+            displayName = null,           // server fills on echo
+            text = trimmed,
+            illustId = illustId,
+            ts = now,
+            state = SendState.Sending,
+        )
+
+        // Optimistic UI first. windowSize++ so the new row doesn't push
+        // an old one out of the LIMIT result set.
+        val oldWindow = windowSize.value
+        windowSize.value++
+        store.upsert(listOf(optimistic))
+        Timber.tag(TAG_PERF).d(
+            "sendText: optimistic write cmid=%s windowSize %d → %d",
+            clientMsgId, oldWindow, windowSize.value,
+        )
+
+        // If we were in Empty state, flip to Content.
+        if (_pageState.value is PageState.Empty) {
+            _pageState.value = PageState.Content(Unit)
+        }
+
+        val accepted = sender.send(toUid = toUid, clientMsgId = clientMsgId, text = trimmed, illustId = illustId)
+        if (!accepted) {
+            store.upsert(listOf(optimistic.copy(state = SendState.Failed)))
+            Timber.tag(TAG).w("sendText: WS dispatch rejected, marked Failed cmid=%s", clientMsgId)
+        }
+        return accepted
     }
 
-    /**
-     * Shrink the query window back to [pageSize]. Call when the user
-     * has scrolled back to the newest messages and no longer needs
-     * the full history in the result set. Old messages stay in Room
-     * and will reappear if [loadOlder] is called again.
-     */
     fun trimWindow() {
         if (windowSize.value > pageSize) {
             Timber.tag(TAG_PERF).d("trimWindow: %d → %d", windowSize.value, pageSize)
@@ -248,54 +256,31 @@ open class ChatListViewModel<M>(
 
     // ── Internal ────────────────────────────────────────────────────────
 
-    /**
-     * Cold-start decision: cache-first, then background refresh.
-     */
     private suspend fun initialLoad() {
-        val t0 = System.nanoTime()
         val cachedCount = try {
-            val t1 = System.nanoTime()
-            val count = store.countByThread(threadId)
-            val ms = (System.nanoTime() - t1) / 1_000_000.0
-            Timber.tag(TAG_PERF).d("initialLoad: countByThread=%.1f ms, cached=%d", ms, count)
-            count
+            store.countByRoom(room)
         } catch (t: Throwable) {
-            Timber.tag(TAG_PERF).e(t, "initialLoad: countByThread threw")
+            Timber.tag(TAG_PERF).e(t, "initialLoad: countByRoom threw")
             0
         }
+        Timber.tag(TAG_PERF).d("initialLoad: room=%s cached=%d", room, cachedCount)
 
         if (cachedCount > 0) {
-            // Local cache hit — render immediately, refresh in background.
-            Timber.tag(TAG_PERF).d("initialLoad: cache HIT (%d rows), showing cached + backgroundRefresh", cachedCount)
             _pageState.value = PageState.Content(Unit)
             backgroundRefresh()
         } else {
-            // No cache — show spinner and block on the first API page.
-            Timber.tag(TAG_PERF).d("initialLoad: cache MISS, fetching first page")
             _pageState.value = PageState.Loading(LoadReason.Initial)
             fetchNewest()
         }
-        val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-        Timber.tag(TAG_PERF).d("initialLoad: done in %.1f ms total", totalMs)
     }
 
-    /**
-     * Fetch the newest page from the API, write into store, and update
-     * [pageState]. Used for initial load, refresh, and retry.
-     */
     private suspend fun fetchNewest() {
         val t0 = System.nanoTime()
-        Timber.tag(TAG_PERF).d("fetchNewest: start threadId=%d, pageSize=%d", threadId, pageSize)
-        when (val result = historySource.loadPage(threadId, null, pageSize)) {
+        when (val result = historySource.loadPage(room, null, pageSize)) {
             is AppResult.Success -> {
-                val apiMs = (System.nanoTime() - t0) / 1_000_000.0
                 val page = result.data
-                Timber.tag(TAG_PERF).d("fetchNewest: API %.1f ms, received=%d, nextToken=%s", apiMs, page.messages.size, page.nextPageToken)
                 if (page.messages.isNotEmpty()) {
-                    val t1 = System.nanoTime()
                     store.upsert(page.messages)
-                    val upsertMs = (System.nanoTime() - t1) / 1_000_000.0
-                    Timber.tag(TAG_PERF).d("fetchNewest: upsert %.1f ms", upsertMs)
                 }
                 nextPageToken = page.nextPageToken
                 firstPageLoaded = true
@@ -304,83 +289,47 @@ open class ChatListViewModel<M>(
                 } else {
                     PageState.Content(Unit)
                 }
-                val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-                Timber.tag(TAG_PERF).d("fetchNewest: done in %.1f ms total", totalMs)
+                val ms = (System.nanoTime() - t0) / 1_000_000.0
+                Timber.tag(TAG_PERF).d("fetchNewest: %d msgs in %.1f ms", page.messages.size, ms)
             }
             is AppResult.Error -> {
-                val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-                // If we have cached data, stay in Content and let the
-                // user see the stale list rather than an error screen.
                 if (messages.value.isNotEmpty()) {
                     _pageState.value = PageState.Content(Unit)
-                    Timber.tag(TAG_PERF).w("fetchNewest: failed in %.1f ms but cache non-empty; staying in Content", totalMs)
+                    Timber.tag(TAG_PERF).w("fetchNewest: failed but cache non-empty: %s", result.error)
                 } else {
                     _pageState.value = PageState.Error(result.error)
-                    Timber.tag(TAG_PERF).w("fetchNewest: failed in %.1f ms: %s", totalMs, result.error)
+                    Timber.tag(TAG_PERF).w("fetchNewest: failed: %s", result.error)
                 }
             }
         }
     }
 
-    /**
-     * Silent background refresh: same as [fetchNewest] but does not
-     * change [pageState] on error (the user is already seeing cached
-     * data — don't flash an error screen).
-     */
     private suspend fun backgroundRefresh() {
-        val t0 = System.nanoTime()
-        Timber.tag(TAG_PERF).d("backgroundRefresh: start threadId=%d", threadId)
-        when (val result = historySource.loadPage(threadId, null, pageSize)) {
+        when (val result = historySource.loadPage(room, null, pageSize)) {
             is AppResult.Success -> {
-                val apiMs = (System.nanoTime() - t0) / 1_000_000.0
                 val page = result.data
-                Timber.tag(TAG_PERF).d("backgroundRefresh: API %.1f ms, received=%d", apiMs, page.messages.size)
-                if (page.messages.isNotEmpty()) {
-                    val t1 = System.nanoTime()
-                    store.upsert(page.messages)
-                    val upsertMs = (System.nanoTime() - t1) / 1_000_000.0
-                    Timber.tag(TAG_PERF).d("backgroundRefresh: upsert %.1f ms", upsertMs)
-                }
+                if (page.messages.isNotEmpty()) store.upsert(page.messages)
                 nextPageToken = page.nextPageToken
                 firstPageLoaded = true
-                val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-                Timber.tag(TAG_PERF).d("backgroundRefresh: done in %.1f ms total", totalMs)
             }
             is AppResult.Error -> {
-                val totalMs = (System.nanoTime() - t0) / 1_000_000.0
-                Timber.tag(TAG_PERF).w("backgroundRefresh: failed in %.1f ms: %s", totalMs, result.error)
+                Timber.tag(TAG_PERF).w("backgroundRefresh: failed: %s", result.error)
             }
         }
     }
 
-    /**
-     * Collect the WS live stream and write every message into the
-     * local store.
-     *
-     * Window growth: [windowSize] is incremented **before** each
-     * [store.upsert] so the Room query LIMIT is already large enough
-     * when the insert's invalidation fires. This prevents older
-     * messages from dropping off the result set when new ones arrive.
-     * The cost is one extra Room re-query per WS message (old LIMIT
-     * result → new LIMIT result), which DiffUtil absorbs as a no-op.
-     *
-     * Use [trimWindow] to shrink the window back to [pageSize] when
-     * the user scrolls to the bottom and no longer needs the full
-     * history in the result set.
-     */
     private fun startLiveSync() {
         syncJob = viewModelScope.launch {
-            stream.observe(threadId).collect { msg ->
-                val t0 = System.nanoTime()
-                // Grow the window BEFORE inserting so the LIMIT is
-                // already large enough when Room's invalidation fires.
+            stream.observe(room).collect { msg ->
+                // Grow window BEFORE inserting so LIMIT covers the new row
+                // when Room's invalidation fires.
                 val oldWindow = windowSize.value
                 windowSize.value++
                 store.upsert(listOf(msg))
-                val ms = (System.nanoTime() - t0) / 1_000_000.0
-                Timber.tag(TAG_PERF).d("liveSync: WS message upserted in %.1f ms, windowSize %d → %d", ms, oldWindow, windowSize.value)
-
-                // If we were in Empty state, flip to Content.
+                Timber.tag(TAG_PERF).d(
+                    "liveSync: cmid=%s windowSize %d → %d",
+                    msg.clientMsgId, oldWindow, windowSize.value,
+                )
                 if (_pageState.value is PageState.Empty) {
                     _pageState.value = PageState.Content(Unit)
                 }
@@ -389,14 +338,24 @@ open class ChatListViewModel<M>(
     }
 
     override fun onCleared() {
-        Timber.tag(TAG_PERF).d("onCleared: windowSize=%d", windowSize.value)
+        Timber.tag(TAG_PERF).d("onCleared: room=%s windowSize=%d", room, windowSize.value)
         syncJob?.cancel()
         pagingJob?.cancel()
         super.onCleared()
     }
 
     companion object {
-        private const val TAG = "ChatList"
-        private const val TAG_PERF = "ChatPerf"
+        private const val TAG = "Chat-VM"
+        private const val TAG_PERF = "Chat-Perf"
+        /** doc §3.1 / §12. */
+        const val MAX_TEXT_LENGTH = 2048
     }
+}
+
+/**
+ * Wire-side send seam. Production is `ShaftChatGateway::send`; tests pass
+ * a lambda that records calls.
+ */
+fun interface WsMsgSender {
+    fun send(toUid: Long?, clientMsgId: String, text: String, illustId: Long?): Boolean
 }

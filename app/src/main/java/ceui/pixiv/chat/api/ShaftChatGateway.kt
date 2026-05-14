@@ -154,35 +154,40 @@ object ShaftChatGateway {
     val errorFrames: Flow<ChatFrame.Err> get() = stream.errorFrames
 
     /**
-     * Send a chat `msg` frame. Returns `true` if it made it into the
-     * outgoing buffer, `false` if the manager has no active session or the
-     * client rejected it. **Not** an end-to-end ACK — the protocol has no
-     * per-message receipt; treat the broadcast echo as the implicit ACK
-     * (see docs §1.3 "应当以回声为准").
+     * Dispatch a `msg` frame. Routes by [toUid]:
+     *  - `null` → public global frame (`{kind:"msg", room:"global", …}`)
+     *  - non-null peer uid → 1v1 frame (`{kind:"msg", to_uid:X, …}`)
      *
-     * Caps `text` at 2048 UTF-16 units client-side per docs §1.2 so we
-     * don't trigger a server `err.bad_text_length` round-trip.
+     * Returns `true` if the frame entered the outgoing buffer, `false` if
+     * the manager has no active session or the client rejected it.
+     * **Not an end-to-end ACK** — the broadcast echo is the actual ACK
+     * (doc §4.3); the VM correlates by `clientMsgId` and flips local
+     * `state=Sending` → `Delivered` on echo.
+     *
+     * Caller (`ChatListViewModel.sendText`) is responsible for the
+     * 2048-UTF-16-unit cap and for generating a fresh
+     * `clientMsgId` per call. This method makes no further validation
+     * beyond non-empty text.
      */
-    fun send(text: String, illustId: Long? = null): Boolean {
-        val trimmed = text.trim()
-        if (trimmed.isEmpty()) return false
-        if (trimmed.length > MAX_TEXT_LENGTH) {
-            Timber.tag(TAG).w("send rejected: text.length=%d > %d", trimmed.length, MAX_TEXT_LENGTH)
-            return false
+    fun send(toUid: Long?, clientMsgId: String, text: String, illustId: Long? = null): Boolean {
+        if (text.isEmpty()) return false
+        val frame = if (toUid == null) {
+            ChatFrameEncoder.msgGlobal(clientMsgId, text, illustId)
+        } else {
+            ChatFrameEncoder.msg1v1(toUid, clientMsgId, text, illustId)
         }
-        val frame = ChatFrameEncoder.msg(trimmed, illustId)
         val accepted = manager.send(frame)
         if (accepted) {
             Timber.tag(TAG).i(
-                "⇡ msg sent illust=%s text=%s",
+                "⇡ msg sent to=%s cmid=%s illust=%s text=%s",
+                toUid?.toString() ?: "global",
+                clientMsgId,
                 illustId?.toString() ?: "-",
-                trimmed.take(80),
+                text.take(80),
             )
         } else {
             Timber.tag(TAG).w("⇡ send rejected by WebSocketManager (no active session?)")
         }
         return accepted
     }
-
-    const val MAX_TEXT_LENGTH = 2048
 }

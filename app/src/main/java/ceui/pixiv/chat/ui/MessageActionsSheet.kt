@@ -20,7 +20,7 @@ class MessageActionsSheet : BaseBottomSheetDialogFragment(R.layout.chat_sheet_me
 
     private val binding by viewBinding(ChatSheetMessageActionsBinding::bind)
 
-    private val messageId: Long get() = requireArguments().getLong(ARG_MESSAGE_ID)
+    private val localKey: String get() = requireArguments().getString(ARG_LOCAL_KEY).orEmpty()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -34,7 +34,7 @@ class MessageActionsSheet : BaseBottomSheetDialogFragment(R.layout.chat_sheet_me
     }
 
     private fun finish(action: String) {
-        setFragmentResult(REQUEST_KEY, bundleOf(RESULT_ACTION to action, RESULT_MESSAGE_ID to messageId))
+        setFragmentResult(REQUEST_KEY, bundleOf(RESULT_ACTION to action, RESULT_LOCAL_KEY to localKey))
         dismiss()
     }
 
@@ -42,19 +42,19 @@ class MessageActionsSheet : BaseBottomSheetDialogFragment(R.layout.chat_sheet_me
         const val TAG = "MessageActionsSheet"
         const val REQUEST_KEY = "MessageActionsSheet:result"
         const val RESULT_ACTION = "action"
-        const val RESULT_MESSAGE_ID = "messageId"
+        const val RESULT_LOCAL_KEY = "localKey"
 
         const val ACTION_COPY = "copy"
         const val ACTION_REPLY = "reply"
         const val ACTION_FORWARD = "forward"
         const val ACTION_DELETE = "delete"
 
-        private const val ARG_MESSAGE_ID = "messageId"
+        private const val ARG_LOCAL_KEY = "localKey"
         private const val ARG_CONTENT = "content"
 
-        fun newInstance(messageId: Long, content: String?): MessageActionsSheet =
+        fun newInstance(localKey: String, content: String?): MessageActionsSheet =
             MessageActionsSheet().apply {
-                arguments = bundleOf(ARG_MESSAGE_ID to messageId, ARG_CONTENT to content)
+                arguments = bundleOf(ARG_LOCAL_KEY to localKey, ARG_CONTENT to content)
             }
     }
 }

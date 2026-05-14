@@ -8,7 +8,10 @@ import retrofit2.http.Query
 
 /**
  * HTTP companion for the shaft-api-v2 chat WebSocket. See
- * `docs/ws-chat-integration.md` §1.4 for the wire format.
+ * `docs/ws-chat-integration.md` §8 for the wire format.
+ *
+ * Identity field is `uid: Long` (pixiv user id). The legacy 64-hex
+ * `client_id` is gone — server switched to uid-routing.
  *
  * The base URL is the same `BuildConfig.SHAFT_EVENTS_BASE_URL` used by the
  * events stack — server hosts events and chat under `/api/v1/` on one port.
@@ -19,6 +22,11 @@ interface ShaftChatApi {
      * Pull history. `before` is the `id` of the **oldest** item in the
      * previous page (= `items[0].id`); omit for the most recent page.
      * Empty `items` means top reached. `limit` caps server-side at 200.
+     *
+     * @param room `"global"` for public broadcasts, or a decimal uint64
+     *   string for a 1v1 thread id (from
+     *   [ChatThreadId.oneOnOneThreadId]). ⚠️ 1v1 history has no ACL today
+     *   — see doc §10.
      */
     @GET("/api/v1/chat/history")
     suspend fun history(
@@ -27,13 +35,13 @@ interface ShaftChatApi {
         @Query("before") before: Long? = null,
     ): ChatHistoryResponse
 
-    /** Public lookup of any client's current display name (for back-filling history rows with unfamiliar ids). */
+    /** Public lookup of any uid's current display name (for back-filling history rows with unfamiliar uids). */
     @GET("/api/v1/chat/profile")
-    suspend fun getProfile(@Query("client_id") clientId: String): ChatProfileResponse
+    suspend fun getProfile(@Query("uid") uid: Long): ChatProfileResponse
 
     /**
-     * Rename self. `sig` = `HMAC_SHA256(secret_ascii, "${clientId}|${ts}")`
-     * hex lowercase — same scheme as the WS upgrade URL.
+     * Rename self. `sig` = `HMAC_SHA256(secret_ascii, "${uid}|${ts}")` hex
+     * lowercase — same scheme as the WS upgrade URL.
      *
      * `display_name`: 1–32 UTF-16 units, UTF-8 byte length ≤ 96, no ASCII
      * control chars. Server `trim()`s leading/trailing whitespace before
@@ -59,14 +67,16 @@ data class ChatHistoryResponse(
 )
 
 /**
- * Server-side row from `/chat/history`. Note `id` is **only** present on
- * HTTP fetches; WS broadcasts of new messages don't carry an id (see
- * `docs/ws-chat-integration.md` §1.3 msg). Client storage uses `ts` as the
- * stable key everywhere so dedup between HTTP backfill and WS push works.
+ * Server-side row from `/chat/history`. `id` is the server autoincrement
+ * (only history items have it; WS broadcasts of new messages don't —
+ * see doc §3.2 Msg). `client_msg_id` is the dedup anchor; server-direct
+ * inserts predating the column may carry `null`, in which case fall back
+ * to `"server:$id"` as the local key.
  */
 data class ChatHistoryItem(
     val id: Long,
-    val client_id: String,
+    val uid: Long,
+    val client_msg_id: String?,
     val display_name: String?,
     val text: String?,
     val illust_id: Long?,
@@ -74,12 +84,12 @@ data class ChatHistoryItem(
 )
 
 data class ChatProfileResponse(
-    val client_id: String,
+    val uid: Long,
     val display_name: String?,
 )
 
 data class SetProfileRequest(
-    val client_id: String,
+    val uid: Long,
     val ts: Long,
     val display_name: String,
 )
@@ -92,5 +102,6 @@ data class SetProfileResponse(
 data class ChatStatsResponse(
     val room: String,
     val online: Int,
+    val total_connections: Int? = null,
     val total_messages: Long,
 )

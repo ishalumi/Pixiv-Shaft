@@ -95,6 +95,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
 
     public static final String EXTRA_FRAGMENT = "dataType";
     public static final String EXTRA_KEYWORD = "keyword";
+    /** For dataType=="聊天室": pixiv uid of the chat peer for 1v1. Absent / 0 = global room. */
+    public static final String EXTRA_CHAT_PEER_UID = "chatPeerUid";
     protected Fragment childFragment;
     private String dataType;
     // 阅读器消费过 ACTION_DOWN 的音量键 keyCode 集合，待配对吃掉对应 ACTION_UP (issue #874)。
@@ -381,8 +383,13 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 case "批量下载Debug":
                     return new ceui.pixiv.ui.debug.BulkDownloadDebugFragment();
-                case "聊天室":
-                    return new ceui.pixiv.chat.ui.DemoChatListFragment();
+                case "聊天室": {
+                    // peer_uid > 0 → 1v1 with that pixiv user; otherwise → global room.
+                    long peerUid = intent.getLongExtra(EXTRA_CHAT_PEER_UID, 0L);
+                    return peerUid > 0L
+                            ? ceui.pixiv.chat.ui.DemoChatListFragment.Companion.newInstanceForPeer(peerUid)
+                            : new ceui.pixiv.chat.ui.DemoChatListFragment();
+                }
                 default:
                     return new Fragment();
             }

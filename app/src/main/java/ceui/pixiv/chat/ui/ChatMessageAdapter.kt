@@ -11,45 +11,41 @@ import ceui.pixiv.chat.data.ChatMessageEntity
 /**
  * RecyclerView adapter for chat messages.
  *
- * Three view types dispatched on [ChatMessageEntity.type] and sender:
- *  - **Sent**     (type=1, uid matches self) → right-aligned primary bubble
- *  - **Received** (type=1, uid differs)      → left-aligned surface bubble
- *  - **System**   (type=11)                  → centered small text
+ * Two view types dispatched on sender uid:
+ *  - **Sent**     (msg.uid == selfUid) → right-aligned primary bubble
+ *  - **Received** (msg.uid != selfUid) → left-aligned surface bubble
  *
- * Uses [BaseListAdapter.diffCallback] with `messageId` as the stable
- * key, so DiffUtil only re-binds items whose content actually changed.
+ * The new wire protocol (doc §3.2) has no "system" msg kind — every
+ * incoming `msg` frame is a user message attributable to a uid.
+ *
+ * DiffUtil keyed on [ChatMessageEntity.localKey] (`clientMsgId ??
+ * "server:$serverId"`). Optimistic-send rows and their WS-echo overwrites
+ * share the same localKey, so DiffUtil sees them as one item changing
+ * state rather than two separate rows.
  */
 class ChatMessageAdapter(
     private val selfUid: Long,
     private val onLongClick: ((ChatMessageEntity) -> Unit)? = null,
 ) : BaseListAdapter<ChatMessageEntity, ChatMessageAdapter.BubbleHolder>(
-    diffCallback(keySelector = { it.messageId })
+    diffCallback(keySelector = { it.localKey })
 ) {
 
-    override fun getDataItemViewType(item: ChatMessageEntity, position: Int): Int = when {
-        item.type == TYPE_SYSTEM -> VIEW_TYPE_SYSTEM
-        item.uid == selfUid      -> VIEW_TYPE_SENT
-        else                     -> VIEW_TYPE_RECEIVED
-    }
+    override fun getDataItemViewType(item: ChatMessageEntity, position: Int): Int =
+        if (item.uid == selfUid) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
 
     override fun onCreateDataViewHolder(parent: ViewGroup, viewType: Int): BubbleHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             VIEW_TYPE_SENT -> BubbleHolder(inflater, parent, R.layout.chat_bubble_sent)
-            VIEW_TYPE_RECEIVED -> BubbleHolder(inflater, parent, R.layout.chat_bubble_received)
-            else -> BubbleHolder(inflater, parent, R.layout.chat_bubble_system)
+            else -> BubbleHolder(inflater, parent, R.layout.chat_bubble_received)
         }
     }
 
     override fun onBindDataViewHolder(holder: BubbleHolder, item: ChatMessageEntity) {
         holder.bind(item)
-        if (item.type != TYPE_SYSTEM) {
-            holder.itemView.setOnLongClickListener {
-                onLongClick?.invoke(item)
-                true
-            }
-        } else {
-            holder.itemView.setOnLongClickListener(null)
+        holder.itemView.setOnLongClickListener {
+            onLongClick?.invoke(item)
+            true
         }
     }
 
@@ -62,15 +58,12 @@ class ChatMessageAdapter(
         private val tvContent: TextView = itemView.findViewById(R.id.tv_content)
 
         fun bind(msg: ChatMessageEntity) {
-            tvContent.text = msg.content ?: ""
+            tvContent.text = msg.text.orEmpty()
         }
     }
 
     companion object {
-        private const val TYPE_SYSTEM = 11
-
         const val VIEW_TYPE_SENT = 0
         const val VIEW_TYPE_RECEIVED = 1
-        const val VIEW_TYPE_SYSTEM = 2
     }
 }

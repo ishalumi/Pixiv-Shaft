@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -15,7 +16,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ceui.lisa.R
 import ceui.lisa.databinding.ChatFragmentDemoListBinding
-import ceui.pixiv.events.EventReporter
 import ceui.pixiv.chat.api.HttpChatHistorySource
 import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.chat.base.PagingFooterAdapter
@@ -29,41 +29,52 @@ import ceui.pixiv.chat.data.ChatDatabase
 import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.chat.data.RoomChatMessageStore
 import ceui.pixiv.chat.vm.ChatListViewModel
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.websocket.WebSocketState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * Chat screen wired to the **real** shaft-api-v2 chat WebSocket. The
- * fragment owns no WebSocket — the app-scoped [ShaftChatGateway] does, on
- * top of [ceui.pixiv.websocket.WebSocketManager]. Fragment just consumes
- * the gateway's flows and dispatches send through it.
+ * Chat screen wired to shaft-api-v2's uid-routing chat WebSocket.
  *
- *  - history: [HttpChatHistorySource] → `GET /api/v1/chat/history`
- *  - live:    [ShaftChatGateway.chatStream] → WS `msg` frames
- *  - send:    [ShaftChatGateway.send] → WS `msg` frame, render on echo
- *             (no optimistic Room insert; docs §1.3 "应当以回声为准")
+ * The WS itself is app-scoped — owned by [ShaftChatGateway] on top of
+ * [ceui.pixiv.websocket.WebSocketManager]. This fragment opens a per-room
+ * view onto the existing connection:
  *
- * ## RecyclerView orientation
+ *  - **Global room** (no [ARG_PEER_UID] argument)
+ *  - **1v1 room** with peer uid passed in via [ARG_PEER_UID] — room id
+ *    derived locally via `ChatThreadId.oneOnOneThreadId(selfUid, peerUid)`
  *
- * `reverseLayout = true` puts position 0 at the **bottom** of the
- * screen (newest message). Scrolling up reveals older messages.
- * [PagingFooterAdapter] sits at the END of the [ConcatAdapter], which
- * maps to the **top** of the screen with reverse layout — exactly
- * where "loading older…" should appear.
+ *  - history: [HttpChatHistorySource] → `GET /api/v1/chat/history?room=...`
+ *  - live:    [ShaftChatGateway.chatStream] (filtered by computed room)
+ *  - send:    optimistic local write → [ShaftChatGateway.send] → WS echo
+ *             flips local row Sending → Delivered (doc §4.3)
+ *
+ * `reverseLayout = true` puts position 0 at the bottom of the screen
+ * (newest message). [PagingFooterAdapter] sits at the END of the
+ * [ConcatAdapter], which maps to the TOP of the screen with reverse layout
+ * — where "loading older…" belongs.
  */
 class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
-    private val viewModel: ChatListViewModel<ChatMessageEntity> by viewModels {
+    /** `null` → global room. Long > 0 → peer uid for 1v1. */
+    private val peerUidArg: Long? by lazy {
+        val v = arguments?.getLong(ARG_PEER_UID, 0L) ?: 0L
+        if (v > 0L) v else null
+    }
+
+    private val viewModel: ChatListViewModel by viewModels {
         val appCtx = requireContext().applicationContext
         ChatListViewModel(
-            threadId = HttpChatHistorySource.GLOBAL_THREAD_ID,
+            selfUid = SessionManager.loggedInUid,
+            toUid = peerUidArg,
             store = RoomChatMessageStore(
                 ChatDatabase.getInstance(appCtx).chatMessageDao()
             ),
             historySource = HttpChatHistorySource(),
             stream = ShaftChatGateway.chatStream,
+            sender = ShaftChatGateway::send,
         )
     }
 
@@ -72,20 +83,16 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     private var chatAdapter: ChatMessageAdapter? = null
     private var scrollToBottomOnNextUpdate = false
 
-    /**
-     * Gates the send button. Composed from:
-     *  - WebSocket reached `Connected` (transport-level — spec §0 allows sends
-     *    while still Connecting since OkHttp queues them, but UI feedback is
-     *    clearer if we wait for the socket to actually open)
-     *  - not currently in a `rate_limited` cooldown (docs §10: "收到
-     *    err.rate_limited 在 UI 上 1s 内 disable 输入框")
-     */
+    /** Send button gating (doc §12): WS Connected + has text + not rate-limited. */
     private var wsConnected = false
     private var rateLimitCoolDown = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupToolbar(title = getString(R.string.chat_drawer_entry), showBack = true)
+        // Title: 1v1 shows peer uid until we wire profile lookup; global shows the canonical drawer entry.
+        val title = if (peerUidArg != null) "1v1 · uid=$peerUidArg"
+                    else getString(R.string.chat_drawer_entry)
+        setupToolbar(title = title, showBack = true)
 
         // ── Bottom panel (emoji ↔ keyboard) ──────────────────────────
         attachBottomPanel(
@@ -110,15 +117,11 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         setupInput()
 
         // ── RecyclerView ─────────────────────────────────────────────
-        // Adapter needs to know which messages are "mine" so it right-aligns
-        // them. The chat protocol identifies us by `client_id` (hex); we use
-        // the same `client_id → uid` mapping HttpChatHistorySource +
-        // WsChatMessageStream use, so the round-trip stays consistent.
-        val selfClientId = EventReporter.currentClientId()
-        val selfUid = if (selfClientId.isNotEmpty())
-            HttpChatHistorySource.clientIdToUid(selfClientId) else 0L
+        // Adapter compares msg.uid against selfUid for right-vs-left bubble.
+        // selfUid = pixiv SessionManager.loggedInUid — same identity the WS
+        // handshake authenticates with, so echoes line up.
         val chatAdapter = ChatMessageAdapter(
-            selfUid = selfUid,
+            selfUid = SessionManager.loggedInUid,
             onLongClick = { msg -> showMessageActions(msg) },
         ).also { this.chatAdapter = it }
         val footerAdapter = PagingFooterAdapter().apply {
@@ -163,7 +166,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     // ── Message actions ─────────────────────────────────────────────────
 
     private fun showMessageActions(msg: ChatMessageEntity) {
-        MessageActionsSheet.newInstance(msg.messageId, msg.content)
+        MessageActionsSheet.newInstance(msg.localKey, msg.text)
             .show(childFragmentManager, MessageActionsSheet.TAG)
     }
 
@@ -172,46 +175,46 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             MessageActionsSheet.REQUEST_KEY, viewLifecycleOwner
         ) { _, bundle ->
             val action = bundle.getString(MessageActionsSheet.RESULT_ACTION) ?: return@setFragmentResultListener
-            val messageId = bundle.getLong(MessageActionsSheet.RESULT_MESSAGE_ID)
-            handleMessageAction(action, messageId)
+            val localKey = bundle.getString(MessageActionsSheet.RESULT_LOCAL_KEY) ?: return@setFragmentResultListener
+            handleMessageAction(action, localKey)
         }
     }
 
-    private fun handleMessageAction(action: String, messageId: Long) {
+    private fun handleMessageAction(action: String, localKey: String) {
         when (action) {
-            MessageActionsSheet.ACTION_COPY -> copyMessage(messageId)
+            MessageActionsSheet.ACTION_COPY -> copyMessage(localKey)
             MessageActionsSheet.ACTION_REPLY -> {
                 Toast.makeText(requireContext(), "回复（TODO）", Toast.LENGTH_SHORT).show()
             }
             MessageActionsSheet.ACTION_FORWARD -> {
                 Toast.makeText(requireContext(), "转发（TODO）", Toast.LENGTH_SHORT).show()
             }
-            MessageActionsSheet.ACTION_DELETE -> confirmDeleteMessage(messageId)
+            MessageActionsSheet.ACTION_DELETE -> confirmDeleteMessage(localKey)
         }
     }
 
-    private fun copyMessage(messageId: Long) {
+    private fun copyMessage(localKey: String) {
         val text = viewModel.messages.value
-            .find { it.messageId == messageId }
-            ?.content ?: return
+            .find { it.localKey == localKey }
+            ?.text ?: return
         val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
         Toast.makeText(requireContext(), "已复制", Toast.LENGTH_SHORT).show()
     }
 
-    private fun confirmDeleteMessage(messageId: Long) {
+    private fun confirmDeleteMessage(localKey: String) {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("删除消息")
             .setMessage("确定要删除这条消息吗？")
             .setNegativeButton("取消", null)
-            .setPositiveButton("删除") { _, _ -> deleteMessage(messageId) }
+            .setPositiveButton("删除") { _, _ -> deleteMessage(localKey) }
             .show()
     }
 
-    private fun deleteMessage(messageId: Long) {
+    private fun deleteMessage(localKey: String) {
         val dao = ChatDatabase.getInstance(requireContext()).chatMessageDao()
         viewLifecycleOwner.lifecycleScope.launch {
-            dao.deleteById(messageId)
+            dao.deleteByLocalKey(localKey)
             Toast.makeText(requireContext(), "已删除", Toast.LENGTH_SHORT).show()
         }
     }
@@ -229,20 +232,25 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         binding.btnSend.isEnabled = hasText && wsConnected && !rateLimitCoolDown
     }
 
+    /**
+     * VM owns the full optimistic-send lifecycle (doc §4.3):
+     * generates `client_msg_id`, writes the local row `state=Sending`,
+     * dispatches via gateway, and listens for the WS echo to flip
+     * `state=Delivered`. UI here just collects the boolean accept signal
+     * for the immediate Toast + input clear.
+     */
     private fun sendMessage() {
         val text = binding.etInput.text?.toString()?.trim() ?: return
         if (text.isEmpty()) return
-
-        // Server echoes the message back over WS — that echo is what renders.
-        // No local Room insert here; rendering on the echo prevents the
-        // "shown locally but never landed on the server" failure mode.
-        val accepted = ShaftChatGateway.send(text)
-        if (!accepted) {
-            Toast.makeText(requireContext(), "发送失败,请稍后重试", Toast.LENGTH_SHORT).show()
-            return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val accepted = viewModel.sendText(text)
+            if (!accepted) {
+                Toast.makeText(requireContext(), "发送失败,请稍后重试", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            binding.etInput.text?.clear()
+            scrollToBottomOnNextUpdate = true
         }
-        binding.etInput.text?.clear()
-        scrollToBottomOnNextUpdate = true
     }
 
     // ── Observers ───────────────────────────────────────────────────────
@@ -254,22 +262,11 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     }
 
     private suspend fun observePagingFooter(footerAdapter: PagingFooterAdapter) {
-        // Forward EVERY state — including Idle / EndReached — so the footer
-        // actually hides when loading finishes. Earlier filter only passed
-        // LoadingMore / Error through, which meant once the spinner went up
-        // it was never told to come down (LoadingMore → EndReached on the
-        // first page returning empty was the typical stuck-spinner path).
         viewModel.pagingState.collect { state ->
             footerAdapter.setPagingState(state)
         }
     }
 
-    /**
-     * Track WS connection so the send button only enables once the socket
-     * actually opens. Spec §0 notes OkHttp queues sends issued while
-     * Connecting, so this is purely a UX clarity choice (not a correctness
-     * one).
-     */
     private suspend fun observeConnection() {
         ShaftChatGateway.state.collect { state ->
             wsConnected = state is WebSocketState.Connected
@@ -277,12 +274,6 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         }
     }
 
-    /**
-     * Spec §10 checklist: "收到 err.rate_limited 在 UI 上 1s 内 disable 输入框".
-     * `collectLatest` so a second rate_limited frame mid-cooldown restarts
-     * the timer instead of stacking. Other err codes are client-bug signals
-     * — log only, don't pop a toast.
-     */
     private suspend fun observeServerErrors() {
         ShaftChatGateway.errorFrames.collectLatest { err ->
             if (err.code == "rate_limited") {
@@ -327,13 +318,23 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         }
     }
 
-    companion object {
-        private const val PREFETCH_THRESHOLD = 5
-    }
-
     override fun onDestroyView() {
         view?.findViewById<RecyclerView>(R.id.recycler_view)?.adapter = null
         chatAdapter = null
         super.onDestroyView()
+    }
+
+    companion object {
+        private const val PREFETCH_THRESHOLD = 5
+
+        /** Fragment-arg key: peer pixiv uid for 1v1; absent / 0 → global room. */
+        const val ARG_PEER_UID = "peerUid"
+
+        /** Builder for the global chat fragment (default). */
+        fun newInstanceGlobal(): DemoChatListFragment = DemoChatListFragment()
+
+        /** Builder for a 1v1 chat fragment with the given peer pixiv uid. */
+        fun newInstanceForPeer(peerUid: Long): DemoChatListFragment =
+            DemoChatListFragment().apply { arguments = bundleOf(ARG_PEER_UID to peerUid) }
     }
 }

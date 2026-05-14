@@ -5,7 +5,7 @@ import ceui.pixiv.chat.core.AppResult
 import ceui.pixiv.chat.core.ChatHistorySource
 import ceui.pixiv.chat.core.MessagePage
 import ceui.pixiv.chat.data.ChatMessageEntity
-import com.google.gson.Gson
+import ceui.pixiv.chat.data.SendState
 import retrofit2.HttpException
 import timber.log.Timber
 import java.io.IOException
@@ -20,27 +20,20 @@ import javax.net.ssl.SSLException
  *
  * Field mapping ([ChatHistoryItem] → [ChatMessageEntity]):
  *
- * - `ts`        → `messageId` AND `createdTime` (ts is the stable dedup key;
- *                  WS broadcasts don't carry `id` so using `ts` consistently
- *                  is the only way to dedup HTTP backfill against WS push;
- *                  see `docs/ws-chat-integration.md` §1.3)
- * - `client_id` → `uid` (first 16 hex chars parsed as unsigned `Long`;
- *                  opaque stable mapping)
- * - `text`      → `content`
- * - `type`      = 1 (regular message)
- * - `extensions` = JSON `{ server_id, client_id, display_name, illust_id }`
- *                  for fields the entity schema doesn't have first-class
- *                  columns for
+ * - `client_msg_id` ?? `"server:$id"` → [ChatMessageEntity.localKey] (UPSERT key)
+ * - `id`            → [ChatMessageEntity.serverId]
+ * - `uid`           → [ChatMessageEntity.uid] (server's pixiv uid, used directly)
+ * - server's `room` (passed through this query) → [ChatMessageEntity.room]
+ * - `display_name`  → [ChatMessageEntity.displayName]
+ * - `text`, `illust_id`, `ts` → straight passthrough
+ * - state           → [SendState.Delivered] (history is always already broadcast)
  */
 class HttpChatHistorySource(
     private val api: ShaftChatApi = ShaftChatHttpClient.api,
-    private val threadId: Long = GLOBAL_THREAD_ID,
-    private val room: String = "global",
-    private val gson: Gson = Gson(),
 ) : ChatHistorySource<ChatMessageEntity> {
 
     override suspend fun loadPage(
-        threadId: Long,
+        room: String,
         pageToken: String?,
         pageSize: Int,
     ): AppResult<MessagePage<ChatMessageEntity>> {
@@ -54,52 +47,36 @@ class HttpChatHistorySource(
         }.fold(
             onSuccess = { resp ->
                 // Server returns ts-ascending (oldest→newest); MessagePage contract is
-                // descending. Reverse here so downstream code can trust it.
-                val entities = resp.items.asReversed().map { toEntity(it) }
+                // descending. Reverse so downstream code can trust it.
+                val entities = resp.items.asReversed().map { toEntity(it, resp.room) }
                 val nextCursor = resp.items.firstOrNull()?.id?.toString()
                 AppResult.Success(MessagePage(entities, nextCursor))
             },
             onFailure = { t ->
-                Timber.tag(TAG).w(t, "history failed (before=%s)", before)
+                Timber.tag(TAG).w(t, "history failed (room=%s, before=%s)", room, before)
                 AppResult.Error(t.toAppError())
             },
         )
     }
 
-    private fun toEntity(item: ChatHistoryItem): ChatMessageEntity {
-        val ext = mutableMapOf<String, Any?>(
-            "server_id" to item.id,
-            "client_id" to item.client_id,
-        )
-        item.display_name?.let { ext["display_name"] = it }
-        item.illust_id?.let { ext["illust_id"] = it }
-
+    private fun toEntity(item: ChatHistoryItem, room: String): ChatMessageEntity {
+        val localKey = item.client_msg_id ?: ChatMessageEntity.localKeyForServer(item.id)
         return ChatMessageEntity(
-            messageId = item.ts,
-            threadId = threadId,
-            uid = clientIdToUid(item.client_id),
-            createdTime = item.ts,
-            type = TYPE_USER_MESSAGE,
-            content = item.text,
-            extensions = gson.toJson(ext),
+            localKey = localKey,
+            serverId = item.id,
+            clientMsgId = item.client_msg_id,
+            uid = item.uid,
+            room = room,
+            displayName = item.display_name,
+            text = item.text,
+            illustId = item.illust_id,
+            ts = item.ts,
+            state = SendState.Delivered,
         )
     }
 
     companion object {
-        /** Single-room chat for now (`global`). schema reserves room_id for future. */
-        const val GLOBAL_THREAD_ID = 1L
-        const val TYPE_USER_MESSAGE = 1
         private const val TAG = "Chat-History"
-
-        /**
-         * Stable mapping `64-hex-char client_id → Long uid`. Takes the first
-         * 16 hex chars (≈64 bits of entropy from a random sha256 source —
-         * vanishingly low collision risk for a community-scale chat).
-         */
-        fun clientIdToUid(clientId: String): Long {
-            val head = clientId.padEnd(16, '0').substring(0, 16)
-            return java.lang.Long.parseUnsignedLong(head, 16)
-        }
     }
 }
 

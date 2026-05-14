@@ -3,12 +3,12 @@ package ceui.pixiv.chat.core
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Live stream of new messages pushed by the server (typically a
- * WebSocket subscription filtered to one thread).
+ * Live stream of new messages pushed by the server (a WebSocket connection
+ * shared with the app, see [ceui.pixiv.websocket.WebSocketManager.incoming]).
  *
- * Hot-swappable: production wires the shared
- * [ceui.pixiv.websocket.WebSocketManager.incoming] filtered by
- * `threadId`; tests wire a Channel-backed fake the test controls.
+ * Hot-swappable: production wires
+ * [ceui.pixiv.chat.api.WsChatMessageStream]; tests wire a Channel-backed
+ * fake the test controls.
  *
  * The stream **never** writes to the local store — inserting received
  * messages into Room is the ViewModel's / repository's job.
@@ -16,13 +16,12 @@ import kotlinx.coroutines.flow.Flow
 fun interface ChatMessageStream<M> {
 
     /**
-     * Cold flow of incoming messages for [threadId]. The flow should
-     * survive reconnects — cancellation only happens when the
-     * collector unsubscribes.
+     * Cold flow of incoming messages whose server-stamped `room` matches
+     * [room]. The flow survives reconnects — cancellation only happens when
+     * the collector unsubscribes.
      *
-     * Implementations backed by a multiplexed transport (one WebSocket
-     * serving N conversations) should filter internally and return a
-     * thread-scoped sub-stream.
+     * @param room `"global"` for public broadcasts, or a decimal uint64
+     *   string (≤ 20 chars) for a 1v1 thread.
      */
-    fun observe(threadId: Long): Flow<M>
+    fun observe(room: String): Flow<M>
 }

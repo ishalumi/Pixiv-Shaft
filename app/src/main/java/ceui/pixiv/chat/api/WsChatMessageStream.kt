@@ -2,10 +2,11 @@ package ceui.pixiv.chat.api
 
 import ceui.pixiv.chat.core.ChatMessageStream
 import ceui.pixiv.chat.data.ChatMessageEntity
+import ceui.pixiv.chat.data.SendState
 import ceui.pixiv.websocket.IncomingMessage
-import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
@@ -13,27 +14,18 @@ import kotlinx.coroutines.flow.onEach
 import timber.log.Timber
 
 /**
- * [ChatMessageStream] over a [Flow] of [IncomingMessage] frames. Constructor
- * takes the flow directly instead of a [ceui.pixiv.websocket.WebSocketClient]
- * so the stream can sit on top of either a fragment-owned client or — the
- * production path — [ceui.pixiv.websocket.WebSocketManager.incoming] which
- * auto-switches across reconnects.
+ * [ChatMessageStream] over a [Flow] of [IncomingMessage] frames.
  *
- * Filters text frames, decodes via [ChatFrameDecoder], maps `msg` frames to
- * [ChatMessageEntity] using the same field mapping as [HttpChatHistorySource]
- * so HTTP backfill and WS push upsert into Room without dup rows.
+ * The stream sits on top of [ceui.pixiv.websocket.WebSocketManager.incoming]
+ * (a single app-scoped WS that receives **all** rooms the authed user is
+ * part of). Each subscriber filters by its target `room` field — one
+ * underlying socket, N consumer-side filters.
  *
- * Side channels for callers that need them:
- *  - [helloFrames] — server-pushed `hello` frame after every successful
- *    handshake (useful for "we're really connected now" UI state and for
- *    resetting reconnect counters per docs §10).
- *  - [errorFrames] — `err` frames (`rate_limited`, `frame_too_large`, …).
- *    Server does NOT close the connection on these — stream stays alive.
+ * Side channels (always-on, fed by [routeSideChannels]) expose hello /
+ * err frames that aren't room-scoped.
  */
 class WsChatMessageStream(
     private val incoming: Flow<IncomingMessage>,
-    private val threadId: Long = HttpChatHistorySource.GLOBAL_THREAD_ID,
-    private val gson: Gson = Gson(),
 ) : ChatMessageStream<ChatMessageEntity> {
 
     private val _helloFrames = MutableSharedFlow<ChatFrame.Hello>(
@@ -46,64 +38,72 @@ class WsChatMessageStream(
     )
     val errorFrames: Flow<ChatFrame.Err> get() = _errorFrames
 
-    override fun observe(threadId: Long): Flow<ChatMessageEntity> =
+    override fun observe(room: String): Flow<ChatMessageEntity> =
         incoming
             .filterIsInstance<IncomingMessage.Text>()
             .map { ChatFrameDecoder.decode(it.text) }
-            .onEach { frame ->
-                // Side-channel routing + visibility logging. Keep the side
-                // effect inside the same upstream so ordering (hello → first
-                // msg) is preserved upstream of the mapNotNull filter below.
-                when (frame) {
-                    is ChatFrame.Hello -> {
-                        Timber.tag(TAG).i(
-                            "⇣ hello name=%s room=%s server_ts=%d",
-                            frame.displayName, frame.room, frame.serverTs,
-                        )
-                        _helloFrames.tryEmit(frame)
-                    }
-                    is ChatFrame.Msg -> {
-                        // INFO-level so it's visible in default logcat alongside
-                        // RobustWebSocketClient's "WS" tag. Truncate long text
-                        // to keep logs scrollable.
-                        Timber.tag(TAG).i(
-                            "⇣ msg ts=%d cid=%s name=%s illust=%s text=%s",
-                            frame.ts,
-                            frame.clientId.take(8),
-                            frame.displayName ?: "-",
-                            frame.illustId?.toString() ?: "-",
-                            frame.text?.take(80) ?: "-",
-                        )
-                    }
-                    is ChatFrame.Err -> {
-                        Timber.tag(TAG).w("⇣ err code=%s", frame.code)
-                        _errorFrames.tryEmit(frame)
-                    }
-                    is ChatFrame.Pong -> {
-                        // Server's app-level pong (not RFC 6455 pong which OkHttp
-                        // handles transparently below). Logging it makes the
-                        // app-level heartbeat audit-able if someone sends `{kind:ping}`.
-                        Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)
-                    }
-                    is ChatFrame.Unknown -> {
-                        Timber.tag(TAG).d("⇣ unknown frame dropped to dead-letter")
-                    }
-                }
-            }
-            .mapNotNull { (it as? ChatFrame.Msg)?.let(::toEntity) }
+            .onEach { routeSideChannels(it) }
+            .filterIsInstance<ChatFrame.Msg>()
+            .filter { it.room == room }
+            .mapNotNull(::toEntity)
 
-    private fun toEntity(f: ChatFrame.Msg): ChatMessageEntity {
-        val ext = mutableMapOf<String, Any?>("client_id" to f.clientId)
-        f.displayName?.let { ext["display_name"] = it }
-        f.illustId?.let { ext["illust_id"] = it }
+    /**
+     * Hello / err frames are not room-scoped — they go to dedicated side
+     * flows so any subscriber (gateway-level UI bindings, the always-on
+     * raw logger) can pick them up independent of which room a fragment
+     * happens to be watching.
+     */
+    private fun routeSideChannels(frame: ChatFrame) {
+        when (frame) {
+            is ChatFrame.Hello -> {
+                Timber.tag(TAG).i(
+                    "⇣ hello uid=%d name=%s server_ts=%d",
+                    frame.uid, frame.displayName, frame.serverTs,
+                )
+                _helloFrames.tryEmit(frame)
+            }
+            is ChatFrame.Msg -> {
+                // Log all received msg frames (regardless of which room
+                // they belong to) so the always-on observer in the gateway
+                // can see traffic without subscribing to a specific room.
+                Timber.tag(TAG).i(
+                    "⇣ msg room=%s ts=%d uid=%d name=%s cmid=%s illust=%s text=%s",
+                    frame.room, frame.ts, frame.uid,
+                    frame.displayName ?: "-",
+                    frame.clientMsgId ?: "-",
+                    frame.illustId?.toString() ?: "-",
+                    frame.text?.take(80) ?: "-",
+                )
+            }
+            is ChatFrame.Err -> {
+                Timber.tag(TAG).w("⇣ err code=%s", frame.code)
+                _errorFrames.tryEmit(frame)
+            }
+            is ChatFrame.Pong -> Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)
+            is ChatFrame.Unknown -> Timber.tag(TAG).d("⇣ unknown frame dead-lettered")
+        }
+    }
+
+    private fun toEntity(f: ChatFrame.Msg): ChatMessageEntity? {
+        val localKey = f.clientMsgId ?: run {
+            // No clientMsgId on a WS broadcast is anomalous — server populates
+            // it for every msg. Without it we can't dedup against the
+            // optimistic-send row, so dropping is safer than synthesizing
+            // a per-frame UUID (which would always be unique → never dedup).
+            Timber.tag(TAG).w("msg frame without client_msg_id, dropping (ts=%d uid=%d)", f.ts, f.uid)
+            return null
+        }
         return ChatMessageEntity(
-            messageId = f.ts,
-            threadId = threadId,
-            uid = HttpChatHistorySource.clientIdToUid(f.clientId),
-            createdTime = f.ts,
-            type = HttpChatHistorySource.TYPE_USER_MESSAGE,
-            content = f.text,
-            extensions = gson.toJson(ext),
+            localKey = localKey,
+            serverId = null,
+            clientMsgId = f.clientMsgId,
+            uid = f.uid,
+            room = f.room,
+            displayName = f.displayName,
+            text = f.text,
+            illustId = f.illustId,
+            ts = f.ts,
+            state = SendState.Delivered,
         )
     }
 

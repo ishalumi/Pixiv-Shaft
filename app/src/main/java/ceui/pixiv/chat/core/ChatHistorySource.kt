@@ -1,7 +1,5 @@
 package ceui.pixiv.chat.core
 
-import ceui.pixiv.chat.core.AppResult
-
 /**
  * Remote source of historical messages (typically an HTTP endpoint).
  *
@@ -9,21 +7,22 @@ import ceui.pixiv.chat.core.AppResult
  * wire a fake that returns canned [MessagePage]s.
  *
  * The source **never** touches the local store — writing fetched
- * messages into Room is the ViewModel's / repository's job. This
- * keeps the interface pure and testable.
+ * messages into Room is the ViewModel's / repository's job.
  */
 fun interface ChatHistorySource<M> {
 
     /**
-     * Fetch one page of messages for [threadId].
+     * Fetch one page of messages for [room].
      *
+     * @param room `"global"` for public broadcasts, or a decimal uint64
+     *   string for a 1v1 thread.
      * @param pageToken `null` for the first (newest) page; pass
      *   [MessagePage.nextPageToken] for subsequent older pages.
-     * @param pageSize requested page size (server may return fewer).
+     * @param pageSize requested page size (server caps at 200).
      * @return [MessagePage] wrapped in [AppResult].
      */
     suspend fun loadPage(
-        threadId: Long,
+        room: String,
         pageToken: String?,
         pageSize: Int,
     ): AppResult<MessagePage<M>>

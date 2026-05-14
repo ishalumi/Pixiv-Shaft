@@ -2,7 +2,7 @@ package ceui.pixiv.chat.api
 
 import android.content.Context
 import ceui.lisa.BuildConfig
-import ceui.pixiv.events.EventReporter
+import ceui.pixiv.session.SessionManager
 import okhttp3.logging.HttpLoggingInterceptor
 import timber.log.Timber
 import ceui.pixiv.websocket.ExponentialBackoffWithJitter
@@ -41,7 +41,12 @@ object ShaftChatWsClient {
         val authProvider = ShaftHmacAuthProvider(
             baseHttpUrl = BuildConfig.SHAFT_EVENTS_BASE_URL,
             secretAscii = BuildConfig.SHAFT_EVENTS_HMAC,
-            clientIdProvider = { EventReporter.currentClientId() },
+            // Pixiv login uid identifies the WS — handshake sig is over
+            // `${uid}|${ts}`. Server `UID_DECIMAL_RE` requires uid > 0; if
+            // SessionManager hasn't been populated yet the auth provider
+            // throws and RobustWebSocketClient routes through onFailure +
+            // exponential backoff until the user signs in.
+            uidProvider = { SessionManager.loggedInUid },
         )
 
         val placeholderUrl = ShaftHmacAuthProvider.deriveWsBase(

@@ -10,33 +10,35 @@ import kotlinx.coroutines.flow.Flow
 interface ChatMessageDao {
 
     /**
-     * Reactive window of the [limit] most recent messages in a thread,
-     * ordered newest-first. Re-emits whenever any row in the result
-     * set changes (insert, update, delete).
+     * Reactive window of the [limit] most recent messages in `room`,
+     * ordered newest-first. Re-emits whenever any row in the result set
+     * changes (insert, update, delete).
      */
     @Query(
         """
         SELECT * FROM chat_messages
-        WHERE threadId = :threadId
-        ORDER BY createdTime DESC, messageId DESC
+        WHERE room = :room
+        ORDER BY ts DESC, server_id DESC
         LIMIT :limit
         """
     )
-    fun observeMessages(threadId: Long, limit: Int): Flow<List<ChatMessageEntity>>
+    fun observeMessages(room: String, limit: Int): Flow<List<ChatMessageEntity>>
 
     /**
-     * Idempotent insert-or-replace. Same message from API + WS just
-     * overwrites — no duplicates.
+     * Insert or replace by `localKey` (the PK). The dedup contract lives
+     * here: optimistic-send writes `(localKey=clientMsgId, state=Sending)`,
+     * WS broadcast echo overwrites the same row with `state=Delivered`.
+     * Duplicate broadcasts across retries collapse to a single row.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(messages: List<ChatMessageEntity>)
 
-    @Query("SELECT COUNT(*) FROM chat_messages WHERE threadId = :threadId")
-    suspend fun countByThread(threadId: Long): Int
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE room = :room")
+    suspend fun countByRoom(room: String): Int
 
-    @Query("DELETE FROM chat_messages WHERE messageId = :messageId")
-    suspend fun deleteById(messageId: Long)
+    @Query("DELETE FROM chat_messages WHERE local_key = :localKey")
+    suspend fun deleteByLocalKey(localKey: String)
 
-    @Query("DELETE FROM chat_messages WHERE threadId = :threadId")
-    suspend fun deleteByThread(threadId: Long)
+    @Query("DELETE FROM chat_messages WHERE room = :room")
+    suspend fun deleteByRoom(room: String)
 }
