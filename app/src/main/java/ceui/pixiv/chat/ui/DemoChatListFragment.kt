@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.core.widget.doAfterTextChanged
@@ -86,6 +87,24 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     /** Send button gating (doc §12): WS Connected + has text + not rate-limited. */
     private var wsConnected = false
     private var rateLimitCoolDown = false
+
+    /**
+     * TemplateActivity declares `windowSoftInputMode="adjustPan"` in the
+     * manifest — fine for most fragments but breaks the chat screen:
+     * `adjustPan` translates the **entire window** upward to keep the
+     * focused EditText above the keyboard, which scrolls the toolbar off
+     * the top and leaves a black band at the bottom where the window
+     * used to be.
+     *
+     * We need `adjustResize` so that:
+     *  - parent ConstraintLayout's height shrinks by the IME inset
+     *  - bottom-anchored `emoji_panel` / `input_bar` lift up
+     *  - top-anchored `app_bar_layout` (toolbar) **stays put**
+     *
+     * Set on fragment resume, restore on pause — local to the chat screen
+     * so we don't change behavior for other fragments TemplateActivity hosts.
+     */
+    private var previousSoftInputMode: Int = INVALID_SOFT_INPUT_MODE
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -369,6 +388,21 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val window = requireActivity().window
+        previousSoftInputMode = window.attributes.softInputMode
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (previousSoftInputMode != INVALID_SOFT_INPUT_MODE) {
+            requireActivity().window.setSoftInputMode(previousSoftInputMode)
+            previousSoftInputMode = INVALID_SOFT_INPUT_MODE
+        }
+    }
+
     override fun onDestroyView() {
         view?.findViewById<RecyclerView>(R.id.recycler_view)?.adapter = null
         chatAdapter = null
@@ -377,6 +411,8 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     companion object {
         private const val PREFETCH_THRESHOLD = 5
+        /** Sentinel — softInputMode is a packed int; -1 is never a valid combo. */
+        private const val INVALID_SOFT_INPUT_MODE = -1
 
         /** Fragment-arg key: peer pixiv uid for 1v1; absent / 0 → global room. */
         const val ARG_PEER_UID = "peerUid"
