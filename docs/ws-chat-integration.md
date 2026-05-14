@@ -1,7 +1,9 @@
 # Pixiv-Shaft 接入 shaft-api-v2 聊天 WebSocket 指南
 
-服务端 @ HEAD `2c1c9cb`(`chat: switch from room-subscribe model to uid-routing`)。
-源码:`shaft-api-v2/src/chat/{db,broker,auth,ws,routes,threadId}.js`。
+服务端 @ HEAD `e1c7a01` 之后 + R1-R7 一组健壮性补丁(per-uid 连接 cap、
+strict to_uid 校验、实时 display_name、Map iteration 快照、closeChatDb
+原子性、文件 broker→router 改名)。
+源码:`shaft-api-v2/src/chat/{db,router,auth,ws,routes,threadId}.js`。
 客户端框架已落地于 `app/src/main/java/ceui/pixiv/{websocket,chat}/`。
 
 本文件描述**服务端契约** —— 帧格式、鉴权、心跳、错误码、HTTP 配套 ——
@@ -45,20 +47,40 @@
   │                                                      │
   │  ↕  RFC 6455 ping/pong (OkHttp pingInterval 自动)    │
   │                                                      │
-  │ 三种 close:                                           │
+  │ 四种 close:                                           │
   │ (A) ws.close(1000) 客户端主动 → 协商关 ──────────→   │
   │ (B) server raw.terminate() 抢断 ──────────────       │ ← 心跳/背压/shutdown
   │     onClose(1006, "")                                │
-  │ (C) TCP 异常 (NAT / 断网)                            │
+  │ (C) server ws.close(1008, "replaced") ──────────     │ ← 顶号(见 §1.1)
+  │     onClose(1008, "replaced")                        │
+  │ (D) TCP 异常 (NAT / 断网)                            │
   │     onFailure(IOException)                           │
 ```
 
 **关键不变式**:
 
 - ★ `hello` 永远是服务端发出的**第一帧**。OkHttp `onOpen` 触发不代表"接通",收到 hello 才算
-- 服务端**永远 `terminate()`,不发 close frame**。1006 既可能是 server 心跳/背压/shutdown 主动断,也可能是 TCP 异常 — **客户端不必区分两者,都走重连**
+- 服务端断连有两条路径,**区分对待**:
+  - **`terminate()` → onClose(1006, "")** — 心跳/背压/shutdown/TCP 异常,**走重连流程**
+  - **`close(1008, "replaced")` → onClose(1008, "replaced")** — 同 uid 顶号(见 §1.1),**不要立即重连**
 - WS 是**无状态的会话** —— 重连之后服务端不会回放期间消息;客户端用 `/history?room=...&before=...` 主动补
 - **不再有 sub/unsub 帧**。连上即收,跟微信 / Telegram / WhatsApp 一致
+
+### 1.1 同 uid 并发连接上限(顶号语义)
+
+服务端对每个 uid 最多保留 **5 条**并发 WS 连接(可通过 `CHAT_MAX_CONNS_PER_UID` 环境变量调)。
+超出时**踢最老的一条**(Set 插入顺序 = LRU),被踢的连接收到:
+
+```
+onClose(code=1008, reason="replaced")
+```
+
+设计理由:
+- **5 而不是 1**:允许"重连临界态"(旧连接 onClose 还没传到 router,新连接已建好)有 1-2 个并存窗口;也给未来"手机 + 桌面 + 网页"留 3 个余量
+- **踢最老不踢最新**:符合用户预期"我刚才操作的设备应该是活的"
+- **client 端识别 1008 "replaced"**:UI 提示"账号在其它设备登录,已断开此处会话",**不要立即重连** — 否则两端会无限拍下对方变 thrashing。建议让用户显式点"切换回来"再重新连
+
+`shaft_chat_conns_evicted_total` 指标记录踢老次数,可观测异常多端登录行为。
 
 ---
 
@@ -152,6 +174,7 @@ private fun deriveWsBase(httpBase: String): String =
 |---|---|---|
 | `kind` | ✓ | `"msg"` |
 | `to_uid` 或 `room` | ✓ | 二选一。`room` 只接受 `"global"`,数字 room id 会被拒(见 ACL) |
+| `to_uid` 类型 | — | **严格**:JSON 数字字面量(整数)或 canonical decimal 字符串(`/^[1-9][0-9]{0,18}$/`)。**不接受** `true` / 数组 / `" 200 "`(带空格) / `1.5` 等需要隐式转换的形态,服务端不做 `Number()` coercion |
 | `client_msg_id` | ✓ | `/^[A-Za-z0-9_-]{8,64}$/`,客户端生成的 UUID / ULID / nanoid |
 | `text` | ✓ | 1–2048 UTF-16 单元(emoji 算 2 单元),尾部 `\r\n` 服务端 strip |
 | `illust_id` | optional | 正整数 < 10^15,关联一个 pixiv 作品 |
@@ -176,7 +199,7 @@ private fun deriveWsBase(httpBase: String): String =
 
 - `display_name`:当前展示名。用户没设过自定义就是 `匿名_<uid>`
 - 客户端拿到 hello 才把 UI 切到 Connected;`onOpen` 早于 hello,不算"接通"
-- **改名后该值不会自动刷新**(连接级缓存)。需要 reconnect 才会拿到新名字
+- **改名后的下一帧广播会立刻是新名** — server 每条 msg 实时查 display_name(see R7 in commit log)。`hello` 这一帧本身是连接刚建立时发的,不受这个影响
 
 #### `msg` — 消息广播(自己发的也回来一份)
 
@@ -423,7 +446,8 @@ val ws: OkHttpClient = OkHttpClient.Builder()
 | 收到 `err.rate_limited` | 1s 内 disable 发送按钮 |
 | `onClose(1000, ...)` | 自己关的,**不重连** |
 | `onClose(1006, "")` | server terminate 或 TCP 异常 —— **走重连流程** |
-| `onFailure(IOException)` | 同上,走 `ReconnectStrategy` |
+| `onClose(1008, "replaced")` | 同 uid 顶号(见 §1.1)—— **不要立即重连**,UI 提示后等用户操作 |
+| `onFailure(IOException)` | 走 `ReconnectStrategy` |
 
 ---
 
@@ -479,9 +503,9 @@ Response: `{"ok":true,"display_name":"新名字"}`
 错误码:`bad_display_name_length` / `bad_display_name_chars` / `bad_display_name_bytes` /
 `bad_uid` / `bad_ts` / `ts_skew` / `bad_sig`
 
-**改名后 WS 已开的连接不会自动刷新展示名**(server 端连接级缓存)。客户端:
-- 局部 patch UI 显示新名(简单)
-- 或者主动 reconnect WS 让新 hello 带新名(强同步)
+**改名后立刻生效**:server 每条 msg 实时查 display_name 而非闭包缓存。
+你下一条发出的消息,自己的回声 + 别人收到的广播 + /history 的 LEFT JOIN
+都是新名,无需 reconnect。`hello` 帧不变(那只在连接建立时发一次)。
 
 ### 8.3 `GET /api/v1/chat/profile?uid=<long>`
 
@@ -577,7 +601,7 @@ val chatWs: OkHttpClient = OkHttpClient.Builder()
 |---|---|---|
 | **1v1 /history 无 ACL** | 任何人知道两个 uid 就能查私聊历史 | 加 `?with_uid=X` 走 HMAC sig,server 派生 room — TODO |
 | 没有 server-issued message id 在广播帧 | 仅 client_msg_id;client 拿 `id` 要 /history | 改同步 INSERT 取 lastInsertRowid 后 publish,延迟 +1ms |
-| 改名要 reconnect 才生效 | 连接级缓存 displayName | server push `profile_updated` 帧主动通知 |
+| ~~改名要 reconnect 才生效~~ | ✅ **已修(R7)**:每条广播实时查 display_name,改名立即生效 | — |
 | 单 fork event loop 在 5k+ 全局广播时打满 | `deliverToAll` O(N) | uWebSockets.js 或 cluster + Redis pub/sub |
 | in-memory router 多机不通 | 单机部署 | broker.js 一文件换 Redis 实现 |
 | 明文 ws:// | 复用 events 的 cleartext 配置 | Caddy + LE 上 wss(NAT 也能签证书,DNS-01) |
@@ -612,13 +636,15 @@ open 'http://<host>:8080/admin#chat'  # basic auth
 ssh shaft-v2 'pm2 logs shaft-api-v2 --lines 200 | grep chat'
 ```
 
-服务端 INFO 关键字:
+服务端 INFO / WARN 关键字:
 - `chat ws open` + `uid` + `online`(当前不同 uid 在线数)
 - `chat ws close`
+- `chat ws evicted — exceeded per-uid conn cap`(顶号触发)
 - `chat ws heartbeat lost — terminating`(60s 无入站)
 - `chat ws backpressure exceeded — terminating`(buffered > 256KB)
 - `chat batch insert failed`(基本不该发生)
 - `router deliver to uid failed`(单订阅者抛错,扇出仍正常)
+- `router evict onEvict threw`(顶号回调本身抛错,极少)
 
 ### 11.2 Android 端
 
@@ -665,6 +691,8 @@ Android 模拟器走 `http://10.0.2.2:8080/`。
 - [ ] `NetworkMonitor` 切 ONLINE 时 reset 退避立即重连
 - [ ] 收到 401 类失败送 `FatalAuth`,UI 提示(`bad_sig` 配置错 / `ts_skew` 时钟错乱)
 - [ ] 单 WS / app 整个生命周期,**不要**进 1v1 才建连 / 退出 1v1 才断 —— sub/unsub 模型已被废弃
+- [ ] 客户端发送 `to_uid` 时**严格用 `Long`**(JSON 数字)或 `Long.toString()`(canonical decimal),**不要**让序列化器把 boxed Long 序成对象、把字符串带空格,会被 server `bad_to_uid` 拒
+- [ ] 收到 `onClose(1008, "replaced")` 时**不要走重连退避表** —— UI 显式提示"账号在其它设备登录",由用户决定是否切换回来
 
 ---
 
