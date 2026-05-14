@@ -134,7 +134,13 @@ object ShaftChatGateway {
     private fun WebSocketState.simpleName(): String = when (this) {
         is WebSocketState.Idle -> "Idle"
         is WebSocketState.Connecting -> "Connecting"
-        is WebSocketState.Connected -> "Connected(since=${sinceMillis}ms)"
+        is WebSocketState.Connected -> {
+            // sinceMillis = system uptime at handshake; subtract from now for
+            // actual connection duration (the raw value reads like "89 hours"
+            // because it's just the device's boot-relative clock at open).
+            val durationMs = android.os.SystemClock.uptimeMillis() - sinceMillis
+            "Connected(uptime=${durationMs / 1_000}s)"
+        }
         is WebSocketState.Reconnecting -> "Reconnecting(attempt=$attempt, in=${delayMillis}ms)"
         is WebSocketState.Disconnected -> "Disconnected"
     }

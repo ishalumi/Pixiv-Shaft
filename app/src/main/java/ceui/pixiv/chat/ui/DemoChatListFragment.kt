@@ -19,7 +19,6 @@ import ceui.pixiv.events.EventReporter
 import ceui.pixiv.chat.api.HttpChatHistorySource
 import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.chat.base.PagingFooterAdapter
-import ceui.pixiv.chat.base.PagingState
 import ceui.pixiv.chat.base.launchSuspend
 import ceui.pixiv.chat.base.panel.PanelHost
 import ceui.pixiv.chat.base.panel.attachBottomPanel
@@ -255,10 +254,13 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     }
 
     private suspend fun observePagingFooter(footerAdapter: PagingFooterAdapter) {
+        // Forward EVERY state — including Idle / EndReached — so the footer
+        // actually hides when loading finishes. Earlier filter only passed
+        // LoadingMore / Error through, which meant once the spinner went up
+        // it was never told to come down (LoadingMore → EndReached on the
+        // first page returning empty was the typical stuck-spinner path).
         viewModel.pagingState.collect { state ->
-            if (state is PagingState.LoadingMore || state is PagingState.Error) {
-                footerAdapter.setPagingState(state)
-            }
+            footerAdapter.setPagingState(state)
         }
     }
 
