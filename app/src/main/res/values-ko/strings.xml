@@ -1273,4 +1273,28 @@
     <string name="debug_bulk_dl_copy">결과 복사</string>
     <string name="debug_bulk_dl_copied">클립보드에 복사됨</string>
     <string name="debug_bulk_dl_running">수집 중…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">복사</string>
+    <string name="chat_action_delete">삭제</string>
+    <string name="chat_action_forward">전달</string>
+    <string name="chat_action_reply">답장</string>
+    <string name="chat_state_loading_default">로딩 중…</string>
+    <string name="chat_state_error_default">오류가 발생했습니다</string>
+    <string name="chat_state_empty_default">아직 아무것도 없습니다</string>
+    <string name="chat_state_retry">다시 시도</string>
+    <string name="chat_list_loading_more">더 불러오는 중…</string>
+    <string name="chat_list_load_error">불러오기 실패. 탭하여 재시도.</string>
+    <string name="chat_error_network_unavailable">네트워크를 사용할 수 없습니다. 연결을 확인하세요.</string>
+    <string name="chat_error_request_timeout">요청 시간이 초과되었습니다. 다시 시도하세요.</string>
+    <string name="chat_error_security">보안 연결에 실패했습니다.</string>
+    <string name="chat_error_unauthorized">세션이 만료되었습니다. 다시 로그인하세요.</string>
+    <string name="chat_error_forbidden">이 작업을 수행할 권한이 없습니다.</string>
+    <string name="chat_error_not_found">요청한 리소스를 찾을 수 없습니다.</string>
+    <string name="chat_error_gone">이 리소스는 더 이상 사용할 수 없습니다.</string>
+    <string name="chat_error_rate_limited">요청이 너무 많습니다. 잠시 후 다시 시도하세요.</string>
+    <string name="chat_error_rate_limited_with_delay">요청이 너무 많습니다. %d초 후에 다시 시도하세요.</string>
+    <string name="chat_error_service_unavailable">서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.</string>
+    <string name="chat_error_serialization">서버에서 잘못된 데이터를 받았습니다.</string>
+    <string name="chat_error_unknown">오류가 발생했습니다.</string>
 </resources>

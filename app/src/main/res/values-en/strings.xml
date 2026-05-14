@@ -1360,4 +1360,28 @@
     <string name="debug_bulk_dl_copy">Copy output</string>
     <string name="debug_bulk_dl_copied">Copied to clipboard</string>
     <string name="debug_bulk_dl_running">Collecting…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">Copy</string>
+    <string name="chat_action_delete">Delete</string>
+    <string name="chat_action_forward">Forward</string>
+    <string name="chat_action_reply">Reply</string>
+    <string name="chat_state_loading_default">Loading…</string>
+    <string name="chat_state_error_default">Something went wrong</string>
+    <string name="chat_state_empty_default">Nothing here yet</string>
+    <string name="chat_state_retry">Retry</string>
+    <string name="chat_list_loading_more">Loading more…</string>
+    <string name="chat_list_load_error">Failed to load. Tap to retry.</string>
+    <string name="chat_error_network_unavailable">Network unavailable. Please check your connection.</string>
+    <string name="chat_error_request_timeout">Request timed out. Please try again.</string>
+    <string name="chat_error_security">Secure connection failed.</string>
+    <string name="chat_error_unauthorized">Session expired. Please sign in again.</string>
+    <string name="chat_error_forbidden">You do not have permission to perform this action.</string>
+    <string name="chat_error_not_found">Requested resource was not found.</string>
+    <string name="chat_error_gone">This resource is no longer available.</string>
+    <string name="chat_error_rate_limited">Too many requests. Please try again later.</string>
+    <string name="chat_error_rate_limited_with_delay">Too many requests. Please try again in %ds.</string>
+    <string name="chat_error_service_unavailable">Service is temporarily unavailable. Please try again later.</string>
+    <string name="chat_error_serialization">Received invalid data from server.</string>
+    <string name="chat_error_unknown">Something went wrong.</string>
 </resources>

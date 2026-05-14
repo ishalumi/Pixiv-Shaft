@@ -24,4 +24,12 @@
         <attr name="gtv_angle" format="float" />
     </declare-styleable>
 
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.base.widget.EmptyStateView) -->
+    <declare-styleable name="EmptyStateView">
+        <attr name="es_icon" format="reference" />
+        <attr name="es_title" format="string" />
+        <attr name="es_subtitle" format="string" />
+        <attr name="es_actionText" format="string" />
+    </declare-styleable>
+
 </resources>

@@ -1777,4 +1777,28 @@
     <string name="debug_bulk_dl_copy">复制结果</string>
     <string name="debug_bulk_dl_copied">已复制到剪贴板</string>
     <string name="debug_bulk_dl_running">正在统计…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">复制</string>
+    <string name="chat_action_delete">删除</string>
+    <string name="chat_action_forward">转发</string>
+    <string name="chat_action_reply">回复</string>
+    <string name="chat_state_loading_default">加载中…</string>
+    <string name="chat_state_error_default">出错了</string>
+    <string name="chat_state_empty_default">暂时没有内容</string>
+    <string name="chat_state_retry">重试</string>
+    <string name="chat_list_loading_more">加载更多…</string>
+    <string name="chat_list_load_error">加载失败,点击重试</string>
+    <string name="chat_error_network_unavailable">网络不可用,请检查连接</string>
+    <string name="chat_error_request_timeout">请求超时,请稍后再试</string>
+    <string name="chat_error_security">安全连接失败</string>
+    <string name="chat_error_unauthorized">会话已过期,请重新登录</string>
+    <string name="chat_error_forbidden">没有权限执行此操作</string>
+    <string name="chat_error_not_found">资源不存在</string>
+    <string name="chat_error_gone">资源已不可用</string>
+    <string name="chat_error_rate_limited">请求过于频繁,请稍后再试</string>
+    <string name="chat_error_rate_limited_with_delay">请求过于频繁,请 %d 秒后再试</string>
+    <string name="chat_error_service_unavailable">服务暂时不可用,请稍后再试</string>
+    <string name="chat_error_serialization">服务器返回的数据无效</string>
+    <string name="chat_error_unknown">出错了</string>
 </resources>

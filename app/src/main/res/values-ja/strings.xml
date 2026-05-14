@@ -1365,4 +1365,28 @@
     <string name="debug_bulk_dl_copy">結果をコピー</string>
     <string name="debug_bulk_dl_copied">クリップボードにコピーしました</string>
     <string name="debug_bulk_dl_running">集計中…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">コピー</string>
+    <string name="chat_action_delete">削除</string>
+    <string name="chat_action_forward">転送</string>
+    <string name="chat_action_reply">返信</string>
+    <string name="chat_state_loading_default">読み込み中…</string>
+    <string name="chat_state_error_default">エラーが発生しました</string>
+    <string name="chat_state_empty_default">まだ何もありません</string>
+    <string name="chat_state_retry">再試行</string>
+    <string name="chat_list_loading_more">さらに読み込み中…</string>
+    <string name="chat_list_load_error">読み込みに失敗しました。タップして再試行。</string>
+    <string name="chat_error_network_unavailable">ネットワークが利用できません。接続を確認してください。</string>
+    <string name="chat_error_request_timeout">リクエストがタイムアウトしました。もう一度お試しください。</string>
+    <string name="chat_error_security">セキュア接続に失敗しました。</string>
+    <string name="chat_error_unauthorized">セッションが切れました。再度サインインしてください。</string>
+    <string name="chat_error_forbidden">この操作を実行する権限がありません。</string>
+    <string name="chat_error_not_found">要求されたリソースは見つかりませんでした。</string>
+    <string name="chat_error_gone">このリソースは利用できなくなりました。</string>
+    <string name="chat_error_rate_limited">リクエストが多すぎます。後でもう一度お試しください。</string>
+    <string name="chat_error_rate_limited_with_delay">リクエストが多すぎます。%d 秒後にもう一度お試しください。</string>
+    <string name="chat_error_service_unavailable">サービスは一時的に利用できません。後でもう一度お試しください。</string>
+    <string name="chat_error_serialization">サーバーから無効なデータを受信しました。</string>
+    <string name="chat_error_unknown">エラーが発生しました。</string>
 </resources>

@@ -1264,4 +1264,28 @@
     <string name="debug_bulk_dl_copy">Çıktıyı kopyala</string>
     <string name="debug_bulk_dl_copied">Panoya kopyalandı</string>
     <string name="debug_bulk_dl_running">Toplanıyor…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">Kopyala</string>
+    <string name="chat_action_delete">Sil</string>
+    <string name="chat_action_forward">İlet</string>
+    <string name="chat_action_reply">Yanıtla</string>
+    <string name="chat_state_loading_default">Yükleniyor…</string>
+    <string name="chat_state_error_default">Bir hata oluştu</string>
+    <string name="chat_state_empty_default">Henüz hiçbir şey yok</string>
+    <string name="chat_state_retry">Tekrar dene</string>
+    <string name="chat_list_loading_more">Daha fazla yükleniyor…</string>
+    <string name="chat_list_load_error">Yüklenemedi. Yeniden denemek için dokunun.</string>
+    <string name="chat_error_network_unavailable">Ağ kullanılamıyor. Bağlantınızı kontrol edin.</string>
+    <string name="chat_error_request_timeout">İstek zaman aşımına uğradı. Lütfen tekrar deneyin.</string>
+    <string name="chat_error_security">Güvenli bağlantı başarısız oldu.</string>
+    <string name="chat_error_unauthorized">Oturum süresi doldu. Lütfen tekrar giriş yapın.</string>
+    <string name="chat_error_forbidden">Bu işlemi gerçekleştirme yetkiniz yok.</string>
+    <string name="chat_error_not_found">İstenen kaynak bulunamadı.</string>
+    <string name="chat_error_gone">Bu kaynak artık kullanılamıyor.</string>
+    <string name="chat_error_rate_limited">Çok fazla istek. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="chat_error_rate_limited_with_delay">Çok fazla istek. Lütfen %d saniye sonra tekrar deneyin.</string>
+    <string name="chat_error_service_unavailable">Hizmet geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="chat_error_serialization">Sunucudan geçersiz veri alındı.</string>
+    <string name="chat_error_unknown">Bir hata oluştu.</string>
 </resources>

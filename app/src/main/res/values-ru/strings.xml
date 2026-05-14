@@ -1266,4 +1266,28 @@
     <string name="debug_bulk_dl_copy">Скопировать вывод</string>
     <string name="debug_bulk_dl_copied">Скопировано в буфер обмена</string>
     <string name="debug_bulk_dl_running">Сбор данных…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">Копировать</string>
+    <string name="chat_action_delete">Удалить</string>
+    <string name="chat_action_forward">Переслать</string>
+    <string name="chat_action_reply">Ответить</string>
+    <string name="chat_state_loading_default">Загрузка…</string>
+    <string name="chat_state_error_default">Что-то пошло не так</string>
+    <string name="chat_state_empty_default">Пока ничего нет</string>
+    <string name="chat_state_retry">Повторить</string>
+    <string name="chat_list_loading_more">Загрузка…</string>
+    <string name="chat_list_load_error">Не удалось загрузить. Нажмите, чтобы повторить.</string>
+    <string name="chat_error_network_unavailable">Сеть недоступна. Проверьте подключение.</string>
+    <string name="chat_error_request_timeout">Время ожидания запроса истекло. Повторите попытку.</string>
+    <string name="chat_error_security">Ошибка безопасного подключения.</string>
+    <string name="chat_error_unauthorized">Сеанс истёк. Войдите снова.</string>
+    <string name="chat_error_forbidden">У вас нет разрешения на это действие.</string>
+    <string name="chat_error_not_found">Запрашиваемый ресурс не найден.</string>
+    <string name="chat_error_gone">Ресурс больше недоступен.</string>
+    <string name="chat_error_rate_limited">Слишком много запросов. Повторите попытку позже.</string>
+    <string name="chat_error_rate_limited_with_delay">Слишком много запросов. Повторите через %d с.</string>
+    <string name="chat_error_service_unavailable">Сервис временно недоступен. Повторите попытку позже.</string>
+    <string name="chat_error_serialization">Получены некорректные данные от сервера.</string>
+    <string name="chat_error_unknown">Что-то пошло не так.</string>
 </resources>

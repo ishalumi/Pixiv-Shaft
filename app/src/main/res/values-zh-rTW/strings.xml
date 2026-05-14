@@ -1379,4 +1379,28 @@
     <string name="debug_bulk_dl_copy">複製結果</string>
     <string name="debug_bulk_dl_copied">已複製到剪貼簿</string>
     <string name="debug_bulk_dl_running">正在統計…</string>
+
+    <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
+    <string name="chat_action_copy">複製</string>
+    <string name="chat_action_delete">刪除</string>
+    <string name="chat_action_forward">轉發</string>
+    <string name="chat_action_reply">回覆</string>
+    <string name="chat_state_loading_default">載入中…</string>
+    <string name="chat_state_error_default">發生錯誤</string>
+    <string name="chat_state_empty_default">暫時沒有內容</string>
+    <string name="chat_state_retry">重試</string>
+    <string name="chat_list_loading_more">載入更多…</string>
+    <string name="chat_list_load_error">載入失敗,點擊重試</string>
+    <string name="chat_error_network_unavailable">網路不可用,請檢查連線</string>
+    <string name="chat_error_request_timeout">請求逾時,請稍後再試</string>
+    <string name="chat_error_security">安全連線失敗</string>
+    <string name="chat_error_unauthorized">工作階段已過期,請重新登入</string>
+    <string name="chat_error_forbidden">沒有權限執行此操作</string>
+    <string name="chat_error_not_found">找不到資源</string>
+    <string name="chat_error_gone">資源已不可用</string>
+    <string name="chat_error_rate_limited">請求過於頻繁,請稍後再試</string>
+    <string name="chat_error_rate_limited_with_delay">請求過於頻繁,請 %d 秒後再試</string>
+    <string name="chat_error_service_unavailable">服務暫時不可用,請稍後再試</string>
+    <string name="chat_error_serialization">伺服器返回的資料無效</string>
+    <string name="chat_error_unknown">發生錯誤</string>
 </resources>
