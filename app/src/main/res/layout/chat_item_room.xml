@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Conversation row, adapted from Figma 3201:18622 / 3201:18642.
-     Figma proportions: 50dp avatar, 14dp gap, vertical content column
-     with title+time on row 1 and preview+unread badge on row 2.
-     Per-row 1dp bottom divider drawn via foreground (so background
-     `selectableItemBackground` still rides on top). -->
+<!-- Conversation row, Figma 3201:18622 / 3201:18642 (Five-Degrees).
+     Vertical structure inside the text column mirrors Figma:
+       Row 1: name (left, semibold 15) / time (right, regular 12)
+       Row 2: preview (regular 13, marginTop 4)
+       Row 3: state badge slot (marginTop 4, GONE for read rows)
+     Pixiv has no dating-app states, so row 3 is reused for the unread
+     pill — visible only when unread_count > 0. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -31,6 +33,7 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
+        <!-- Row 1: name | time -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -48,7 +51,7 @@
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                tools:text="匿名_104522745" />
+                tools:text="James L." />
 
             <TextView
                 android:id="@+id/tv_time"
@@ -62,47 +65,38 @@
 
         </LinearLayout>
 
-        <LinearLayout
+        <!-- Row 2: preview -->
+        <TextView
+            android:id="@+id/tv_preview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="I specialize in R&amp;D tax credits for startups." />
 
-            <TextView
-                android:id="@+id/tv_preview"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:includeFontPadding="false"
-                android:singleLine="true"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="13sp"
-                tools:text="哈哈哈哈" />
-
-            <!-- Unread badge: a rounded red pill with the count.
-                 Single-digit shows centered; 2+ digits grow horizontally
-                 thanks to wrap_content + horizontal padding.
-                 Visible only when unread_count > 0. -->
-            <TextView
-                android:id="@+id/tv_unread"
-                android:layout_width="wrap_content"
-                android:layout_height="18dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/chat_room_unread_badge"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:minWidth="18dp"
-                android:paddingHorizontal="6dp"
-                android:textColor="@color/always_white"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:visibility="gone"
-                tools:text="2"
-                tools:visibility="visible" />
-
-        </LinearLayout>
+        <!-- Row 3: badge slot (Pixiv: red unread pill). marginTop matches
+             Figma's flex-col gap=4. Pill height 18dp, padding 6/2, text
+             11sp bold so digits stay readable inside the small chip. -->
+        <TextView
+            android:id="@+id/tv_unread"
+            android:layout_width="wrap_content"
+            android:layout_height="18dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/chat_room_unread_badge"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:minWidth="18dp"
+            android:paddingHorizontal="6dp"
+            android:textColor="@color/always_white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="2"
+            tools:visibility="visible" />
 
     </LinearLayout>
 

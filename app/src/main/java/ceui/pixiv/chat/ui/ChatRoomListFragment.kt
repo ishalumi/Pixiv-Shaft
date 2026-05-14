@@ -17,8 +17,8 @@ import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatFrameDecoder
 import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.api.ShaftChatGateway
-import ceui.pixiv.chat.base.setupToolbar
 import ceui.pixiv.chat.base.viewBinding
+import com.blankj.utilcode.util.BarUtils
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.websocket.IncomingMessage
 import kotlinx.coroutines.Job
@@ -69,7 +69,18 @@ class ChatRoomListFragment : Fragment(R.layout.chat_fragment_room_list) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupToolbar(getString(R.string.chat_drawer_entry), showBack = true)
+
+        // Reserve the status-bar height on the placeholder so the big-title
+        // header sits below the notch/cutout (same idiom as the rest of the
+        // chat module's setupToolbar — we inline it because our header layout
+        // differs from chat_layout_toolbar). tv_title is set statically in
+        // the layout, so we only wire btn_back here.
+        view.findViewById<View>(R.id.toolbar_top_placeholder)?.apply {
+            layoutParams = layoutParams.also { it.height = BarUtils.getStatusBarHeight() }
+        }
+        view.findViewById<View>(R.id.btn_back)?.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
 
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
