@@ -107,4 +107,43 @@ class ChatThreadIdTest {
         assertTrue(ChatThreadId.parseRoomKind("abc") is ChatThreadId.RoomKind.Unknown)
         assertTrue(ChatThreadId.parseRoomKind("12a") is ChatThreadId.RoomKind.Unknown)
     }
+
+    /**
+     * Cross-validation: feed the same uid pairs through both the server's
+     * Node port (`shaft-api-v2/src/chat/threadId.js`) and this Kotlin port,
+     * and pin the JS outputs as oracles. If either end ever drifts, this
+     * test fails.
+     *
+     * To regenerate the oracle column, from shaft-api-v2:
+     * ```
+     * node --input-type=module -e "import { oneOnOneThreadId } from './src/chat/threadId.js'; \
+     *   console.log(oneOnOneThreadId(<a>n, <b>n))"
+     * ```
+     */
+    @Test fun crossValidate_kotlinMatchesServerJs() {
+        // (uidA, uidB, expectedThreadIdFromServerJs)
+        val vectors = listOf(
+            Triple(1L,        2L,        "144115188075855873"),       // tiny
+            Triple(12_345_678L, 87_654_321L, "12790004160405463374"), // realistic pixiv uid
+            Triple(9_999_999L,  88_888_888L, "4059515698489628287"),
+            // weaver Go test reference inputs (1.25e18 ≈ snowflake range)
+            Triple(1258997728084520961L, 1258998276271665153L, "1155414944118474768"),
+            // near uint64 max — second arg is unsigned 0xFFFF_FFFF_FFFF_FFFE
+            Triple(1L, -2L /* = 0xFFFF_FFFF_FFFF_FFFE = 2^64-2 */, "18374686479671623678"),
+            // bit-63 set — Long.MIN_VALUE is 0x8000_0000_0000_0000 = 2^63 unsigned
+            Triple(123_456L, Long.MIN_VALUE, "123584"),
+        )
+        for ((a, b, expected) in vectors) {
+            val got = ChatThreadId.oneOnOneThreadId(a, b)
+            assertEquals(
+                "oneOnOneThreadId($a, $b) drifted from server JS",
+                expected, got,
+            )
+            // Symmetry across the wire — same room for either client's caller order.
+            assertEquals(
+                "symmetry broken for ($a, $b)",
+                expected, ChatThreadId.oneOnOneThreadId(b, a),
+            )
+        }
+    }
 }
