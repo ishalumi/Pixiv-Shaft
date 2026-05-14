@@ -720,7 +720,10 @@ class RobustWebSocketClient internal constructor(
         override fun onMessage(webSocket: WebSocket, text: String) {
             if (closed) return
             if (socketRef.get() !== webSocket) return // stale
-            logRecv("text", text.length)
+            // UTF-8 byte count to match logSend's units (text.length is
+            // UTF-16 code units and under-reports for non-ASCII by 2-3x).
+            val sizeBytes = text.toByteArray(Charsets.UTF_8).size
+            logRecv("text", sizeBytes)
             if (config.logPayloads) Timber.tag(TAG).d("⇣ text: $text")
             // tryEmit on a SUSPEND-overflow SharedFlow returns false when
             // the buffer is full — log loudly so the drop is visible,
@@ -730,7 +733,7 @@ class RobustWebSocketClient internal constructor(
             // sharing the pool), so we accept the drop.
             if (!_incoming.tryEmit(IncomingMessage.Text(text))) {
                 Timber.tag(TAG).w(
-                    "incoming buffer full; dropped text frame (${text.length} chars)"
+                    "incoming buffer full; dropped text frame ($sizeBytes B)"
                 )
             }
         }
