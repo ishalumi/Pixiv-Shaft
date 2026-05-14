@@ -3,9 +3,12 @@ package ceui.pixiv.chat.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.core.widget.doAfterTextChanged
@@ -14,9 +17,16 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ceui.lisa.R
+import ceui.lisa.activities.UActivity
 import ceui.lisa.databinding.ChatFragmentDemoListBinding
+import ceui.lisa.utils.GlideUrlChild
+import ceui.lisa.utils.Params
+import ceui.loxia.Client
+import ceui.pixiv.chat.api.ChatConversationsRepository
+import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.api.HttpChatHistorySource
 import ceui.pixiv.chat.api.ShaftChatGateway
 import ceui.pixiv.chat.base.PagingFooterAdapter
@@ -35,6 +45,7 @@ import ceui.pixiv.websocket.WebSocketState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * Chat screen wired to shaft-api-v2's uid-routing chat WebSocket.
@@ -108,10 +119,12 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Title: 1v1 shows peer uid until we wire profile lookup; global shows the canonical drawer entry.
-        val title = if (peerUidArg != null) "1v1 · uid=$peerUidArg"
-                    else getString(R.string.chat_drawer_entry)
-        setupToolbar(title = title, showBack = true)
+        // Title: 1v1 starts with a placeholder uid label and is overwritten
+        // once getUserProfile() resolves the peer's display name. Global
+        // room shows the canonical drawer entry — there is no single peer.
+        val initialTitle = if (peerUidArg != null) "uid=$peerUidArg"
+                           else getString(R.string.chat_drawer_entry)
+        setupToolbar(title = initialTitle, showBack = true)
 
         // ── Bottom panel (emoji ↔ keyboard) ──────────────────────────
         attachBottomPanel(
@@ -142,6 +155,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         val chatAdapter = ChatMessageAdapter(
             selfUid = SessionManager.loggedInUid,
             onLongClick = { msg -> showMessageActions(msg) },
+            onAvatarClick = { uid -> openUserProfile(uid) },
         ).also { this.chatAdapter = it }
         val footerAdapter = PagingFooterAdapter().apply {
             onRetry = { viewModel.retryPaging() }
@@ -173,6 +187,21 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         binding.stateLayout.setOnRetryClickListener { viewModel.retry() }
         setupMessageActionResult()
 
+        // Self avatar — available synchronously from the cached profile.
+        // Peer avatar — fetched lazily (1v1 only); no-op in the global room.
+        bindSelfAvatar(chatAdapter)
+        peerUidArg?.let { peerUid ->
+            // Toolbar avatar/title route to the peer's profile. In the
+            // global room there's no single peer, so this stays inert.
+            view.findViewById<View>(R.id.iv_peer_avatar)?.setOnClickListener {
+                openUserProfile(peerUid)
+            }
+            view.findViewById<View>(R.id.tv_title)?.setOnClickListener {
+                openUserProfile(peerUid)
+            }
+            fetchPeerProfile(peerUid, chatAdapter)
+        }
+
         launchSuspend {
             launch { observePageState() }
             launch { observePagingFooter(footerAdapter) }
@@ -181,6 +210,108 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             launch { observeServerErrors() }
             launch { observeReplacedByOtherDevice() }
             launch { observeFatalAuth() }
+            launch { observeMarkRead() }
+        }
+    }
+
+    /**
+     * DM-only: every time the visible messages list bumps the max server id,
+     * POST /api/v1/chat/conversations/<room>/read so the conversation list's
+     * unread badge can decay authoritatively.
+     *
+     * Skipped for the global room (server returns 400 read_not_supported_for_global)
+     * and for WS-only pushes that don't carry an `id` field — those messages
+     * are read once /history backfills them with a real id, at which point
+     * this effect picks up the new max and fires.
+     *
+     * Strict-monotonic dedup (`maxServerId > lastSentReadId`) keeps us from
+     * spamming /read on every list re-emit when nothing has actually
+     * advanced (e.g. pagination loading older rows, optimistic-send rows
+     * flipping state).
+     */
+    private suspend fun observeMarkRead() {
+        val peerUid = peerUidArg ?: return
+        val selfUid = SessionManager.loggedInUid
+        if (selfUid <= 0L) return
+        val room = runCatching { ChatThreadId.oneOnOneThreadId(selfUid, peerUid) }
+            .getOrElse {
+                Timber.tag("Chat-Read").w(it, "skip markRead: cannot derive room for self=%d peer=%d", selfUid, peerUid)
+                return
+            }
+        val repo = ChatConversationsRepository()
+        var lastSentReadId = 0L
+        viewModel.messages.collect { messages ->
+            val maxServerId = messages.maxOfOrNull { it.serverId ?: 0L } ?: 0L
+            if (maxServerId > lastSentReadId) {
+                lastSentReadId = maxServerId
+                try {
+                    repo.markRead(selfUid, room, maxServerId)
+                } catch (t: Throwable) {
+                    // Network errors / 404 not_a_member shouldn't break the
+                    // chat UI; user can keep reading either way.
+                    Timber.tag("Chat-Read").w(
+                        t, "markRead failed room=%s id=%d", room, maxServerId,
+                    )
+                }
+            }
+        }
+    }
+
+    // ── Avatar / peer-profile wiring ────────────────────────────────────
+
+    private fun bindSelfAvatar(adapter: ChatMessageAdapter) {
+        val url = SessionManager.loggedInUser?.profile_image_urls?.findMaxSizeUrl()
+        adapter.selfAvatarUrl = url
+    }
+
+    /**
+     * Routes every avatar tap (toolbar + bubbles) into [UActivity], which
+     * is the canonical entry for profile pages — it forwards to
+     * [ceui.lisa.activities.UserActivityV3] when the user has v3 settings
+     * enabled, so we don't have to branch here.
+     *
+     * UActivity reads the uid as Int; the cast is safe since pixiv uids
+     * fit well within Int.MAX_VALUE. Uid 0 means "unknown" — bail out.
+     */
+    private fun openUserProfile(uid: Long) {
+        if (uid <= 0L) return
+        val ctx = context ?: return
+        val intent = Intent(ctx, UActivity::class.java).apply {
+            putExtra(Params.USER_ID, uid.toInt())
+        }
+        ctx.startActivity(intent)
+    }
+
+    /**
+     * Resolve the peer's display name + avatar, then push both into the
+     * toolbar (title / `iv_peer_avatar`) and the bubble adapter
+     * ([ChatMessageAdapter.peerAvatarUrl]). All updates happen on the
+     * main thread inside the view-lifecycle scope, so a quick back-press
+     * before the call returns cancels cleanly.
+     *
+     * Errors are swallowed — the screen stays usable with the fallback
+     * "uid=…" title and placeholder avatar.
+     */
+    private fun fetchPeerProfile(peerUid: Long, adapter: ChatMessageAdapter) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val user = runCatching { Client.appApi.getUserProfile(peerUid).user }
+                .getOrNull() ?: return@launch
+            user.name?.takeIf { it.isNotBlank() }?.let { name ->
+                view?.findViewById<TextView>(R.id.tv_title)?.text = name
+            }
+            val avatarUrl = user.profile_image_urls?.findMaxSizeUrl()
+            adapter.peerAvatarUrl = avatarUrl
+            view?.findViewById<ImageView>(R.id.iv_peer_avatar)?.let { iv ->
+                if (avatarUrl.isNullOrBlank()) {
+                    iv.setImageResource(R.drawable.chat_avatar_placeholder)
+                } else {
+                    Glide.with(iv)
+                        .load(GlideUrlChild(avatarUrl))
+                        .placeholder(R.drawable.chat_avatar_placeholder)
+                        .circleCrop()
+                        .into(iv)
+                }
+            }
         }
     }
 

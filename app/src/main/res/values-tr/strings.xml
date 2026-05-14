@@ -1267,6 +1267,12 @@
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
     <string name="chat_drawer_entry">Sohbet Odası</string>
+    <string name="chat_room_global_title">Genel Sohbet</string>
+    <string name="chat_preview_you_prefix">Siz:</string>
+    <string name="chat_self_label">Siz</string>
+    <string name="chat_input_hint">Mesaj</string>
+    <string name="chat_action_back">Geri</string>
+    <string name="chat_action_more">Daha fazla</string>
     <string name="chat_action_copy">Kopyala</string>
     <string name="chat_action_delete">Sil</string>
     <string name="chat_action_forward">İlet</string>

@@ -384,11 +384,22 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "批量下载Debug":
                     return new ceui.pixiv.ui.debug.BulkDownloadDebugFragment();
                 case "聊天室": {
-                    // peer_uid > 0 → 1v1 with that pixiv user; otherwise → global room.
+                    // peer_uid > 0 → 1v1 with that pixiv user; otherwise →
+                    // conversation LIST (global + any 1v1 the user has touched
+                    // locally). The list row tap path re-enters this dispatch
+                    // with peer_uid set, so the per-room chat fragment opens
+                    // exactly the same way it did before.
                     long peerUid = intent.getLongExtra(EXTRA_CHAT_PEER_UID, 0L);
                     return peerUid > 0L
                             ? ceui.pixiv.chat.ui.DemoChatListFragment.Companion.newInstanceForPeer(peerUid)
-                            : new ceui.pixiv.chat.ui.DemoChatListFragment();
+                            : new ceui.pixiv.chat.ui.ChatRoomListFragment();
+                }
+                case "聊天-全员公屏": {
+                    // Explicit "open the global room" entry. Used by the
+                    // conversation list when the user taps the Global row,
+                    // since dispatching back through "聊天室" without peer_uid
+                    // would route to the list itself.
+                    return new ceui.pixiv.chat.ui.DemoChatListFragment();
                 }
                 default:
                     return new Fragment();

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1dp hairline along the BOTTOM of each conversation row.
+     Used as `android:foreground` on the row so it renders above the
+     ripple/background. inset start = 80dp so the line begins to the
+     right of the avatar (50dp avatar + 16dp pad + 14dp gap = 80dp). -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="80dp">
+    <layer-list>
+        <item>
+            <shape android:shape="rectangle">
+                <solid android:color="@android:color/transparent" />
+            </shape>
+        </item>
+        <item
+            android:gravity="bottom"
+            android:height="1dp">
+            <shape android:shape="rectangle">
+                <solid android:color="?attr/colorOutlineVariant" />
+            </shape>
+        </item>
+    </layer-list>
+</inset>

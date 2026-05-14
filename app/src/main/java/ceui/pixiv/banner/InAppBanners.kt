@@ -79,11 +79,18 @@ object InAppBanners {
 
         val activity = foreground.current()
         val ctx: Context = activity ?: app
+        val peer = uri.getQueryParameter("peer")?.toLongOrNull() ?: 0L
         val intent = Intent(ctx, TemplateActivity::class.java).apply {
-            putExtra(TemplateActivity.EXTRA_FRAGMENT, "聊天室")
-            val peer = uri.getQueryParameter("peer")?.toLongOrNull() ?: 0L
             if (peer > 0L) {
+                // 1v1: open the per-conversation chat fragment directly,
+                // not the list — the user explicitly wants this thread.
+                putExtra(TemplateActivity.EXTRA_FRAGMENT, "聊天室")
                 putExtra(TemplateActivity.EXTRA_CHAT_PEER_UID, peer)
+            } else {
+                // Global: dispatch through the dedicated "open global" case
+                // so we don't bounce to the new conversation list (which
+                // now owns the bare "聊天室" route without a peer).
+                putExtra(TemplateActivity.EXTRA_FRAGMENT, "聊天-全员公屏")
             }
             if (activity == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }

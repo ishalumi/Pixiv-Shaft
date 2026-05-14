@@ -101,4 +101,63 @@ object ChatThreadId {
         ONE_ON_ONE_RE.matches(roomId) -> RoomKind.OneOnOne(roomId)
         else -> RoomKind.Unknown
     }
+
+    /**
+     * Inverse of [reverseXOR]: given the caller's own uid and a 1v1 room id,
+     * recover the peer's uid. Mirrors server's `peerFromRoomId` from
+     * shaft-api-v2/src/chat/threadId.js.
+     *
+     * Why this is recoverable at all: `reverseXOR(min, max)` packs
+     * `min[i] ^ max[7-i]` into 8 bytes. With one of the two uids known, the
+     * other is just a per-byte XOR plus a min/max disambiguation. We try
+     * both orderings and accept only the one whose `reverseXOR(me, peer)`
+     * round-trips back to the original room id — that gates out malformed
+     * inputs (e.g. someone hand-typing a non-1v1 room id).
+     *
+     * Returns the peer's uid as a decimal string (matches server contract),
+     * or `null` if the input is `"global"`, the row doesn't round-trip, or
+     * the math degenerates to `peer == me` / `peer == 0`. The decimal-string
+     * return is intentional even though pixiv uids fit in `Long`: it keeps
+     * us bit-compatible with snowflake / big-id chat IDs the server may
+     * issue in the future.
+     */
+    fun peerFromRoomId(myUid: Long, roomId: String): String? {
+        if (roomId == ROOM_GLOBAL) return null
+        if (myUid == 0L) return null
+        if (!ONE_ON_ONE_RE.matches(roomId)) return null
+
+        val room = runCatching { java.lang.Long.parseUnsignedLong(roomId) }.getOrNull() ?: return null
+        val me = myUid
+
+        val meB = ByteArray(8) { i -> (me ushr ((7 - i) * 8)).toByte() }
+        val rB = ByteArray(8) { i -> (room ushr ((7 - i) * 8)).toByte() }
+
+        // Case A: me is min, peer is max. result[i] = me[i] ^ peer[7-i]
+        //   → peer[j] = result[7-j] ^ me[7-j]
+        val peerA = ByteArray(8) { j -> (rB[7 - j].toInt() xor meB[7 - j].toInt()).toByte() }
+            .toUnsignedLongBE()
+
+        // Case B: me is max, peer is min. result[i] = peer[i] ^ me[7-i]
+        //   → peer[i] = result[i] ^ me[7-i]
+        val peerB = ByteArray(8) { i -> (rB[i].toInt() xor meB[7 - i].toInt()).toByte() }
+            .toUnsignedLongBE()
+
+        // Disambiguate + round-trip check. Compare unsigned because high-bit
+        // uids exist in principle.
+        val peer = when {
+            java.lang.Long.compareUnsigned(peerA, me) > 0 &&
+                reverseXOR(me, peerA) == room -> peerA
+            peerB != 0L && java.lang.Long.compareUnsigned(peerB, me) < 0 &&
+                reverseXOR(me, peerB) == room -> peerB
+            else -> return null
+        }
+        if (peer == 0L || peer == me) return null
+        return java.lang.Long.toUnsignedString(peer)
+    }
+
+    private fun ByteArray.toUnsignedLongBE(): Long {
+        var out = 0L
+        for (i in 0 until 8) out = (out shl 8) or (this[i].toLong() and 0xFF)
+        return out
+    }
 }

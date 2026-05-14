@@ -1276,6 +1276,12 @@
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
     <string name="chat_drawer_entry">채팅방</string>
+    <string name="chat_room_global_title">공개 라운지</string>
+    <string name="chat_preview_you_prefix">나:</string>
+    <string name="chat_self_label">나</string>
+    <string name="chat_input_hint">메시지</string>
+    <string name="chat_action_back">뒤로</string>
+    <string name="chat_action_more">더 보기</string>
     <string name="chat_action_copy">복사</string>
     <string name="chat_action_delete">삭제</string>
     <string name="chat_action_forward">전달</string>
