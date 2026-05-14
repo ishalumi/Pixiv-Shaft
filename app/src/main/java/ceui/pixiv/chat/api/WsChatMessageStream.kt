@@ -38,6 +38,16 @@ class WsChatMessageStream(
     )
     val errorFrames: Flow<ChatFrame.Err> get() = _errorFrames
 
+    // Typing frames bypass `observe(room)` — they aren't part of the
+    // persisted ChatMessageEntity stream that the RecyclerView renders,
+    // but consumers (VM) want a room-filtered Flow. extraBufferCapacity=16
+    // because typing fires more often than err/hello (peer typing at ~1/s
+    // sustained); 16 is comfortable headroom for short bursts.
+    private val _typingFrames = MutableSharedFlow<ChatFrame.Typing>(
+        replay = 0, extraBufferCapacity = 16,
+    )
+    val typingFrames: Flow<ChatFrame.Typing> get() = _typingFrames
+
     override fun observe(room: String): Flow<ChatMessageEntity> =
         incoming
             .filterIsInstance<IncomingMessage.Text>()
@@ -78,6 +88,13 @@ class WsChatMessageStream(
             is ChatFrame.Err -> {
                 Timber.tag(TAG).w("⇣ err code=%s cmid=%s", frame.code, frame.clientMsgId ?: "-")
                 _errorFrames.tryEmit(frame)
+            }
+            is ChatFrame.Typing -> {
+                Timber.tag(TAG).d(
+                    "⇣ typing room=%s uid=%d state=%s name=%s",
+                    frame.room, frame.uid, frame.state, frame.displayName ?: "-",
+                )
+                _typingFrames.tryEmit(frame)
             }
             is ChatFrame.Pong -> Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)
             is ChatFrame.Unknown -> Timber.tag(TAG).d("⇣ unknown frame dead-lettered")

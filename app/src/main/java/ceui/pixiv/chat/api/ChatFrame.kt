@@ -62,6 +62,27 @@ sealed interface ChatFrame {
     /** `{ "kind": "pong", "server_ts" }` — reply to client app-level `ping`. */
     data class Pong(val serverTs: Long) : ChatFrame
 
+    /**
+     * `{ "kind": "typing", "room", "uid", "display_name", "state", "ts" }`
+     *
+     * Server-forwarded "X 正在输入" / "X 停止输入" signal, DM-only (global
+     * is rejected server-side with `typing_forbidden_for_global`). Fire-and-
+     * forget — no `client_msg_id`, no persistence, peer only (sender does
+     * NOT receive an echo of its own typing).
+     *
+     * [state] is `"start"` (default) or `"stop"`. The 5-second client-side
+     * timeout on `"start"` is a *client* convention — server never sends a
+     * separate "expired" frame; if no fresh `start` arrives within ~5s the
+     * receiver should clear the indicator on its own.
+     */
+    data class Typing(
+        val room: String,
+        val uid: Long,
+        val displayName: String?,
+        val state: String,
+        val ts: Long,
+    ) : ChatFrame
+
     /** Valid JSON but unknown / malformed envelope. Logged, dead-lettered, stream stays alive. */
     data class Unknown(val raw: String) : ChatFrame
 }
@@ -125,6 +146,23 @@ object ChatFrameDecoder {
                 clientMsgId = obj.get("client_msg_id")?.asStringOrNull(),
             )
             "pong" -> ChatFrame.Pong(serverTs = obj.get("server_ts")?.asLongOrNull() ?: 0L)
+            "typing" -> {
+                // Required: uid, room. `ts` is informational (client uses
+                // its own wall clock for the 5s timeout), `state` defaults
+                // to "start" if absent — mirroring server's own default.
+                val uid = obj.get("uid")?.asLongOrNull()
+                val room = obj.get("room")?.asStringOrNull()
+                if (uid == null || room == null) {
+                    Timber.tag(TAG).w("typing frame missing uid/room: %s", raw.take(120))
+                    ChatFrame.Unknown(raw)
+                } else ChatFrame.Typing(
+                    room = room,
+                    uid = uid,
+                    displayName = obj.get("display_name")?.asStringOrNull(),
+                    state = obj.get("state")?.asStringOrNull() ?: "start",
+                    ts = obj.get("ts")?.asLongOrNull() ?: 0L,
+                )
+            }
             else -> ChatFrame.Unknown(raw).also {
                 Timber.tag(TAG).d("unknown kind=%s — ignored", kind)
             }
@@ -189,6 +227,36 @@ object ChatFrameEncoder {
             append(esc)
             append('"')
             if (illustId != null) append(""","illust_id":""").append(illustId)
+            append('}')
+        }
+    }
+
+    /**
+     * Build a 1v1 `typing` frame:
+     * `{"kind":"typing","to_uid":<long>,"state":"start"|"stop"}`
+     *
+     * DM-only — server rejects typing with `room:"global"` as
+     * `typing_forbidden_for_global`. Omit [state] to let server default to
+     * `"start"`.
+     *
+     * State is an *enum* (start / stop / omitted), not free text. A strict
+     * `require` rejects anything else at dev time rather than letting a
+     * mistyped value reach the wire and bounce back as `bad_state`. We do
+     * NOT JSON-escape because the only legitimate values contain no JSON
+     * metacharacters; escaping would silently mask the same kind of bug.
+     */
+    fun typing1v1(toUid: Long, state: String? = null): String {
+        require(state == null || state == "start" || state == "stop") {
+            "typing state must be null / \"start\" / \"stop\", got: $state"
+        }
+        return buildString {
+            append("""{"kind":"typing","to_uid":""")
+            append(toUid)
+            if (state != null) {
+                append(""","state":"""")
+                append(state)
+                append('"')
+            }
             append('}')
         }
     }

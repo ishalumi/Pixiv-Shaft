@@ -1784,6 +1784,8 @@
     <string name="chat_preview_you_prefix">你:</string>
     <string name="chat_self_label">我</string>
     <string name="chat_input_hint">输入消息…</string>
+    <string name="chat_peer_typing">%1$s 正在输入…</string>
+    <string name="chat_peer_typing_anon">对方正在输入…</string>
     <string name="chat_action_back">返回</string>
     <string name="chat_action_more">更多</string>
     <string name="chat_action_copy">复制</string>

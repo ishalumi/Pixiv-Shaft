@@ -2,6 +2,7 @@ package ceui.pixiv.chat.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.base.LoadReason
 import ceui.pixiv.chat.base.PageState
@@ -13,10 +14,14 @@ import ceui.pixiv.chat.core.ChatMessageStream
 import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.chat.data.SendState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -63,6 +68,13 @@ class ChatListViewModel(
     private val historySource: ChatHistorySource<ChatMessageEntity>,
     private val stream: ChatMessageStream<ChatMessageEntity>,
     private val sender: WsMsgSender,
+    private val typingSender: WsTypingSender,
+    /**
+     * App-scoped flow of `typing` frames (every room — VM filters by [room]).
+     * Provided by [ceui.pixiv.chat.api.ShaftChatGateway.typingFrames]; tests
+     * pass an in-memory flow. `null`-routed VMs (global room) never read it.
+     */
+    private val typingFrames: Flow<ChatFrame.Typing>,
     private val pageSize: Int = 30,
 ) : ViewModel() {
 
@@ -107,12 +119,26 @@ class ChatListViewModel(
      */
     private val inFlightSends = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    /**
+     * Wall-clock ms when we last sent a `typing` start frame. Acts as a
+     * lightweight per-VM debounce: subsequent [notifyTyping] calls within
+     * [TYPING_REFRESH_INTERVAL_MS] are suppressed locally so we don't
+     * burn the server-side bucket (10 frames / 10s) on every keystroke.
+     * `0L` = "haven't typed yet, or just stopped" — also the gate that
+     * makes [notifyTypingStop] cheap when called on a quiet input.
+     */
+    private var lastTypingStartSentMs = 0L
+
+    private val _peerTyping = MutableStateFlow(PeerTypingState.Idle)
+    val peerTyping: StateFlow<PeerTypingState> = _peerTyping.asStateFlow()
+
     init {
         Timber.tag(TAG_PERF).d(
             "init: selfUid=%d toUid=%s room=%s pageSize=%d",
             selfUid, toUid?.toString() ?: "global", room, pageSize,
         )
         startLiveSync()
+        startPeerTypingObserver()
         viewModelScope.launch { initialLoad() }
     }
 
@@ -307,6 +333,50 @@ class ChatListViewModel(
         }
     }
 
+    /**
+     * Signal "user is typing right now" to the peer. Idempotent under
+     * burst calls: only the first call within [TYPING_REFRESH_INTERVAL_MS]
+     * actually dispatches a `typing` frame. The fragment is expected to
+     * invoke this on every keystroke (cheap), letting the VM handle
+     * debounce centrally instead of duplicating it at every call site.
+     *
+     * Global-room VMs (`toUid == null`) are no-ops — server rejects typing
+     * for global with `typing_forbidden_for_global`.
+     */
+    fun notifyTyping() {
+        val peer = toUid ?: return
+        val now = System.currentTimeMillis()
+        if (now - lastTypingStartSentMs < TYPING_REFRESH_INTERVAL_MS) return
+        // state=null lets server's default ("start") apply — saves a few
+        // wire bytes per typing frame at sustained 1/4s. Server treats
+        // omitted state as start (see chat/ws.js handleTyping).
+        //
+        // Only advance the debounce clock when the frame actually made it
+        // into the WS buffer. Otherwise a transient disconnect would
+        // "consume" the next 4s of typing locally — peer wouldn't see
+        // "正在输入..." until 4s after reconnect, even though the user
+        // never stopped. Gating on `accepted` re-tries on each keystroke
+        // until the wire opens up again.
+        val accepted = typingSender.send(peer, null)
+        if (accepted) lastTypingStartSentMs = now
+    }
+
+    /**
+     * Explicit "user stopped typing" signal — called when input clears,
+     * send fires, fragment pauses, etc. Server forwards `state:"stop"` so
+     * peer can clear the "正在输入..." indicator immediately rather than
+     * waiting out the 5s timeout.
+     *
+     * No-op when [notifyTyping] was never called (lastTypingStartSentMs==0)
+     * — saves a wire frame when the user clears an already-empty input.
+     */
+    fun notifyTypingStop() {
+        val peer = toUid ?: return
+        if (lastTypingStartSentMs == 0L) return
+        lastTypingStartSentMs = 0L
+        typingSender.send(peer, "stop")
+    }
+
     fun trimWindow() {
         if (windowSize.value > pageSize) {
             Timber.tag(TAG_PERF).d("trimWindow: %d → %d", windowSize.value, pageSize)
@@ -418,8 +488,46 @@ class ChatListViewModel(
         }
     }
 
+    /**
+     * Watch peer's `typing` frames filtered to this room. `collectLatest`
+     * is the workhorse: each new frame cancels the prior body, so the
+     * 5-second auto-clear timer resets on every fresh `start` — exactly
+     * the "while typing, keep showing the indicator; 5s after the last
+     * frame, clear it" semantics standard IM uses (WhatsApp/Slack).
+     *
+     * Skipped for global-room VMs — typing isn't a thing there.
+     */
+    private fun startPeerTypingObserver() {
+        if (toUid == null) return
+        viewModelScope.launch {
+            typingFrames
+                .filter { it.room == room && it.uid != selfUid }
+                .collectLatest { frame ->
+                    if (frame.state == "stop") {
+                        _peerTyping.value = PeerTypingState.Idle
+                    } else {
+                        _peerTyping.value = PeerTypingState(
+                            isTyping = true,
+                            displayName = frame.displayName,
+                        )
+                        // Auto-clear if no fresh `start` arrives in 5s.
+                        // Cancelled (via collectLatest) on the next frame —
+                        // peer's continued typing keeps resetting this delay.
+                        delay(PEER_TYPING_TIMEOUT_MS)
+                        _peerTyping.value = PeerTypingState.Idle
+                    }
+                }
+        }
+    }
+
     override fun onCleared() {
         Timber.tag(TAG_PERF).d("onCleared: room=%s windowSize=%d", room, windowSize.value)
+        // Best-effort: tell peer we stopped typing on fragment teardown so
+        // their indicator clears immediately rather than waiting 5s. Won't
+        // throw on dead WS — gateway returns false silently.
+        if (toUid != null && lastTypingStartSentMs != 0L) {
+            typingSender.send(toUid, "stop")
+        }
         syncJob?.cancel()
         pagingJob?.cancel()
         super.onCleared()
@@ -430,6 +538,49 @@ class ChatListViewModel(
         private const val TAG_PERF = "Chat-Perf"
         /** doc §3.1 / §12. */
         const val MAX_TEXT_LENGTH = 2048
+
+        /**
+         * How often we re-send a `typing:start` frame while user keeps
+         * typing. Server bucket is 10 frames / 10s; 4 s keeps us at 1/4 s
+         * sustained — comfortably under the cap and still well within the
+         * peer-side 5 s auto-clear timeout (so peer never sees a flicker).
+         */
+        private const val TYPING_REFRESH_INTERVAL_MS = 4_000L
+
+        /**
+         * How long to keep showing "X 正在输入..." after the last `start`
+         * frame arrives. Industry convention is ~5 s; we sit at exactly 5 s
+         * so the [TYPING_REFRESH_INTERVAL_MS] cadence (4 s) keeps the
+         * indicator continuously lit while the peer is actively typing.
+         */
+        private const val PEER_TYPING_TIMEOUT_MS = 5_000L
+    }
+}
+
+/**
+ * Wire-side typing-frame seam. Production is `ShaftChatGateway::sendTyping`;
+ * tests pass a recording lambda. Separate from [WsMsgSender] so each stays
+ * SAM-convertible.
+ *
+ * [state] is `"start"` (or null → server default), or `"stop"`. The VM
+ * only ever passes `null` (start) or `"stop"` — caller-side validation
+ * happens before dispatch.
+ */
+fun interface WsTypingSender {
+    fun send(toUid: Long, state: String?): Boolean
+}
+
+/**
+ * Peer-side typing indicator state, surfaced as a StateFlow on
+ * [ChatListViewModel.peerTyping]. UI just binds `isTyping` to visibility
+ * and renders `displayName` as the prefix when present.
+ */
+data class PeerTypingState(
+    val isTyping: Boolean,
+    val displayName: String? = null,
+) {
+    companion object {
+        val Idle = PeerTypingState(isTyping = false, displayName = null)
     }
 }
 

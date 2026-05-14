@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -13,7 +14,7 @@
         android:id="@+id/state_layout"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/input_bar"
+        app:layout_constraintBottom_toTopOf="@id/typing_indicator"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/app_bar_layout">
@@ -27,6 +28,31 @@
             android:paddingBottom="8dp" />
 
     </ceui.pixiv.chat.base.widget.StateLayout>
+
+    <!--
+      Typing indicator: slot between RecyclerView (state_layout) and input_bar.
+      android:visibility="gone" by default; ConstraintLayout collapses it to
+      0 height when hidden, so state_layout extends down to input_bar.top
+      transparently. The 16dp horizontal + 6/4dp vertical padding matches
+      the input_bar visual rhythm — sits flush under the last bubble.
+    -->
+    <TextView
+        android:id="@+id/typing_indicator"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="4dp"
+        android:textSize="12sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textStyle="italic"
+        android:background="?attr/colorSurfaceContainerLow"
+        app:layout_constraintBottom_toTopOf="@id/input_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="对方 正在输入…"
+        tools:visibility="visible" />
 
     <LinearLayout
         android:id="@+id/input_bar"

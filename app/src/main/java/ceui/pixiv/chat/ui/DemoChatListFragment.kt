@@ -11,6 +11,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.os.bundleOf
+import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -87,6 +88,8 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             historySource = HttpChatHistorySource(),
             stream = ShaftChatGateway.chatStream,
             sender = ShaftChatGateway::send,
+            typingSender = ShaftChatGateway::sendTyping,
+            typingFrames = ShaftChatGateway.typingFrames,
         )
     }
 
@@ -210,6 +213,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             launch { observeReplacedByOtherDevice() }
             launch { observeFatalAuth() }
             launch { observeMarkRead() }
+            launch { observePeerTyping() }
         }
     }
 
@@ -366,7 +370,19 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     // ── Input bar ───────────────────────────────────────────────────────
 
     private fun setupInput() {
-        binding.etInput.doAfterTextChanged { refreshSendEnabled() }
+        binding.etInput.doAfterTextChanged { text ->
+            refreshSendEnabled()
+            // Outbound typing signal — DM-only, VM short-circuits global.
+            // VM debounces internally (~4s between start frames), so it's
+            // safe to call on every keystroke. Empty input → explicit stop
+            // so peer's indicator clears the instant the user deletes
+            // everything, not after the 5s timeout on their end.
+            if (text.isNullOrEmpty()) {
+                viewModel.notifyTypingStop()
+            } else {
+                viewModel.notifyTyping()
+            }
+        }
         binding.btnSend.setOnClickListener { sendMessage() }
         refreshSendEnabled()
     }
@@ -392,6 +408,9 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
                 Toast.makeText(requireContext(), "发送失败,请稍后重试", Toast.LENGTH_SHORT).show()
                 return@launch
             }
+            // `.clear()` triggers TextWatcher synchronously → the
+            // doAfterTextChanged listener calls notifyTypingStop() in the
+            // same call stack. No explicit follow-up call needed here.
             binding.etInput.text?.clear()
             scrollToBottomOnNextUpdate = true
         }
@@ -477,6 +496,30 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
                 "聊天认证失败 — 请检查系统时间是否正确,或重新登录",
                 Toast.LENGTH_LONG,
             ).show()
+        }
+    }
+
+    /**
+     * Bind VM's [ChatListViewModel.peerTyping] state to the indicator
+     * TextView. Server only forwards typing in DM rooms, but the VM
+     * already short-circuits global — this collector still runs harmlessly
+     * (peerTyping stays Idle there).
+     *
+     * Display name: prefer the server-supplied `display_name` from the
+     * typing frame (always canonical, matches msg-bubble naming); when
+     * absent, fall back to the localized anonymous string.
+     */
+    private suspend fun observePeerTyping() {
+        viewModel.peerTyping.collect { state ->
+            binding.typingIndicator.isVisible = state.isTyping
+            if (state.isTyping) {
+                val name = state.displayName?.takeIf { it.isNotBlank() }
+                binding.typingIndicator.text = if (name != null) {
+                    getString(R.string.chat_peer_typing, name)
+                } else {
+                    getString(R.string.chat_peer_typing_anon)
+                }
+            }
         }
     }
 

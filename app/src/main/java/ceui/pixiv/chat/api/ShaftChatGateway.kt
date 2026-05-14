@@ -252,6 +252,7 @@ object ShaftChatGateway {
     val chatStream: ChatMessageStream<ChatMessageEntity> get() = stream
     val helloFrames: Flow<ChatFrame.Hello> get() = stream.helloFrames
     val errorFrames: Flow<ChatFrame.Err> get() = stream.errorFrames
+    val typingFrames: Flow<ChatFrame.Typing> get() = stream.typingFrames
 
     /**
      * 401 handshake failure — `bad_sig` / `bad_ts` / `ts_skew` / `bad_uid`
@@ -320,6 +321,32 @@ object ShaftChatGateway {
         } else {
             Timber.tag(TAG).w("⇡ send rejected by WebSocketManager (no active session?)")
         }
+        return accepted
+    }
+
+    /**
+     * Dispatch a `typing` frame. DM-only — server rejects `room:"global"`
+     * with `typing_forbidden_for_global`, so we don't expose a global-room
+     * overload (the VM also short-circuits when toUid == null).
+     *
+     * Returns `true` if buffered for send, `false` if no active session.
+     * **Not an end-to-end ACK** — typing is fire-and-forget; if the WS
+     * is mid-reconnect the frame is silently dropped and the peer's 5-second
+     * client-side timeout handles the stale "正在输入..." indicator on its end.
+     *
+     * [state] is `"start"` (default) or `"stop"`. Caller (VM) gates start
+     * frames behind a ~4s debounce so we don't flood the per-conn typing
+     * bucket (10 frames / 10s on server). `stop` is always sent unbucketed
+     * from the VM's perspective; if it gets rate-limited server-side, peer
+     * self-heals via timeout.
+     */
+    fun sendTyping(toUid: Long, state: String? = null): Boolean {
+        val frame = ChatFrameEncoder.typing1v1(toUid, state)
+        val accepted = manager.send(frame)
+        Timber.tag(TAG).d(
+            "⇡ typing to=%d state=%s accepted=%b",
+            toUid, state ?: "start", accepted,
+        )
         return accepted
     }
 }
