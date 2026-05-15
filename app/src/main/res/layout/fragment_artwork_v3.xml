@@ -14,6 +14,7 @@
             android:overScrollMode="never" />
 
         <LinearLayout
+            android:id="@+id/top_overlay_column"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
@@ -83,14 +84,14 @@
         </LinearLayout>
 
         <!-- Floating "收起" pill: anchored top-end, visible only while the
-             multi-page illust is expanded. Lets users collapse from anywhere
-             without scrolling back to find a CTA. -->
+             multi-page illust is expanded. topMargin is driven at runtime
+             from top_overlay_column.bottom so the pill stays clear of the
+             retry banner (see issue #881). -->
         <LinearLayout
             android:id="@+id/collapse_pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
-            android:layout_marginTop="104dp"
             android:layout_marginEnd="12dp"
             android:background="@drawable/bg_v3_expand_pill"
             android:clickable="true"

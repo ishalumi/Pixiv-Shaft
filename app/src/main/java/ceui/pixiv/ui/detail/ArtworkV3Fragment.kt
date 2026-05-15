@@ -391,6 +391,21 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             v.layoutParams = lp
             windowInsets
         }
+        // Pin the floating "收起" pill just below the top overlay column
+        // (toolbar + optional retry banner). Driving the margin from the
+        // column's actual bottom keeps the pill clear of the banner when it
+        // appears — see issue #881.
+        val pillGap = 8.ppppx
+        baseBind.topOverlayColumn.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom == oldBottom) return@addOnLayoutChangeListener
+            val pill = baseBind.collapsePill
+            val lp = pill.layoutParams as FrameLayout.LayoutParams
+            val target = bottom + pillGap
+            if (lp.topMargin != target) {
+                lp.topMargin = target
+                pill.layoutParams = lp
+            }
+        }
     }
 
     private fun setupNavBar(illustId: Long) {
