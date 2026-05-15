@@ -1323,6 +1323,8 @@
     <string name="search_filter_v3_row_sort">排序</string>
     <string name="search_filter_v3_row_duration">投稿期間</string>
     <string name="search_filter_v3_row_bookmark">喜歡！數</string>
+    <string name="search_filter_v3_row_keyword_bookmark">users入り 標籤</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">未啟用</string>
     <string name="search_filter_v3_row_tool">繪圖工具</string>
     <string name="search_filter_v3_row_genre">類型</string>
     <string name="search_filter_v3_row_lang">作品語言</string>

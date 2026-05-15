@@ -1208,6 +1208,8 @@
     <string name="search_filter_v3_row_sort">Sıralama</string>
     <string name="search_filter_v3_row_duration">Yayın tarihi</string>
     <string name="search_filter_v3_row_bookmark">Beğeni</string>
+    <string name="search_filter_v3_row_keyword_bookmark">users入り etiketi</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">Kapalı</string>
     <string name="search_filter_v3_row_tool">Çizim aracı</string>
     <string name="search_filter_v3_row_genre">Tür</string>
     <string name="search_filter_v3_row_lang">Eser dili</string>

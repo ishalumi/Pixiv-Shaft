@@ -1306,6 +1306,8 @@
     <string name="search_filter_v3_row_sort">Sort</string>
     <string name="search_filter_v3_row_duration">Posted</string>
     <string name="search_filter_v3_row_bookmark">Bookmarks</string>
+    <string name="search_filter_v3_row_keyword_bookmark">users入り tag</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">Off</string>
     <string name="search_filter_v3_row_tool">Drawing tool</string>
     <string name="search_filter_v3_row_genre">Genre</string>
     <string name="search_filter_v3_row_lang">Language</string>

@@ -95,7 +95,9 @@ object SearchFilterV3LegacyBridge {
 
     /**
      * 从 [SearchModel] 当前值构造一个 [SearchFilterV3]。fields 一对一翻：
-     *  - `starSize` ("XXXusers入り") → bookmarkBucket（按 min 反查；非标准值落到 None）
+     *  - `bookmarkMin`           → bookmarkBucket（官方 query 参数路径）
+     *  - `starSize` ("Xusers入り") → keywordUsersBucket（关键字后缀路径，对非会员有效；
+     *                              与 bookmarkBucket 互不屏蔽）
      *  - `searchType`            → searchTarget（不识别就回 partial）
      *  - `sortType`              → sort（不识别就回 popular_preview）
      *  - `startDate / endDate`   → 同名字段
@@ -112,12 +114,15 @@ object SearchFilterV3LegacyBridge {
         val target = SearchTarget.values().firstOrNull { it.apiValue == searchModel.searchType.value }
             ?: baseline.searchTarget
 
-        // 优先用 SearchModel.bookmarkMin（V3 原生 query 参数路径），其次 starSize 后缀，再回 baseline
+        // 两条桶独立解析：bookmarkMin 走官方 query，starSize 走关键字后缀。
         val storedMin = searchModel.bookmarkMin.value ?: 0
-        val parsedFromStar = if (storedMin > 0) storedMin else parseStarSizeMin(searchModel.starSize.value)
-        val bucket = if (parsedFromStar > 0) {
-            BookmarkBucket.values().firstOrNull { it.min == parsedFromStar } ?: baseline.bookmarkBucket
-        } else baseline.bookmarkBucket
+        val bookmarkBucket = if (storedMin > 0)
+            BookmarkBucket.values().firstOrNull { it.min == storedMin } ?: baseline.bookmarkBucket
+        else baseline.bookmarkBucket
+        val parsedStar = parseStarSizeMin(searchModel.starSize.value)
+        val keywordBucket = if (parsedStar > 0)
+            KeywordUsersBucket.values().firstOrNull { it.min == parsedStar } ?: baseline.keywordUsersBucket
+        else baseline.keywordUsersBucket
 
         val r18 = when (searchModel.r18Restriction.value) {
             1 -> R18Mode.SafeOnly
@@ -131,7 +136,8 @@ object SearchFilterV3LegacyBridge {
         return SearchFilterV3(
             sort = sort,
             searchTarget = target,
-            bookmarkBucket = bucket,
+            bookmarkBucket = bookmarkBucket,
+            keywordUsersBucket = keywordBucket,
             tool = if (isNovel) null else (searchModel.tool.value ?: baseline.tool),
             genre = if (isNovel) (searchModel.genre.value ?: baseline.genre) else null,
             lang = searchModel.lang.value ?: baseline.lang,
@@ -153,9 +159,11 @@ object SearchFilterV3LegacyBridge {
     }
 
     /**
-     * SearchFilterV3 → SearchModel。AppApi.searchIllust/searchNovel 已经扩展 V3 维度，所以
-     * 这里把 bookmark / tool / genre / lang / duration 都写到 SearchModel；V3 路径走 query
-     * 参数，[SearchIllustRepo.initApi] 检测 bookmarkMin > 0 时就跳过老的 starSize keyword 后缀。
+     * SearchFilterV3 → SearchModel。两条收藏量维度独立：
+     *  - `bookmarkBucket`     → `searchModel.bookmarkMin`，走官方 `bookmark_num_min` query 参数；
+     *  - `keywordUsersBucket` → `searchModel.starSize`，作为关键字后缀拼到 query 里
+     *    （[SearchIllustRepo.initApi] 内拼接）。
+     * 两条可以同时生效（会员选 bookmark_num_min；非会员只能靠 keyword hack）。
      *
      * excludeAi 不写 SearchModel——它通过 [ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust]
      * 全局生效（[OtherFilterSheet] 提交时已经落盘，Repo.update 也读全局）。
@@ -163,9 +171,8 @@ object SearchFilterV3LegacyBridge {
     private fun applyToLegacy(filter: SearchFilterV3, searchModel: SearchModel) {
         searchModel.sortType.value = filter.sort
         searchModel.searchType.value = filter.searchTarget.apiValue
-        // 留 starSize 是 legacy 路径回退用，bookmarkMin 优先（同时写不冲突——Repo 检测后清掉）
-        searchModel.starSize.value = if (filter.bookmarkBucket == BookmarkBucket.None) ""
-        else "${filter.bookmarkBucket.min}users入り"
+        // 两条桶分别落到 starSize / bookmarkMin —— Repo 都读，互不屏蔽
+        searchModel.starSize.value = filter.keywordUsersBucket.keywordSuffix()
         searchModel.bookmarkMin.value = filter.bookmarkBucket.bookmarkMin()
         searchModel.tool.value = filter.tool
         searchModel.genre.value = filter.genre

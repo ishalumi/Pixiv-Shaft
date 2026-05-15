@@ -42,13 +42,12 @@ class SearchIllustRepo @JvmOverloads constructor(
         }
         PixivOperate.insertSearchHistory(keyword, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD)
 
-        // V3 filter 通过 bookmark_num_min 走原生 query 参数，遇到时跳过 starSize 关键字 hack
-        // 避免和 query 参数双写。否则沿用旧的 keyword 后缀逻辑兼容老入口。
-        val useBookmarkQuery = (bookmarkMin ?: 0) > 0
-        val keywordSuffix = if (useBookmarkQuery) "" else when {
-            TextUtils.isEmpty(starSize) -> ""
-            else -> " $starSize"
-        }
+        // 收藏量两条桶并存：
+        //  - bookmarkMin 走官方 `bookmark_num_min` query 参数（仅会员 popular 生效）
+        //  - starSize（"Xusers入り"）作为关键字后缀拼到 query 里（对非会员有效，命中 pixiv
+        //    自动桶标签）
+        // 两者来自 V3 sheet 的两个独立维度（bookmarkBucket / keywordUsersBucket），用户可同时设置。
+        val keywordSuffix = if (TextUtils.isEmpty(starSize)) "" else " $starSize"
         val assembledKeyword: String = (keyword + keywordSuffix + when (r18Restriction) {
             null -> ""
             else -> " ${PixivSearchParamUtil.R18_RESTRICTION_VALUE[r18Restriction!!]}"
@@ -132,15 +131,11 @@ class SearchIllustRepo @JvmOverloads constructor(
     }
 
     private fun getStarSizeLimit(): Int {
-        // V3 走原生 bookmark_num_min 的话直接用，不再扫 starSize 字符串
-        bookmarkMin?.takeIf { it > 0 }?.let { return it }
-        if (TextUtils.isEmpty(this.starSize)) {
-            return 0
-        }
-        val match = Regex("""\d+""").find(starSize!!)
-        if (match != null) {
-            return match.value.toInt()
-        }
-        return 0
+        // 客户端二次兜底过滤：取两条桶里较高的那个门槛。
+        // bookmarkMin 来自官方 query；starSize 是 "Xusers入り" 关键字后缀。两条独立，可同存。
+        val fromQuery = bookmarkMin ?: 0
+        val fromStar = if (TextUtils.isEmpty(starSize)) 0
+        else Regex("""\d+""").find(starSize!!)?.value?.toIntOrNull() ?: 0
+        return maxOf(fromQuery, fromStar)
     }
 }

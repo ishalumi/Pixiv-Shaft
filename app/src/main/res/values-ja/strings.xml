@@ -1309,6 +1309,8 @@
     <string name="search_filter_v3_row_sort">並び順</string>
     <string name="search_filter_v3_row_duration">投稿期間</string>
     <string name="search_filter_v3_row_bookmark">いいね！数</string>
+    <string name="search_filter_v3_row_keyword_bookmark">users入りタグ</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">オフ</string>
     <string name="search_filter_v3_row_tool">ペイントツール</string>
     <string name="search_filter_v3_row_genre">ジャンル</string>
     <string name="search_filter_v3_row_lang">作品の言語</string>

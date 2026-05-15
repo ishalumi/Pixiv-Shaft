@@ -108,6 +108,17 @@
                     android:layout_marginStart="18dp"
                     android:background="@color/v3_border_2" />
 
+                <!-- 旧版「Xusers入り」关键字 hack —— 对非会员有效，与官方 bookmark_num_min 共存 -->
+                <include
+                    android:id="@+id/row_keyword_bookmark"
+                    layout="@layout/cell_search_filter_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
                 <!-- 同一行：illust=制图工具 / novel=类型；Kotlin 切换 title+value -->
                 <include
                     android:id="@+id/row_tool_or_genre"

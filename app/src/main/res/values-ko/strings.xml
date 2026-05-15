@@ -1217,6 +1217,8 @@
     <string name="search_filter_v3_row_sort">정렬</string>
     <string name="search_filter_v3_row_duration">투고 기간</string>
     <string name="search_filter_v3_row_bookmark">좋아요 수</string>
+    <string name="search_filter_v3_row_keyword_bookmark">users入り 태그</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">사용 안 함</string>
     <string name="search_filter_v3_row_tool">제작 도구</string>
     <string name="search_filter_v3_row_genre">장르</string>
     <string name="search_filter_v3_row_lang">작품 언어</string>

@@ -1210,6 +1210,8 @@
     <string name="search_filter_v3_row_sort">Сортировка</string>
     <string name="search_filter_v3_row_duration">Дата публикации</string>
     <string name="search_filter_v3_row_bookmark">Закладки</string>
+    <string name="search_filter_v3_row_keyword_bookmark">Тег users入り</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">Выкл.</string>
     <string name="search_filter_v3_row_tool">Инструмент</string>
     <string name="search_filter_v3_row_genre">Жанр</string>
     <string name="search_filter_v3_row_lang">Язык работы</string>

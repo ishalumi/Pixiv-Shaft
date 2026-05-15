@@ -90,6 +90,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         SortType.TRENDING_BUILTIN,
     )
     private val bookmarkList = BookmarkBucket.values().toList()
+    private val keywordUsersList = KeywordUsersBucket.values().toList()
     private val targetList: List<SearchTarget>
         get() = if (isNovel) SearchTarget.forNovel() else SearchTarget.forIllust()
 
@@ -124,6 +125,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             binding.rowSort,
             binding.rowDuration,
             binding.rowBookmark,
+            binding.rowKeywordBookmark,
             binding.rowToolOrGenre,
             binding.rowLang,
             binding.rowOther,
@@ -134,6 +136,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.rowSort.root.setOnClick { showSortPicker() }
         binding.rowDuration.root.setOnClick { showDurationPicker() }
         binding.rowBookmark.root.setOnClick { showBookmarkPicker() }
+        binding.rowKeywordBookmark.root.setOnClick { showKeywordBookmarkPicker() }
         binding.rowToolOrGenre.root.setOnClick {
             if (isNovel) showGenrePicker() else showToolPicker()
         }
@@ -187,6 +190,12 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
             bookmarkList.getOrNull(idx)?.let { b -> updateFilter { it.copy(bookmarkBucket = b) } }
         }
+        fm.setFragmentResultListener(REQUEST_KEYWORD_BOOKMARK, lifecycleOwner) { _, bundle ->
+            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+            keywordUsersList.getOrNull(idx)?.let { b ->
+                updateFilter { it.copy(keywordUsersBucket = b) }
+            }
+        }
         fm.setFragmentResultListener(REQUEST_TOOL, lifecycleOwner) { _, bundle ->
             val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
             val opts = searchViewModel.searchOptions.value?.illust?.tool?.options.orEmpty()
@@ -237,6 +246,11 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         bindRow(binding.rowSort, R.string.search_filter_v3_row_sort, sortLabel(filter.sort))
         bindRow(binding.rowDuration, R.string.search_filter_v3_row_duration, durationSummary(filter))
         bindRow(binding.rowBookmark, R.string.search_filter_v3_row_bookmark, bookmarkLabel(filter.bookmarkBucket))
+        bindRow(
+            binding.rowKeywordBookmark,
+            R.string.search_filter_v3_row_keyword_bookmark,
+            keywordBookmarkLabel(filter.keywordUsersBucket),
+        )
         if (isNovel) {
             bindRow(binding.rowToolOrGenre, R.string.search_filter_v3_row_genre, genreSummary(filter))
         } else {
@@ -301,6 +315,10 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private fun bookmarkLabel(bucket: BookmarkBucket): String =
         if (bucket == BookmarkBucket.None) getString(R.string.search_filter_v3_bookmark_unlimited_summary)
         else getString(R.string.search_filter_v3_bookmark_min, bucket.min)
+
+    private fun keywordBookmarkLabel(bucket: KeywordUsersBucket): String =
+        if (bucket == KeywordUsersBucket.None) getString(R.string.search_filter_v3_keyword_bookmark_off_summary)
+        else "${bucket.min}users入り"
 
     private fun durationSummary(filter: SearchFilterV3): String {
         if (filter.startDate != null || filter.endDate != null) {
@@ -388,6 +406,15 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         )
     }
 
+    private fun showKeywordBookmarkPicker() {
+        showSimplePicker(
+            REQUEST_KEYWORD_BOOKMARK,
+            getString(R.string.search_filter_v3_row_keyword_bookmark),
+            keywordUsersList.map(::keywordBookmarkLabel),
+            keywordUsersList.indexOf(currentFilter().keywordUsersBucket).coerceAtLeast(0),
+        )
+    }
+
     private fun showToolPicker() {
         val opts = searchViewModel.searchOptions.value?.illust?.tool?.options.orEmpty()
         if (opts.isEmpty()) { ensureSearchOptionsLoaded(); return }
@@ -460,6 +487,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_TARGET   = "v3_filter_target"
         private const val REQUEST_SORT     = "v3_filter_sort"
         private const val REQUEST_BOOKMARK = "v3_filter_bookmark"
+        private const val REQUEST_KEYWORD_BOOKMARK = "v3_filter_keyword_bookmark"
         private const val REQUEST_TOOL     = "v3_filter_tool"
         private const val REQUEST_GENRE    = "v3_filter_genre"
         private const val REQUEST_LANG     = "v3_filter_lang"

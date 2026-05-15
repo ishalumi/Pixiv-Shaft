@@ -1728,6 +1728,8 @@
     <string name="search_filter_v3_row_sort">排序</string>
     <string name="search_filter_v3_row_duration">投稿期间</string>
     <string name="search_filter_v3_row_bookmark">喜欢！数</string>
+    <string name="search_filter_v3_row_keyword_bookmark">users入り 标签</string>
+    <string name="search_filter_v3_keyword_bookmark_off_summary">未启用</string>
     <string name="search_filter_v3_row_tool">制图工具</string>
     <string name="search_filter_v3_row_genre">类型</string>
     <string name="search_filter_v3_row_lang">作品语言</string>
