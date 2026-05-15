@@ -37,6 +37,15 @@ object TaskPool {
                 Timber.d("[TaskPool] REPLACE with LoadTask taskId=${newTask.taskId}, autoStart=$autoStart, poolSize=${_taskMap.size}, url=$shortUrl")
                 return newTask
             }
+            // LoadTask 只在 init 里 launch 一次 execute()，Error 之后再 getLoadTask 拿回来的
+            // 是一个死掉的任务，不会自己重试。新一次取任务视作新的加载意图，直接换成新 LoadTask。
+            if (existing.status.value is TaskStatus.Error) {
+                Timber.d("[TaskPool] EVICT errored LoadTask taskId=${existing.taskId}, status=${existing.status.value}, url=$shortUrl")
+                val newTask = LoadTask(namedUrl, scope, autoStart)
+                _taskMap[namedUrl.url] = newTask
+                Timber.d("[TaskPool] REPLACE with fresh LoadTask taskId=${newTask.taskId}, autoStart=$autoStart, poolSize=${_taskMap.size}, url=$shortUrl")
+                return newTask
+            }
             val file = existing.result.value
             val fileInfo = file?.let { "path=${it.absolutePath}, exists=${it.exists()}, size=${it.length()}" } ?: "null"
             Timber.d("[TaskPool] REUSE taskId=${existing.taskId}, status=${existing.status.value}, file=[$fileInfo], poolSize=${_taskMap.size}, url=$shortUrl")
