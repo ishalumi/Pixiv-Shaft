@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -50,6 +51,17 @@ class PlazaPostDetailFragment : Fragment(R.layout.fragment_plaza_post_detail) {
     private lateinit var commentsEmptyAdapter: PlazaCommentsEmptyAdapter
     private lateinit var commentsAdapter: PlazaCommentAdapter
 
+    /**
+     * TemplateActivity 在 manifest 里声明 `windowSoftInputMode="adjustPan"`,
+     * 评论输入触发软键盘时会把整窗向上推 —— toolbar 顶出屏幕、底部留黑边。
+     * 这里跟 [ceui.pixiv.chat.ui.DemoChatListFragment] 一样:onResume 切到
+     * adjustResize,onPause 还原,只影响本页其他 fragment 行为不变。
+     *
+     * 配合 [setupInsets] 把 IME inset 消费到 root padding 上,bottom_bar
+     * (锚 parent.bottom) 就会跟着键盘抬起,toolbar 留在原位。
+     */
+    private var previousSoftInputMode: Int = INVALID_SOFT_INPUT_MODE
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -87,14 +99,17 @@ class PlazaPostDetailFragment : Fragment(R.layout.fragment_plaza_post_detail) {
     }
 
     private fun setupInsets() {
-        // bottom_bar bottomPadding = XML 基础值 + navBar inset。RecyclerView paddingBottom
-        // 同步加,避免最后一条评论被输入框遮住。
-        val baseBottomBar = binding.bottomBar.paddingBottom
-        val baseRvBottom = binding.recyclerView.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val nav = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            binding.bottomBar.updatePadding(bottom = baseBottomBar + nav)
-            binding.recyclerView.updatePadding(bottom = baseRvBottom + nav)
+        // EdgeToEdge 下 root 没 fitsSystemWindows,IME / navBar inset 必须手动消费。
+        // 把 max(ime, navBar) 加到 root.paddingBottom:
+        //  - 键盘关:padding = navBar,bottom_bar 浮在 navBar 之上
+        //  - 键盘开:padding = IME 高度,bottom_bar 被 root 撑起跟随键盘上推
+        // (toolbar 顶部锚不受 bottom padding 影响,留在原位)
+        // 必须配合 onResume 切 adjustResize —— adjustPan 会让整窗平移,把这套
+        // inset 消费方案绕过去。
+        val insetTypes = WindowInsetsCompat.Type.ime() or
+            WindowInsetsCompat.Type.navigationBars()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            v.updatePadding(bottom = insets.getInsets(insetTypes).bottom)
             insets
         }
     }
@@ -205,8 +220,26 @@ class PlazaPostDetailFragment : Fragment(R.layout.fragment_plaza_post_detail) {
             .show()
     }
 
+    override fun onResume() {
+        super.onResume()
+        val window = requireActivity().window
+        previousSoftInputMode = window.attributes.softInputMode
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (previousSoftInputMode != INVALID_SOFT_INPUT_MODE) {
+            requireActivity().window.setSoftInputMode(previousSoftInputMode)
+            previousSoftInputMode = INVALID_SOFT_INPUT_MODE
+        }
+    }
+
     companion object {
         const val EXTRA_POST_ID = "plaza_post_id"
+
+        /** Sentinel — softInputMode 是打包的 int,-1 永远不是合法组合。 */
+        private const val INVALID_SOFT_INPUT_MODE = -1
 
         fun newInstance(postId: Long): PlazaPostDetailFragment {
             return PlazaPostDetailFragment().apply {
