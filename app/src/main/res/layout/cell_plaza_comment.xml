@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 单条评论。Figma 风:
-     - 头像 32dp 左
-     - 用户名 16sp Semibold + 「作者」标(post 作者才有)
-     - 正文 14sp 80% opacity
-     - 底行:5 mins ago + Reply(后续接通) -->
+<!-- 单条评论。Figma 风 (0:21287/0:21320):
+     - 头像 36dp 左
+     - 顶行:用户名 14sp Semibold 左 + 时间 10sp 右 + 「作者」标(post 作者才有)
+     - 正文 13sp,正文行高比 v3_text_2 略亮
+     - 帖间靠 0.5dp 底分隔线区分,不靠 padding -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -19,15 +19,26 @@
 
     <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/avatar"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
         android:scaleType="centerCrop"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:src="@mipmap/ic_launcher" />
 
-    <!-- 「作者」标:仅当评论作者 = 帖子作者时显示。
-         背景透明 + 边框 + 圆角 3dp,跟 figma 一致。 -->
+    <!-- 时间右侧。固定 wrap_content,name 用 0dp 拉伸顶住时间左侧。 -->
+    <TextView
+        android:id="@+id/post_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.6"
+        android:textColor="@color/v3_text_2"
+        android:textSize="10sp"
+        app:layout_constraintBaseline_toBaselineOf="@+id/display_name"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="12 min ago" />
+
+    <!-- 「作者」标:仅当评论作者 = 帖子作者时显示。 -->
     <TextView
         android:id="@+id/author_tag"
         android:layout_width="wrap_content"
@@ -52,13 +63,14 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="6dp"
+        android:layout_marginEnd="8dp"
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="@color/v3_text_1"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:textStyle="bold"
         app:layout_constrainedWidth="true"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/post_time"
         app:layout_constraintHorizontal_bias="0"
         app:layout_constraintStart_toEndOf="@+id/author_tag"
         app:layout_constraintTop_toTopOf="@+id/avatar"
@@ -69,25 +81,13 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:lineSpacingExtra="3dp"
-        android:textColor="@color/v3_text_2"
-        android:textSize="14sp"
+        android:textColor="@color/v3_text_1"
+        android:textSize="13sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/avatar"
         app:layout_constraintTop_toBottomOf="@+id/display_name"
         tools:text="You do not have to pretend in order to seem more like someone else." />
-
-    <TextView
-        android:id="@+id/post_time"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="6dp"
-        android:textColor="@color/v3_text_3"
-        android:textSize="11sp"
-        app:layout_constraintStart_toEndOf="@+id/avatar"
-        app:layout_constraintTop_toBottomOf="@+id/body_text"
-        tools:text="5 mins ago" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
