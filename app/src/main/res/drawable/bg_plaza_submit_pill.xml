@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发帖右上 Submit 胶囊。挂在 brand-color toolbar 之上,固定 white-on-alpha 色板
+     (不要走 Material3 attr,免得 colorOutlineVariant 在某些 brand 色下看不见)。
+     disabled 态由 view alpha 控,这里只画背景。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/colorWhite06" />
+    <stroke
+        android:width="0.6dp"
+        android:color="@color/colorWhite40" />
+    <corners android:radius="6dp" />
+</shape>

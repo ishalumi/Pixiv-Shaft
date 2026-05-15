@@ -1,5 +1,7 @@
 package ceui.pixiv.plaza.ui
 
+import android.annotation.SuppressLint
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
@@ -15,21 +17,27 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
+import ceui.lisa.databinding.CellPlazaAddIllustBinding
 import ceui.lisa.databinding.CellPlazaAttachedIllustBinding
 import ceui.lisa.databinding.FragmentPlazaComposeBinding
+import ceui.lisa.utils.GlideUrlChild
 import ceui.pixiv.chat.base.launchSuspend
-import ceui.pixiv.chat.base.setupToolbar
 import ceui.pixiv.chat.base.viewBinding
 import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.session.SessionManager
+import com.blankj.utilcode.util.BarUtils
 import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 
 /**
- * 发帖编辑器。Toolbar 右上「发布」menu + 文本框 + 已附 illust 横滑列表 + 「+ 添加」按钮。
+ * 发帖编辑器(ProjZ Post Compose 风格)。
  *
- * MVP 添加 illust 走输入 ID 弹窗 (从收藏 / 浏览历史 picker 后续补)。
- * server 已经会校验 illust 是否真存在,所以本地不做存在性校验。
+ * 顶 bar 自绘 ✕ + Submit 胶囊,不再走 Toolbar/menu。空文本时 Submit 自动 disable,
+ * 提交进行中所有控件一起 disable。
+ *
+ * 已附 illust 显示在底部 108dp 横滑列,列尾常驻虚线「+」槽(达 9 张时 hide)。
+ * MVP 添加 illust 走输入 ID 弹窗,server 校验存在性。
  */
 class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
 
@@ -39,26 +47,27 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupToolbar(getString(R.string.plaza_compose_title), showBack = true)
-        binding.appBarLayout.setOnMenuItemClickListener { item ->
-            if (item.itemId == R.id.action_send) { trySubmit(); true } else false
-        }
+        // top bar 走 brand 色 + 跟 setupToolbar 同套(Shaft.getThemeColor 是
+        // AppTheme.IndexX 的 colorPrimary)。XML 里的 ?attr/colorPrimary 是 Material3
+        // baseline 的 fallback,brand 色才是用户切主题选过的。
+        binding.topBar.setBackgroundColor(Color.parseColor(Shaft.getThemeColor()))
 
-        // 适配 system bar / 手势条 + 键盘:
-        // - 没键盘时:footer_bar 底部 padding = XML 基础值 + nav bar inset
-        //   (让 [+ 添加]不被三段式条 / home indicator 压住)
-        // - 键盘弹起时:取 max(ime, navBar),footer_bar 跟着键盘浮在键盘上沿
-        // 跟 CommentsFragment 同款 max-or 模式。XML 里的 paddingBottom=10dp 作为
-        // 视觉间距 baseline 保留(不被覆盖)。
-        val basePaddingBottom = binding.footerBar.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(binding.footerBar) { v, insets ->
-            val nav = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            v.updatePadding(bottom = basePaddingBottom + maxOf(nav, ime))
+        // BaseActivity 走 EdgeToEdge,顶 bar 自己接 status bar inset 作 top padding —
+        // 跟 setupToolbar 走的是同一招(BarUtils 兜底用在拿不到 dispatched inset 时)。
+        binding.topBar.updatePadding(top = BarUtils.getStatusBarHeight())
+        ViewCompat.setOnApplyWindowInsetsListener(binding.topBar) { v, insets ->
+            val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
+            if (top > 0) v.updatePadding(top = top)
             insets
         }
 
-        // 字数计数 (按 UTF-16 units 估算,提交时按 code point 严格校)
+        binding.btnClose.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
+        binding.btnSubmit.setOnClickListener { trySubmit() }
+        updateSubmitEnabled(textNonEmpty = false, sending = false)
+
+        // 字数计数(按 UTF-16 units 估算,提交时按 code point 严格校)
         binding.textCounter.text = getString(R.string.plaza_text_count, 0)
         binding.textInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -66,27 +75,36 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
             override fun afterTextChanged(s: Editable?) {
                 val codePoints = s?.toString()?.codePointCount(0, s.length) ?: 0
                 binding.textCounter.text = getString(R.string.plaza_text_count, codePoints)
+                updateSubmitEnabled(
+                    textNonEmpty = !s.isNullOrBlank(),
+                    sending = viewModel.state.value.isSending,
+                )
             }
         })
 
-        // 已附 illust 横滑
-        val attachedAdapter = AttachedIllustAdapter(onRemove = viewModel::removeIllust)
+        // 已附 illust 横滑 + 列尾常驻「+」槽
+        val attachedAdapter = AttachedIllustAdapter(
+            onRemove = viewModel::removeIllust,
+            onAdd = ::showAddIllustDialog,
+        )
         binding.attachedList.layoutManager =
             LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         binding.attachedList.adapter = attachedAdapter
 
-        binding.btnAddIllust.setOnClickListener { showAddIllustDialog() }
-
         launchSuspend {
             viewModel.state.collect { s ->
-                attachedAdapter.submit(s.attachedIllusts)
-                binding.attachedList.isVisible = s.attachedIllusts.isNotEmpty()
+                attachedAdapter.submit(
+                    newItems = s.attachedIllusts,
+                    thumbUrls = s.thumbUrls,
+                    addEnabled = !s.isSending,
+                )
                 binding.attachedLabel.text =
                     getString(R.string.plaza_attached_count, s.attachedIllusts.size)
-                // 发送中:发送按钮 disable + EditText readonly
-                binding.appBarLayout.menu.findItem(R.id.action_send)?.isEnabled = !s.isSending
                 binding.textInput.isEnabled = !s.isSending
-                binding.btnAddIllust.isEnabled = !s.isSending
+                updateSubmitEnabled(
+                    textNonEmpty = !binding.textInput.text.isNullOrBlank(),
+                    sending = s.isSending,
+                )
             }
         }
         launchSuspend {
@@ -102,6 +120,13 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
                 }
             }
         }
+    }
+
+    private fun updateSubmitEnabled(textNonEmpty: Boolean, sending: Boolean) {
+        val enabled = textNonEmpty && !sending
+        binding.btnSubmit.isEnabled = enabled
+        // disabled / sending 时整体 dim,跟 Figma 的 40% 不透明 Submit 一致
+        binding.btnSubmit.alpha = if (enabled) 1f else 0.4f
     }
 
     private fun trySubmit() {
@@ -130,40 +155,85 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
     }
 }
 
+/**
+ * 双视图类型 adapter:已附 illust + 列尾「+」槽。
+ * 上限 9 张时列尾「+」隐藏(getItemCount 不再 +1)。
+ */
 private class AttachedIllustAdapter(
     private val onRemove: (Long) -> Unit,
-) : RecyclerView.Adapter<AttachedIllustAdapter.VH>() {
+    private val onAdd: () -> Unit,
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<Long>()
+    private var thumbUrls: Map<Long, String> = emptyMap()
+    private var addEnabled = true
 
-    @SuppressWarnings("NotifyDataSetChanged")
-    fun submit(newItems: List<Long>) {
+    @SuppressLint("NotifyDataSetChanged")
+    fun submit(newItems: List<Long>, thumbUrls: Map<Long, String>, addEnabled: Boolean) {
         items.clear()
         items.addAll(newItems)
+        this.thumbUrls = thumbUrls
+        this.addEnabled = addEnabled
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val binding = CellPlazaAttachedIllustBinding.inflate(
-            LayoutInflater.from(parent.context), parent, false
-        )
-        return VH(binding)
-    }
+    private fun hasAddTile(): Boolean = items.size < MAX_ITEMS
 
-    override fun getItemCount(): Int = items.size
+    override fun getItemCount(): Int = items.size + if (hasAddTile()) 1 else 0
 
-    override fun onBindViewHolder(holder: VH, position: Int) {
-        holder.bind(items[position], onRemove)
-    }
+    override fun getItemViewType(position: Int): Int =
+        if (hasAddTile() && position == items.size) VIEW_TYPE_ADD else VIEW_TYPE_ATTACHED
 
-    class VH(val binding: CellPlazaAttachedIllustBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(id: Long, onRemove: (Long) -> Unit) {
-            // 编辑时只有用户输入的 illust id;没有 thumb_url,显示 ID 占位
-            // (server 在拿到帖子后会补 meta,广场展示时就有缩略了)。
-            binding.thumb.setImageDrawable(null)
-            binding.placeholderId.isVisible = true
-            binding.placeholderId.text = id.toString()
-            binding.btnRemove.setOnClickListener { onRemove(id) }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return if (viewType == VIEW_TYPE_ADD) {
+            AddVH(CellPlazaAddIllustBinding.inflate(inflater, parent, false))
+        } else {
+            AttachedVH(CellPlazaAttachedIllustBinding.inflate(inflater, parent, false))
         }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (holder) {
+            is AttachedVH -> {
+                val id = items[position]
+                holder.bind(id, thumbUrls[id], onRemove)
+            }
+            is AddVH -> holder.bind(addEnabled, onAdd)
+        }
+    }
+
+    class AttachedVH(val binding: CellPlazaAttachedIllustBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(id: Long, thumbUrl: String?, onRemove: (Long) -> Unit) {
+            binding.btnRemove.setOnClickListener { onRemove(id) }
+            if (thumbUrl.isNullOrEmpty()) {
+                // meta 还没回来或 fetch 失败 — 用 ID 占位顶一下,thumb 来了 rebind 自然换图
+                binding.thumb.setImageDrawable(null)
+                binding.placeholderId.isVisible = true
+                binding.placeholderId.text = id.toString()
+            } else {
+                binding.placeholderId.isVisible = false
+                Glide.with(binding.thumb.context)
+                    .load(GlideUrlChild(thumbUrl))
+                    .placeholder(android.R.color.transparent)
+                    .into(binding.thumb)
+            }
+        }
+    }
+
+    class AddVH(val binding: CellPlazaAddIllustBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(enabled: Boolean, onAdd: () -> Unit) {
+            binding.root.isEnabled = enabled
+            binding.root.alpha = if (enabled) 1f else 0.4f
+            binding.root.setOnClickListener { if (enabled) onAdd() }
+        }
+    }
+
+    companion object {
+        private const val VIEW_TYPE_ATTACHED = 1
+        private const val VIEW_TYPE_ADD = 2
+        private const val MAX_ITEMS = 9
     }
 }

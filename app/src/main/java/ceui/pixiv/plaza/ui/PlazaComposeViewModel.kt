@@ -37,6 +37,9 @@ class PlazaComposeViewModel : ViewModel() {
 
     data class UiState(
         val attachedIllusts: List<Long> = emptyList(),
+        // illust id → 缩略 URL,prefetchMeta 完成后填进来。UI 用这个直接 Glide,
+        // 没的项 fallback 显示 illust id 占位(server 端拿到帖子后会补全 meta)。
+        val thumbUrls: Map<Long, String> = emptyMap(),
         val isSending: Boolean = false,
     )
 
@@ -61,15 +64,25 @@ class PlazaComposeViewModel : ViewModel() {
         if (id <= 0L) return
         if (_state.value.attachedIllusts.contains(id)) return
         if (_state.value.attachedIllusts.size >= 9) return
+        // metaCache 上次会话已有(用户 remove 再 add 同 id),直接把 thumb 推回 state,
+        // 免得 prefetchMeta 早 return 后 UI 一直显示 id 占位。
+        val cachedThumb = metaCache[id]?.let { it.image_urls?.square_medium ?: it.image_urls?.medium }
+        val nextThumbs = if (!cachedThumb.isNullOrEmpty()) {
+            _state.value.thumbUrls + (id to cachedThumb)
+        } else {
+            _state.value.thumbUrls
+        }
         _state.value = _state.value.copy(
-            attachedIllusts = _state.value.attachedIllusts + id
+            attachedIllusts = _state.value.attachedIllusts + id,
+            thumbUrls = nextThumbs,
         )
         prefetchMeta(id)
     }
 
     fun removeIllust(id: Long) {
         _state.value = _state.value.copy(
-            attachedIllusts = _state.value.attachedIllusts.filter { it != id }
+            attachedIllusts = _state.value.attachedIllusts.filter { it != id },
+            thumbUrls = _state.value.thumbUrls - id,
         )
     }
 
@@ -86,7 +99,18 @@ class PlazaComposeViewModel : ViewModel() {
                 val bean = ObjectPool.getIllust(id).value
                     ?: bridgeModernIllust(id)
                     ?: fetchFromDbOrApi(id)
-                if (bean != null) metaCache[id] = bean
+                if (bean != null) {
+                    metaCache[id] = bean
+                    // 把 thumb URL 推到 state,Adapter rebind 就能 Glide.load 出预览。
+                    // square_medium 优先(列表 tile 是 1:1),没的退回 medium。
+                    val thumb = bean.image_urls?.square_medium
+                        ?: bean.image_urls?.medium
+                    if (!thumb.isNullOrEmpty() && _state.value.attachedIllusts.contains(id)) {
+                        _state.value = _state.value.copy(
+                            thumbUrls = _state.value.thumbUrls + (id to thumb)
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 Timber.w(e, "[PlazaCompose] prefetchMeta failed id=$id")
             }
