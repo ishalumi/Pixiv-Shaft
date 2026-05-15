@@ -1,24 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 单帖详情。复用 cell_plaza_post 的卡片视觉 (include),保持跟 feed 一致;
-     差异:
-     - 卡片整体不可点(本身就在详情里)
-     - 底部「删除」按钮 (自己的帖子可见)
-     - 内容用 ScrollView 包,正文可以很长
-     - state_overlay:加载 / not_found 状态遮挡内容 -->
+<!-- 单帖详情。结构:
+     - toolbar
+     - RecyclerView (ConcatAdapter):
+         post header (复用 cell_plaza_post 的视觉) + comments title + comments
+     - bottom_bar:输入框 + 发送 (登录后才显示;ime / nav-inset 在 Fragment 里加)
+     - gone_text:not_found 占位 (404 时盖在内容上)
+
+     评论列表跟帖卡用一个 RecyclerView 装,避免嵌套滚动(ScrollView 套 RV 会
+     pre-measure 全部子项 → 评论一多就卡 / 内存爆)。 -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurfaceContainerLow"
+    android:background="?attr/colorSurface"
     android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="@dimen/six_dp"
         android:minHeight="?attr/actionBarSize"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -34,65 +36,93 @@
             android:includeFontPadding="false"
             android:singleLine="true"
             android:text="@string/plaza_post_detail_title"
-            android:textColor="@color/white"
+            android:textColor="@color/v3_text_1"
             android:textSize="18sp"
             tools:text="帖子" />
     </androidx.appcompat.widget.Toolbar>
 
-    <ScrollView
-        android:id="@+id/content_scroll"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
         app:layout_constraintBottom_toTopOf="@id/bottom_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/app_bar_layout">
+        app:layout_constraintTop_toBottomOf="@id/app_bar_layout" />
 
-        <include
-            android:id="@+id/post_card"
-            layout="@layout/cell_plaza_post" />
-    </ScrollView>
-
-    <!-- not_found 提示。覆盖在内容上方,delete 按钮也隐藏。 -->
+    <!-- not_found 占位。覆盖在 RecyclerView 之上,bottom_bar 一起隐藏。 -->
     <TextView
         android:id="@+id/gone_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/plaza_post_gone"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textColor="@color/v3_text_2"
         android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/content_scroll"
+        app:layout_constraintBottom_toBottomOf="@id/recycler_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/content_scroll"
+        app:layout_constraintTop_toTopOf="@id/recycler_view"
         tools:visibility="visible" />
 
-    <!-- 底部条:删除按钮 (仅自己的帖子)。inset 适配 nav bar 在 fragment 里 runtime 加。 -->
+    <!-- 底部输入条 (Figma 风):圆角输入框 + 发送按钮。 -->
     <LinearLayout
         android:id="@+id/bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorSurface"
-        android:gravity="end"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
+        android:paddingStart="14dp"
         android:paddingTop="10dp"
-        android:paddingEnd="16dp"
+        android:paddingEnd="6dp"
         android:paddingBottom="10dp"
-        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:visibility="visible">
+        app:layout_constraintStart_toStartOf="parent">
 
+        <EditText
+            android:id="@+id/comment_input"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@color/v3_surface_1"
+            android:hint="@string/plaza_comment_hint"
+            android:imeOptions="actionSend"
+            android:importantForAutofill="no"
+            android:inputType="text|textCapSentences|textMultiLine"
+            android:maxLength="300"
+            android:paddingStart="14dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="6dp"
+            android:textColor="@color/v3_text_1"
+            android:textColorHint="@color/v3_text_3"
+            android:textSize="14sp"
+            tools:ignore="Autofill,LabelFor,TextFields" />
+
+        <ImageButton
+            android:id="@+id/btn_send"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/plaza_send"
+            android:enabled="false"
+            android:src="@drawable/ic_send_24"
+            app:tint="@color/v3_text_2" />
+
+        <!-- 自己的帖子才显示删除按钮 (Fragment 按 selfUid 决定 visibility)。 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_delete"
-            style="@style/Widget.Material3.Button.TonalButton"
+            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/plaza_delete_confirm_yes" />
+            android:text="@string/plaza_delete_confirm_yes"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1334,4 +1334,13 @@
     <string name="plaza_referenced_user">@%1$s\'den bahsetti</string>
     <string name="plaza_post_detail_title">Gönderi</string>
     <string name="plaza_post_gone">Bu gönderi silindi</string>
+    <string name="plaza_comment_hint">Bir şeyler söyleyin…</string>
+    <string name="plaza_send">Gönder</string>
+    <string name="plaza_comments_title">Yorumlar (%1$d)</string>
+    <string name="plaza_comments_empty">Henüz yorum yok. İlk yorumu yapın.</string>
+    <string name="plaza_comment_too_long">Yorum en fazla 300 karakter</string>
+    <string name="plaza_comment_sent">Gönderildi</string>
+    <string name="plaza_comment_send_failed">Gönderim başarısız: %1$s</string>
+    <string name="plaza_like_failed">Beğeni başarısız: %1$s</string>
+    <string name="plaza_author_tag">Yazar</string>
 </resources>

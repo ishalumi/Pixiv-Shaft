@@ -30,6 +30,8 @@ data class PlazaCreatePostInput(
 /**
  * 单条 plaza post。`refs` 三个 kind 字段始终存在,空时是空数组。
  * `meta` 是 events DB 的快照,可能 null —— 客户端按需再去 Pixiv 取。
+ *
+ * `liked_by_viewer` 只在带 viewer sig 的请求里有(server 缺这字段表示"没问")。
  */
 data class PlazaPost(
     val id: Long,
@@ -38,6 +40,9 @@ data class PlazaPost(
     val text: String,
     val ts: Long,
     val refs: PlazaPostRefs,
+    val like_count: Int = 0,
+    val comment_count: Int = 0,
+    val liked_by_viewer: Boolean? = null,
 )
 
 data class PlazaPostRefs(
@@ -103,6 +108,37 @@ data class PlazaUserPostsResponse(
 
 data class PlazaDeleteResponse(
     val ok: Boolean,
+)
+
+// ── 点赞 ────────────────────────────────────────────────────────
+//
+// POST   /api/v1/plaza/posts/:id/like   (added: true 表示新写入,false=已经赞过)
+// DELETE /api/v1/plaza/posts/:id/like   (removed: true 表示真删了,false=本来就没赞)
+// 两端都返回最新 like_count,客户端不用自己维护。
+
+data class PlazaLikeResponse(
+    val ok: Boolean,
+    val added: Boolean? = null,
+    val removed: Boolean? = null,
+    val like_count: Int,
+)
+
+// ── 评论 ────────────────────────────────────────────────────────
+
+data class PlazaComment(
+    val id: Long,
+    val post_id: Long,
+    val uid: Long,
+    val display_name: String?,
+    val text: String,
+    val ts: Long,
+)
+
+data class PlazaCommentsResponse(
+    val post_id: Long,
+    val total: Int,
+    val items: List<PlazaComment>,
+    val next_before: Long?,
 )
 
 // ── 错误响应 ────────────────────────────────────────────────────

@@ -115,10 +115,18 @@ interface ShaftApiV2 {
     suspend fun listPlazaPosts(
         @Query("limit") limit: Int = 20,
         @Query("before") before: Long? = null,
+        @Query("viewer_uid") viewerUid: String? = null,
+        @Query("viewer_ts") viewerTs: String? = null,
+        @Query("viewer_sig") viewerSig: String? = null,
     ): PlazaFeedResponse
 
     @GET("api/v1/plaza/posts/{id}")
-    suspend fun getPlazaPost(@Path("id") id: Long): PlazaPost
+    suspend fun getPlazaPost(
+        @Path("id") id: Long,
+        @Query("viewer_uid") viewerUid: String? = null,
+        @Query("viewer_ts") viewerTs: String? = null,
+        @Query("viewer_sig") viewerSig: String? = null,
+    ): PlazaPost
 
     /** Retrofit 默认不允许 DELETE 带 body,用 @HTTP 强制开放;body 需要 Content-Type: application/json。 */
     @HTTP(method = "DELETE", path = "api/v1/plaza/posts/{id}", hasBody = true)
@@ -133,4 +141,38 @@ interface ShaftApiV2 {
         @Query("limit") limit: Int = 20,
         @Query("before") before: Long? = null,
     ): PlazaUserPostsResponse
+
+    // ── Likes / Comments ─────────────────────────────────────────────────
+    // 同样 write 请求要 canonical body,wire 由 ShaftApiV2Client 手拼。
+
+    @POST("api/v1/plaza/posts/{id}/like")
+    suspend fun likePlazaPost(
+        @Path("id") id: Long,
+        @Body body: RequestBody,
+    ): PlazaLikeResponse
+
+    @HTTP(method = "DELETE", path = "api/v1/plaza/posts/{id}/like", hasBody = true)
+    suspend fun unlikePlazaPost(
+        @Path("id") id: Long,
+        @Body body: RequestBody,
+    ): PlazaLikeResponse
+
+    @POST("api/v1/plaza/posts/{id}/comments")
+    suspend fun createPlazaComment(
+        @Path("id") id: Long,
+        @Body body: RequestBody,
+    ): PlazaComment
+
+    @GET("api/v1/plaza/posts/{id}/comments")
+    suspend fun listPlazaComments(
+        @Path("id") id: Long,
+        @Query("limit") limit: Int = 20,
+        @Query("before") before: Long? = null,
+    ): PlazaCommentsResponse
+
+    @HTTP(method = "DELETE", path = "api/v1/plaza/comments/{cid}", hasBody = true)
+    suspend fun deletePlazaComment(
+        @Path("cid") cid: Long,
+        @Body body: RequestBody,
+    ): PlazaDeleteResponse
 }

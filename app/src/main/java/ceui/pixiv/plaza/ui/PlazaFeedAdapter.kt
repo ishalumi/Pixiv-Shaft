@@ -122,6 +122,21 @@ internal fun bindPlazaPostCard(
 
     bindIllustGrid(binding, post.refs.illust)
     bindUserRefs(binding, post.refs.user)
+    bindActionChips(binding, post)
+}
+
+/**
+ * 渲染 like / comment 计数 chip。Feed 卡片里只展示数值,点击转跳详情页统一
+ * 处理 toggle(避免多入口同时改 like_count 漂移)。详情页 viewModel 走乐观
+ * 更新 + server 权威 count 校正。
+ */
+private fun bindActionChips(binding: CellPlazaPostBinding, post: PlazaPost) {
+    binding.likeCount.text = post.like_count.toString()
+    binding.commentCount.text = post.comment_count.toString()
+    binding.likeIcon.setImageResource(
+        if (post.liked_by_viewer == true) R.drawable.ic_heart_filled_16
+        else R.drawable.ic_heart_outline_16
+    )
 }
 
 private fun bindIllustGrid(binding: CellPlazaPostBinding, illusts: List<PlazaIllustRef>) {
@@ -133,8 +148,9 @@ private fun bindIllustGrid(binding: CellPlazaPostBinding, illusts: List<PlazaIll
     }
     container.isVisible = true
 
-    // 屏宽 - 卡片左右 12dp margin x2 - 卡片内左右 14dp padding x2
-    val cardWidth = container.resources.displayMetrics.widthPixels - 24.ppppx - 28.ppppx
+    // 屏宽 - illust_grid 容器自身左右 18dp margin。新版 cell 没 CardView
+    // 包装,直接铺满父宽,卡片间用 divider 分隔。
+    val cardWidth = container.resources.displayMetrics.widthPixels - 36.ppppx
     val gap = 4.ppppx
 
     when (illusts.size) {
@@ -346,7 +362,7 @@ private fun bindUserRefs(binding: CellPlazaPostBinding, users: List<PlazaUserRef
 }
 
 /** ts (毫秒) 相对当前时间格式化。 */
-private fun formatRelativeTime(ctx: android.content.Context, tsMillis: Long): String {
+internal fun formatRelativeTime(ctx: android.content.Context, tsMillis: Long): String {
     val deltaMs = (System.currentTimeMillis() - tsMillis).coerceAtLeast(0L)
     val deltaSec = deltaMs / 1000
     return when {

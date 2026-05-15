@@ -1449,4 +1449,13 @@
     <string name="plaza_referenced_user">提到了 @%1$s</string>
     <string name="plaza_post_detail_title">貼文</string>
     <string name="plaza_post_gone">此貼文已被刪除</string>
+    <string name="plaza_comment_hint">說點什麼…</string>
+    <string name="plaza_send">傳送</string>
+    <string name="plaza_comments_title">留言 (%1$d)</string>
+    <string name="plaza_comments_empty">還沒有留言,搶先留言吧</string>
+    <string name="plaza_comment_too_long">留言最多 300 字</string>
+    <string name="plaza_comment_sent">已傳送</string>
+    <string name="plaza_comment_send_failed">傳送失敗:%1$s</string>
+    <string name="plaza_like_failed">按讚失敗:%1$s</string>
+    <string name="plaza_author_tag">作者</string>
 </resources>

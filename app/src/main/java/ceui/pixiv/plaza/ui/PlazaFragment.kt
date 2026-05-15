@@ -25,6 +25,7 @@ import ceui.lisa.network.PlazaPost
 import ceui.pixiv.session.SessionManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import com.scwang.smart.refresh.header.FalsifyFooter
 import com.scwang.smart.refresh.layout.api.RefreshLayout
 import com.scwang.smart.refresh.layout.listener.OnRefreshListener
 
@@ -98,6 +99,13 @@ class PlazaFragment : Fragment(R.layout.fragment_plaza) {
                 viewModel.load(requireContext(), isSwipeRefresh = true)
             }
         })
+        // load-more 走 RecyclerView 滚动监听(上面 addOnScrollListener),
+        // SmartRefreshLayout 自带的 footer 鞋拉手势不参与触发 —— 不关掉的话
+        // 用户在 EndReached 后还能一直在底部拉出 rubber-band 动效。
+        // FalsifyFooter = 占位 no-op footer(跟 PixivFragment 同款),
+        // 再 setEnableLoadMore(false) 双保险锁掉底部拉动。
+        binding.refreshLayout.setRefreshFooter(FalsifyFooter(requireContext()))
+        binding.refreshLayout.setEnableLoadMore(false)
         binding.errorRetry.setOnClickListener { viewModel.load(requireContext()) }
 
         // 状态订阅 + 事件

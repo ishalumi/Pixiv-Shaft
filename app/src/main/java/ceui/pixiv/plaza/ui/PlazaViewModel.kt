@@ -7,6 +7,7 @@ import ceui.lisa.R
 import ceui.lisa.network.ShaftApiV2Client
 import ceui.lisa.network.PlazaPost
 import ceui.lisa.network.PlazaResult
+import ceui.pixiv.session.SessionManager
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,6 +77,18 @@ class PlazaViewModel : ViewModel() {
                 _state.value = _state.value.copy(items = current.filter { it.id != deletedId })
             }
         }
+        // 订阅互动更新事件 —— 详情页 toggle like / 发评论后,本 VM 同步对应 item
+        // 的 like_count / comment_count / liked_by_viewer,不需要全量重拉 feed。
+        viewModelScope.launch {
+            ShaftApiV2Client.plazaPostsUpdated.collect { updated ->
+                val current = _state.value.items
+                val idx = current.indexOfFirst { it.id == updated.id }
+                if (idx < 0) return@collect
+                _state.value = _state.value.copy(
+                    items = current.toMutableList().also { it[idx] = updated },
+                )
+            }
+        }
     }
 
     fun load(context: Context, isSwipeRefresh: Boolean = false) {
@@ -85,7 +98,10 @@ class PlazaViewModel : ViewModel() {
                 isRefreshing = isSwipeRefresh,
                 initialError = null,
             )
-            when (val r = ShaftApiV2Client.listPlazaFeed(limit = 20, before = null)) {
+            when (val r = ShaftApiV2Client.listPlazaFeed(
+                limit = 20, before = null,
+                viewerUid = SessionManager.loggedInUid,
+            )) {
                 is PlazaResult.Ok -> {
                     nextBefore = r.value.next_before
                     _state.value = _state.value.copy(
@@ -118,7 +134,10 @@ class PlazaViewModel : ViewModel() {
         loadingMore = true
         viewModelScope.launch {
             _state.value = _state.value.copy(paging = PlazaPagingState.LoadingMore)
-            when (val r = ShaftApiV2Client.listPlazaFeed(limit = 20, before = before)) {
+            when (val r = ShaftApiV2Client.listPlazaFeed(
+                limit = 20, before = before,
+                viewerUid = SessionManager.loggedInUid,
+            )) {
                 is PlazaResult.Ok -> {
                     nextBefore = r.value.next_before
                     val merged = _state.value.items + r.value.items

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单条评论。Figma 风:
+     - 头像 32dp 左
+     - 用户名 16sp Semibold + 「作者」标(post 作者才有)
+     - 正文 14sp 80% opacity
+     - 底行:5 mins ago + Reply(后续接通) -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:paddingStart="18dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="14dp">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/avatar"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@mipmap/ic_launcher" />
+
+    <!-- 「作者」标:仅当评论作者 = 帖子作者时显示。
+         背景透明 + 边框 + 圆角 3dp,跟 figma 一致。 -->
+    <TextView
+        android:id="@+id/author_tag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:background="@drawable/bg_v3_chip"
+        android:paddingStart="6dp"
+        android:paddingTop="1dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="1dp"
+        android:text="@string/plaza_author_tag"
+        android:textColor="@color/v3_text_2"
+        android:textSize="10sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/display_name"
+        app:layout_constraintStart_toEndOf="@+id/avatar"
+        app:layout_constraintTop_toTopOf="@+id/display_name"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/display_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/v3_text_1"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toEndOf="@+id/author_tag"
+        app:layout_constraintTop_toTopOf="@+id/avatar"
+        tools:text="Carl Richard" />
+
+    <TextView
+        android:id="@+id/body_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="4dp"
+        android:lineSpacingExtra="3dp"
+        android:textColor="@color/v3_text_2"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/avatar"
+        app:layout_constraintTop_toBottomOf="@+id/display_name"
+        tools:text="You do not have to pretend in order to seem more like someone else." />
+
+    <TextView
+        android:id="@+id/post_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="6dp"
+        android:textColor="@color/v3_text_3"
+        android:textSize="11sp"
+        app:layout_constraintStart_toEndOf="@+id/avatar"
+        app:layout_constraintTop_toBottomOf="@+id/body_text"
+        tools:text="5 mins ago" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

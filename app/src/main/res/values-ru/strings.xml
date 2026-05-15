@@ -1336,4 +1336,13 @@
     <string name="plaza_referenced_user">упомянул @%1$s</string>
     <string name="plaza_post_detail_title">Пост</string>
     <string name="plaza_post_gone">Этот пост был удалён</string>
+    <string name="plaza_comment_hint">Напишите что-нибудь…</string>
+    <string name="plaza_send">Отправить</string>
+    <string name="plaza_comments_title">Комментарии (%1$d)</string>
+    <string name="plaza_comments_empty">Комментариев пока нет. Будьте первым.</string>
+    <string name="plaza_comment_too_long">Комментарий до 300 символов</string>
+    <string name="plaza_comment_sent">Отправлено</string>
+    <string name="plaza_comment_send_failed">Ошибка отправки: %1$s</string>
+    <string name="plaza_like_failed">Не удалось поставить лайк: %1$s</string>
+    <string name="plaza_author_tag">Автор</string>
 </resources>
