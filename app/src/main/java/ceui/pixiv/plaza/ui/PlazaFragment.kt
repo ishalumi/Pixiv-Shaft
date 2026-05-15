@@ -109,9 +109,26 @@ class PlazaFragment : Fragment(R.layout.fragment_plaza) {
         binding.errorRetry.setOnClickListener { viewModel.load(requireContext()) }
 
         // 状态订阅 + 事件
+        var previousFirstId: Long? = null
         launchSuspend {
             viewModel.state.collect { s ->
-                feedAdapter.submitList(s.items)
+                // Prepend 检测:旧 top 还在新列表中、但已不在 index 0 → 列表头插入了新条目
+                // (发帖成功 / 别人发新帖后 plaza 同步进来都会触发)。命中时 submitList
+                // commit 后强制滚到 0,否则 RecyclerView 默认会把视口锚在旧 top,新帖
+                // 被推到屏外用户看不见。
+                val currentFirstId = s.items.firstOrNull()?.id
+                val didPrepend = previousFirstId != null &&
+                    currentFirstId != null &&
+                    currentFirstId != previousFirstId &&
+                    s.items.indexOfFirst { it.id == previousFirstId } > 0
+                previousFirstId = currentFirstId
+                if (didPrepend) {
+                    feedAdapter.submitList(s.items) {
+                        if (view.isAttachedToWindow) binding.recyclerView.scrollToPosition(0)
+                    }
+                } else {
+                    feedAdapter.submitList(s.items)
+                }
                 val whiteScreen = !s.isInitialLoading && s.items.isEmpty()
                 binding.emptyView.isVisible = whiteScreen && s.initialError == null
                 binding.errorLayout.isVisible = whiteScreen && s.initialError != null
