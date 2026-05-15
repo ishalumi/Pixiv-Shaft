@@ -122,12 +122,23 @@ object ShaftApiV2Client {
         return r
     }
 
+    /**
+     * 发广场帖。
+     *
+     * @param illustMetas 已知 illust 的完整 IllustsBean 快照(可选),用来让 server
+     *   在入库时直接 seed illust_meta —— GET 出去就是 enriched 的,不用等用户走
+     *   /events/batch 才回填。**不参与 sig**(advisory hint),所以老 client 不带也
+     *   能发帖。同理 novelMetas / userMetas 也是可选 hints。
+     */
     suspend fun createPlazaPost(
         uid: Long,
         text: String,
         illust: List<Long> = emptyList(),
         novel: List<Long> = emptyList(),
         user: List<Long> = emptyList(),
+        illustMetas: Map<Long, Any> = emptyMap(),
+        novelMetas: Map<Long, Any> = emptyMap(),
+        userMetas: Map<Long, Any> = emptyMap(),
     ): PlazaResult<PlazaPost> {
         val secret = BuildConfig.SHAFT_EVENTS_HMAC
         val uidStr = uid.toString()
@@ -145,6 +156,12 @@ object ShaftApiV2Client {
             // canonical body 形如 `{"text":...,"refs":{...}}`,去掉外层 {} 嵌进来
             append(',')
             append(canonicalBody.substring(1, canonicalBody.length - 1))
+            // ref_metas 是 server 的 advisory hint —— 走 Gson 序列化 OK,因为
+            // server 验签只看 canonical body(text + refs),不读 ref_metas。
+            if (illustMetas.isNotEmpty() || novelMetas.isNotEmpty() || userMetas.isNotEmpty()) {
+                append(",\"ref_metas\":")
+                append(refMetasJson(illustMetas, novelMetas, userMetas))
+            }
             append('}')
         }
         val result = runCatchingPlaza { service.createPlazaPost(wireBody.toRequestBody(jsonMediaType)) }
@@ -153,6 +170,18 @@ object ShaftApiV2Client {
             _plazaPostsCreated.tryEmit(result.value)
         }
         return result
+    }
+
+    private fun refMetasJson(
+        illust: Map<Long, Any>,
+        novel: Map<Long, Any>,
+        user: Map<Long, Any>,
+    ): String {
+        val map = linkedMapOf<String, Map<String, Any>>()
+        if (illust.isNotEmpty()) map["illust"] = illust.mapKeys { it.key.toString() }
+        if (novel.isNotEmpty())  map["novel"]  = novel.mapKeys  { it.key.toString() }
+        if (user.isNotEmpty())   map["user"]   = user.mapKeys   { it.key.toString() }
+        return gson.toJson(map)
     }
 
     suspend fun deletePlazaPost(uid: Long, postId: Long): PlazaResult<PlazaDeleteResponse> {
