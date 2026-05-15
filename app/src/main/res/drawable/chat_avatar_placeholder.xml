@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- size 必须显式给,否则 intrinsicWidth/Height=-1 会让 CircleImageView 在
+     setImageResource 时 createBitmap 抛 "width and height must be > 0"。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
+    <size
+        android:width="40dp"
+        android:height="40dp" />
     <solid android:color="?attr/colorSurfaceContainerHigh" />
 </shape>

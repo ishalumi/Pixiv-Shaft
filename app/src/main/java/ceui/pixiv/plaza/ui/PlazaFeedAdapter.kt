@@ -1,17 +1,20 @@
 package ceui.pixiv.plaza.ui
 
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.databinding.CellPlazaPostBinding
 import ceui.lisa.databinding.CellPlazaRefIllustBinding
+import ceui.lisa.utils.GlideUrlChild
 import ceui.lisa.utils.Params
 import ceui.pixiv.chat.base.BaseListAdapter
 import ceui.lisa.network.PlazaIllustRef
@@ -19,14 +22,20 @@ import ceui.lisa.network.PlazaPost
 import ceui.lisa.network.PlazaUserRef
 import ceui.pixiv.utils.ppppx
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 
 /**
  * 广场 feed adapter。每条卡片一个 [PlazaPostViewHolder]。
  *
- * 引用 illust 走嵌套 RecyclerView,layout 数随 illust 数量动态切:
- *   - 1 → 单列大图 (cell 高 220dp)
- *   - 2 → 2 列方块
- *   - 3..9 → 3 列方块
+ * 引用 illust 走 LinearLayout 容器,布局按数量切:
+ *   - 1 → 单图按原比例 wrap (限 maxHeight)
+ *   - 2 → 横排 2 方块
+ *   - 3 → 左大 + 右 2 小 (Twitter 风)
+ *   - 4 → 2x2 方块
+ *   - 5..9 → 3 列方块
  *
  * 用户点击事件回调 onMore (作者点 ⋯) / onRefIllustClick (点引用图)
  * 通过构造参数透出,避免在 Holder 里持 Fragment ref。
@@ -116,31 +125,194 @@ internal fun bindPlazaPostCard(
 }
 
 private fun bindIllustGrid(binding: CellPlazaPostBinding, illusts: List<PlazaIllustRef>) {
-    val grid = binding.illustGrid
+    val container = binding.illustGrid
+    container.removeAllViews()
     if (illusts.isEmpty()) {
-        grid.isVisible = false
-        grid.adapter = null
+        container.isVisible = false
         return
     }
-    grid.isVisible = true
+    container.isVisible = true
 
-    val ctx = grid.context
-    val spans = when {
-        illusts.size == 1 -> 1
-        illusts.size == 2 -> 2
-        else -> 3
+    // 屏宽 - 卡片左右 12dp margin x2 - 卡片内左右 14dp padding x2
+    val cardWidth = container.resources.displayMetrics.widthPixels - 24.ppppx - 28.ppppx
+    val gap = 4.ppppx
+
+    when (illusts.size) {
+        1 -> container.addView(buildSingleCell(container, illusts[0], cardWidth))
+        2 -> {
+            val cell = (cardWidth - gap) / 2
+            container.addView(buildSquareRow(container, illusts, cell, gap))
+        }
+        3 -> container.addView(buildBigPlusTwoSmall(container, illusts, cardWidth, gap))
+        4 -> {
+            val cell = (cardWidth - gap) / 2
+            container.addView(buildSquareRow(container, illusts.subList(0, 2), cell, gap))
+            container.addView(buildSquareRow(container, illusts.subList(2, 4), cell, gap).also {
+                (it.layoutParams as LinearLayout.LayoutParams).topMargin = gap
+            })
+        }
+        else -> {
+            // 5..9: 每行 3 个方块
+            val columns = 3
+            val cell = (cardWidth - gap * (columns - 1)) / columns
+            var idx = 0
+            while (idx < illusts.size) {
+                val end = minOf(idx + columns, illusts.size)
+                val row = buildSquareRow(container, illusts.subList(idx, end), cell, gap)
+                if (idx > 0) (row.layoutParams as LinearLayout.LayoutParams).topMargin = gap
+                container.addView(row)
+                idx += columns
+            }
+        }
     }
-    grid.layoutManager = GridLayoutManager(ctx, spans)
-    // 嵌套 RV 关 nested scroll,避免跟外层 SmartRefresh 抢手势
-    grid.isNestedScrollingEnabled = false
-    // 卡片宽度 - 28dp(左右内边距)。每 cell 含左右各 2dp margin =>
-    // 实际占用 = (cellWidth + 4dp) * spans。所以 cellWidth 要扣掉
-    // spans 个 4dp 而不是 (spans-1) 个 —— 否则最后一列会贴到 cardWidth
-    // 边界外被裁。
-    val cardWidth = grid.resources.displayMetrics.widthPixels - 24.ppppx - 28.ppppx
-    val cellWidth = (cardWidth - spans * 4.ppppx) / spans
-    val cellHeight = if (spans == 1) 220.ppppx else cellWidth
-    grid.adapter = PlazaIllustRefAdapter(illusts, cellWidth, cellHeight)
+}
+
+/**
+ * 单图: 加载前用 4:3 占位高度撑住,Glide listener 在 onResourceReady 拿到原图比例后
+ * 把 root 高度调到目标。比 adjustViewBounds 那条路稳 —— 后者依赖 Glide 触发的
+ * requestLayout 链,在 wrap_content 容器里有概率不撑开。
+ */
+private fun buildSingleCell(parent: ViewGroup, ref: PlazaIllustRef, width: Int): View {
+    val placeholderH = (width * 0.75f).toInt()
+    val maxH = (width * 1.4f).toInt()
+    val minH = (width * 0.4f).toInt()
+
+    val cell = inflateCellShell(parent, ref, width, placeholderH)
+    val thumbUrl = ref.meta?.thumb_url
+    if (!thumbUrl.isNullOrEmpty()) {
+        Glide.with(parent.context)
+            .load(GlideUrlChild(thumbUrl))
+            .placeholder(android.R.color.transparent)
+            .listener(object : RequestListener<Drawable> {
+                override fun onResourceReady(
+                    resource: Drawable,
+                    model: Any,
+                    target: Target<Drawable>,
+                    dataSource: DataSource,
+                    isFirstResource: Boolean,
+                ): Boolean {
+                    val dw = resource.intrinsicWidth
+                    val dh = resource.intrinsicHeight
+                    if (dw > 0 && dh > 0) {
+                        val targetH = (width.toFloat() * dh / dw).toInt().coerceIn(minH, maxH)
+                        val lp = cell.root.layoutParams as LinearLayout.LayoutParams
+                        if (lp.height != targetH) {
+                            lp.height = targetH
+                            cell.root.layoutParams = lp
+                        }
+                    }
+                    return false
+                }
+
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<Drawable>,
+                    isFirstResource: Boolean,
+                ): Boolean = false
+            })
+            .into(cell.thumb)
+    }
+    return cell.root
+}
+
+/**
+ * 3 张图: 左 1 大方块 (边 = cardWidth/2),右两小竖排 (宽 = cardWidth/2)。
+ * 整行高度 = 左方块边长。
+ */
+private fun buildBigPlusTwoSmall(
+    parent: ViewGroup,
+    illusts: List<PlazaIllustRef>,
+    cardWidth: Int,
+    gap: Int,
+): View {
+    val bigSize = (cardWidth - gap) / 2
+    val smallH = (bigSize - gap) / 2
+
+    val row = LinearLayout(parent.context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, bigSize)
+    }
+    row.addView(inflateCell(row, illusts[0], bigSize, bigSize).root)
+
+    val rightCol = LinearLayout(parent.context).apply {
+        orientation = LinearLayout.VERTICAL
+        layoutParams = LinearLayout.LayoutParams(bigSize, bigSize).apply {
+            leftMargin = gap
+        }
+    }
+    rightCol.addView(inflateCell(rightCol, illusts[1], bigSize, smallH).root)
+    rightCol.addView(inflateCell(rightCol, illusts[2], bigSize, smallH).root.also {
+        (it.layoutParams as LinearLayout.LayoutParams).topMargin = gap
+    })
+    row.addView(rightCol)
+    return row
+}
+
+/** 一行 N 个等大方块,横向排列,中间用 gap 隔开。 */
+private fun buildSquareRow(
+    parent: ViewGroup,
+    illusts: List<PlazaIllustRef>,
+    cellSize: Int,
+    gap: Int,
+): LinearLayout {
+    val row = LinearLayout(parent.context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, cellSize)
+    }
+    illusts.forEachIndexed { i, ref ->
+        val cell = inflateCell(row, ref, cellSize, cellSize)
+        if (i > 0) (cell.root.layoutParams as LinearLayout.LayoutParams).leftMargin = gap
+        row.addView(cell.root)
+    }
+    return row
+}
+
+/**
+ * Inflate cell + 尺寸 + 占位 ID + click,但**不**调 Glide。
+ * 加载图的策略由 caller 决定(多图直接 into,单图带 listener 调高度)。
+ */
+private fun inflateCellShell(
+    parent: ViewGroup,
+    ref: PlazaIllustRef,
+    width: Int,
+    height: Int,
+): CellPlazaRefIllustBinding {
+    val binding = CellPlazaRefIllustBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+    binding.root.layoutParams = LinearLayout.LayoutParams(width, height)
+    val ctx = binding.root.context
+    if (ref.meta?.thumb_url.isNullOrEmpty()) {
+        binding.thumb.setImageDrawable(null)
+        binding.placeholderId.isVisible = true
+        binding.placeholderId.text = ref.id.toString()
+    } else {
+        binding.placeholderId.isVisible = false
+    }
+    binding.root.setOnClickListener {
+        val intent = Intent(ctx, TemplateActivity::class.java)
+        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "Plaza打开作品")
+        intent.putExtra(Params.ILLUST_ID, ref.id.toInt())
+        ctx.startActivity(intent)
+    }
+    return binding
+}
+
+/** 多图模式:inflateCellShell + 默认 Glide.into。 */
+private fun inflateCell(
+    parent: ViewGroup,
+    ref: PlazaIllustRef,
+    width: Int,
+    height: Int,
+): CellPlazaRefIllustBinding {
+    val binding = inflateCellShell(parent, ref, width, height)
+    val thumbUrl = ref.meta?.thumb_url
+    if (!thumbUrl.isNullOrEmpty()) {
+        Glide.with(binding.root.context)
+            .load(GlideUrlChild(thumbUrl))
+            .placeholder(android.R.color.transparent)
+            .into(binding.thumb)
+    }
+    return binding
 }
 
 private fun bindUserRefs(binding: CellPlazaPostBinding, users: List<PlazaUserRef>) {
@@ -170,62 +342,6 @@ private fun bindUserRefs(binding: CellPlazaPostBinding, users: List<PlazaUserRef
             ).apply { setMargins(0, 0, 8.ppppx, 8.ppppx) }
         }
         container.addView(chip)
-    }
-}
-
-/**
- * 卡片内嵌的 illust grid adapter。cell 用 [CellPlazaRefIllustBinding]。
- * 点击进 ArtworkV3Fragment。
- */
-private class PlazaIllustRefAdapter(
-    private val items: List<PlazaIllustRef>,
-    private val cellWidth: Int,
-    private val cellHeight: Int,
-) : RecyclerView.Adapter<PlazaIllustRefAdapter.RefHolder>() {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RefHolder {
-        val inflater = LayoutInflater.from(parent.context)
-        val binding = CellPlazaRefIllustBinding.inflate(inflater, parent, false)
-        // cell 自己设固定尺寸,避免 wrap_content 在 GridLayoutManager 下塌缩。
-        // 用 RecyclerView.LayoutParams (而不是 ViewGroup.MarginLayoutParams) ——
-        // RecyclerView.checkLayoutParams 要求 instanceof RecyclerView.LayoutParams,
-        // 不匹配会走 generateLayoutParams 转换路径,有丢尺寸的可能。
-        binding.root.layoutParams = RecyclerView.LayoutParams(cellWidth, cellHeight).apply {
-            setMargins(2.ppppx, 2.ppppx, 2.ppppx, 2.ppppx)
-        }
-        return RefHolder(binding)
-    }
-
-    override fun getItemCount(): Int = items.size
-
-    override fun onBindViewHolder(holder: RefHolder, position: Int) {
-        holder.bind(items[position])
-    }
-
-    class RefHolder(val binding: CellPlazaRefIllustBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(ref: PlazaIllustRef) {
-            val ctx = binding.root.context
-            val thumbUrl = ref.meta?.thumb_url
-            if (thumbUrl.isNullOrEmpty()) {
-                // server 还没缓存这个 illust 的 meta —— 显示 ID 占位,
-                // 用户仍可点击进详情让 ArtworkV3Fragment 自己拉
-                binding.thumb.setImageDrawable(null)
-                binding.placeholderId.isVisible = true
-                binding.placeholderId.text = ref.id.toString()
-            } else {
-                binding.placeholderId.isVisible = false
-                Glide.with(ctx)
-                    .load(thumbUrl)
-                    .placeholder(android.R.color.transparent)
-                    .into(binding.thumb)
-            }
-            binding.root.setOnClickListener {
-                val intent = Intent(ctx, TemplateActivity::class.java)
-                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "Plaza打开作品")
-                intent.putExtra(Params.ILLUST_ID, ref.id.toInt())
-                ctx.startActivity(intent)
-            }
-        }
     }
 }
 

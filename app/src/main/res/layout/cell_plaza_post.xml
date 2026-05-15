@@ -3,11 +3,9 @@
      - 圆角 + 轻 elevation,V3 风格
      - header (头像 / 名字 / 时间 / 更多)
      - body (正文)
-     - refs.illust 走 RecyclerView (1/2/3+ 列由 PlazaPostHolder 动态切 layoutManager)
-     - refs.user 走横向 chip 行,只在有 user ref 时显示
-
-     overflow_indicator 是 illust 数 > 9 时显示的 +N 角标,
-     虽然 server 限了 9 张/kind,客户端兜底防 future schema 变更。 -->
+     - refs.illust 走 LinearLayout 容器,bindIllustGrid 按数量动态拼布局
+       (1 张按原比例,2-4 张专门布局,5-9 走 3 列方块)
+     - refs.user 走横向 chip 行,只在有 user ref 时显示 -->
 <androidx.cardview.widget.CardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -113,14 +111,15 @@
             android:lineSpacingExtra="3dp"
             tools:text="看看这几张图 ✨ 这次的画风真的太顶了\n继续磨" />
 
-        <!-- 引用 illust grid。layoutManager 在 PlazaPostHolder 里按数量切。 -->
-        <androidx.recyclerview.widget.RecyclerView
+        <!-- 引用 illust 容器。子 view 由 bindIllustGrid 按数量构造。 -->
+        <LinearLayout
             android:id="@+id/illust_grid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
             android:layout_marginEnd="14dp"
             android:layout_marginBottom="12dp"
+            android:orientation="vertical"
             android:visibility="gone"
             tools:visibility="visible" />
 
