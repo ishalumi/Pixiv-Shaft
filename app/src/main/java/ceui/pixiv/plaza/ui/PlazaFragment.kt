@@ -3,8 +3,11 @@ package ceui.pixiv.plaza.ui
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import androidx.appcompat.app.AlertDialog
+import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -20,6 +23,8 @@ import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.chat.core.AppError
 import ceui.pixiv.plaza.api.PlazaPost
 import ceui.pixiv.session.SessionManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.scwang.smart.refresh.layout.api.RefreshLayout
 import com.scwang.smart.refresh.layout.listener.OnRefreshListener
 
@@ -49,6 +54,21 @@ class PlazaFragment : Fragment(R.layout.fragment_plaza) {
             } else false
         }
         binding.fabCompose.setOnClickListener { openCompose() }
+
+        // 适配 nav bar / 手势条: FAB marginBottom = XML 基础值 + bar inset,
+        // RecyclerView paddingBottom 同步往下加,让最后一条 plaza 卡片不被
+        // FAB 或者 nav bar 挡住。
+        val fabBaseMarginBottom = (binding.fabCompose.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
+        val rvBasePaddingBottom = binding.recyclerView.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val nav = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            (binding.fabCompose.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                bottomMargin = fabBaseMarginBottom + nav
+                binding.fabCompose.layoutParams = this
+            }
+            binding.recyclerView.updatePadding(bottom = rvBasePaddingBottom + nav)
+            insets
+        }
 
         // 列表 + 分页
         val feedAdapter = PlazaFeedAdapter(
@@ -131,12 +151,15 @@ class PlazaFragment : Fragment(R.layout.fragment_plaza) {
 
     private fun onPostMore(post: PlazaPost, anchor: View) {
         // 只有自己的帖子才会到这里 (PlazaFeedAdapter 已按 selfUid 隐藏 ⋯ 按钮)。
-        // MVP 只有「删除」一项,Bottom-sheet 改造留给下版,先 AlertDialog 简化。
+        // MVP 只有「删除」一项,QMUI 风格统一全 app 弹窗。
         if (post.uid != SessionManager.loggedInUid) return
-        AlertDialog.Builder(requireContext())
+        QMUIDialog.MessageDialogBuilder(requireContext())
             .setMessage(R.string.plaza_delete_confirm)
-            .setNegativeButton(R.string.plaza_delete_cancel, null)
-            .setPositiveButton(R.string.plaza_delete_confirm_yes) { _, _ ->
+            .addAction(R.string.plaza_delete_cancel) { d, _ -> d.dismiss() }
+            .addAction(
+                0, R.string.plaza_delete_confirm_yes, QMUIDialogAction.ACTION_PROP_NEGATIVE
+            ) { d, _ ->
+                d.dismiss()
                 viewModel.deletePost(requireContext(), post, SessionManager.loggedInUid)
             }
             .show()

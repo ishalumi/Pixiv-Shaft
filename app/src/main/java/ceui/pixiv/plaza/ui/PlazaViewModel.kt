@@ -54,6 +54,20 @@ class PlazaViewModel : ViewModel() {
     private var nextBefore: Long? = null
     private var loadingMore = false
 
+    init {
+        // 订阅进程级 "新帖事件总线" —— 任何路径(包括另一个 Activity 里的 Compose Fragment)
+        // 成功发帖,Plaza 立即 prepend 到顶。比 setFragmentResult / startActivityForResult
+        // 路径更解耦,跟 chat 的 SharedFlow incoming 模式一致。
+        // filter id 去重防止用户在打开 plaza 后立即发帖、又恰好下次 listFeed 把同条带回。
+        viewModelScope.launch {
+            PlazaClient.postsCreated.collect { newPost ->
+                val current = _state.value.items
+                if (current.any { it.id == newPost.id }) return@collect
+                _state.value = _state.value.copy(items = listOf(newPost) + current)
+            }
+        }
+    }
+
     fun load(context: Context, isSwipeRefresh: Boolean = false) {
         viewModelScope.launch {
             _state.value = _state.value.copy(

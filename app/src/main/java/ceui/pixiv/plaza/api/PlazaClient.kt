@@ -3,8 +3,10 @@ package ceui.pixiv.plaza.api
 import ceui.lisa.BuildConfig
 import ceui.lisa.network.ShaftApiV2Client
 import com.google.gson.Gson
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import timber.log.Timber
@@ -27,6 +29,21 @@ object PlazaClient {
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     private val gson = Gson()
+
+    /**
+     * 进程级事件总线 —— 任何路径成功发了帖,所有活的 PlazaViewModel 立即收到
+     * 并 prepend 到自己 feed 顶,无需手动 navigate-back-refresh。跟 chat
+     * `ShaftChatGateway.incoming` 是同一套 push-based 模式 (2026 best practice
+     * for cross-fragment realtime sync over LocalBroadcastManager / setFragmentResult)。
+     *
+     * - replay=0:新创建的 ViewModel 不会收到上次的事件(下次刷新会包含,避免 stale prepend)
+     * - extraBufferCapacity=8:发帖突发(用户连发) suspending emit 时缓冲,避免丢
+     */
+    private val _postsCreated = MutableSharedFlow<PlazaPost>(
+        replay = 0,
+        extraBufferCapacity = 8,
+    )
+    val postsCreated: SharedFlow<PlazaPost> = _postsCreated.asSharedFlow()
 
     suspend fun listFeed(limit: Int = 20, before: Long? = null): PlazaResult<PlazaFeedResponse> =
         runCatchingPlaza { api.listFeed(limit, before) }
@@ -67,7 +84,12 @@ object PlazaClient {
             append(canonicalBody.substring(1, canonicalBody.length - 1))
             append('}')
         }
-        return runCatchingPlaza { api.createPost(wireBody.toRequestBody(jsonMediaType)) }
+        val result = runCatchingPlaza { api.createPost(wireBody.toRequestBody(jsonMediaType)) }
+        if (result is PlazaResult.Ok) {
+            // tryEmit 不挂起 —— extraBufferCapacity=8 兜底,理论不会丢
+            _postsCreated.tryEmit(result.value)
+        }
+        return result
     }
 
     suspend fun deletePost(uid: Long, postId: Long): PlazaResult<PlazaDeleteResponse> {

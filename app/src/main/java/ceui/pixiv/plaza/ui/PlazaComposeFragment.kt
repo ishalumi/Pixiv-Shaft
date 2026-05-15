@@ -2,13 +2,15 @@ package ceui.pixiv.plaza.ui
 
 import android.os.Bundle
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import androidx.appcompat.app.AlertDialog
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +23,7 @@ import ceui.pixiv.chat.base.viewBinding
 import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.session.SessionManager
 import com.bumptech.glide.Glide
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 
 /**
  * 发帖编辑器。Toolbar 右上「发布」menu + 文本框 + 已附 illust 横滑列表 + 「+ 添加」按钮。
@@ -39,6 +42,20 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
         setupToolbar(getString(R.string.plaza_compose_title), showBack = true)
         binding.appBarLayout.setOnMenuItemClickListener { item ->
             if (item.itemId == R.id.action_send) { trySubmit(); true } else false
+        }
+
+        // 适配 system bar / 手势条 + 键盘:
+        // - 没键盘时:footer_bar 底部 padding = XML 基础值 + nav bar inset
+        //   (让 [+ 添加]不被三段式条 / home indicator 压住)
+        // - 键盘弹起时:取 max(ime, navBar),footer_bar 跟着键盘浮在键盘上沿
+        // 跟 CommentsFragment 同款 max-or 模式。XML 里的 paddingBottom=10dp 作为
+        // 视觉间距 baseline 保留(不被覆盖)。
+        val basePaddingBottom = binding.footerBar.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.footerBar) { v, insets ->
+            val nav = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            v.updatePadding(bottom = basePaddingBottom + maxOf(nav, ime))
+            insets
         }
 
         // 字数计数 (按 UTF-16 units 估算,提交时按 code point 严格校)
@@ -79,8 +96,7 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
                         .makeText(requireContext(), ev.message, android.widget.Toast.LENGTH_SHORT)
                         .show()
                     PlazaComposeViewModel.Event.Sent -> {
-                        // 发送成功后退出。Plaza feed 下次 onResume 时还要等用户主动
-                        // 下拉刷新 —— 后续可加 LocalBroadcast 通知 PlazaFragment 刷新。
+                        // Plaza 端 SharedFlow 已经 prepend 好新帖,回到 plaza 立即可见。
                         requireActivity().finish()
                     }
                 }
@@ -100,18 +116,15 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
     }
 
     private fun showAddIllustDialog() {
-        val ctx = requireContext()
-        val input = EditText(ctx).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            hint = getString(R.string.plaza_attach_illust_id_hint)
-        }
-        AlertDialog.Builder(ctx)
-            .setTitle(R.string.plaza_attach_illust_by_id)
-            .setView(input)
-            .setNegativeButton(R.string.plaza_delete_cancel, null)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val id = input.text?.toString()?.toLongOrNull() ?: return@setPositiveButton
-                viewModel.attachIllust(id)
+        val builder = QMUIDialog.EditTextDialogBuilder(requireContext())
+        builder.setTitle(R.string.plaza_attach_illust_by_id)
+            .setPlaceholder(getString(R.string.plaza_attach_illust_id_hint))
+            .setInputType(InputType.TYPE_CLASS_NUMBER)
+            .addAction(R.string.plaza_delete_cancel) { d, _ -> d.dismiss() }
+            .addAction(android.R.string.ok) { d, _ ->
+                val id = builder.editText.text?.toString()?.trim()?.toLongOrNull()
+                if (id != null && id > 0L) viewModel.attachIllust(id)
+                d.dismiss()
             }
             .show()
     }

@@ -9,17 +9,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import ceui.lisa.R
 import ceui.pixiv.ui.common.saveImageToGallery
+import ceui.pixiv.ui.common.setupZoomSync
 import com.github.panpf.sketch.loadImage
 import com.github.panpf.zoomimage.SketchZoomImageView
-import kotlinx.coroutines.launch
 import java.io.File
 
 class MangaTranslationFragment : Fragment() {
-
-    private var syncing = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return inflater.inflate(R.layout.fragment_manga_translation, container, false)
@@ -52,31 +49,7 @@ class MangaTranslationFragment : Fragment() {
             }
         }
 
-        setupZoomSync(imageOriginal, imageTranslated)
-    }
-
-    private fun setupZoomSync(original: SketchZoomImageView, translated: SketchZoomImageView) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            original.zoomable.transformState.collect { transform ->
-                if (syncing) return@collect
-                syncing = true
-                try {
-                    translated.zoomable.scale(transform.scaleX, animated = false)
-                    translated.zoomable.offset(transform.offset, animated = false)
-                } finally { syncing = false }
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            translated.zoomable.transformState.collect { transform ->
-                if (syncing) return@collect
-                syncing = true
-                try {
-                    original.zoomable.scale(transform.scaleX, animated = false)
-                    original.zoomable.offset(transform.offset, animated = false)
-                } finally { syncing = false }
-            }
-        }
+        setupZoomSync(viewLifecycleOwner, imageOriginal, imageTranslated)
     }
 
     companion object {

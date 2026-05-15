@@ -9,17 +9,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import ceui.lisa.R
 import ceui.pixiv.ui.common.saveImageToGallery
+import ceui.pixiv.ui.common.setupZoomSync
 import com.github.panpf.sketch.loadImage
 import com.github.panpf.zoomimage.SketchZoomImageView
-import kotlinx.coroutines.launch
 import java.io.File
 
 class UpscaleCompareFragment : Fragment() {
-
-    private var syncing = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return inflater.inflate(R.layout.fragment_upscale_compare, container, false)
@@ -60,31 +57,7 @@ class UpscaleCompareFragment : Fragment() {
             }
         }
 
-        setupZoomSync(imageOriginal, imageEnhanced)
-    }
-
-    private fun setupZoomSync(original: SketchZoomImageView, enhanced: SketchZoomImageView) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            original.zoomable.transformState.collect { transform ->
-                if (syncing) return@collect
-                syncing = true
-                try {
-                    enhanced.zoomable.scale(transform.scaleX, animated = false)
-                    enhanced.zoomable.offset(transform.offset, animated = false)
-                } finally { syncing = false }
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            enhanced.zoomable.transformState.collect { transform ->
-                if (syncing) return@collect
-                syncing = true
-                try {
-                    original.zoomable.scale(transform.scaleX, animated = false)
-                    original.zoomable.offset(transform.offset, animated = false)
-                } finally { syncing = false }
-            }
-        }
+        setupZoomSync(viewLifecycleOwner, imageOriginal, imageEnhanced)
     }
 
     companion object {
