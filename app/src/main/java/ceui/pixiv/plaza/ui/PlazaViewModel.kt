@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ceui.lisa.R
-import ceui.pixiv.plaza.api.PlazaClient
-import ceui.pixiv.plaza.api.PlazaPost
-import ceui.pixiv.plaza.api.PlazaResult
+import ceui.lisa.network.ShaftApiV2Client
+import ceui.lisa.network.PlazaPost
+import ceui.lisa.network.PlazaResult
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,10 +60,20 @@ class PlazaViewModel : ViewModel() {
         // 路径更解耦,跟 chat 的 SharedFlow incoming 模式一致。
         // filter id 去重防止用户在打开 plaza 后立即发帖、又恰好下次 listFeed 把同条带回。
         viewModelScope.launch {
-            PlazaClient.postsCreated.collect { newPost ->
+            ShaftApiV2Client.plazaPostsCreated.collect { newPost ->
                 val current = _state.value.items
                 if (current.any { it.id == newPost.id }) return@collect
                 _state.value = _state.value.copy(items = listOf(newPost) + current)
+            }
+        }
+        // 订阅删帖事件 —— detail 页 / 别处删了一条,Plaza 同步 filter 掉。
+        // 本 VM 自己触发的删除走 deletePost() 已 optimistic 移除,这里再 filter
+        // 一次也是 no-op (幂等)。
+        viewModelScope.launch {
+            ShaftApiV2Client.plazaPostsDeleted.collect { deletedId ->
+                val current = _state.value.items
+                if (current.none { it.id == deletedId }) return@collect
+                _state.value = _state.value.copy(items = current.filter { it.id != deletedId })
             }
         }
     }
@@ -75,7 +85,7 @@ class PlazaViewModel : ViewModel() {
                 isRefreshing = isSwipeRefresh,
                 initialError = null,
             )
-            when (val r = PlazaClient.listFeed(limit = 20, before = null)) {
+            when (val r = ShaftApiV2Client.listPlazaFeed(limit = 20, before = null)) {
                 is PlazaResult.Ok -> {
                     nextBefore = r.value.next_before
                     _state.value = _state.value.copy(
@@ -108,7 +118,7 @@ class PlazaViewModel : ViewModel() {
         loadingMore = true
         viewModelScope.launch {
             _state.value = _state.value.copy(paging = PlazaPagingState.LoadingMore)
-            when (val r = PlazaClient.listFeed(limit = 20, before = before)) {
+            when (val r = ShaftApiV2Client.listPlazaFeed(limit = 20, before = before)) {
                 is PlazaResult.Ok -> {
                     nextBefore = r.value.next_before
                     val merged = _state.value.items + r.value.items
@@ -142,7 +152,7 @@ class PlazaViewModel : ViewModel() {
         if (originalIndex < 0) return  // 列表里已经没这条,nothing to do
         _state.value = _state.value.copy(items = originalItems.filter { it.id != post.id })
         viewModelScope.launch {
-            when (val r = PlazaClient.deletePost(selfUid, post.id)) {
+            when (val r = ShaftApiV2Client.deletePlazaPost(selfUid, post.id)) {
                 is PlazaResult.Ok -> {
                     _events.trySend(Event.Toast(context.getString(R.string.plaza_post_deleted)))
                 }

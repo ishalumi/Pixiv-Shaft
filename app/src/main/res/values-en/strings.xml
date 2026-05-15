@@ -1426,4 +1426,6 @@
     <string name="plaza_rate_limited">Too many requests. Try again in %1$ds.</string>
     <string name="plaza_ts_skew">Device clock is off. Please correct it and retry.</string>
     <string name="plaza_referenced_user">mentioned @%1$s</string>
+    <string name="plaza_post_detail_title">Post</string>
+    <string name="plaza_post_gone">This post has been deleted</string>
 </resources>

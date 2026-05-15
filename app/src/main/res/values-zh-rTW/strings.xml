@@ -1445,4 +1445,6 @@
     <string name="plaza_rate_limited">操作太頻繁,請 %1$d 秒後再試</string>
     <string name="plaza_ts_skew">本機時間不準,請校準後再發</string>
     <string name="plaza_referenced_user">提到了 @%1$s</string>
+    <string name="plaza_post_detail_title">貼文</string>
+    <string name="plaza_post_gone">此貼文已被刪除</string>
 </resources>

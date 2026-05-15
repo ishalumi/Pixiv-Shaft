@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ceui.lisa.R
-import ceui.pixiv.plaza.api.PlazaClient
-import ceui.pixiv.plaza.api.PlazaResult
+import ceui.lisa.network.ShaftApiV2Client
+import ceui.lisa.network.PlazaResult
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +73,7 @@ class PlazaComposeViewModel : ViewModel() {
 
         _state.value = _state.value.copy(isSending = true)
         viewModelScope.launch {
-            val r = PlazaClient.createPost(
+            val r = ShaftApiV2Client.createPlazaPost(
                 uid = selfUid,
                 text = trimmed,
                 illust = _state.value.attachedIllusts,

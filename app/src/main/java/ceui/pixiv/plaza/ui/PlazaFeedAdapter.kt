@@ -14,9 +14,9 @@ import ceui.lisa.databinding.CellPlazaPostBinding
 import ceui.lisa.databinding.CellPlazaRefIllustBinding
 import ceui.lisa.utils.Params
 import ceui.pixiv.chat.base.BaseListAdapter
-import ceui.pixiv.plaza.api.PlazaIllustRef
-import ceui.pixiv.plaza.api.PlazaPost
-import ceui.pixiv.plaza.api.PlazaUserRef
+import ceui.lisa.network.PlazaIllustRef
+import ceui.lisa.network.PlazaPost
+import ceui.lisa.network.PlazaUserRef
 import ceui.pixiv.utils.ppppx
 import com.bumptech.glide.Glide
 
@@ -34,6 +34,7 @@ import com.bumptech.glide.Glide
 class PlazaFeedAdapter(
     private val selfUid: Long,
     private val onMore: (PlazaPost, View) -> Unit,
+    private val onCardClick: (PlazaPost) -> Unit,
 ) : BaseListAdapter<PlazaPost, PlazaFeedAdapter.PlazaPostViewHolder>(
     diffCallback(keySelector = { it.id })
 ) {
@@ -41,7 +42,7 @@ class PlazaFeedAdapter(
     override fun onCreateDataViewHolder(parent: ViewGroup, viewType: Int): PlazaPostViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         val binding = CellPlazaPostBinding.inflate(inflater, parent, false)
-        return PlazaPostViewHolder(binding, selfUid, onMore)
+        return PlazaPostViewHolder(binding, selfUid, onMore, onCardClick)
     }
 
     override fun onBindDataViewHolder(holder: PlazaPostViewHolder, item: PlazaPost) {
@@ -52,90 +53,123 @@ class PlazaFeedAdapter(
         private val binding: CellPlazaPostBinding,
         private val selfUid: Long,
         private val onMore: (PlazaPost, View) -> Unit,
+        private val onCardClick: (PlazaPost) -> Unit,
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(post: PlazaPost) {
-            val ctx = binding.root.context
-
-            binding.displayName.text = post.display_name ?: post.uid.toString()
-            binding.postTime.text = formatRelativeTime(ctx, post.ts)
-            binding.bodyText.text = post.text
-
-            // 作者头像 —— server 没下发，先用占位。后续可以从 ObjectPool.get<User>(post.uid)
-            // 或本地 chat profile 缓存补头像，这里 MVP 用占位。
-            binding.avatar.setImageResource(R.drawable.chat_avatar_placeholder)
-
-            // ⋯ 菜单只在自己的帖子上显示 —— 当前菜单只有「删除」,展示给别人没意义。
-            // 后续补举报 / 复制链接等通用项时再放开 non-author 路径。
-            val isMine = selfUid > 0L && post.uid == selfUid
-            binding.moreBtn.isVisible = isMine
-            if (isMine) {
-                binding.moreBtn.setOnClickListener { v -> onMore(post, v) }
-            } else {
-                binding.moreBtn.setOnClickListener(null)
-            }
-
-            bindIllustGrid(post.refs.illust)
-            bindUserRefs(post.refs.user)
+            bindPlazaPostCard(
+                binding = binding,
+                post = post,
+                selfUid = selfUid,
+                onMore = onMore,
+                onCardClick = onCardClick,
+            )
         }
+    }
+}
 
-        private fun bindIllustGrid(illusts: List<PlazaIllustRef>) {
-            val grid = binding.illustGrid
-            if (illusts.isEmpty()) {
-                grid.isVisible = false
-                grid.adapter = null
-                return
-            }
-            grid.isVisible = true
+/**
+ * 把一个 [CellPlazaPostBinding] 当模板,用 post 数据填好整张卡片 —— 包括头像 /
+ * 名字 / 时间 / 正文 / 引用 illust grid / 引用 user chips / ⋯ 菜单 / 卡片整体 click。
+ *
+ * Feed 的 RecyclerView Holder 用,详情页 PlazaPostDetailFragment 也用 (复用视觉一致)。
+ * onMore 仅在 selfUid 匹配时挂监听 + 显示按钮。onCardClick 传 null 表示不挂(详情页
+ * 已经在自己内部,无需再 navigate)。
+ */
+internal fun bindPlazaPostCard(
+    binding: CellPlazaPostBinding,
+    post: PlazaPost,
+    selfUid: Long,
+    onMore: ((PlazaPost, View) -> Unit)?,
+    onCardClick: ((PlazaPost) -> Unit)?,
+) {
+    val ctx = binding.root.context
 
-            val ctx = grid.context
-            val spans = when {
-                illusts.size == 1 -> 1
-                illusts.size == 2 -> 2
-                else -> 3
-            }
-            grid.layoutManager = GridLayoutManager(ctx, spans)
-            // 嵌套 RV 关 nested scroll，避免跟外层 SmartRefresh 抢手势
-            grid.isNestedScrollingEnabled = false
-            // 卡片宽度 - 28dp(左右内边距)。每 cell 含左右各 2dp margin =>
-            // 实际占用 = (cellWidth + 4dp) * spans。所以 cellWidth 要扣掉
-            // spans 个 4dp 而不是 (spans-1) 个 —— 否则最后一列会贴到 cardWidth
-            // 边界外被裁。
-            val cardWidth = grid.resources.displayMetrics.widthPixels - 24.ppppx - 28.ppppx
-            val cellWidth = (cardWidth - spans * 4.ppppx) / spans
-            val cellHeight = if (spans == 1) 220.ppppx else cellWidth
-            grid.adapter = PlazaIllustRefAdapter(illusts, cellWidth, cellHeight)
+    binding.displayName.text = post.display_name ?: post.uid.toString()
+    binding.postTime.text = formatRelativeTime(ctx, post.ts)
+    binding.bodyText.text = post.text
+
+    // 作者头像 —— server 没下发,先用占位。后续可以从 ObjectPool.get<User>(post.uid)
+    // 或本地 chat profile 缓存补头像。
+    binding.avatar.setImageResource(R.drawable.chat_avatar_placeholder)
+
+    // ⋯ 菜单只在自己的帖子上显示。当前菜单只有「删除」,展示给别人没意义。
+    val isMine = selfUid > 0L && post.uid == selfUid
+    binding.moreBtn.isVisible = isMine && onMore != null
+    if (isMine && onMore != null) {
+        binding.moreBtn.setOnClickListener { v -> onMore(post, v) }
+    } else {
+        binding.moreBtn.setOnClickListener(null)
+    }
+
+    // 卡片整体点击 —— feed 页跳详情。详情页 onCardClick = null 不挂。
+    // 排除头像 / illust 缩略 / ⋯ 这些已有自己 click 的子区。
+    if (onCardClick != null) {
+        binding.card.setOnClickListener { onCardClick(post) }
+    } else {
+        binding.card.setOnClickListener(null)
+        binding.card.isClickable = false
+    }
+
+    bindIllustGrid(binding, post.refs.illust)
+    bindUserRefs(binding, post.refs.user)
+}
+
+private fun bindIllustGrid(binding: CellPlazaPostBinding, illusts: List<PlazaIllustRef>) {
+    val grid = binding.illustGrid
+    if (illusts.isEmpty()) {
+        grid.isVisible = false
+        grid.adapter = null
+        return
+    }
+    grid.isVisible = true
+
+    val ctx = grid.context
+    val spans = when {
+        illusts.size == 1 -> 1
+        illusts.size == 2 -> 2
+        else -> 3
+    }
+    grid.layoutManager = GridLayoutManager(ctx, spans)
+    // 嵌套 RV 关 nested scroll,避免跟外层 SmartRefresh 抢手势
+    grid.isNestedScrollingEnabled = false
+    // 卡片宽度 - 28dp(左右内边距)。每 cell 含左右各 2dp margin =>
+    // 实际占用 = (cellWidth + 4dp) * spans。所以 cellWidth 要扣掉
+    // spans 个 4dp 而不是 (spans-1) 个 —— 否则最后一列会贴到 cardWidth
+    // 边界外被裁。
+    val cardWidth = grid.resources.displayMetrics.widthPixels - 24.ppppx - 28.ppppx
+    val cellWidth = (cardWidth - spans * 4.ppppx) / spans
+    val cellHeight = if (spans == 1) 220.ppppx else cellWidth
+    grid.adapter = PlazaIllustRefAdapter(illusts, cellWidth, cellHeight)
+}
+
+private fun bindUserRefs(binding: CellPlazaPostBinding, users: List<PlazaUserRef>) {
+    val container = binding.userRefsRow
+    container.removeAllViews()
+    if (users.isEmpty()) {
+        container.isVisible = false
+        return
+    }
+    container.isVisible = true
+    val ctx = container.context
+    for (u in users) {
+        val displayName = u.meta?.name ?: u.id.toString()
+        val chip = TextView(ctx).apply {
+            text = ctx.getString(R.string.plaza_referenced_user, displayName)
+            textSize = 12f
+            setPadding(12.ppppx, 6.ppppx, 12.ppppx, 6.ppppx)
+            setBackgroundResource(R.drawable.bg_v3_chip)
+            setTextColor(
+                com.google.android.material.color.MaterialColors.getColor(
+                    this, com.google.android.material.R.attr.colorOnSurfaceVariant
+                )
+            )
+            layoutParams = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { setMargins(0, 0, 8.ppppx, 8.ppppx) }
         }
-
-        private fun bindUserRefs(users: List<PlazaUserRef>) {
-            val container = binding.userRefsRow
-            container.removeAllViews()
-            if (users.isEmpty()) {
-                container.isVisible = false
-                return
-            }
-            container.isVisible = true
-            val ctx = container.context
-            for (u in users) {
-                val displayName = u.meta?.name ?: u.id.toString()
-                val chip = TextView(ctx).apply {
-                    text = ctx.getString(R.string.plaza_referenced_user, displayName)
-                    textSize = 12f
-                    setPadding(12.ppppx, 6.ppppx, 12.ppppx, 6.ppppx)
-                    setBackgroundResource(R.drawable.bg_v3_chip)
-                    setTextColor(
-                        com.google.android.material.color.MaterialColors.getColor(
-                            this, com.google.android.material.R.attr.colorOnSurfaceVariant
-                        )
-                    )
-                    layoutParams = ViewGroup.MarginLayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ).apply { setMargins(0, 0, 8.ppppx, 8.ppppx) }
-                }
-                container.addView(chip)
-            }
-        }
+        container.addView(chip)
     }
 }
 

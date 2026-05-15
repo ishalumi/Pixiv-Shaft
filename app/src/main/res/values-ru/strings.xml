@@ -1332,4 +1332,6 @@
     <string name="plaza_rate_limited">Слишком много запросов. Повторите через %1$d с.</string>
     <string name="plaza_ts_skew">Часы устройства неточны. Скорректируйте и повторите.</string>
     <string name="plaza_referenced_user">упомянул @%1$s</string>
+    <string name="plaza_post_detail_title">Пост</string>
+    <string name="plaza_post_gone">Этот пост был удалён</string>
 </resources>

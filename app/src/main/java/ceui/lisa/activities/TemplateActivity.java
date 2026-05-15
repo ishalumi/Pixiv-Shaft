@@ -411,6 +411,11 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     int illustId = intent.getIntExtra(ceui.lisa.utils.Params.ILLUST_ID, 0);
                     return ceui.pixiv.ui.detail.ArtworkV3Fragment.newInstance(illustId);
                 }
+                case "Plaza帖子详情": {
+                    long postId = intent.getLongExtra(
+                        ceui.pixiv.plaza.ui.PlazaPostDetailFragment.EXTRA_POST_ID, 0L);
+                    return ceui.pixiv.plaza.ui.PlazaPostDetailFragment.Companion.newInstance(postId);
+                }
                 default:
                     return new Fragment();
             }

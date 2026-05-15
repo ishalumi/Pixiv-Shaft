@@ -1,7 +1,12 @@
 package ceui.lisa.network
 
 import com.google.gson.JsonObject
+import okhttp3.RequestBody
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
+import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ShaftApiV2 {
@@ -96,4 +101,36 @@ interface ShaftApiV2 {
         val app_version: String?,
         val meta: JsonObject?,
     )
+
+    // ── Plaza ─────────────────────────────────────────────────────────────────
+    // 注意:write 请求 body 必须保持 canonical 形态(text/refs key 顺序固定 + 无空格,
+    // 见 docs/shaft-plaza-api-android.md §1)。所以这里收 RequestBody 而不是 DTO
+    // —— 让 [ShaftApiV2Client] 手拼 canonical wire body 之后传进来,避免 Gson 介入。
+    // 高层入口 (含签名 / cache / SharedFlow) 见 [ShaftApiV2Client]。
+
+    @POST("api/v1/plaza/posts")
+    suspend fun createPlazaPost(@Body body: RequestBody): PlazaPost
+
+    @GET("api/v1/plaza/posts")
+    suspend fun listPlazaPosts(
+        @Query("limit") limit: Int = 20,
+        @Query("before") before: Long? = null,
+    ): PlazaFeedResponse
+
+    @GET("api/v1/plaza/posts/{id}")
+    suspend fun getPlazaPost(@Path("id") id: Long): PlazaPost
+
+    /** Retrofit 默认不允许 DELETE 带 body,用 @HTTP 强制开放;body 需要 Content-Type: application/json。 */
+    @HTTP(method = "DELETE", path = "api/v1/plaza/posts/{id}", hasBody = true)
+    suspend fun deletePlazaPost(
+        @Path("id") id: Long,
+        @Body body: RequestBody,
+    ): PlazaDeleteResponse
+
+    @GET("api/v1/plaza/users/{uid}/posts")
+    suspend fun listUserPlazaPosts(
+        @Path("uid") uid: Long,
+        @Query("limit") limit: Int = 20,
+        @Query("before") before: Long? = null,
+    ): PlazaUserPostsResponse
 }

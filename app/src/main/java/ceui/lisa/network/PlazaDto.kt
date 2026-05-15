@@ -1,4 +1,4 @@
-package ceui.pixiv.plaza.api
+package ceui.lisa.network
 
 import com.google.gson.annotations.SerializedName
 
@@ -124,3 +124,16 @@ data class PlazaErrorBody(
     @SerializedName("retryAfterSeconds")
     val retryAfterSeconds: Long? = null,
 )
+
+/**
+ * 写入/查询统一结果。Ok 携带成功 payload,Err 把 HTTP 状态 + server `error` 字段
+ * (如 bad_sig / ts_skew / rate_limited) + 解析后的 body 都暴露给 UI 层做 i18n 映射。
+ */
+sealed class PlazaResult<out T> {
+    data class Ok<T>(val value: T) : PlazaResult<T>()
+    data class Err(
+        val httpStatus: Int,
+        val code: String,
+        val body: PlazaErrorBody?,
+    ) : PlazaResult<Nothing>()
+}

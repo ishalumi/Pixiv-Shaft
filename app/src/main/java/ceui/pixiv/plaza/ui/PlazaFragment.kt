@@ -21,7 +21,7 @@ import ceui.pixiv.chat.base.setupToolbar
 import ceui.pixiv.chat.base.viewBinding
 import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.chat.core.AppError
-import ceui.pixiv.plaza.api.PlazaPost
+import ceui.lisa.network.PlazaPost
 import ceui.pixiv.session.SessionManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
@@ -74,6 +74,7 @@ class PlazaFragment : Fragment(R.layout.fragment_plaza) {
         val feedAdapter = PlazaFeedAdapter(
             selfUid = SessionManager.loggedInUid,
             onMore = ::onPostMore,
+            onCardClick = ::openDetail,
         )
         val footerAdapter = PagingFooterAdapter().apply {
             onRetry = { viewModel.loadMore(requireContext()) }
@@ -135,6 +136,13 @@ class PlazaFragment : Fragment(R.layout.fragment_plaza) {
 
         // 首次进来加载
         if (savedInstanceState == null) viewModel.load(requireContext())
+    }
+
+    private fun openDetail(post: PlazaPost) {
+        val intent = Intent(requireContext(), TemplateActivity::class.java)
+        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "Plaza帖子详情")
+        intent.putExtra(PlazaPostDetailFragment.EXTRA_POST_ID, post.id)
+        startActivity(intent)
     }
 
     private fun openCompose() {

@@ -1431,4 +1431,6 @@
     <string name="plaza_rate_limited">リクエストが多すぎます。%1$d 秒後に再試行してください。</string>
     <string name="plaza_ts_skew">端末時刻がずれています。校正してから再投稿してください。</string>
     <string name="plaza_referenced_user">@%1$s に言及</string>
+    <string name="plaza_post_detail_title">投稿</string>
+    <string name="plaza_post_gone">この投稿は削除されました</string>
 </resources>
