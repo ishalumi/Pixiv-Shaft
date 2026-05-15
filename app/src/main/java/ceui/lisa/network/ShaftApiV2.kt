@@ -140,7 +140,24 @@ interface ShaftApiV2 {
         @Path("uid") uid: Long,
         @Query("limit") limit: Int = 20,
         @Query("before") before: Long? = null,
+        @Query("viewer_uid") viewerUid: String? = null,
+        @Query("viewer_ts") viewerTs: String? = null,
+        @Query("viewer_sig") viewerSig: String? = null,
     ): PlazaUserPostsResponse
+
+    /**
+     * "我的点赞" 列表。HMAC 鉴权 —— path uid 必须 == sig uid,所以只能拉
+     * 自己的列表(server 强制)。cursor `before` 是 **like_id** 不是 post.id。
+     * 每个 item 额外带 `liked_at` 毫秒时间戳。
+     */
+    @GET("api/v1/plaza/users/{uid}/likes")
+    suspend fun listMyPlazaLikes(
+        @Path("uid") uid: Long,
+        @Query("ts") ts: String,
+        @Query("sig") sig: String,
+        @Query("limit") limit: Int = 20,
+        @Query("before") before: Long? = null,
+    ): PlazaLikesResponse
 
     // ── Likes / Comments ─────────────────────────────────────────────────
     // 同样 write 请求要 canonical body,wire 由 ShaftApiV2Client 手拼。

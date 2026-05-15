@@ -158,8 +158,34 @@ object ShaftApiV2Client {
         uid: Long,
         limit: Int = 20,
         before: Long? = null,
+        viewerUid: Long = 0L,
     ): PlazaResult<PlazaUserPostsResponse> {
-        val r = runCatchingPlaza { service.listUserPlazaPosts(uid, limit, before) }
+        val v = viewerTriple(viewerUid)
+        val r = runCatchingPlaza {
+            service.listUserPlazaPosts(uid, limit, before, v?.first, v?.second, v?.third)
+        }
+        if (r is PlazaResult.Ok) cachePlazaPosts(r.value.items)
+        return r
+    }
+
+    /**
+     * "我的点赞" 列表。HMAC 鉴权,server 强制 path uid == sig uid,只能拉自己的。
+     * `before` cursor 是 like_id —— 翻页务必把上一页 next_before 原样回传,
+     * 直接传 post.id 会拿到错的页。
+     */
+    suspend fun listMyPlazaLikes(
+        uid: Long,
+        limit: Int = 20,
+        before: Long? = null,
+    ): PlazaResult<PlazaLikesResponse> {
+        if (uid <= 0L) return PlazaResult.Err(0, "login_required", null)
+        val secret = BuildConfig.SHAFT_EVENTS_HMAC
+        val uidStr = uid.toString()
+        val tsStr = System.currentTimeMillis().toString()
+        val sig = PlazaSig.signLikesRead(secret, uidStr, tsStr)
+        val r = runCatchingPlaza {
+            service.listMyPlazaLikes(uid, ts = tsStr, sig = sig, limit = limit, before = before)
+        }
         if (r is PlazaResult.Ok) cachePlazaPosts(r.value.items)
         return r
     }

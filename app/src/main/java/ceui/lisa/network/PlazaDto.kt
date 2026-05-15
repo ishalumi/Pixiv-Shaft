@@ -43,6 +43,8 @@ data class PlazaPost(
     val like_count: Int = 0,
     val comment_count: Int = 0,
     val liked_by_viewer: Boolean? = null,
+    /** 仅 GET /users/:uid/likes 的 item 带:你点赞这条帖子的 ts(ms)。其它场景 null。 */
+    val liked_at: Long? = null,
 )
 
 data class PlazaPostRefs(
@@ -138,6 +140,22 @@ data class PlazaCommentsResponse(
     val post_id: Long,
     val total: Int,
     val items: List<PlazaComment>,
+    val next_before: Long?,
+)
+
+// ── 我的点赞列表 ───────────────────────────────────────────────
+//
+// GET /api/v1/plaza/users/:uid/likes
+// cursor `next_before` 是 **like_id**(不是 post.id),clients 翻页要把这个值
+// 原样回传到下一次的 ?before=,直接传 post.id 会拿到错的页。
+//
+// 每个 item 的 shape 跟普通 PlazaPost 一致,额外带 `liked_at`(你点赞这条
+// 帖子的时间戳)。
+
+data class PlazaLikesResponse(
+    val uid: Long,
+    val total: Int,
+    val items: List<PlazaPost>,
     val next_before: Long?,
 )
 
