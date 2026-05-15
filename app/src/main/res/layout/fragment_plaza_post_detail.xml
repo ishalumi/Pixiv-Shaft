@@ -17,28 +17,35 @@
     android:background="?attr/colorSurface"
     android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
+    <!-- background 在 Fragment runtime 涂 Shaft.getThemeColor() —— 父 root 套了
+         Material3 overlay,?attr/colorPrimary 解出 M3 baseline tone 不是用户选的主题色。
+         不用 fitsSystemWindows —— EdgeToEdge 下会把 nav inset 也当 bottom padding,
+         toolbar 撑高一截;runtime updatePadding(top=statusBarHeight) 替代。 -->
     <androidx.appcompat.widget.Toolbar
-        android:id="@+id/app_bar_layout"
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="?attr/actionBarSize"
+        android:elevation="@dimen/six_dp"
+        android:theme="@style/AppTheme.AppBarOverlay"
+        app:popupTheme="@style/AppTheme.PopupOverlay"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:navigationIcon="@drawable/baseline_arrow_back_24">
+        app:navigationIcon="@drawable/ic_arrow_back_white_shadow"
+        app:title=" "
+        app:titleTextColor="@android:color/white">
 
         <TextView
-            android:id="@+id/tv_title"
+            android:id="@+id/toolbar_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:layout_marginEnd="@dimen/sixteen_dp"
             android:ellipsize="end"
-            android:includeFontPadding="false"
             android:singleLine="true"
             android:text="@string/plaza_post_detail_title"
-            android:textColor="@color/v3_text_1"
-            android:textSize="18sp"
-            tools:text="帖子" />
+            android:textColor="@color/always_white"
+            android:textSize="18sp" />
     </androidx.appcompat.widget.Toolbar>
 
     <androidx.recyclerview.widget.RecyclerView
@@ -50,7 +57,7 @@
         app:layout_constraintBottom_toTopOf="@id/bottom_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/app_bar_layout" />
+        app:layout_constraintTop_toBottomOf="@id/toolbar" />
 
     <!-- not_found 占位。覆盖在 RecyclerView 之上,bottom_bar 一起隐藏。 -->
     <TextView
@@ -113,16 +120,6 @@
             android:enabled="false"
             android:src="@drawable/ic_send_24"
             app:tint="@color/v3_text_2" />
-
-        <!-- 自己的帖子才显示删除按钮 (Fragment 按 selfUid 决定 visibility)。 -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_delete"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/plaza_delete_confirm_yes"
-            android:visibility="gone"
-            tools:visibility="visible" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

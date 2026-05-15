@@ -100,8 +100,11 @@ class PlazaPostHeaderAdapter(
     private var post: PlazaPost? = null
 
     fun submitPost(p: PlazaPost) {
+        // 首帧 post 从 null → 非空时 itemCount 从 0 涨到 1,必须用 inserted 通知,
+        // 否则 RecyclerView 还以为没条目,VH 永不会 onCreate,头部就空了。
+        val firstSet = post == null
         post = p
-        notifyItemChanged(0)
+        if (firstSet) notifyItemInserted(0) else notifyItemChanged(0)
     }
 
     override fun getItemCount(): Int = if (post != null) 1 else 0
@@ -121,6 +124,8 @@ class PlazaPostHeaderAdapter(
             selfUid = selfUid,
             onMore = onMore,
             onCardClick = null, // 已经在详情页里,卡片不再可点
+            // 详情页:每张引用图按原宽高比纵向铺,高图收窄宽度(figma 0:21195)。
+            verticalIllustLayout = true,
         )
     }
 

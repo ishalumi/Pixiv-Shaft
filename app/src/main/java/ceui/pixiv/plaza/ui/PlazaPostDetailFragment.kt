@@ -1,5 +1,6 @@
 package ceui.pixiv.plaza.ui
 
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,13 +15,14 @@ import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.databinding.FragmentPlazaPostDetailBinding
 import ceui.lisa.network.PlazaPost
 import ceui.pixiv.chat.base.launchSuspend
-import ceui.pixiv.chat.base.setupToolbar
 import ceui.pixiv.chat.base.viewBinding
 import ceui.pixiv.chat.base.viewModels
 import ceui.pixiv.session.SessionManager
+import com.blankj.utilcode.util.BarUtils
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 
@@ -51,7 +53,14 @@ class PlazaPostDetailFragment : Fragment(R.layout.fragment_plaza_post_detail) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupToolbar(getString(R.string.plaza_post_detail_title), showBack = true)
+        // brand 色 + status bar top padding 必须 runtime —— M3 父 overlay 下
+        // XML 的 ?attr/colorPrimary 解出 baseline tone(不是用户主题色),
+        // fitsSystemWindows 又会被 EdgeToEdge 套进 nav inset 把 toolbar 撑高。
+        binding.toolbar.setBackgroundColor(Color.parseColor(Shaft.getThemeColor()))
+        binding.toolbar.updatePadding(top = BarUtils.getStatusBarHeight())
+        binding.toolbar.setNavigationOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+        }
         setupInsets()
         setupRecycler()
         setupInputBar()

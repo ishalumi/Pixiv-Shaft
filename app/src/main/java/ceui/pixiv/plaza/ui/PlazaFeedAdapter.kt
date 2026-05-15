@@ -72,6 +72,7 @@ class PlazaFeedAdapter(
                 selfUid = selfUid,
                 onMore = onMore,
                 onCardClick = onCardClick,
+                verticalIllustLayout = false,
             )
         }
     }
@@ -91,6 +92,11 @@ internal fun bindPlazaPostCard(
     selfUid: Long,
     onMore: ((PlazaPost, View) -> Unit)?,
     onCardClick: ((PlazaPost) -> Unit)?,
+    /**
+     * 详情页用 true: 每张引用图按原宽高比纵向堆叠,特别高的图收窄宽度(不撑满)。
+     * Feed 用 false: 走 [bindIllustGrid] 的 1/2/3/4/N 网格策略。
+     */
+    verticalIllustLayout: Boolean = false,
 ) {
     val ctx = binding.root.context
 
@@ -120,7 +126,11 @@ internal fun bindPlazaPostCard(
         binding.card.isClickable = false
     }
 
-    bindIllustGrid(binding, post.refs.illust)
+    if (verticalIllustLayout) {
+        bindIllustsVertical(binding, post.refs.illust)
+    } else {
+        bindIllustGrid(binding, post.refs.illust)
+    }
     bindUserRefs(binding, post.refs.user)
     bindActionChips(binding, post)
 }
@@ -181,6 +191,104 @@ private fun bindIllustGrid(binding: CellPlazaPostBinding, illusts: List<PlazaIll
             }
         }
     }
+}
+
+/**
+ * 详情页专用:引用图纵向堆叠,每张保留自己原始宽高比。
+ *
+ * 高图限高策略:cell 最大高度 = cardWidth * MAX_RATIO。比这更高的图,**收窄宽度**
+ * 让 height 顶到 maxHeight —— 即"特别高的图,宽度不会撑满"。结果是 portrait
+ * 巨长图会变成一根窄长条,水平居中。
+ *
+ * 低/常规图 (h/w ≤ MAX_RATIO):width = cardWidth,height = w * h0/w0,撑满父宽。
+ */
+private fun bindIllustsVertical(binding: CellPlazaPostBinding, illusts: List<PlazaIllustRef>) {
+    val container = binding.illustGrid
+    container.removeAllViews()
+    if (illusts.isEmpty()) {
+        container.isVisible = false
+        return
+    }
+    container.isVisible = true
+
+    val cardWidth = container.resources.displayMetrics.widthPixels - 36.ppppx
+    // 高图阈值:cell 不会高于 cardWidth * 1.4。再高就收宽。
+    val maxHeight = (cardWidth * 1.4f).toInt()
+    val gap = 8.ppppx
+
+    illusts.forEachIndexed { i, ref ->
+        val cell = buildVerticalCell(container, ref, cardWidth, maxHeight)
+        if (i > 0) (cell.layoutParams as LinearLayout.LayoutParams).topMargin = gap
+        container.addView(cell)
+    }
+}
+
+/**
+ * 详情页里单张引用图 cell。
+ *
+ * 加载前先用 cardWidth × cardWidth*0.75 (4:3) 占位,避免 RV 高度抖。
+ * 拿到原图后 onResourceReady 算目标 w/h,设回 layoutParams。
+ *
+ * tall 图分支用 LinearLayout.LayoutParams + gravity=center_horizontal,让窄 cell
+ * 在卡片宽度内水平居中。
+ */
+private fun buildVerticalCell(
+    parent: ViewGroup,
+    ref: PlazaIllustRef,
+    cardWidth: Int,
+    maxHeight: Int,
+): View {
+    val placeholderH = (cardWidth * 0.75f).toInt()
+    val cell = inflateCellShell(parent, ref, cardWidth, placeholderH)
+    // inflateCellShell 给的是 LinearLayout.LayoutParams(w, h),没 gravity。
+    // 详情页 cell 可能窄于父宽,补上 center_horizontal。
+    (cell.root.layoutParams as LinearLayout.LayoutParams).gravity = android.view.Gravity.CENTER_HORIZONTAL
+
+    val thumbUrl = ref.meta?.thumb_url
+    if (!thumbUrl.isNullOrEmpty()) {
+        Glide.with(parent.context)
+            .load(GlideUrlChild(thumbUrl))
+            .placeholder(android.R.color.transparent)
+            .listener(object : RequestListener<Drawable> {
+                override fun onResourceReady(
+                    resource: Drawable,
+                    model: Any,
+                    target: Target<Drawable>,
+                    dataSource: DataSource,
+                    isFirstResource: Boolean,
+                ): Boolean {
+                    val dw = resource.intrinsicWidth
+                    val dh = resource.intrinsicHeight
+                    if (dw > 0 && dh > 0) {
+                        val naturalH = (cardWidth.toFloat() * dh / dw).toInt()
+                        val (targetW, targetH) = if (naturalH > maxHeight) {
+                            // 特别高 → height 顶到 maxHeight,width 跟着按原比例缩
+                            val h = maxHeight
+                            val w = (h.toFloat() * dw / dh).toInt().coerceAtLeast(1)
+                            w to h
+                        } else {
+                            cardWidth to naturalH
+                        }
+                        val lp = cell.root.layoutParams as LinearLayout.LayoutParams
+                        if (lp.width != targetW || lp.height != targetH) {
+                            lp.width = targetW
+                            lp.height = targetH
+                            cell.root.layoutParams = lp
+                        }
+                    }
+                    return false
+                }
+
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<Drawable>,
+                    isFirstResource: Boolean,
+                ): Boolean = false
+            })
+            .into(cell.thumb)
+    }
+    return cell.root
 }
 
 /**

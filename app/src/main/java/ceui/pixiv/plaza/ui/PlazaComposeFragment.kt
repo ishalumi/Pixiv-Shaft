@@ -47,6 +47,14 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 从插画详情「分享至广场」入口进来时,带 ARG_PREFILL_ILLUST_ID 自动附上这张
+        // illust。只在首次创建(savedInstanceState=null)时附,旋屏重建别重复 attach
+        // (VM 已经持有 attachedIllusts)。
+        if (savedInstanceState == null) {
+            val prefilled = arguments?.getLong(ARG_PREFILL_ILLUST_ID, 0L) ?: 0L
+            if (prefilled > 0L) viewModel.attachIllust(prefilled)
+        }
+
         // top bar 走 brand 色 + 跟 setupToolbar 同套(Shaft.getThemeColor 是
         // AppTheme.IndexX 的 colorPrimary)。XML 里的 ?attr/colorPrimary 是 Material3
         // baseline 的 fallback,brand 色才是用户切主题选过的。
@@ -152,6 +160,11 @@ class PlazaComposeFragment : Fragment(R.layout.fragment_plaza_compose) {
                 d.dismiss()
             }
             .show()
+    }
+
+    companion object {
+        /** TemplateActivity 走 EXTRA_FRAGMENT="发帖" 时附带这条:打开编辑器并预附 illust。 */
+        const val ARG_PREFILL_ILLUST_ID = "plaza_compose_prefill_illust_id"
     }
 }
 

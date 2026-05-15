@@ -1430,6 +1430,7 @@
     <string name="plaza_days_ago">%1$d 日前</string>
     <string name="plaza_attached_overflow">+%1$d</string>
     <string name="plaza_more_menu">その他</string>
+    <string name="plaza_share_illust_to_plaza">広場に共有</string>
     <string name="plaza_rate_limited">リクエストが多すぎます。%1$d 秒後に再試行してください。</string>
     <string name="plaza_ts_skew">端末時刻がずれています。校正してから再投稿してください。</string>
     <string name="plaza_referenced_user">@%1$s に言及</string>

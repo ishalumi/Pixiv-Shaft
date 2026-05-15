@@ -1425,6 +1425,7 @@
     <string name="plaza_days_ago">%1$d d ago</string>
     <string name="plaza_attached_overflow">+%1$d</string>
     <string name="plaza_more_menu">More</string>
+    <string name="plaza_share_illust_to_plaza">Share to Plaza</string>
     <string name="plaza_rate_limited">Too many requests. Try again in %1$ds.</string>
     <string name="plaza_ts_skew">Device clock is off. Please correct it and retry.</string>
     <string name="plaza_referenced_user">mentioned @%1$s</string>

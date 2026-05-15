@@ -1331,6 +1331,7 @@
     <string name="plaza_days_ago">%1$d дн назад</string>
     <string name="plaza_attached_overflow">+%1$d</string>
     <string name="plaza_more_menu">Ещё</string>
+    <string name="plaza_share_illust_to_plaza">Поделиться на Площадке</string>
     <string name="plaza_rate_limited">Слишком много запросов. Повторите через %1$d с.</string>
     <string name="plaza_ts_skew">Часы устройства неточны. Скорректируйте и повторите.</string>
     <string name="plaza_referenced_user">упомянул @%1$s</string>

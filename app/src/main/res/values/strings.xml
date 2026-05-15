@@ -1842,6 +1842,7 @@
     <string name="plaza_days_ago">%1$d 天前</string>
     <string name="plaza_attached_overflow">+%1$d</string>
     <string name="plaza_more_menu">更多</string>
+    <string name="plaza_share_illust_to_plaza">分享至广场</string>
     <string name="plaza_rate_limited">操作太频繁,请 %1$d 秒后再试</string>
     <string name="plaza_ts_skew">本机时间不准,请校准后再发</string>
     <string name="plaza_referenced_user">提到了 @%1$s</string>

@@ -550,6 +550,20 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                         // AI upscale requires IllustAiHelper
                     }
                 }
+                item(
+                    getString(R.string.plaza_share_illust_to_plaza),
+                    R.drawable.ic_plaza_forum_24,
+                ) {
+                    val intent = Intent(mContext, ceui.lisa.activities.TemplateActivity::class.java)
+                    intent.putExtra(
+                        ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "发帖"
+                    )
+                    intent.putExtra(
+                        ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID,
+                        illust.id.toLong(),
+                    )
+                    startActivity(intent)
+                }
             }
         }
     }

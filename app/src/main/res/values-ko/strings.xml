@@ -1338,6 +1338,7 @@
     <string name="plaza_days_ago">%1$d일 전</string>
     <string name="plaza_attached_overflow">+%1$d</string>
     <string name="plaza_more_menu">더 보기</string>
+    <string name="plaza_share_illust_to_plaza">광장에 공유</string>
     <string name="plaza_rate_limited">요청이 너무 많습니다. %1$d초 후에 다시 시도하세요.</string>
     <string name="plaza_ts_skew">기기 시간이 정확하지 않습니다. 보정 후 다시 시도하세요.</string>
     <string name="plaza_referenced_user">@%1$s 언급함</string>

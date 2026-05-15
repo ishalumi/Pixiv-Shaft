@@ -403,8 +403,22 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 }
                 case "广场":
                     return new ceui.pixiv.plaza.ui.PlazaFragment();
-                case "发帖":
-                    return new ceui.pixiv.plaza.ui.PlazaComposeFragment();
+                case "发帖": {
+                    // 从插画 V3「分享至广场」入口进来会带 ILLUST_ID,需透传给 compose fragment
+                    // 让它预附这张 illust;广场右上「+」入口不带,走空白编辑器。
+                    ceui.pixiv.plaza.ui.PlazaComposeFragment composeFragment =
+                        new ceui.pixiv.plaza.ui.PlazaComposeFragment();
+                    long prefillIllustId = intent.getLongExtra(
+                        ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID, 0L);
+                    if (prefillIllustId > 0L) {
+                        android.os.Bundle args = new android.os.Bundle();
+                        args.putLong(
+                            ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID,
+                            prefillIllustId);
+                        composeFragment.setArguments(args);
+                    }
+                    return composeFragment;
+                }
                 case "Plaza打开作品": {
                     // 从广场卡片点 illust 缩略走这条;只带 ILLUST_ID,
                     // ArtworkV3ViewModel 自己会按 id lazy load。

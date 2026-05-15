@@ -1329,6 +1329,7 @@
     <string name="plaza_days_ago">%1$d gün önce</string>
     <string name="plaza_attached_overflow">+%1$d</string>
     <string name="plaza_more_menu">Daha fazla</string>
+    <string name="plaza_share_illust_to_plaza">Meydan\'da Paylaş</string>
     <string name="plaza_rate_limited">Çok fazla istek. %1$d saniye sonra tekrar deneyin.</string>
     <string name="plaza_ts_skew">Cihaz saati yanlış. Lütfen düzeltip tekrar deneyin.</string>
     <string name="plaza_referenced_user">@%1$s\'den bahsetti</string>
