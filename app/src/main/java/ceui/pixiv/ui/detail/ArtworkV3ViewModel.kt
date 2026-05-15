@@ -310,16 +310,10 @@ class ArtworkV3ViewModel(
             Timber.tag("V3MultiP").d("[ViewModel.loadData] short-circuit: IllustsBean already present (illustId=$illustId)")
             return
         }
-        Timber.tag("V3MultiP").d(
-            "[ViewModel.loadData] IllustsBean is NULL, falling through to Illust pool / DB / API path. " +
-                "WARNING: this path only updates Illust(modern) pool, NOT IllustsBean(legacy) — " +
-                "Fragment observes IllustsBean and may never get adapter-created."
-        )
+        Timber.tag("V3MultiP").d("[ViewModel.loadData] IllustsBean is NULL, falling through to Illust pool / DB / API path.")
         viewModelScope.launch {
             try {
-                val fromIllustPool = ObjectPool.get<Illust>(illustId).value
-                Timber.tag("V3MultiP").d("[ViewModel.loadData] Illust(modern) pool value=${fromIllustPool != null}")
-                fromIllustPool
+                val resolved = ObjectPool.get<Illust>(illustId).value
                     ?: withContext(Dispatchers.IO) {
                         val ctx = Shaft.getContext()
                         AppDatabase.getAppDatabase(ctx).generalDao()
@@ -336,6 +330,19 @@ class ArtworkV3ViewModel(
                         )
                         ObjectPool.update(it)
                     }
+                // Fragment 观察的是 legacy IllustsBean pool;任何只能拿到 modern Illust
+                // 的入口,如果不在这里桥接回 legacy pool,illustBeanObserver 永远不 fire,
+                // header 不构建,UI 白屏。Pixiv 后端 illust JSON 只有一种,Illust /
+                // IllustsBean 字段名一致,Gson round-trip 安全。
+                if (resolved != null && ObjectPool.get<IllustsBean>(illustId).value == null) {
+                    runCatching { gson.fromJson(gson.toJson(resolved), IllustsBean::class.java) }
+                        .onFailure { Timber.tag("V3MultiP").e(it, "[ViewModel.loadData] legacy bridge failed") }
+                        .getOrNull()
+                        ?.let {
+                            Timber.tag("V3MultiP").d("[ViewModel.loadData] bridged to legacy IllustsBean pool")
+                            ObjectPool.updateIllust(it)
+                        }
+                }
             } catch (e: Exception) {
                 Timber.tag("V3MultiP").e(e, "[ViewModel.loadData] EXCEPTION")
             }
