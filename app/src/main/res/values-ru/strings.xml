@@ -1299,4 +1299,37 @@
     <string name="chat_error_service_unavailable">Сервис временно недоступен. Повторите попытку позже.</string>
     <string name="chat_error_serialization">Получены некорректные данные от сервера.</string>
     <string name="chat_error_unknown">Что-то пошло не так.</string>
+
+    <!-- Plaza -->
+    <string name="plaza_drawer_entry">Площадь</string>
+    <string name="plaza_title">Площадь</string>
+    <string name="plaza_compose_title">Новый пост</string>
+    <string name="plaza_send_post">Опубликовать</string>
+    <string name="plaza_post_text_hint">Поделитесь тем, что смотрите…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">Прикреплено %1$d / 9</string>
+    <string name="plaza_attach_illust">Прикрепить работу</string>
+    <string name="plaza_attach_illust_by_id">По illust ID</string>
+    <string name="plaza_attach_illust_id_hint">Illust ID</string>
+    <string name="plaza_post_too_long">Текст превышает 500 символов</string>
+    <string name="plaza_post_empty">Текст не может быть пустым</string>
+    <string name="plaza_post_send_failed">Не удалось опубликовать: %1$s</string>
+    <string name="plaza_post_sent">Опубликовано</string>
+    <string name="plaza_login_required">Сначала войдите в аккаунт Pixiv</string>
+    <string name="plaza_no_posts">Пока нет постов</string>
+    <string name="plaza_load_failed">Не удалось загрузить: %1$s</string>
+    <string name="plaza_delete_confirm">Удалить этот пост?</string>
+    <string name="plaza_delete_confirm_yes">Удалить</string>
+    <string name="plaza_delete_cancel">Отмена</string>
+    <string name="plaza_post_deleted">Удалено</string>
+    <string name="plaza_post_delete_failed">Не удалось удалить: %1$s</string>
+    <string name="plaza_just_now">только что</string>
+    <string name="plaza_minutes_ago">%1$d мин назад</string>
+    <string name="plaza_hours_ago">%1$d ч назад</string>
+    <string name="plaza_days_ago">%1$d дн назад</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">Ещё</string>
+    <string name="plaza_rate_limited">Слишком много запросов. Повторите через %1$d с.</string>
+    <string name="plaza_ts_skew">Часы устройства неточны. Скорректируйте и повторите.</string>
+    <string name="plaza_referenced_user">упомянул @%1$s</string>
 </resources>

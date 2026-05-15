@@ -138,6 +138,10 @@
                 android:id="@+id/nav_chat_room"
                 android:icon="@drawable/ic_chat_black_24dp"
                 android:title="@string/chat_drawer_entry" />
+            <item
+                android:id="@+id/nav_plaza"
+                android:icon="@drawable/ic_plaza_forum_24"
+                android:title="@string/plaza_drawer_entry" />
         </menu>
     </item>
 

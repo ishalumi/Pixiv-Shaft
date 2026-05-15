@@ -401,6 +401,16 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     // would route to the list itself.
                     return new ceui.pixiv.chat.ui.DemoChatListFragment();
                 }
+                case "广场":
+                    return new ceui.pixiv.plaza.ui.PlazaFragment();
+                case "发帖":
+                    return new ceui.pixiv.plaza.ui.PlazaComposeFragment();
+                case "Plaza打开作品": {
+                    // 从广场卡片点 illust 缩略走这条;只带 ILLUST_ID,
+                    // ArtworkV3ViewModel 自己会按 id lazy load。
+                    int illustId = intent.getIntExtra(ceui.lisa.utils.Params.ILLUST_ID, 0);
+                    return ceui.pixiv.ui.detail.ArtworkV3Fragment.newInstance(illustId);
+                }
                 default:
                     return new Fragment();
             }

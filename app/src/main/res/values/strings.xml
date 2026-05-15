@@ -1812,4 +1812,37 @@
     <string name="chat_error_service_unavailable">服务暂时不可用,请稍后再试</string>
     <string name="chat_error_serialization">服务器返回的数据无效</string>
     <string name="chat_error_unknown">出错了</string>
+
+    <!-- Plaza (shaft-plaza-api;debug 入口隐藏在 nav_experimental_section) -->
+    <string name="plaza_drawer_entry">广场</string>
+    <string name="plaza_title">广场</string>
+    <string name="plaza_compose_title">发帖</string>
+    <string name="plaza_send_post">发布</string>
+    <string name="plaza_post_text_hint">分享你正在看的作品…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">已附 %1$d / 9 张作品</string>
+    <string name="plaza_attach_illust">添加引用作品</string>
+    <string name="plaza_attach_illust_by_id">输入 illust ID</string>
+    <string name="plaza_attach_illust_id_hint">illust ID</string>
+    <string name="plaza_post_too_long">正文超过 500 字</string>
+    <string name="plaza_post_empty">正文不能为空</string>
+    <string name="plaza_post_send_failed">发布失败:%1$s</string>
+    <string name="plaza_post_sent">已发布</string>
+    <string name="plaza_login_required">请先登录 Pixiv 账号</string>
+    <string name="plaza_no_posts">广场里还没有帖子</string>
+    <string name="plaza_load_failed">加载失败:%1$s</string>
+    <string name="plaza_delete_confirm">删除这条帖子?</string>
+    <string name="plaza_delete_confirm_yes">删除</string>
+    <string name="plaza_delete_cancel">取消</string>
+    <string name="plaza_post_deleted">已删除</string>
+    <string name="plaza_post_delete_failed">删除失败:%1$s</string>
+    <string name="plaza_just_now">刚刚</string>
+    <string name="plaza_minutes_ago">%1$d 分钟前</string>
+    <string name="plaza_hours_ago">%1$d 小时前</string>
+    <string name="plaza_days_ago">%1$d 天前</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">更多</string>
+    <string name="plaza_rate_limited">操作太频繁,请 %1$d 秒后再试</string>
+    <string name="plaza_ts_skew">本机时间不准,请校准后再发</string>
+    <string name="plaza_referenced_user">提到了 @%1$s</string>
 </resources>

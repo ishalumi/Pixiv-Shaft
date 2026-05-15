@@ -1297,4 +1297,37 @@
     <string name="chat_error_service_unavailable">Hizmet geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.</string>
     <string name="chat_error_serialization">Sunucudan geçersiz veri alındı.</string>
     <string name="chat_error_unknown">Bir hata oluştu.</string>
+
+    <!-- Plaza -->
+    <string name="plaza_drawer_entry">Meydan</string>
+    <string name="plaza_title">Meydan</string>
+    <string name="plaza_compose_title">Yeni Gönderi</string>
+    <string name="plaza_send_post">Gönder</string>
+    <string name="plaza_post_text_hint">Şu an baktığın eseri paylaş…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">Eklenen %1$d / 9</string>
+    <string name="plaza_attach_illust">Eser ekle</string>
+    <string name="plaza_attach_illust_by_id">illust ID ile ekle</string>
+    <string name="plaza_attach_illust_id_hint">Illust ID</string>
+    <string name="plaza_post_too_long">Metin 500 karakteri aşıyor</string>
+    <string name="plaza_post_empty">Metin boş olamaz</string>
+    <string name="plaza_post_send_failed">Gönderilemedi: %1$s</string>
+    <string name="plaza_post_sent">Gönderildi</string>
+    <string name="plaza_login_required">Lütfen önce Pixiv hesabınızla giriş yapın</string>
+    <string name="plaza_no_posts">Henüz gönderi yok</string>
+    <string name="plaza_load_failed">Yüklenemedi: %1$s</string>
+    <string name="plaza_delete_confirm">Bu gönderi silinsin mi?</string>
+    <string name="plaza_delete_confirm_yes">Sil</string>
+    <string name="plaza_delete_cancel">İptal</string>
+    <string name="plaza_post_deleted">Silindi</string>
+    <string name="plaza_post_delete_failed">Silinemedi: %1$s</string>
+    <string name="plaza_just_now">az önce</string>
+    <string name="plaza_minutes_ago">%1$d dk önce</string>
+    <string name="plaza_hours_ago">%1$d sa önce</string>
+    <string name="plaza_days_ago">%1$d gün önce</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">Daha fazla</string>
+    <string name="plaza_rate_limited">Çok fazla istek. %1$d saniye sonra tekrar deneyin.</string>
+    <string name="plaza_ts_skew">Cihaz saati yanlış. Lütfen düzeltip tekrar deneyin.</string>
+    <string name="plaza_referenced_user">@%1$s\'den bahsetti</string>
 </resources>

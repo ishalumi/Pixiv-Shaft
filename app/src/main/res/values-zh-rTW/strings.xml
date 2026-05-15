@@ -1412,4 +1412,37 @@
     <string name="chat_error_service_unavailable">服務暫時不可用,請稍後再試</string>
     <string name="chat_error_serialization">伺服器返回的資料無效</string>
     <string name="chat_error_unknown">發生錯誤</string>
+
+    <!-- Plaza -->
+    <string name="plaza_drawer_entry">廣場</string>
+    <string name="plaza_title">廣場</string>
+    <string name="plaza_compose_title">發文</string>
+    <string name="plaza_send_post">發布</string>
+    <string name="plaza_post_text_hint">分享你正在看的作品…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">已附 %1$d / 9 張作品</string>
+    <string name="plaza_attach_illust">新增引用作品</string>
+    <string name="plaza_attach_illust_by_id">輸入 illust ID</string>
+    <string name="plaza_attach_illust_id_hint">illust ID</string>
+    <string name="plaza_post_too_long">內容超過 500 字</string>
+    <string name="plaza_post_empty">內容不能為空</string>
+    <string name="plaza_post_send_failed">發布失敗:%1$s</string>
+    <string name="plaza_post_sent">已發布</string>
+    <string name="plaza_login_required">請先登入 Pixiv 帳號</string>
+    <string name="plaza_no_posts">廣場裡還沒有貼文</string>
+    <string name="plaza_load_failed">載入失敗:%1$s</string>
+    <string name="plaza_delete_confirm">刪除這則貼文?</string>
+    <string name="plaza_delete_confirm_yes">刪除</string>
+    <string name="plaza_delete_cancel">取消</string>
+    <string name="plaza_post_deleted">已刪除</string>
+    <string name="plaza_post_delete_failed">刪除失敗:%1$s</string>
+    <string name="plaza_just_now">剛剛</string>
+    <string name="plaza_minutes_ago">%1$d 分鐘前</string>
+    <string name="plaza_hours_ago">%1$d 小時前</string>
+    <string name="plaza_days_ago">%1$d 天前</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">更多</string>
+    <string name="plaza_rate_limited">操作太頻繁,請 %1$d 秒後再試</string>
+    <string name="plaza_ts_skew">本機時間不準,請校準後再發</string>
+    <string name="plaza_referenced_user">提到了 @%1$s</string>
 </resources>

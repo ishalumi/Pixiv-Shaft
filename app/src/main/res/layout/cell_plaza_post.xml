@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单条 plaza 帖子的卡片。
+     - 圆角 + 轻 elevation,V3 风格
+     - header (头像 / 名字 / 时间 / 更多)
+     - body (正文)
+     - refs.illust 走 RecyclerView (1/2/3+ 列由 PlazaPostHolder 动态切 layoutManager)
+     - refs.user 走横向 chip 行,只在有 user ref 时显示
+
+     overflow_indicator 是 illust 数 > 9 时显示的 +N 角标,
+     虽然 server 限了 9 张/kind,客户端兜底防 future schema 变更。 -->
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginBottom="6dp"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="14dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="10dp">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/avatar"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:scaleType="centerCrop"
+                app:civ_border_color="@color/colorWhite40"
+                app:civ_border_width="0.5dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:src="@mipmap/ic_launcher" />
+
+            <TextView
+                android:id="@+id/display_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toTopOf="@+id/post_time"
+                app:layout_constraintEnd_toStartOf="@+id/more_btn"
+                app:layout_constraintStart_toEndOf="@+id/avatar"
+                app:layout_constraintTop_toTopOf="@+id/avatar"
+                app:layout_constraintVertical_chainStyle="packed"
+                tools:text="桐井" />
+
+            <TextView
+                android:id="@+id/post_time"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                app:layout_constraintBottom_toBottomOf="@+id/avatar"
+                app:layout_constraintEnd_toStartOf="@+id/more_btn"
+                app:layout_constraintStart_toEndOf="@+id/avatar"
+                app:layout_constraintTop_toBottomOf="@+id/display_name"
+                tools:text="5 分钟前" />
+
+            <ImageButton
+                android:id="@+id/more_btn"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/plaza_more_menu"
+                android:src="@drawable/ic_more_vert_black_24dp"
+                app:layout_constraintBottom_toBottomOf="@+id/avatar"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/avatar"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- 正文 -->
+        <TextView
+            android:id="@+id/body_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autoLink="web"
+            android:linksClickable="true"
+            android:paddingStart="14dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="12dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorLink="?attr/colorPrimary"
+            android:textSize="15sp"
+            android:lineSpacingExtra="3dp"
+            tools:text="看看这几张图 ✨ 这次的画风真的太顶了\n继续磨" />
+
+        <!-- 引用 illust grid。layoutManager 在 PlazaPostHolder 里按数量切。 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/illust_grid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- 引用 user 行。只在有 user refs 时显示。 -->
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/user_refs_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="14dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="14dp"
+            android:visibility="gone"
+            app:flexWrap="wrap"
+            tools:visibility="visible" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

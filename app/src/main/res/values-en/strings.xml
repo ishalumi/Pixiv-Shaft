@@ -1393,4 +1393,37 @@
     <string name="chat_error_service_unavailable">Service is temporarily unavailable. Please try again later.</string>
     <string name="chat_error_serialization">Received invalid data from server.</string>
     <string name="chat_error_unknown">Something went wrong.</string>
+
+    <!-- Plaza -->
+    <string name="plaza_drawer_entry">Plaza</string>
+    <string name="plaza_title">Plaza</string>
+    <string name="plaza_compose_title">New Post</string>
+    <string name="plaza_send_post">Post</string>
+    <string name="plaza_post_text_hint">Share what you\'re looking at…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">Attached %1$d / 9</string>
+    <string name="plaza_attach_illust">Attach illust</string>
+    <string name="plaza_attach_illust_by_id">By illust ID</string>
+    <string name="plaza_attach_illust_id_hint">Illust ID</string>
+    <string name="plaza_post_too_long">Text exceeds 500 characters</string>
+    <string name="plaza_post_empty">Text cannot be empty</string>
+    <string name="plaza_post_send_failed">Failed to post: %1$s</string>
+    <string name="plaza_post_sent">Posted</string>
+    <string name="plaza_login_required">Please log in to your Pixiv account first</string>
+    <string name="plaza_no_posts">No posts yet</string>
+    <string name="plaza_load_failed">Failed to load: %1$s</string>
+    <string name="plaza_delete_confirm">Delete this post?</string>
+    <string name="plaza_delete_confirm_yes">Delete</string>
+    <string name="plaza_delete_cancel">Cancel</string>
+    <string name="plaza_post_deleted">Deleted</string>
+    <string name="plaza_post_delete_failed">Failed to delete: %1$s</string>
+    <string name="plaza_just_now">just now</string>
+    <string name="plaza_minutes_ago">%1$d min ago</string>
+    <string name="plaza_hours_ago">%1$d h ago</string>
+    <string name="plaza_days_ago">%1$d d ago</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">More</string>
+    <string name="plaza_rate_limited">Too many requests. Try again in %1$ds.</string>
+    <string name="plaza_ts_skew">Device clock is off. Please correct it and retry.</string>
+    <string name="plaza_referenced_user">mentioned @%1$s</string>
 </resources>

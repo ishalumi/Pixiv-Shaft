@@ -1,0 +1,126 @@
+package ceui.pixiv.plaza.api
+
+import com.google.gson.annotations.SerializedName
+
+/**
+ * 1:1 对齐 shaft-plaza-api server。字段命名故意保留 snake_case
+ * (Gson 默认 FIELD strategy)，避免一层 mapping。
+ *
+ * 服务端 spec 见 docs `shaft-plaza-api-android.md` §3-§7。
+ */
+
+// ── POST /api/v1/plaza/posts ─────────────────────────────────────
+
+/**
+ * 注意:这个 DTO **不直接** Gson.toJson 上送 —— 上送的 JSON 是手拼的
+ * canonical body (PlazaSig.canonicalPostBody) 加上 uid/ts/sig 三个外层字段,
+ * Gson 不保证 key 顺序,会破坏 server-side bodyHash 校验。
+ *
+ * 仅用于本地内存表达,真正的 wire format 在 PlazaRepository 里手拼。
+ */
+data class PlazaCreatePostInput(
+    val text: String,
+    val illust: List<Long> = emptyList(),
+    val novel: List<Long> = emptyList(),
+    val user: List<Long> = emptyList(),
+)
+
+// ── 响应 (POST 单条 / GET 单帖详情 / feed item) ──────────────────────
+
+/**
+ * 单条 plaza post。`refs` 三个 kind 字段始终存在,空时是空数组。
+ * `meta` 是 events DB 的快照,可能 null —— 客户端按需再去 Pixiv 取。
+ */
+data class PlazaPost(
+    val id: Long,
+    val uid: Long,
+    val display_name: String?,
+    val text: String,
+    val ts: Long,
+    val refs: PlazaPostRefs,
+)
+
+data class PlazaPostRefs(
+    val illust: List<PlazaIllustRef> = emptyList(),
+    val novel: List<PlazaNovelRef> = emptyList(),
+    val user: List<PlazaUserRef> = emptyList(),
+)
+
+data class PlazaIllustRef(
+    val id: Long,
+    val meta: PlazaIllustMeta?,
+)
+
+data class PlazaIllustMeta(
+    val target_id: Long,
+    val title: String?,
+    val user_id: Long?,
+    val user_name: String?,
+    val thumb_url: String?,
+)
+
+data class PlazaNovelRef(
+    val id: Long,
+    val meta: PlazaNovelMeta?,
+)
+
+data class PlazaNovelMeta(
+    val target_id: Long,
+    val title: String?,
+    val user_id: Long?,
+    val user_name: String?,
+)
+
+data class PlazaUserRef(
+    val id: Long,
+    val meta: PlazaUserMeta?,
+)
+
+data class PlazaUserMeta(
+    val target_id: Long,
+    val name: String?,
+    val account: String?,
+    val avatar_url: String?,
+)
+
+// ── GET /api/v1/plaza/posts ── 最新 feed ─────────────────────────
+
+data class PlazaFeedResponse(
+    val items: List<PlazaPost>,
+    val next_before: Long?,
+)
+
+// ── GET /api/v1/plaza/users/:uid/posts ───────────────────────────
+
+data class PlazaUserPostsResponse(
+    val uid: Long,
+    val total: Int,
+    val items: List<PlazaPost>,
+    val next_before: Long?,
+)
+
+// ── DELETE /api/v1/plaza/posts/:id ───────────────────────────────
+
+data class PlazaDeleteResponse(
+    val ok: Boolean,
+)
+
+// ── 错误响应 ────────────────────────────────────────────────────
+
+/**
+ * 4xx/5xx 响应都是 `{error: "<code>", ...optional}`。常见 code:
+ *   - bad_sig:canonical body 拼错或 secret 错
+ *   - ts_skew:本地时钟漂移 >30s
+ *   - text_too_long:正文 >500 code points
+ *   - too_many_refs_per_kind / too_many_refs_total:引用太多
+ *   - rate_limited:命中速率限制 (scope=ip/uid),retryAfterSeconds 给秒数
+ *   - empty_text / bad_text_chars
+ */
+data class PlazaErrorBody(
+    val error: String,
+    val detail: String? = null,
+    val limit: Int? = null,
+    val scope: String? = null,
+    @SerializedName("retryAfterSeconds")
+    val retryAfterSeconds: Long? = null,
+)

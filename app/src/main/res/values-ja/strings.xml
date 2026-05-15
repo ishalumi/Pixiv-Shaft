@@ -1398,4 +1398,37 @@
     <string name="chat_error_service_unavailable">サービスは一時的に利用できません。後でもう一度お試しください。</string>
     <string name="chat_error_serialization">サーバーから無効なデータを受信しました。</string>
     <string name="chat_error_unknown">エラーが発生しました。</string>
+
+    <!-- Plaza -->
+    <string name="plaza_drawer_entry">広場</string>
+    <string name="plaza_title">広場</string>
+    <string name="plaza_compose_title">投稿</string>
+    <string name="plaza_send_post">投稿する</string>
+    <string name="plaza_post_text_hint">いま見ている作品を共有しよう…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">添付済み %1$d / 9</string>
+    <string name="plaza_attach_illust">作品を添付</string>
+    <string name="plaza_attach_illust_by_id">illust ID で追加</string>
+    <string name="plaza_attach_illust_id_hint">illust ID</string>
+    <string name="plaza_post_too_long">本文は 500 文字以内にしてください</string>
+    <string name="plaza_post_empty">本文を入力してください</string>
+    <string name="plaza_post_send_failed">投稿に失敗しました:%1$s</string>
+    <string name="plaza_post_sent">投稿しました</string>
+    <string name="plaza_login_required">先に Pixiv アカウントにログインしてください</string>
+    <string name="plaza_no_posts">まだ投稿がありません</string>
+    <string name="plaza_load_failed">読み込みに失敗しました:%1$s</string>
+    <string name="plaza_delete_confirm">この投稿を削除しますか?</string>
+    <string name="plaza_delete_confirm_yes">削除</string>
+    <string name="plaza_delete_cancel">キャンセル</string>
+    <string name="plaza_post_deleted">削除しました</string>
+    <string name="plaza_post_delete_failed">削除に失敗しました:%1$s</string>
+    <string name="plaza_just_now">たった今</string>
+    <string name="plaza_minutes_ago">%1$d 分前</string>
+    <string name="plaza_hours_ago">%1$d 時間前</string>
+    <string name="plaza_days_ago">%1$d 日前</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">その他</string>
+    <string name="plaza_rate_limited">リクエストが多すぎます。%1$d 秒後に再試行してください。</string>
+    <string name="plaza_ts_skew">端末時刻がずれています。校正してから再投稿してください。</string>
+    <string name="plaza_referenced_user">@%1$s に言及</string>
 </resources>

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发帖编辑器。
+     - Toolbar: ←返回 + 标题 + 右上「发布」menu (showAsAction=always,文字按钮)
+     - 多行 EditText 占主区
+     - 已附 illust 横滑列表 + 「+」按钮在底部
+     - 字数计数贴在 EditText 右下,500 上限 -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurfaceContainerLow"
+    android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/app_bar_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="@dimen/six_dp"
+        android:minHeight="?attr/actionBarSize"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:menu="@menu/plaza_compose_menu"
+        app:navigationIcon="@drawable/baseline_arrow_back_24">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:text="@string/plaza_compose_title"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            tools:text="发帖" />
+    </androidx.appcompat.widget.Toolbar>
+
+    <!-- 正文输入区 -->
+    <ScrollView
+        android:id="@+id/text_scroll"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/footer_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/app_bar_layout">
+
+        <EditText
+            android:id="@+id/text_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:gravity="top|start"
+            android:hint="@string/plaza_post_text_hint"
+            android:inputType="textMultiLine|textCapSentences"
+            android:lineSpacingExtra="3dp"
+            android:minHeight="180dp"
+            android:padding="20dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOnSurfaceVariant"
+            android:textSize="16sp" />
+    </ScrollView>
+
+    <!-- 字数计数,贴在底部右上方 -->
+    <TextView
+        android:id="@+id/text_counter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="6dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toTopOf="@id/footer_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="0 / 500" />
+
+    <!-- 已附 illust 区域 + 「+ 添加 illust」按钮。
+         RecyclerView 横滑,只有有 illust 时显示。 -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/footer_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/attached_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toStartOf="@id/btn_add_illust"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="已附 0 / 9 张作品" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_add_illust"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:minWidth="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:text="@string/plaza_attach_illust"
+            android:textSize="12sp"
+            app:icon="@drawable/ic_add_black_24dp"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:iconSize="14dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/attached_list"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:clipToPadding="false"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/attached_label"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

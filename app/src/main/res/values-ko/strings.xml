@@ -1306,4 +1306,37 @@
     <string name="chat_error_service_unavailable">서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.</string>
     <string name="chat_error_serialization">서버에서 잘못된 데이터를 받았습니다.</string>
     <string name="chat_error_unknown">오류가 발생했습니다.</string>
+
+    <!-- Plaza -->
+    <string name="plaza_drawer_entry">광장</string>
+    <string name="plaza_title">광장</string>
+    <string name="plaza_compose_title">새 글</string>
+    <string name="plaza_send_post">게시</string>
+    <string name="plaza_post_text_hint">지금 보고 있는 작품을 공유해 보세요…</string>
+    <string name="plaza_text_count">%1$d / 500</string>
+    <string name="plaza_attached_count">첨부됨 %1$d / 9</string>
+    <string name="plaza_attach_illust">작품 첨부</string>
+    <string name="plaza_attach_illust_by_id">illust ID로 추가</string>
+    <string name="plaza_attach_illust_id_hint">illust ID</string>
+    <string name="plaza_post_too_long">본문은 500자 이내여야 합니다</string>
+    <string name="plaza_post_empty">본문을 입력해 주세요</string>
+    <string name="plaza_post_send_failed">게시 실패:%1$s</string>
+    <string name="plaza_post_sent">게시되었습니다</string>
+    <string name="plaza_login_required">먼저 Pixiv 계정에 로그인하세요</string>
+    <string name="plaza_no_posts">아직 게시글이 없습니다</string>
+    <string name="plaza_load_failed">불러오기 실패:%1$s</string>
+    <string name="plaza_delete_confirm">이 게시글을 삭제할까요?</string>
+    <string name="plaza_delete_confirm_yes">삭제</string>
+    <string name="plaza_delete_cancel">취소</string>
+    <string name="plaza_post_deleted">삭제됨</string>
+    <string name="plaza_post_delete_failed">삭제 실패:%1$s</string>
+    <string name="plaza_just_now">방금 전</string>
+    <string name="plaza_minutes_ago">%1$d분 전</string>
+    <string name="plaza_hours_ago">%1$d시간 전</string>
+    <string name="plaza_days_ago">%1$d일 전</string>
+    <string name="plaza_attached_overflow">+%1$d</string>
+    <string name="plaza_more_menu">더 보기</string>
+    <string name="plaza_rate_limited">요청이 너무 많습니다. %1$d초 후에 다시 시도하세요.</string>
+    <string name="plaza_ts_skew">기기 시간이 정확하지 않습니다. 보정 후 다시 시도하세요.</string>
+    <string name="plaza_referenced_user">@%1$s 언급함</string>
 </resources>
