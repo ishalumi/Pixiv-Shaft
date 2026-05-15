@@ -64,13 +64,6 @@ data class PlazaIllustMeta(
     val user_id: Long?,
     val user_name: String?,
     val thumb_url: String?,
-    /**
-     * 原图宽高(像素)。server 入库时从 IllustsBean.width/height 拷过来,
-     * 客户端拿来在详情页计算 cell 宽高比 —— 不需要等 Glide 加载后量像素再回填。
-     * 老帖子可能 null(server 升级前没存),render 时按方图兜底。
-     */
-    val width: Int? = null,
-    val height: Int? = null,
 )
 
 data class PlazaNovelRef(

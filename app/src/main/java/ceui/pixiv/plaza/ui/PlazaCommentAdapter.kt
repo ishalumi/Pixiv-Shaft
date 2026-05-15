@@ -124,8 +124,6 @@ class PlazaPostHeaderAdapter(
             selfUid = selfUid,
             onMore = onMore,
             onCardClick = null, // 已经在详情页里,卡片不再可点
-            // 详情页:每张引用图按原宽高比纵向铺,高图收窄宽度(figma 0:21195)。
-            verticalIllustLayout = true,
         )
     }
 

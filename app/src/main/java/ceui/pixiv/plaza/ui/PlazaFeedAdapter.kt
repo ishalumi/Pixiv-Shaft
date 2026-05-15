@@ -20,7 +20,6 @@ import ceui.pixiv.chat.base.BaseListAdapter
 import ceui.lisa.network.PlazaIllustRef
 import ceui.lisa.network.PlazaPost
 import ceui.lisa.network.PlazaUserRef
-import ceui.loxia.ObjectPool
 import ceui.pixiv.utils.ppppx
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -73,7 +72,6 @@ class PlazaFeedAdapter(
                 selfUid = selfUid,
                 onMore = onMore,
                 onCardClick = onCardClick,
-                verticalIllustLayout = false,
             )
         }
     }
@@ -93,11 +91,6 @@ internal fun bindPlazaPostCard(
     selfUid: Long,
     onMore: ((PlazaPost, View) -> Unit)?,
     onCardClick: ((PlazaPost) -> Unit)?,
-    /**
-     * 详情页用 true: 每张引用图按原宽高比纵向堆叠,特别高的图收窄宽度(不撑满)。
-     * Feed 用 false: 走 [bindIllustGrid] 的 1/2/3/4/N 网格策略。
-     */
-    verticalIllustLayout: Boolean = false,
 ) {
     val ctx = binding.root.context
 
@@ -127,11 +120,7 @@ internal fun bindPlazaPostCard(
         binding.card.isClickable = false
     }
 
-    if (verticalIllustLayout) {
-        bindIllustsVertical(binding, post.refs.illust)
-    } else {
-        bindIllustGrid(binding, post.refs.illust)
-    }
+    bindIllustGrid(binding, post.refs.illust)
     bindUserRefs(binding, post.refs.user)
     bindActionChips(binding, post)
 }
@@ -192,163 +181,6 @@ private fun bindIllustGrid(binding: CellPlazaPostBinding, illusts: List<PlazaIll
             }
         }
     }
-}
-
-/**
- * 详情页专用:引用图纵向堆叠,每张保留自己原始宽高比。
- *
- * 高图限高策略:cell 最大高度 = cardWidth * MAX_RATIO。比这更高的图,**收窄宽度**
- * 让 height 顶到 maxHeight —— 即"特别高的图,宽度不会撑满"。结果是 portrait
- * 巨长图会变成一根窄长条,水平居中。
- *
- * 低/常规图 (h/w ≤ MAX_RATIO):width = cardWidth,height = w * h0/w0,撑满父宽。
- */
-private fun bindIllustsVertical(binding: CellPlazaPostBinding, illusts: List<PlazaIllustRef>) {
-    val container = binding.illustGrid
-    container.removeAllViews()
-    if (illusts.isEmpty()) {
-        container.isVisible = false
-        return
-    }
-    container.isVisible = true
-
-    val cardWidth = container.resources.displayMetrics.widthPixels - 36.ppppx
-    // 高图阈值:cell 不会高于 cardWidth * 1.4。再高就收宽。
-    val maxHeight = (cardWidth * 1.4f).toInt()
-    val gap = 8.ppppx
-
-    illusts.forEachIndexed { i, ref ->
-        val cell = buildVerticalCell(container, ref, cardWidth, maxHeight)
-        if (i > 0) (cell.layoutParams as LinearLayout.LayoutParams).topMargin = gap
-        container.addView(cell)
-    }
-}
-
-/**
- * 详情页里单张引用图 cell。
- *
- * 宽高比来源(优先级):
- *   1. server 返回的 [PlazaIllustMeta.width]/[PlazaIllustMeta.height] —— 帖子入库时
- *      由 IllustsBean 拷过来,详情 GET 直接拿,不需要等图加载。
- *   2. [ObjectPool.getIllust] 本地缓存的 IllustsBean.width/height —— 老帖子 server 还
- *      没下发尺寸时兜底,通常用户都看过这张图,pool 里有现成的。
- *   3. 都没有 → onResourceReady 拿图本身像素尺寸算(下面 Glide listener 那条 fallback)。
- *
- * 计算策略:
- *   - 正常图 (h/w ≤ MAX_RATIO):width = cardWidth,height = w * h0/w0,撑满父宽
- *   - 特别高图 (h/w > MAX_RATIO):height = maxHeight,width = h * w0/h0,**收窄不撑满**
- *   - 窄 cell 用 gravity=center_horizontal 在父宽内居中
- *
- * 图源:thumb_url 是 Pixiv `square_medium`(/c/360x360_70/ 强裁方图),套到非方
- * cell 里 centerCrop 会拉伸出蒙板边或糊面。统一升到 master1200(无裁切、原比例、
- * 最长边 1200),详情见 [upgradeToMaster]。
- */
-private fun buildVerticalCell(
-    parent: ViewGroup,
-    ref: PlazaIllustRef,
-    cardWidth: Int,
-    maxHeight: Int,
-): View {
-    val knownW = ref.meta?.width?.takeIf { it > 0 }
-        ?: ObjectPool.getIllust(ref.id).value?.width?.takeIf { it > 0 }
-    val knownH = ref.meta?.height?.takeIf { it > 0 }
-        ?: ObjectPool.getIllust(ref.id).value?.height?.takeIf { it > 0 }
-
-    // 已知尺寸 → 直接算 cell。未知 → cardWidth × cardWidth*0.75 (4:3) 占位,等 Glide
-    // onResourceReady 再 patch。
-    val (initialW, initialH) = if (knownW != null && knownH != null) {
-        computeCellSize(knownW, knownH, cardWidth, maxHeight)
-    } else {
-        cardWidth to (cardWidth * 0.75f).toInt()
-    }
-
-    val cell = inflateCellShell(parent, ref, initialW, initialH)
-    (cell.root.layoutParams as LinearLayout.LayoutParams).gravity = android.view.Gravity.CENTER_HORIZONTAL
-
-    val thumbUrl = ref.meta?.thumb_url?.let(::upgradeToMaster)
-    if (!thumbUrl.isNullOrEmpty()) {
-        val request = Glide.with(parent.context)
-            .load(GlideUrlChild(thumbUrl))
-            .placeholder(android.R.color.transparent)
-
-        if (knownW == null || knownH == null) {
-            // meta 缺尺寸 → 退化到 Glide 加载后量像素再回填(老帖子 / pool 没缓存)
-            request.listener(object : RequestListener<Drawable> {
-                override fun onResourceReady(
-                    resource: Drawable,
-                    model: Any,
-                    target: Target<Drawable>,
-                    dataSource: DataSource,
-                    isFirstResource: Boolean,
-                ): Boolean {
-                    val dw = resource.intrinsicWidth
-                    val dh = resource.intrinsicHeight
-                    if (dw > 0 && dh > 0) {
-                        val (tw, th) = computeCellSize(dw, dh, cardWidth, maxHeight)
-                        val lp = cell.root.layoutParams as LinearLayout.LayoutParams
-                        if (lp.width != tw || lp.height != th) {
-                            lp.width = tw
-                            lp.height = th
-                            cell.root.layoutParams = lp
-                        }
-                    }
-                    return false
-                }
-
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable>,
-                    isFirstResource: Boolean,
-                ): Boolean = false
-            })
-        }
-
-        request.into(cell.thumb)
-    }
-    return cell.root
-}
-
-/**
- * 已知原图宽高 → 算 cell 在 cardWidth/maxHeight 约束下的目标宽高,保持原宽高比。
- *
- * 当原图 h/w 超过 maxHeight/cardWidth 时,height 顶到 maxHeight 同时 width 跟着按
- * 原比例缩。即"特别高的图,宽度不会撑满"。
- */
-private fun computeCellSize(
-    naturalW: Int,
-    naturalH: Int,
-    cardWidth: Int,
-    maxHeight: Int,
-): Pair<Int, Int> {
-    val fitH = (cardWidth.toFloat() * naturalH / naturalW).toInt()
-    return if (fitH > maxHeight) {
-        val h = maxHeight
-        val w = (h.toFloat() * naturalW / naturalH).toInt().coerceAtLeast(1)
-        w to h
-    } else {
-        cardWidth to fitH
-    }
-}
-
-/**
- * Pixiv square_medium URL → master1200 URL 转换。
- *
- * 输入示例 `https://i.pximg.net/c/360x360_70/img-master/img/.../12345_p0_square1200.jpg`
- * 输出     `https://i.pximg.net/img-master/img/.../12345_p0_master1200.jpg`
- *
- * 两步替换:
- *   1. 去掉 `/c/<size>[_<q>]/(img-master|custom-thumb)/` 中的 crop 段 →
- *      `/img-master/`,server 给的就是无裁切的最长边 1200 master1200。
- *   2. 文件名 `_square1200` / `_custom1200` → `_master1200`。
- *
- * 不匹配的 URL(非 pximg.net 或格式漂移)整段保留,Glide 仍能 load 原 url 当 fallback。
- */
-private fun upgradeToMaster(url: String): String {
-    return url
-        .replace(Regex("""/c/\d+x\d+(_\d+)?/(img-master|custom-thumb)/"""), "/img-master/")
-        .replace("_square1200.", "_master1200.")
-        .replace("_custom1200.", "_master1200.")
 }
 
 /**
