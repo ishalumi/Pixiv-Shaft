@@ -1369,6 +1369,8 @@
     <string name="chat_preview_you_prefix">You:</string>
     <string name="chat_self_label">You</string>
     <string name="chat_input_hint">Message</string>
+    <string name="chat_peer_typing">%1$s is typing…</string>
+    <string name="chat_peer_typing_anon">Typing…</string>
     <string name="chat_action_back">Back</string>
     <string name="chat_action_more">More</string>
     <string name="chat_action_copy">Copy</string>

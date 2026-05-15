@@ -98,6 +98,18 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     private var chatAdapter: ChatMessageAdapter? = null
     private var scrollToBottomOnNextUpdate = false
 
+    /**
+     * 当前 toolbar 标题的"非 typing"基线 —— typing 期间 title 被替换成
+     * "对方正在输入…"(微信式),停止打字时恢复到这个值。
+     * 初值 = initialTitle("uid=..." 或 "聊天室");fetchPeerProfile 成功后
+     * 升级到真实 peer name。
+     */
+    private var baseTitle: String = ""
+
+    /** Toolbar 主标题 view 引用,避开每次 typing emit 都 findViewById。 */
+    private val titleView: TextView?
+        get() = view?.findViewById(R.id.tv_title)
+
     /** Send button gating (doc §12): WS Connected + has text + not rate-limited. */
     private var wsConnected = false
     private var rateLimitCoolDown = false
@@ -127,6 +139,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         // room shows the canonical drawer entry — there is no single peer.
         val initialTitle = if (peerUidArg != null) "uid=$peerUidArg"
                            else getString(R.string.chat_drawer_entry)
+        baseTitle = initialTitle
         setupToolbar(title = initialTitle, showBack = true)
 
         // ── Bottom panel (emoji ↔ keyboard) ──────────────────────────
@@ -300,7 +313,12 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             val user = runCatching { Client.appApi.getUserProfile(peerUid).user }
                 .getOrNull() ?: return@launch
             user.name?.takeIf { it.isNotBlank() }?.let { name ->
-                view?.findViewById<TextView>(R.id.tv_title)?.text = name
+                baseTitle = name
+                // 只有当前不在 typing 状态时才直接覆盖 title;typing 中
+                // peerTyping observer 会用更新后的 baseTitle 在 stop 时恢复。
+                if (viewModel.peerTyping.value.isTyping.not()) {
+                    titleView?.text = name
+                }
             }
             val avatarUrl = user.profile_image_urls?.findMaxSizeUrl()
             adapter.peerAvatarUrl = avatarUrl
@@ -500,25 +518,25 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     }
 
     /**
-     * Bind VM's [ChatListViewModel.peerTyping] state to the indicator
-     * TextView. Server only forwards typing in DM rooms, but the VM
-     * already short-circuits global — this collector still runs harmlessly
-     * (peerTyping stays Idle there).
+     * 微信式 typing 指示:对方打字期间 toolbar title 整个替换成
+     * 「xxx 正在输入…」/「对方正在输入…」,停止打字立即恢复到 [baseTitle]
+     * (=peer 真实昵称 / 全员公屏标题)。
      *
-     * Display name: prefer the server-supplied `display_name` from the
-     * typing frame (always canonical, matches msg-bubble naming); when
-     * absent, fall back to the localized anonymous string.
+     * Server 只在 DM 房间转发 typing 帧,VM 已经在 global 短路 —— 这个
+     * collector 在 global 房里 peerTyping 恒为 Idle,无副作用。
+     *
+     * Display name 优先取 typing 帧自带的 display_name (canonical,跟
+     * msg-bubble 命名一致);缺省时回退到 anon 文案。
      */
     private suspend fun observePeerTyping() {
         viewModel.peerTyping.collect { state ->
-            binding.typingIndicator.isVisible = state.isTyping
-            if (state.isTyping) {
+            val tv = titleView ?: return@collect
+            tv.text = if (state.isTyping) {
                 val name = state.displayName?.takeIf { it.isNotBlank() }
-                binding.typingIndicator.text = if (name != null) {
-                    getString(R.string.chat_peer_typing, name)
-                } else {
-                    getString(R.string.chat_peer_typing_anon)
-                }
+                if (name != null) getString(R.string.chat_peer_typing, name)
+                else getString(R.string.chat_peer_typing_anon)
+            } else {
+                baseTitle
             }
         }
     }

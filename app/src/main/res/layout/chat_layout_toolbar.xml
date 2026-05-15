@@ -50,7 +50,8 @@
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textColor="@color/white"
-            android:textSize="18sp"
+            android:textSize="20sp"
+            android:textStyle="bold"
             tools:text="聊天室" />
 
         <TextView
@@ -62,7 +63,7 @@
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textColor="#CFFFFFFF"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:visibility="gone"
             tools:text="\@melodygardot"
             tools:visibility="visible" />

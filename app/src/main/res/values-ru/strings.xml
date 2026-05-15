@@ -1275,6 +1275,8 @@
     <string name="chat_preview_you_prefix">Вы:</string>
     <string name="chat_self_label">Я</string>
     <string name="chat_input_hint">Сообщение</string>
+    <string name="chat_peer_typing">%1$s печатает…</string>
+    <string name="chat_peer_typing_anon">Печатает…</string>
     <string name="chat_action_back">Назад</string>
     <string name="chat_action_more">Ещё</string>
     <string name="chat_action_copy">Копировать</string>

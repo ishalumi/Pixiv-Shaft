@@ -1374,6 +1374,8 @@
     <string name="chat_preview_you_prefix">自分:</string>
     <string name="chat_self_label">自分</string>
     <string name="chat_input_hint">メッセージ</string>
+    <string name="chat_peer_typing">%1$s が入力中…</string>
+    <string name="chat_peer_typing_anon">入力中…</string>
     <string name="chat_action_back">戻る</string>
     <string name="chat_action_more">その他</string>
     <string name="chat_action_copy">コピー</string>
