@@ -30,6 +30,9 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
     private val allIllusts = mutableListOf<IllustsBean>()
     private var onDeleteCallback: ((IllustHistoryEntity) -> Unit)? = null
 
+    /** 当前搜索 query；null/空串 = 走默认 paginated 列表，非空 = 走 LIKE 结果。 */
+    private var searchQuery: String? = null
+
     fun setDeleteCallback(cb: (IllustHistoryEntity) -> Unit) {
         onDeleteCallback = cb
     }
@@ -59,6 +62,32 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
                 _holders.value = buildHolders()
             }
             onDone()
+        }
+    }
+
+    /**
+     * 由 host fragment 监听 [HistorySearchSharedViewModel.query] 后转发：
+     *   null/空串 → 回到默认 paginated 列表
+     *   非空 → 走 DAO LIKE，按当前 [historyType] 过滤
+     * 同一 query 不重复请求。
+     */
+    fun applySearch(query: String?) {
+        val normalized = query?.trim().orEmpty().ifEmpty { null }
+        if (searchQuery == normalized) return
+        searchQuery = normalized
+        if (normalized == null) {
+            loadFirst()
+            return
+        }
+        viewModelScope.launch {
+            val data = withContext(Dispatchers.IO) {
+                dao.searchViewHistoryByType(normalized, historyType)
+            }
+            rawItems.clear()
+            rawItems.addAll(data)
+            rebuildIllusts()
+            _holders.value = buildHolders()
+            _isEmpty.value = rawItems.isEmpty()
         }
     }
 

@@ -4,7 +4,11 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import ceui.lisa.R
 import ceui.lisa.database.IllustHistoryEntity
@@ -15,12 +19,14 @@ import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.scwang.smart.refresh.footer.ClassicsFooter
 import com.scwang.smart.refresh.header.MaterialHeader
+import kotlinx.coroutines.launch
 
 class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
 
     private val binding by viewBinding(FragmentHistoryListBinding::bind)
     private val historyType: Int by lazy { arguments?.getInt(ARG_TYPE, 0) ?: 0 }
     private val viewModel: HistoryListViewModel by viewModels { HistoryListViewModel.factory(historyType) }
+    private val searchVm: HistorySearchSharedViewModel by activityViewModels()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -51,6 +57,15 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
 
         if (viewModel.holders.value.isNullOrEmpty()) {
             viewModel.loadFirst()
+        }
+
+        // host toolbar 上 SearchView 的输入通过 activity-scope SharedVM 下发到这里，
+        // 切换 DAO 数据源；query 空则恢复默认 paginated 列表。三个 tab 共用同一个
+        // sharedVm，但各自只过滤自己 type 对应的行（applySearch 内按 historyType 走 DAO）。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                searchVm.query.collect { q -> viewModel.applySearch(q) }
+            }
         }
     }
 

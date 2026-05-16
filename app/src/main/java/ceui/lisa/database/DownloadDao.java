@@ -167,6 +167,13 @@ public interface DownloadDao {
     @Query("SELECT * FROM illust_table WHERE illustJson LIKE '%' || :keyword || '%' ORDER BY time DESC LIMIT 200")
     List<IllustHistoryEntity> searchViewHistory(String keyword);
 
+    /**
+     * type-aware 全库模糊搜索：浏览历史 tabs 的「插画」「小说」分 tab 各自要
+     * 按 type 单独过滤。LIKE illustJson 命中 title/user.name 等子串。
+     */
+    @Query("SELECT * FROM illust_table WHERE type = :type AND illustJson LIKE '%' || :keyword || '%' ORDER BY time DESC LIMIT 200")
+    List<IllustHistoryEntity> searchViewHistoryByType(String keyword, int type);
+
 
     /**
      * 新增一个用户
