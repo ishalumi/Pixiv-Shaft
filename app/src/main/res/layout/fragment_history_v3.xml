@@ -80,7 +80,7 @@
                     android:layout_height="?attr/actionBarSize"
                     android:background="@android:color/transparent"
                     app:layout_collapseMode="pin"
-                    app:menu="@menu/delete_all"
+                    app:menu="@menu/history_v3"
                     app:navigationIcon="@drawable/icon_navi_back"
                     app:navigationIconTint="@color/v3_text_1"
                     app:titleTextColor="@color/v3_text_1" />

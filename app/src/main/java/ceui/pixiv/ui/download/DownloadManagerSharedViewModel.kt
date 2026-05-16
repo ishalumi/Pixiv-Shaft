@@ -123,4 +123,17 @@ class DownloadManagerSharedViewModel(app: Application) : AndroidViewModel(app) {
     fun publishDoneCardCount(count: Int) {
         _doneCardCount.value = count
     }
+
+    /**
+     * 已完成 tab 的搜索 query。host toolbar 的 SearchView 输入 → 写入；
+     * [DoneListV3Fragment] collect 后切换数据源 (LIKE query vs invalidations
+     * 默认列表)。null = 未进入搜索；空串 = SearchView 展开但还没输；非空 =
+     * 真实查询词。
+     */
+    private val _doneSearchQuery = MutableStateFlow<String?>(null)
+    val doneSearchQuery: StateFlow<String?> get() = _doneSearchQuery
+
+    fun setDoneSearchQuery(q: String?) {
+        _doneSearchQuery.value = q
+    }
 }

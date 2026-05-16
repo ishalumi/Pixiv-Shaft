@@ -40,6 +40,9 @@ import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -132,28 +135,19 @@ class DoneListV3Fragment : Fragment() {
             }
         }
 
-        // 数据源 = ManagerReactive.doneTableInvalidations 脏标记。Manager 写
-        // illust_download_table / 用户清空 / 单条删除都 poke 一次。这边 collect
+        // 数据源 = 默认走 ManagerReactive.doneTableInvalidations 脏标记。Manager
+        // 写 illust_download_table / 用户清空 / 单条删除都 poke 一次。这边 collect
         // 后用 suspend dao.getAll(...) 拿最新行。
         //
         // ⚠️ 不用 dao.flowAll：Room InvalidationTracker 在连续 INSERT 序列下
         // 首次 emit 后静默不再 re-emit（同 download_queue 那个 bug）。
+        //
+        // 搜索模式：host toolbar 的 SearchView 输入会写到
+        // sharedVm.doneSearchQuery（null=未进入搜索；""=已展开未输；非空=查询词）。
+        // 切到搜索分支时数据源换成 dao.searchDownloads(query)。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                ManagerReactive.doneTableInvalidations
-                    .map {
-                        val rows = runCatching { dao.getAll(PAGE_SIZE, 0) }
-                            .getOrDefault(emptyList())
-                        groupByIllust(rows)
-                    }
-                    .flowOn(Dispatchers.IO)
-                    .collect { groups ->
-                        adapter.submitList(groups)
-                        empty.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE
-                        // tab 标题数字回填:数字必须 = 实际可见卡片数,否则会出现 "已完成
-                        // 1944 / 列表却为空" 这种数据源错位(参考 DownloadManagerSharedViewModel.doneCardCount)。
-                        sharedVm.publishDoneCardCount(groups.size)
-                    }
+                runDoneListFlow(empty)
             }
         }
 
@@ -167,6 +161,45 @@ class DoneListV3Fragment : Fragment() {
                 }
             }
         }
+    }
+
+    /**
+     * 把"默认数据源"和"搜索数据源"合并成单一上游 — query 切换时 flatMapLatest
+     * 自动 cancel 上一条数据源 collect，新订阅当前条件对应的 flow。两条分支都
+     * 接 [ManagerReactive.doneTableInvalidations]（replay=1 SharedFlow，新订阅
+     * 立即拿一帧），保证删一条 / 新增完成都能即时刷新列表。
+     *
+     * - query==null : 全量列表 → dao.getAll(PAGE_SIZE)
+     * - query==""   : 搜索框展开但未输入 — 给空列表，让 empty state 提示
+     * - query!=""   : 过滤列表 → dao.searchDownloads(query)
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun runDoneListFlow(empty: View) {
+        sharedVm.doneSearchQuery
+            .flatMapLatest { query ->
+                when {
+                    query == null -> ManagerReactive.doneTableInvalidations.map {
+                        val rows = runCatching { dao.getAll(PAGE_SIZE, 0) }
+                            .getOrDefault(emptyList())
+                        groupByIllust(rows)
+                    }
+                    query.isEmpty() -> flow { emit(emptyList<DownloadGroup>()) }
+                    else -> ManagerReactive.doneTableInvalidations.map {
+                        val rows = runCatching { dao.searchDownloads(query) }
+                            .getOrDefault(emptyList())
+                        groupByIllust(rows)
+                    }
+                }
+            }
+            .flowOn(Dispatchers.IO)
+            .collect { groups ->
+                adapter.submitList(groups)
+                empty.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE
+                // tab 标题数字回填:数字必须 = 实际可见卡片数,否则会出现 "已完成
+                // 1944 / 列表却为空" 这种数据源错位(参考 DownloadManagerSharedViewModel.doneCardCount)。
+                // 搜索中也回填，让 tab 显示当前过滤命中数。
+                sharedVm.publishDoneCardCount(groups.size)
+            }
     }
 
     /**

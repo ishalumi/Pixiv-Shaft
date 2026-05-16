@@ -2,8 +2,11 @@ package ceui.lisa.fragments
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.widget.SearchView
+import androidx.core.view.MenuItemCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -23,6 +26,8 @@ import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.scwang.smart.refresh.footer.ClassicsFooter
 import com.scwang.smart.refresh.header.MaterialHeader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,6 +39,10 @@ class FragmentHistoryV3 : Fragment() {
     private val items: MutableList<IllustHistoryEntity> = mutableListOf()
     private val illusts: MutableList<IllustsBean> = mutableListOf()
     private var totalCount: Int = 0
+
+    /** When non-null we're in search mode — list is filtered, paging disabled. */
+    private var searchQuery: String? = null
+    private var searchJob: Job? = null
 
     private lateinit var listAdapter: HistoryV3Adapter
 
@@ -61,6 +70,7 @@ class FragmentHistoryV3 : Fragment() {
                 true
             } else false
         }
+        setupSearch()
 
         listAdapter = HistoryV3Adapter(
             context = requireContext(),
@@ -137,8 +147,92 @@ class FragmentHistoryV3 : Fragment() {
     }
 
     private fun updateSubtitleAndEmpty() {
-        binding.historySubtitle.text = getString(R.string.history_count_format, totalCount)
-        binding.emptyLayout.isVisible = items.isEmpty()
+        val q = searchQuery
+        if (q.isNullOrBlank()) {
+            binding.historySubtitle.text = getString(R.string.history_count_format, totalCount)
+            binding.emptyLayout.isVisible = items.isEmpty()
+        } else {
+            binding.historySubtitle.text =
+                getString(R.string.history_search_result_count, items.size)
+            binding.emptyLayout.isVisible = items.isEmpty()
+        }
+    }
+
+    /**
+     * Wire the SearchView attached to the search MenuItem. Expand collapses
+     * the AppBar (so the keyboard has room) and disables pagination — paging
+     * is meaningless once the visible list is the LIKE result. Collapse
+     * restores [loadFirst] so the user lands back on the freshest 30 items.
+     *
+     * Query is debounced 200ms — Room call is cheap but rebuilds the adapter
+     * + illust pool on every keystroke, which janks visibly without debounce.
+     */
+    private fun setupSearch() {
+        val searchItem: MenuItem = binding.toolbar.menu.findItem(R.id.action_search) ?: return
+        val searchView = MenuItemCompat.getActionView(searchItem) as? SearchView ?: return
+        searchView.queryHint = getString(R.string.history_search_hint)
+        searchView.maxWidth = Int.MAX_VALUE
+
+        MenuItemCompat.setOnActionExpandListener(searchItem, object : MenuItemCompat.OnActionExpandListener {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                binding.appBar.setExpanded(false, true)
+                binding.refreshLayout.setEnableLoadMore(false)
+                binding.refreshLayout.setEnableRefresh(false)
+                return true
+            }
+
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                searchQuery = null
+                searchJob?.cancel()
+                binding.refreshLayout.setEnableLoadMore(true)
+                binding.refreshLayout.setEnableRefresh(true)
+                loadFirst()
+                return true
+            }
+        })
+
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                applySearch(query.orEmpty())
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                searchJob?.cancel()
+                searchJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(200)
+                    applySearch(newText.orEmpty())
+                }
+                return true
+            }
+        })
+    }
+
+    private fun applySearch(raw: String) {
+        val query = raw.trim()
+        searchQuery = query
+        if (query.isEmpty()) {
+            // Empty query inside an expanded SearchView: show an empty state
+            // rather than reloading the whole history — the user is mid-edit.
+            items.clear()
+            illusts.clear()
+            listAdapter.clear()
+            updateSubtitleAndEmpty()
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val results = withContext(Dispatchers.IO) {
+                AppDatabase.getAppDatabase(requireContext()).downloadDao()
+                    .searchViewHistory(query)
+            }
+            // Bail out if the query changed while we were in IO.
+            if (searchQuery != query) return@launch
+            items.clear()
+            items.addAll(results)
+            rebuildIllustList()
+            listAdapter.submit(results)
+            updateSubtitleAndEmpty()
+        }
     }
 
     private fun showDeleteDialog(position: Int, entity: IllustHistoryEntity) {

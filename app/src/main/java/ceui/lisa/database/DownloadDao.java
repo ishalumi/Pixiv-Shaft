@@ -48,6 +48,17 @@ public interface DownloadDao {
     List<DownloadEntity> getAll(int limit, int offset);
 
     /**
+     * 模糊搜索已下载记录。在 fileName 和 illustGson（含 title / user.name 等
+     * 反序列化前的 JSON 文本）两个字段里 LIKE 命中。LIMIT 600 与
+     * [DoneListV3Fragment.PAGE_SIZE] 一致，避免搜索后看到的卡比平时还多。
+     */
+    @Query("SELECT * FROM illust_download_table WHERE " +
+            "fileName LIKE '%' || :keyword || '%' OR " +
+            "illustGson LIKE '%' || :keyword || '%' " +
+            "ORDER BY downloadTime DESC LIMIT 600")
+    List<DownloadEntity> searchDownloads(String keyword);
+
+    /**
      * Reactive 列表：Room InvalidationTracker 在 illust_download_table 任意
      * 变更时自动 emit 新快照。已完成 tab 用这个替代 1.5s 轮询 + DOWNLOAD_FINISH
      * 广播兜底 —— Manager 写 DownloadEntity 时 Room 自己就会通知 collector。
@@ -147,6 +158,14 @@ public interface DownloadDao {
 
     @Query("DELETE FROM illust_table WHERE type = :type")
     void deleteAllHistoryByType(int type);
+
+    /**
+     * 全库模糊搜索浏览历史。LIKE 命中 illustJson 字段 —— Pixiv 的 title /
+     * user.name / tags 都会落在序列化后的 JSON 文本里，搜索词命中其中任意
+     * 子串即返回。限 200 条，避免内存爆。
+     */
+    @Query("SELECT * FROM illust_table WHERE illustJson LIKE '%' || :keyword || '%' ORDER BY time DESC LIMIT 200")
+    List<IllustHistoryEntity> searchViewHistory(String keyword);
 
 
     /**

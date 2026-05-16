@@ -2,9 +2,12 @@ package ceui.pixiv.ui.download
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
+import androidx.core.view.MenuItemCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -17,6 +20,8 @@ import ceui.lisa.core.Manager
 import ceui.pixiv.ui.bulk.QueueDownloadManager
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -74,6 +79,8 @@ class DownloadManagerV3Fragment : Fragment() {
         toolbar.inflateMenu(R.menu.menu_download_manager)
         val exportItem = toolbar.menu.findItem(R.id.action_export)
         val pauseToggleItem = toolbar.menu.findItem(R.id.action_pause_toggle)
+        val searchItem = toolbar.menu.findItem(R.id.action_search)
+        setupDoneSearch(searchItem)
         // 必须清 iconTintList — Toolbar 默认会拿 colorControlNormal 强行覆盖
         // menu icon 的颜色,把 vector 自带的 fillColor=v3_text_1 压成淡色
         // (浅色主题下跟白底融合看不见)。同 BulkSelectV3.refreshSelectToggleIcon
@@ -105,6 +112,12 @@ class DownloadManagerV3Fragment : Fragment() {
         fun applyMenuVisibility(pos: Int) {
             exportItem?.isVisible = pos == 0 || pos == 2
             pauseToggleItem?.isVisible = pos == 1
+            searchItem?.isVisible = pos == 2
+            // tab 切走时强制收起搜索框 + 清空 query，避免被遗留的 isIconified=false
+            // 在其它 tab 出现时夹带一份过滤态。
+            if (pos != 2 && searchItem?.isActionViewExpanded == true) {
+                searchItem.collapseActionView()
+            }
         }
         applyMenuVisibility(pager.currentItem)
         pageCallback = object : ViewPager2.OnPageChangeCallback() {
@@ -153,7 +166,52 @@ class DownloadManagerV3Fragment : Fragment() {
         pageCallback = null
         pager = null
         tabs = null
+        searchDebounceJob?.cancel()
+        searchDebounceJob = null
         super.onDestroyView()
+    }
+
+    /** Debounce 句柄 — 200ms 跟 history 页保持一致体感。 */
+    private var searchDebounceJob: Job? = null
+
+    /**
+     * 接 Done tab 的 SearchView：expand 时把 query 设成空串（vs null）告诉
+     * DoneListV3Fragment "已进入搜索模式但未输入"，collapse 时还原为 null。
+     */
+    private fun setupDoneSearch(item: MenuItem?) {
+        if (item == null) return
+        val sv = MenuItemCompat.getActionView(item) as? SearchView ?: return
+        sv.queryHint = getString(R.string.dlmgr_done_search_hint)
+        sv.maxWidth = Int.MAX_VALUE
+
+        MenuItemCompat.setOnActionExpandListener(item, object : MenuItemCompat.OnActionExpandListener {
+            override fun onMenuItemActionExpand(menuItem: MenuItem): Boolean {
+                sharedVm.setDoneSearchQuery("")
+                return true
+            }
+
+            override fun onMenuItemActionCollapse(menuItem: MenuItem): Boolean {
+                searchDebounceJob?.cancel()
+                sharedVm.setDoneSearchQuery(null)
+                return true
+            }
+        })
+
+        sv.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                sharedVm.setDoneSearchQuery(query.orEmpty().trim())
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                searchDebounceJob?.cancel()
+                searchDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(200)
+                    sharedVm.setDoneSearchQuery(newText.orEmpty().trim())
+                }
+                return true
+            }
+        })
     }
 
     private fun baseLabel(pos: Int): String = when (pos) {
