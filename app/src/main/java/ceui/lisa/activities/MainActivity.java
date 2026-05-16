@@ -221,23 +221,44 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
     }
 
     private void initFragment() {
+        boolean showMeTab = Dev.showMeTab;
         if (Shaft.sSettings.isMainViewR18()) {
             baseBind.navigationView.inflateMenu(R.menu.main_activity0_with_r18);
-            baseFragments = new Fragment[]{
-                    new FragmentLeft(),
-                    new FragmentCenter(),
-                    new FragmentRight(),
-                    FragmentViewPager.newInstance(Params.VIEW_PAGER_R18),
-                    new MeFragment(),
-            };
+            if (showMeTab) {
+                baseFragments = new Fragment[]{
+                        new FragmentLeft(),
+                        new FragmentCenter(),
+                        new FragmentRight(),
+                        FragmentViewPager.newInstance(Params.VIEW_PAGER_R18),
+                        new MeFragment(),
+                };
+            } else {
+                baseFragments = new Fragment[]{
+                        new FragmentLeft(),
+                        new FragmentCenter(),
+                        new FragmentRight(),
+                        FragmentViewPager.newInstance(Params.VIEW_PAGER_R18),
+                };
+            }
         } else {
             baseBind.navigationView.inflateMenu(R.menu.main_activity0);
-            baseFragments = new Fragment[]{
-                    new FragmentLeft(),
-                    new FragmentCenter(),
-                    new FragmentRight(),
-                    new MeFragment(),
-            };
+            if (showMeTab) {
+                baseFragments = new Fragment[]{
+                        new FragmentLeft(),
+                        new FragmentCenter(),
+                        new FragmentRight(),
+                        new MeFragment(),
+                };
+            } else {
+                baseFragments = new Fragment[]{
+                        new FragmentLeft(),
+                        new FragmentCenter(),
+                        new FragmentRight(),
+                };
+            }
+        }
+        if (!showMeTab) {
+            baseBind.navigationView.getMenu().removeItem(R.id.action_5);
         }
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager()) {
             @Override
