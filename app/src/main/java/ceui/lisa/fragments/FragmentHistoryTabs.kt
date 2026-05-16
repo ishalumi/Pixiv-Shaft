@@ -1,8 +1,11 @@
 package ceui.lisa.fragments
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
+import android.widget.EditText
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.MenuItemCompat
 import androidx.fragment.app.Fragment
@@ -75,16 +78,35 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
         val searchView = MenuItemCompat.getActionView(searchItem) as? SearchView ?: return
         searchView.queryHint = getString(R.string.history_search_hint)
         searchView.maxWidth = Int.MAX_VALUE
+        // 展开搜索框后,优先用返回手势/键收起搜索框,不直接退出 activity。
+        // callback.isEnabled 在 expand/collapse listener 里切。
+        val backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (searchItem.isActionViewExpanded) searchItem.collapseActionView()
+                isEnabled = false
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
+        // toolbar 背景 = ?attr/colorPrimary（用户主题色,中等亮度紫/蓝/绿等），
+        // SearchView 默认 text/hint 是 ?attr/textColorPrimary/Hint，在浅色 day
+        // theme 下解出来是黑/深灰,叠在彩色 toolbar 上完全看不清。强制白字 +
+        // 70% 白 hint,跟周围的 navigationIcon (ic_arrow_back_white_shadow) 一致。
+        searchView.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)?.apply {
+            setTextColor(Color.WHITE)
+            setHintTextColor(0xB3FFFFFF.toInt())
+        }
 
         MenuItemCompat.setOnActionExpandListener(searchItem, object : MenuItemCompat.OnActionExpandListener {
             override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                 searchVm.setQuery("")
+                backCallback.isEnabled = true
                 return true
             }
 
             override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
                 searchDebounceJob?.cancel()
                 searchVm.setQuery(null)
+                backCallback.isEnabled = false
                 return true
             }
         })

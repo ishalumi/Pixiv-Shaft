@@ -5,8 +5,11 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.core.view.MenuItemCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -183,16 +186,35 @@ class DownloadManagerV3Fragment : Fragment() {
         val sv = MenuItemCompat.getActionView(item) as? SearchView ?: return
         sv.queryHint = getString(R.string.dlmgr_done_search_hint)
         sv.maxWidth = Int.MAX_VALUE
+        // toolbar 背景 = @color/v3_bg（day 浅 / night 深 自适应），SearchView 默认
+        // text/hint 是 ?attr/textColorPrimary/Hint，没 themeOverlay 时多半解出来
+        // 是 day 主题的黑色 — dark mode 下叠在深 v3_bg 上看不清。改用 v3_text_1
+        // / v3_text_3（跟 toolbar 标题同一套自适应色）。
+        sv.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)?.apply {
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.v3_text_1))
+            setHintTextColor(ContextCompat.getColor(requireContext(), R.color.v3_text_3))
+        }
+
+        // 展开搜索框后,返回手势优先收起搜索框,不直接退出。
+        val backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (item.isActionViewExpanded) item.collapseActionView()
+                isEnabled = false
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
 
         MenuItemCompat.setOnActionExpandListener(item, object : MenuItemCompat.OnActionExpandListener {
             override fun onMenuItemActionExpand(menuItem: MenuItem): Boolean {
                 sharedVm.setDoneSearchQuery("")
+                backCallback.isEnabled = true
                 return true
             }
 
             override fun onMenuItemActionCollapse(menuItem: MenuItem): Boolean {
                 searchDebounceJob?.cancel()
                 sharedVm.setDoneSearchQuery(null)
+                backCallback.isEnabled = false
                 return true
             }
         })
