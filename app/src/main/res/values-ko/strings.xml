@@ -740,8 +740,8 @@
   <string name="reader_section_screen">화면</string>
   <string name="reader_section_image">이미지</string>
   <string name="reader_btn_chapters">목차</string>
-  <string name="reader_btn_watchlist_add">팔로우</string>
-  <string name="reader_btn_watchlist_added">팔로잉</string>
+  <string name="reader_menu_watchlist_add">관심 목록에 추가</string>
+  <string name="reader_menu_watchlist_remove">관심 목록에서 제거</string>
   <string name="reader_watchlist_added_toast">관심 목록에 추가되었습니다</string>
   <string name="reader_watchlist_removed_toast">관심 목록에서 제거되었습니다</string>
   <string name="reader_watchlist_toggle_failed">관심 목록 변경 실패</string>

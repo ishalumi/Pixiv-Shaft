@@ -51,10 +51,8 @@
     </LinearLayout>
 
     <!--
-        bottom row 权重不写死 weightSum：系列 / 追更按钮 visibility=gone 时不参与
-        权重 — 普通无系列小说显示 5 个 (chapters/settings/theme/search/more)，归属
-        系列时 +2 (series/watchlist) 共 7 个均分。两个新按钮可见性由
-        NovelReaderV3Fragment 根据 novel.series.id 联动。
+        bottom row 权重不写死 weightSum：系列按钮 visibility=gone 时不参与权重，
+        其它 5 个按钮各占 1/5；系列按钮显示时 6 个按钮各占 1/6（自动收缩）。
     -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -86,37 +84,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/reader_btn_series"
-                android:textColor="#CCFFFFFF"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <!--
-            追更按钮：当前小说有所属系列时显示。点击切换 watchlist 状态，
-            icon 在 icon_not_liked / icon_liked 之间切，tint 也跟着切。
-            见 ReaderBottomBar.setWatchlistState / NovelReaderV3Fragment.
-        -->
-        <LinearLayout
-            android:id="@+id/btn_watchlist"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="?attr/selectableItemBackground"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <ImageView
-                android:id="@+id/img_watchlist"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@drawable/icon_not_liked"
-                app:tint="#FFFFFF" />
-
-            <TextView
-                android:id="@+id/txt_watchlist"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/reader_btn_watchlist_add"
                 android:textColor="#CCFFFFFF"
                 android:textSize="12sp" />
         </LinearLayout>

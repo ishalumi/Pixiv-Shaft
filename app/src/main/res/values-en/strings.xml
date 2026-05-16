@@ -801,8 +801,8 @@
   <string name="reader_section_screen">Screen</string>
   <string name="reader_section_image">Image</string>
   <string name="reader_btn_chapters">Contents</string>
-  <string name="reader_btn_watchlist_add">Follow</string>
-  <string name="reader_btn_watchlist_added">Following</string>
+  <string name="reader_menu_watchlist_add">Add to watchlist</string>
+  <string name="reader_menu_watchlist_remove">Remove from watchlist</string>
   <string name="reader_watchlist_added_toast">Added to watchlist</string>
   <string name="reader_watchlist_removed_toast">Removed from watchlist</string>
   <string name="reader_watchlist_toggle_failed">Watchlist update failed</string>

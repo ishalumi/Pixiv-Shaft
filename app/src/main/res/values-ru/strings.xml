@@ -733,8 +733,8 @@
   <string name="reader_section_screen">Экран</string>
   <string name="reader_section_image">Изображения</string>
   <string name="reader_btn_chapters">Оглавление</string>
-  <string name="reader_btn_watchlist_add">Подписка</string>
-  <string name="reader_btn_watchlist_added">Подписан</string>
+  <string name="reader_menu_watchlist_add">Добавить в список отслеживания</string>
+  <string name="reader_menu_watchlist_remove">Убрать из списка отслеживания</string>
   <string name="reader_watchlist_added_toast">Добавлено в список отслеживания</string>
   <string name="reader_watchlist_removed_toast">Удалено из списка отслеживания</string>
   <string name="reader_watchlist_toggle_failed">Не удалось обновить список</string>

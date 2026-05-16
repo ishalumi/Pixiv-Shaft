@@ -832,8 +832,8 @@
   <string name="reader_section_screen">画面</string>
   <string name="reader_section_image">画像</string>
   <string name="reader_btn_chapters">目次</string>
-  <string name="reader_btn_watchlist_add">追跡</string>
-  <string name="reader_btn_watchlist_added">追跡中</string>
+  <string name="reader_menu_watchlist_add">ウォッチリストに追加</string>
+  <string name="reader_menu_watchlist_remove">ウォッチリストから外す</string>
   <string name="reader_watchlist_added_toast">ウォッチリストに追加しました</string>
   <string name="reader_watchlist_removed_toast">ウォッチリストから削除しました</string>
   <string name="reader_watchlist_toggle_failed">ウォッチリストの更新に失敗しました</string>

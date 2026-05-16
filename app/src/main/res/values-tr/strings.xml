@@ -731,8 +731,8 @@
   <string name="reader_section_screen">Ekran</string>
   <string name="reader_section_image">Görsel</string>
   <string name="reader_btn_chapters">İçindekiler</string>
-  <string name="reader_btn_watchlist_add">Takip Et</string>
-  <string name="reader_btn_watchlist_added">Takipte</string>
+  <string name="reader_menu_watchlist_add">İzleme listesine ekle</string>
+  <string name="reader_menu_watchlist_remove">İzleme listesinden çıkar</string>
   <string name="reader_watchlist_added_toast">İzleme listesine eklendi</string>
   <string name="reader_watchlist_removed_toast">İzleme listesinden çıkarıldı</string>
   <string name="reader_watchlist_toggle_failed">İzleme listesi güncellenemedi</string>

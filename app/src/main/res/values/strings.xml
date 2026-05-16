@@ -1077,8 +1077,8 @@
     <string name="reader_section_image">图片</string>
     <string name="reader_btn_chapters">目录</string>
     <string name="reader_btn_series">系列</string>
-    <string name="reader_btn_watchlist_add">追更</string>
-    <string name="reader_btn_watchlist_added">已追</string>
+    <string name="reader_menu_watchlist_add">加入追更列表</string>
+    <string name="reader_menu_watchlist_remove">取消追更</string>
     <string name="reader_watchlist_added_toast">已加入追更列表</string>
     <string name="reader_watchlist_removed_toast">已移出追更列表</string>
     <string name="reader_watchlist_toggle_failed">追更操作失败</string>

@@ -14,7 +14,6 @@ class ReaderBottomBar(private val binding: LayoutReaderBottomBarBinding) {
     var onNextChapter: (() -> Unit)? = null
     var onChaptersClick: (() -> Unit)? = null
     var onSeriesClick: (() -> Unit)? = null
-    var onWatchlistClick: (() -> Unit)? = null
     var onSettingsClick: (() -> Unit)? = null
     var onThemeToggleClick: (() -> Unit)? = null
     var onSearchClick: (() -> Unit)? = null
@@ -35,7 +34,6 @@ class ReaderBottomBar(private val binding: LayoutReaderBottomBarBinding) {
         binding.btnNextChapter.setOnClickListener { onNextChapter?.invoke() }
         binding.btnChapters.setOnClickListener { onChaptersClick?.invoke() }
         binding.btnSeries.setOnClickListener { onSeriesClick?.invoke() }
-        binding.btnWatchlist.setOnClickListener { onWatchlistClick?.invoke() }
         binding.btnSettings.setOnClickListener { onSettingsClick?.invoke() }
         binding.btnThemeToggle.setOnClickListener { onThemeToggleClick?.invoke() }
         binding.btnSearch.setOnClickListener { onSearchClick?.invoke() }
@@ -103,24 +101,6 @@ class ReaderBottomBar(private val binding: LayoutReaderBottomBarBinding) {
     /** 当前小说有所属系列时调用 setSeriesVisible(true)，唤起 SeriesListSheet 切换其它单篇。 */
     fun setSeriesVisible(visible: Boolean) {
         binding.btnSeries.visibility = if (visible) View.VISIBLE else View.GONE
-    }
-
-    /**
-     * 追更按钮：[visible]=false 时整体隐藏（无所属系列）；[added]=true 时显示「已追」+
-     * filled 图标，反之显示「追更」+ outline 图标。状态由 host 在拉取
-     * NovelSeriesDetail.watchlist_added 后回填，点击后乐观切换。
-     */
-    fun setWatchlistState(visible: Boolean, added: Boolean) {
-        binding.btnWatchlist.visibility = if (visible) View.VISIBLE else View.GONE
-        if (!visible) return
-        binding.imgWatchlist.setImageResource(
-            if (added) ceui.lisa.R.drawable.icon_liked
-            else ceui.lisa.R.drawable.icon_not_liked
-        )
-        binding.txtWatchlist.text = binding.root.context.getString(
-            if (added) ceui.lisa.R.string.reader_btn_watchlist_added
-            else ceui.lisa.R.string.reader_btn_watchlist_add
-        )
     }
 
     fun setDarkMode(dark: Boolean) {

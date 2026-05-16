@@ -237,7 +237,6 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         bb.onNextChapter = { jumpChapter(forward = true) }
         bb.onChaptersClick = { showChapterDrawer() }
         bb.onSeriesClick = { showSeriesSheet() }
-        bb.onWatchlistClick = { toggleWatchlist() }
         bb.onSettingsClick = {
             ReaderSettingsPanel().show(childFragmentManager, ReaderSettingsPanel.TAG)
         }
@@ -353,7 +352,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 // 系列按钮按当前小说是否归属系列动态显示。
                 val seriesId = state.novel?.series?.id
                 bb.setSeriesVisible(seriesId != null)
-                applySeriesIdToWatchlistBar(seriesId, bb)
+                loadWatchlistStateForSeries(seriesId)
                 pushStyleAndGeometryIfReady()
                 rebindScrollViewIfActive()
             }
@@ -593,6 +592,17 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
             item(getString(R.string.menu_save_position), R.drawable.ic_baseline_bookmark_24) {
                 viewModel.addBookmarkAtCurrentPage(readerView?.currentPageIndex() ?: 0)
                 Toast.makeText(requireContext(), getString(R.string.msg_bookmark_saved), Toast.LENGTH_SHORT).show()
+            }
+            // 追更 (加入/取消)：仅当前小说有所属系列时才挂条目，文案按当前
+            // [watchlistAdded] 在「加入追更列表」/「取消追更」之间切。点击走
+            // 乐观更新，失败由 toggleWatchlist 内部回滚 + toast。
+            if (watchlistSeriesId != null) {
+                val label = getString(
+                    if (watchlistAdded) R.string.reader_menu_watchlist_remove
+                    else R.string.reader_menu_watchlist_add
+                )
+                val icon = if (watchlistAdded) R.drawable.icon_liked else R.drawable.icon_not_liked
+                item(label, icon) { toggleWatchlist() }
             }
             item(getString(R.string.menu_export), R.drawable.ic_baseline_get_app_24) {
                 if (viewModel.loadState.value !is NovelReaderV3ViewModel.LoadState.Loaded) {
@@ -892,27 +902,23 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
 
     // ---- Watchlist (加入追更列表) --------------------------------------------
     //
-    // pixiv 原生 series header 才有"追更"开关。这里复制一个到 reader 底栏，
-    // 让用户读到喜欢的章节时直接订阅，不用退出去找。状态来源 / API：
+    // pixiv 原生 series header 有"追更"开关。这里把同一动作收进 reader 右下角
+    // 「更多」(showReaderOverflowMenu) 菜单，避免常驻底栏挤占视图。状态来源 / API：
     //   - GET /v1/novel/series/{id}   → novel_series_detail.watchlist_added (初始态)
     //   - POST /v1/novel/series/watchlist/add | delete (Retro Observable，RxJava2)
-    // 用乐观更新：点击立刻翻按钮态，API 失败再回滚 + toast。
+    // 进 reader 时预拉一次，菜单弹出时按 [watchlistAdded] 决定 item 文案；点击
+    // 走乐观更新（状态先翻，失败回滚 + toast）。
 
     /** loadState→Loaded 时调；同一 seriesId 不重复拉。 */
-    private fun applySeriesIdToWatchlistBar(seriesId: Long?, bb: ReaderBottomBar) {
+    private fun loadWatchlistStateForSeries(seriesId: Long?) {
         if (seriesId == null) {
-            bb.setWatchlistState(visible = false, added = false)
             watchlistSeriesId = null
+            watchlistAdded = false
             return
         }
-        if (watchlistSeriesId == seriesId) {
-            // 已知态，直接刷一遍可见性即可
-            bb.setWatchlistState(visible = true, added = watchlistAdded)
-            return
-        }
+        if (watchlistSeriesId == seriesId) return
         watchlistSeriesId = seriesId
-        // 拉到前先显示一个未追的默认态，避免按钮闪现
-        bb.setWatchlistState(visible = true, added = false)
+        watchlistAdded = false
         viewLifecycleOwner.lifecycleScope.launch {
             val added = runCatching {
                 Client.appApi.getNovelSeries(seriesId).novel_series_detail?.watchlist_added == true
@@ -920,17 +926,15 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
             // seriesId 在协程跑完之前没变才回填，避免快速切章造成错位
             if (watchlistSeriesId != seriesId) return@launch
             watchlistAdded = added
-            bottomBar?.setWatchlistState(visible = true, added = added)
         }
     }
 
     private fun toggleWatchlist() {
         val seriesId = watchlistSeriesId ?: return
-        val bb = bottomBar ?: return
         val nextAdded = !watchlistAdded
-        // 乐观更新：本地态 + UI 先翻。失败再回滚。
+        // 乐观更新：本地态先翻，失败再回滚。菜单是 popup，不需要更新 UI，
+        // 只靠 toast 反馈结果。
         watchlistAdded = nextAdded
-        bb.setWatchlistState(visible = true, added = nextAdded)
         val obs = if (nextAdded) {
             Retro.getAppApi().postWatchlistNovelAdd(seriesId.toInt())
         } else {
@@ -949,9 +953,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 },
                 { ex ->
                     Timber.e(ex, "toggleWatchlist failed")
-                    // 回滚
                     watchlistAdded = !nextAdded
-                    bottomBar?.setWatchlistState(visible = true, added = !nextAdded)
                     Toast.makeText(
                         requireContext(),
                         R.string.reader_watchlist_toggle_failed,
