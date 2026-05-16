@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_download_all"
+        android:icon="@drawable/ic_file_download_black_24dp"
+        android:orderInCategory="80"
+        android:title="@string/bulk_user_menu_download_all_illust"
+        app:showAsAction="ifRoom" />
+</menu>

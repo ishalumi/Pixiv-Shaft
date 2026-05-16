@@ -6,6 +6,7 @@ import android.view.MenuItem;
 import android.view.View;
 
 import androidx.appcompat.widget.Toolbar;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
@@ -21,10 +22,22 @@ import ceui.lisa.databinding.RecyIllustStaggerBinding;
 import ceui.lisa.feature.FeatureEntity;
 import ceui.lisa.helper.UserIllustJumpHelper;
 import ceui.lisa.model.ListIllust;
+import ceui.lisa.http.NullCtrl;
+import ceui.lisa.http.Retro;
 import ceui.lisa.models.IllustsBean;
+import ceui.lisa.models.UserDetailResponse;
 import ceui.lisa.repo.UserIllustRepo;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Params;
+import ceui.pixiv.db.queue.WorkType;
+import ceui.pixiv.ui.bulk.BulkActions;
+
+import com.qmuiteam.qmui.skin.QMUISkinManager;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction;
+
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * 某人創作的插畫
@@ -35,6 +48,7 @@ public class FragmentUserIllust extends NetListFragment<FragmentBaseListBinding,
     private boolean showToolbar = false;
     private int initialOffset = 0;
     private String targetDate;
+    private FragmentUserIllustViewModel vm;
 
     public static FragmentUserIllust newInstance(int userID, boolean paramShowToolbar) {
         return newInstance(userID, paramShowToolbar, 0, null);
@@ -136,9 +150,67 @@ public class FragmentUserIllust extends NetListFragment<FragmentBaseListBinding,
     public void initView() {
         super.initView();
         baseBind.toolbar.inflateMenu(R.menu.local_save);
+        // 「下载全部」单独一个 menu —— 不挂到 local_save 上,免得其他共用 local_save 的页面
+        // (FragmentLikeIllust / FragmentRelatedIllust / FragmentMangaSeries 等) 跟着多出一个
+        // 当前页面没意义的菜单项。和 FragmentCollection 的「下载全部作品」走同一条 BulkActions 通道。
+        baseBind.toolbar.inflateMenu(R.menu.user_illust_actions);
+
+        // 数量没拿到之前先藏起来,免得点了弹个「数量加载中」吓人;VM 里有就直接显出来,
+        // 没有就 fetch 一次写进 VM —— 旋转 / 重建不重复拉。
+        final MenuItem downloadAllItem = baseBind.toolbar.getMenu().findItem(R.id.action_download_all);
+        if (downloadAllItem != null) downloadAllItem.setVisible(false);
+        vm = new ViewModelProvider(this).get(FragmentUserIllustViewModel.class);
+        vm.getTotalIllusts().observe(getViewLifecycleOwner(), total -> {
+            if (downloadAllItem != null && total != null && total > 0) {
+                downloadAllItem.setVisible(true);
+            }
+        });
+        if (vm.getTotalIllusts().getValue() == null) {
+            Retro.getAppApi().getUserDetail(userID)
+                    .subscribeOn(Schedulers.newThread())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new NullCtrl<UserDetailResponse>() {
+                        @Override
+                        public void success(UserDetailResponse resp) {
+                            if (resp.getProfile() == null) return;
+                            vm.getTotalIllusts().setValue(resp.getProfile().getTotal_illusts());
+                        }
+                    });
+        }
+
         baseBind.toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(MenuItem item) {
+                if (item.getItemId() == R.id.action_download_all) {
+                    Integer total = vm.getTotalIllusts().getValue();
+                    if (total == null || total <= 0) return true; // 按钮该是藏着的,兜底
+                    String authorName = "user";
+                    if (allItems != null && !allItems.isEmpty()
+                            && allItems.get(0).getUser() != null
+                            && allItems.get(0).getUser().getName() != null) {
+                        authorName = allItems.get(0).getUser().getName();
+                    }
+                    final String finalAuthorName = authorName;
+                    final int finalTotal = total;
+                    new QMUIDialog.MessageDialogBuilder(mContext)
+                            .setTitle(R.string.bulk_user_menu_download_all_illust)
+                            .setMessage(getString(
+                                    R.string.bulk_user_download_all_illust_confirm,
+                                    finalAuthorName, finalTotal))
+                            .setSkinManager(QMUISkinManager.defaultInstance(mActivity))
+                            .addAction(0, getString(R.string.cancel),
+                                    QMUIDialogAction.ACTION_PROP_NEUTRAL,
+                                    (d, idx) -> d.dismiss())
+                            .addAction(0, getString(android.R.string.ok),
+                                    (d, idx) -> {
+                                        d.dismiss();
+                                        BulkActions.startAuthorWorksBulkDownload(
+                                                requireActivity(), userID,
+                                                WorkType.ILLUST, finalAuthorName);
+                                    })
+                            .show();
+                    return true;
+                }
                 if (item.getItemId() == R.id.action_bookmark) {
                     FeatureEntity entity = new FeatureEntity();
                     entity.setUuid(userID + "插画作品");

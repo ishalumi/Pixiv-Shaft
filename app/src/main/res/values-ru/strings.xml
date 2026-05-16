@@ -1078,6 +1078,7 @@
     <string name="bulk_menu_download_all">Скачать все работы</string>
     <string name="bulk_menu_download_all_desc">Потоковая загрузка + постоянная очередь, восстановление после перезапуска</string>
     <string name="bulk_user_menu_download_all_illust">Скачать все иллюстрации (в очередь)</string>
+    <string name="bulk_user_download_all_illust_confirm">Добавить в очередь все %2$d иллюстраций автора %1$s. Продолжить?</string>
     <string name="bulk_user_menu_download_all_manga">Скачать всю мангу (в очередь)</string>
     <string name="bulk_user_menu_open_download_manager">Открыть менеджер загрузок…</string>
     <string name="bulk_task_name">Загрузить все %2$s от %1$s</string>
