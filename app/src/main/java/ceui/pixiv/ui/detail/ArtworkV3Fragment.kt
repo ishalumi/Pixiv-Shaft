@@ -27,6 +27,7 @@ import ceui.lisa.fragments.BaseFragment
 import ceui.lisa.fragments.FragmentIllustArgs
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
+import ceui.lisa.utils.Dev
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.ShareIllust
@@ -561,19 +562,21 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                         // AI upscale requires IllustAiHelper
                     }
                 }
-                item(
-                    getString(R.string.plaza_share_illust_to_plaza),
-                    R.drawable.ic_plaza_forum_24,
-                ) {
-                    val intent = Intent(mContext, ceui.lisa.activities.TemplateActivity::class.java)
-                    intent.putExtra(
-                        ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "发帖"
-                    )
-                    intent.putExtra(
-                        ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID,
-                        illust.id.toLong(),
-                    )
-                    startActivity(intent)
+                if (Dev.showPlazaShareInArtwork) {
+                    item(
+                        getString(R.string.plaza_share_illust_to_plaza),
+                        R.drawable.ic_plaza_forum_24,
+                    ) {
+                        val intent = Intent(mContext, ceui.lisa.activities.TemplateActivity::class.java)
+                        intent.putExtra(
+                            ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "发帖"
+                        )
+                        intent.putExtra(
+                            ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID,
+                            illust.id.toLong(),
+                        )
+                        startActivity(intent)
+                    }
                 }
             }
         }
