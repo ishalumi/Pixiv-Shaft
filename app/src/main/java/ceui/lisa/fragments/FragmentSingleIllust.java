@@ -22,7 +22,6 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.lifecycle.Observer;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.blankj.utilcode.util.ColorUtils;
 import com.bumptech.glide.Glide;
 import com.qmuiteam.qmui.skin.QMUISkinManager;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
@@ -368,12 +367,11 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
 
         baseBind.userName.setText(illust.getUser().getName());
 
-        SpannableString sizeString = new SpannableString(getString(R.string.string_193, illust.getWidth(), illust.getHeight()));
-//        int currentPrimaryColorId = Common.resolveThemeAttribute(mContext, androidx.appcompat.R.attr.colorPrimary);
-        int currentPrimaryColorId = ColorUtils.getColor(R.color.page_default_background);
-        sizeString.setSpan(new ForegroundColorSpan(currentPrimaryColorId),
-                sizeString.length()-illust.getSize().length(), sizeString.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        baseBind.illustPx.setText(sizeString);
+        // 数值部分原本用 SpannableString 高亮颜色,但取的是 ?attr/colorPrimary —— 部分浅色主题
+        // (yellow / light blue / pink) 在白色 card 上几乎不可见 (issue #655)。先前改成
+        // page_default_background 强制深色又不随 dark mode 翻转。直接 setText 走 TextView
+        // 默认 ?android:textColorPrimary,light/dark 都保证对比度。
+        baseBind.illustPx.setText(getString(R.string.string_193, illust.getWidth(), illust.getHeight()));
 
         baseBind.illustTag.setAdapter(new TagAdapter<TagsBean>(illust.getTags()) {
             @Override
@@ -444,20 +442,14 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
         baseBind.recyclerView.setNestedScrollingEnabled(true);
         baseBind.recyclerView.addItemDecoration(new LinearItemDecorationNoLRTB(DensityUtil.dp2px(1.0f)));
 
-        SpannableString userString = new SpannableString(getString(R.string.string_195, illust.getUser().getId()));
-        userString.setSpan(new ForegroundColorSpan(currentPrimaryColorId),
-                userString.length()-String.valueOf(illust.getUser().getId()).length(), userString.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        baseBind.userId.setText(userString);
+        baseBind.userId.setText(getString(R.string.string_195, illust.getUser().getId()));
         baseBind.userId.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Common.copy(mContext, String.valueOf(illust.getUser().getId()));
             }
         });
-        SpannableString illustString = new SpannableString(getString(R.string.string_194, illust.getId()));
-        illustString.setSpan(new ForegroundColorSpan(currentPrimaryColorId),
-                illustString.length()-String.valueOf(illust.getId()).length(), illustString.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        baseBind.illustId.setText(illustString);
+        baseBind.illustId.setText(getString(R.string.string_194, illust.getId()));
         baseBind.illustId.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
