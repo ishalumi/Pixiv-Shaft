@@ -731,6 +731,7 @@
   <string name="v3_label_navigate">탐색</string>
   <string name="v3_label_profile_details">프로필 상세</string>
   <string name="v3_label_workspace">작업 환경</string>
+  <string name="v3_label_social">소셜</string>
 
   <!-- Novel reader V3 -->
   <string name="reader_settings_title">리더 설정</string>

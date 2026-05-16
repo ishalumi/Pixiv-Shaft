@@ -337,11 +337,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             showBadges = true
         }
 
-        // Official badge
+        // Official badge — pinned next to the name, not in badges_row.
         if (detail.official == true) {
             baseBind.badgeOfficial.isVisible = true
-            baseBind.badgeOfficial.background = makeBadgeBg(dp, 0x33FFC233.toInt())
-            showBadges = true
         }
 
         if (showBadges) {
@@ -369,10 +367,10 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         // ── Supplement social links from Web API ─────────────────────
         detail.social?.forEach { (platform, link) ->
             val url = link.url ?: return@forEach
-            addSocialChip(platform.replaceFirstChar { it.uppercase() }, url)
+            addSocialChip(platform, prettySocialLabel(platform), url)
         }
         detail.webpage?.takeIf { it.isNotBlank() }?.let { url ->
-            addSocialChip("Website", url)
+            addSocialChip("webpage", "Website", url)
         }
     }
 
@@ -385,73 +383,129 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         }
     }
 
-    private fun addSocialChip(label: String, url: String) {
-        // Avoid duplicate chips (APP API may have already added some)
-        for (i in 0 until baseBind.socialsGroup.childCount) {
-            val child = baseBind.socialsGroup.getChildAt(i)
-            if (child is android.widget.TextView && child.text == label) return
+    private data class SocialStyle(val iconRes: Int, val badgeColor: Int)
+
+    // Figma 1421:2375 — pastel 36dp badge + brand-colored icon. Unknown platforms
+    // fall back to a tan globe badge so the row stays visually consistent.
+    private fun socialStyle(platformKey: String): SocialStyle {
+        return when (platformKey.lowercase()) {
+            "instagram" -> SocialStyle(R.drawable.ic_v3_social_instagram, 0xFFFFE7FC.toInt())
+            "facebook" -> SocialStyle(R.drawable.ic_v3_social_facebook, 0xFFDBF2FE.toInt())
+            "twitter", "x" -> SocialStyle(R.drawable.ic_v3_social_twitter, 0xFFDFDFDF.toInt())
+            "youtube" -> SocialStyle(R.drawable.ic_v3_social_youtube, 0xFFFFD6CD.toInt())
+            "tiktok" -> SocialStyle(R.drawable.ic_v3_social_tiktok, 0xFFDFDFDF.toInt())
+            "linkedin" -> SocialStyle(R.drawable.ic_v3_social_linkedin, 0xFFE0EFFF.toInt())
+            "spotify" -> SocialStyle(R.drawable.ic_v3_social_spotify, 0xFFD5EDC2.toInt())
+            else -> SocialStyle(R.drawable.ic_v3_social_link, 0xFFE8DCCD.toInt())
         }
+    }
+
+    private fun prettySocialLabel(platformKey: String): String {
+        return when (platformKey.lowercase()) {
+            "twitter", "x" -> "X (Twitter)"
+            "youtube" -> "YouTube"
+            "tiktok" -> "TikTok"
+            "linkedin" -> "LinkedIn"
+            "github" -> "GitHub"
+            "webpage" -> "Website"
+            else -> platformKey.replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    private fun addSocialChip(platformKey: String, label: String, url: String?) {
+        if (url.isNullOrEmpty()) return
+        val dedupTag = "${platformKey.lowercase()}:${url}"
+        for (i in 0 until baseBind.socialsGroup.childCount) {
+            if (baseBind.socialsGroup.getChildAt(i).tag == dedupTag) return
+        }
+
         val dp = resources.displayMetrics.density
-        val textColor = resources.getColor(R.color.v3_text_2, theme)
-        val tv = android.widget.TextView(this).apply {
-            text = label
-            setTextColor(textColor)
-            textSize = 12f
-            background = makeBadgeBg(dp, palette.alpha20)
-            setPadding((14 * dp).toInt(), (8 * dp).toInt(), (14 * dp).toInt(), (8 * dp).toInt())
-            layoutParams = com.google.android.flexbox.FlexboxLayout.LayoutParams(
-                com.google.android.flexbox.FlexboxLayout.LayoutParams.WRAP_CONTENT,
-                com.google.android.flexbox.FlexboxLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 0, (10 * dp).toInt(), (10 * dp).toInt())
+        val style = socialStyle(platformKey)
+
+        // Divider between rows (skip before the first)
+        if (baseBind.socialsGroup.childCount > 0) {
+            val divider = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    Math.max(1, (0.5f * dp).toInt())
+                )
+                setBackgroundColor(resources.getColor(R.color.v3_border_2, theme))
             }
+            baseBind.socialsGroup.addView(divider)
+        }
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            tag = dedupTag
+            // Ripple on tap; pill row spans full card width.
+            val typed = android.util.TypedValue()
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, typed, true)
+            setBackgroundResource(typed.resourceId)
+            setPadding(0, (12 * dp).toInt(), 0, (12 * dp).toInt())
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
             setOnClickListener { openUrl(url) }
         }
-        baseBind.socialsGroup.addView(tv)
-        baseBind.socialsGroup.isVisible = true
+
+        val badge = android.widget.ImageView(this).apply {
+            setImageResource(style.iconRes)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = 10f * dp
+                setColor(style.badgeColor)
+            }
+            val pad = (8 * dp).toInt()
+            setPadding(pad, pad, pad, pad)
+            layoutParams = LinearLayout.LayoutParams(
+                (36 * dp).toInt(), (36 * dp).toInt()
+            )
+        }
+        row.addView(badge)
+
+        val tv = android.widget.TextView(this).apply {
+            text = label
+            setTextColor(resources.getColor(R.color.v3_text_1, theme))
+            textSize = 14f
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            maxLines = 1
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            ).apply {
+                marginStart = (12 * dp).toInt()
+                marginEnd = (12 * dp).toInt()
+            }
+        }
+        row.addView(tv)
+
+        val chevron = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_arrow_right_little)
+            imageTintList = android.content.res.ColorStateList.valueOf(
+                resources.getColor(R.color.v3_text_3, theme)
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                (20 * dp).toInt(), (20 * dp).toInt()
+            )
+        }
+        row.addView(chevron)
+
+        baseBind.socialsGroup.addView(row)
+        baseBind.socialsCard.isVisible = true
     }
 
     private fun setupSocialChips(profile: ceui.lisa.models.ProfileBean) {
-        var hasAny = false
-        val textColor = resources.getColor(R.color.v3_text_2, theme)
-        val dp = resources.displayMetrics.density
-
-        fun addChip(label: String, url: String?) {
-            if (url.isNullOrEmpty()) return
-            hasAny = true
-            val bg = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = 999f * dp
-                setColor(0x14FFFFFF)
-                setStroke((1 * dp).toInt(), palette.alpha20)
-            }
-            val tv = android.widget.TextView(this).apply {
-                text = label
-                setTextColor(textColor)
-                textSize = 12f
-                background = bg
-                setPadding((14 * dp).toInt(), (8 * dp).toInt(), (14 * dp).toInt(), (8 * dp).toInt())
-                layoutParams = com.google.android.flexbox.FlexboxLayout.LayoutParams(
-                    com.google.android.flexbox.FlexboxLayout.LayoutParams.WRAP_CONTENT,
-                    com.google.android.flexbox.FlexboxLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    setMargins(0, 0, (10 * dp).toInt(), (10 * dp).toInt())
-                }
-                setOnClickListener { openUrl(url) }
-            }
-            baseBind.socialsGroup.addView(tv)
-        }
-
-        addChip(
-            if (!TextUtils.isEmpty(profile.twitter_account)) "@${profile.twitter_account}" else "Twitter",
+        addSocialChip(
+            "twitter",
+            if (!TextUtils.isEmpty(profile.twitter_account)) "@${profile.twitter_account}" else "X (Twitter)",
             profile.twitter_url
         )
-        addChip("Website", profile.webpage)
-        addChip("Pawoo", profile.pawoo_url)
-
-        if (hasAny) {
-            baseBind.socialsGroup.visibility = View.VISIBLE
-        }
+        addSocialChip("webpage", "Website", profile.webpage)
+        addSocialChip("pawoo", "Pawoo", profile.pawoo_url)
     }
 
     private fun setupNavTags(data: UserDetailResponse, isSelf: Boolean) {
@@ -600,13 +654,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             }
             grid.addView(row)
             i++
-        }
-
-        // Toggle
-        baseBind.profileHeaderToggle.setOnClickListener {
-            val isVisible = baseBind.profileGrid.visibility == View.VISIBLE
-            baseBind.profileGrid.visibility = if (isVisible) View.GONE else View.VISIBLE
-            baseBind.profileArrow.rotation = if (isVisible) 0f else 180f
         }
     }
 
