@@ -2,27 +2,27 @@ package ceui.lisa.activities
 
 import android.content.DialogInterface
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
-import android.widget.LinearLayout
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.viewpager2.adapter.FragmentStateAdapter
 import ceui.lisa.R
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ActivityUserV3Binding
 import ceui.lisa.databinding.ItemV3NavTagBinding
-import ceui.lisa.databinding.ItemV3ProfileChipBinding
+import ceui.lisa.fragments.FragmentUserIllust
 import ceui.lisa.helper.UserIllustJumpHelper
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.http.Retro
 import ceui.lisa.models.UserBean
 import ceui.lisa.models.UserDetailResponse
 import ceui.lisa.models.UserFollowDetail
-import ceui.lisa.models.WorkspaceBean
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
@@ -37,15 +37,15 @@ import ceui.loxia.ProgressTextButton
 import ceui.loxia.WebUserDetail
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.utils.setOnClick
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import com.bumptech.glide.Glide
+import com.google.android.material.tabs.TabLayoutMediator
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog.MenuDialogBuilder
 import com.zhy.view.flowlayout.FlowLayout
 import com.zhy.view.flowlayout.TagAdapter
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
 class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
@@ -116,6 +116,8 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 baseBind.toolbarLayout.viewTreeObserver.removeOnGlobalLayoutListener(this)
             }
         })
+
+        setupViewPager()
     }
 
     override fun initData() {
@@ -175,6 +177,26 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
 
     override fun hideStatusBar(): Boolean = true
 
+    private fun setupViewPager() {
+        baseBind.viewPager.adapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = 2
+
+            override fun createFragment(position: Int): Fragment = when (position) {
+                0 -> FragmentUserIllust.newInstance(userId, false)
+                else -> UserV3InfoFragment()
+            }
+        }
+        // 双 Tab 离屏保活,左右切换时不重建 view,体验更稳
+        baseBind.viewPager.offscreenPageLimit = 1
+
+        TabLayoutMediator(baseBind.tabLayout, baseBind.viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> getString(R.string.string_246)
+                else -> getString(R.string.v3_label_profile_details)
+            }
+        }.attach()
+    }
+
     private fun updateFollowState(user: UserBean) {
         if (baseBind == null) return
         if (user.isIs_followed) {
@@ -197,7 +219,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         val isSelf = userId.toLong() == SessionManager.loggedInUid
         val profile = data.profile
         val user = data.user
-        val workspace = data.workspace
 
         // Banner
         val bannerUrl = profile.background_image_url
@@ -250,15 +271,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         baseBind.moreAction.visibility = View.VISIBLE
         baseBind.moreAction.setOnClickListener { showMoreMenu(data, isSelf) }
 
-        // Bio (render HTML — comment may contain <a>, <br> etc.)
-        if (!TextUtils.isEmpty(user.comment)) {
-            baseBind.bio.visibility = View.VISIBLE
-            baseBind.bio.text = androidx.core.text.HtmlCompat.fromHtml(
-                user.comment, androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT
-            )
-            baseBind.bio.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-        }
-
         // Stats row (following + mypixiv)
         val fmt = NumberFormat.getInstance()
         baseBind.statFollowingNum.text = fmt.format(profile.total_follow_users)
@@ -277,48 +289,13 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             startActivity(intent)
         }
 
-        // Social links
-        setupSocialChips(profile)
-
         // Navigation tags
         setupNavTags(data, isSelf)
-
-        // Profile details card
-        setupProfileCard(data)
-
-        // Workspace card
-        setupWorkspaceCard(workspace)
-
-        // Mute strip (hide for self)
-        if (!isSelf) {
-            baseBind.muteStrip.visibility = View.VISIBLE
-            val isMuted = mUserViewModel.isUserMuted.value == true
-            baseBind.muteSwitch.isChecked = isMuted
-            baseBind.muteSwitch.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    PixivOperate.muteUser(user)
-                    mUserViewModel.isUserMuted.value = true
-                } else {
-                    PixivOperate.unMuteUser(user)
-                    mUserViewModel.isUserMuted.value = false
-                }
-                mUserViewModel.refreshEvent.value = Event(100, 0L)
-            }
-        }
     }
 
     private fun displayWebUserDetail(detail: WebUserDetail) {
         val dp = resources.displayMetrics.density
         val isSelf = userId.toLong() == SessionManager.loggedInUid
-
-        // ── Bio: prefer commentHtml for better link rendering ────────
-        if (!detail.commentHtml.isNullOrEmpty()) {
-            baseBind.bio.isVisible = true
-            baseBind.bio.text = androidx.core.text.HtmlCompat.fromHtml(
-                detail.commentHtml, androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT
-            )
-            baseBind.bio.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-        }
 
         // ── Badges row ───────────────────────────────────────────────
         var showBadges = false
@@ -363,15 +340,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 startActivity(intent)
             }
         }
-
-        // ── Supplement social links from Web API ─────────────────────
-        detail.social?.forEach { (platform, link) ->
-            val url = link.url ?: return@forEach
-            addSocialChip(platform, prettySocialLabel(platform), url)
-        }
-        detail.webpage?.takeIf { it.isNotBlank() }?.let { url ->
-            addSocialChip("webpage", "Website", url)
-        }
     }
 
     private fun makeBadgeBg(dp: Float, strokeColor: Int): android.graphics.drawable.GradientDrawable {
@@ -381,131 +349,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             setColor(0x0AFFFFFF)
             setStroke((1 * dp).toInt(), strokeColor)
         }
-    }
-
-    private data class SocialStyle(val iconRes: Int, val badgeColor: Int)
-
-    // Figma 1421:2375 — pastel 36dp badge + brand-colored icon. Unknown platforms
-    // fall back to a tan globe badge so the row stays visually consistent.
-    private fun socialStyle(platformKey: String): SocialStyle {
-        return when (platformKey.lowercase()) {
-            "instagram" -> SocialStyle(R.drawable.ic_v3_social_instagram, 0xFFFFE7FC.toInt())
-            "facebook" -> SocialStyle(R.drawable.ic_v3_social_facebook, 0xFFDBF2FE.toInt())
-            "twitter", "x" -> SocialStyle(R.drawable.ic_v3_social_twitter, 0xFFDFDFDF.toInt())
-            "youtube" -> SocialStyle(R.drawable.ic_v3_social_youtube, 0xFFFFD6CD.toInt())
-            "tiktok" -> SocialStyle(R.drawable.ic_v3_social_tiktok, 0xFFDFDFDF.toInt())
-            "linkedin" -> SocialStyle(R.drawable.ic_v3_social_linkedin, 0xFFE0EFFF.toInt())
-            "spotify" -> SocialStyle(R.drawable.ic_v3_social_spotify, 0xFFD5EDC2.toInt())
-            else -> SocialStyle(R.drawable.ic_v3_social_link, 0xFFE8DCCD.toInt())
-        }
-    }
-
-    private fun prettySocialLabel(platformKey: String): String {
-        return when (platformKey.lowercase()) {
-            "twitter", "x" -> "X (Twitter)"
-            "youtube" -> "YouTube"
-            "tiktok" -> "TikTok"
-            "linkedin" -> "LinkedIn"
-            "github" -> "GitHub"
-            "webpage" -> "Website"
-            else -> platformKey.replaceFirstChar { it.uppercase() }
-        }
-    }
-
-    private fun addSocialChip(platformKey: String, label: String, url: String?) {
-        if (url.isNullOrEmpty()) return
-        val dedupTag = "${platformKey.lowercase()}:${url}"
-        for (i in 0 until baseBind.socialsGroup.childCount) {
-            if (baseBind.socialsGroup.getChildAt(i).tag == dedupTag) return
-        }
-
-        val dp = resources.displayMetrics.density
-        val style = socialStyle(platformKey)
-
-        // Divider between rows (skip before the first)
-        if (baseBind.socialsGroup.childCount > 0) {
-            val divider = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    Math.max(1, (0.5f * dp).toInt())
-                )
-                setBackgroundColor(resources.getColor(R.color.v3_border_2, theme))
-            }
-            baseBind.socialsGroup.addView(divider)
-        }
-
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            tag = dedupTag
-            // Ripple on tap; pill row spans full card width.
-            val typed = android.util.TypedValue()
-            theme.resolveAttribute(android.R.attr.selectableItemBackground, typed, true)
-            setBackgroundResource(typed.resourceId)
-            setPadding(0, (12 * dp).toInt(), 0, (12 * dp).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setOnClickListener { openUrl(url) }
-        }
-
-        val badge = android.widget.ImageView(this).apply {
-            setImageResource(style.iconRes)
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = 10f * dp
-                setColor(style.badgeColor)
-            }
-            val pad = (8 * dp).toInt()
-            setPadding(pad, pad, pad, pad)
-            layoutParams = LinearLayout.LayoutParams(
-                (36 * dp).toInt(), (36 * dp).toInt()
-            )
-        }
-        row.addView(badge)
-
-        val tv = android.widget.TextView(this).apply {
-            text = label
-            setTextColor(resources.getColor(R.color.v3_text_1, theme))
-            textSize = 14f
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            maxLines = 1
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            ).apply {
-                marginStart = (12 * dp).toInt()
-                marginEnd = (12 * dp).toInt()
-            }
-        }
-        row.addView(tv)
-
-        val chevron = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.ic_arrow_right_little)
-            imageTintList = android.content.res.ColorStateList.valueOf(
-                resources.getColor(R.color.v3_text_3, theme)
-            )
-            layoutParams = LinearLayout.LayoutParams(
-                (20 * dp).toInt(), (20 * dp).toInt()
-            )
-        }
-        row.addView(chevron)
-
-        baseBind.socialsGroup.addView(row)
-        baseBind.socialsCard.isVisible = true
-    }
-
-    private fun setupSocialChips(profile: ceui.lisa.models.ProfileBean) {
-        addSocialChip(
-            "twitter",
-            if (!TextUtils.isEmpty(profile.twitter_account)) "@${profile.twitter_account}" else "X (Twitter)",
-            profile.twitter_url
-        )
-        addSocialChip("webpage", "Website", profile.webpage)
-        addSocialChip("pawoo", "Pawoo", profile.pawoo_url)
     }
 
     private fun setupNavTags(data: UserDetailResponse, isSelf: Boolean) {
@@ -584,171 +427,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         }
     }
 
-    private fun setupProfileCard(data: UserDetailResponse) {
-        val profile = data.profile
-        val user = data.user
-        baseBind.profileCard.visibility = View.VISIBLE
-
-        val chips = mutableListOf<Triple<String, String, Boolean>>()  // label, value, isMono
-        chips.add(Triple("User ID", user.id.toString(), true))
-        chips.add(Triple("Account", user.account, false))
-
-        if (!TextUtils.isEmpty(profile.gender)) {
-            val genderText = when (profile.gender) {
-                "male" -> "Male"
-                "female" -> "Female"
-                else -> profile.gender
-            }
-            chips.add(Triple("Gender", genderText, false))
-        }
-        if (!TextUtils.isEmpty(profile.region)) {
-            chips.add(Triple("Region", profile.region, false))
-        }
-        if (!TextUtils.isEmpty(profile.birth_day)) {
-            chips.add(Triple("Birthday", profile.birth_day, false))
-        }
-        if (!TextUtils.isEmpty(profile.job)) {
-            chips.add(Triple("Job", profile.job, false))
-        }
-        chips.add(Triple("Premium", if (user.isIs_premium) "★ Premium User" else "Standard", false))
-        chips.add(Triple("Pixiv URL", "https://www.pixiv.net/users/${user.id}", true))
-
-        // Build the grid: 2 chips per row
-        val grid = baseBind.profileGrid
-        grid.removeAllViews()
-        val density = resources.displayMetrics.density
-        val rowGap = (10 * density).toInt()
-        val chipGap = (5 * density).toInt()
-        var i = 0
-        while (i < chips.size) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = rowGap }
-            }
-
-            val chip1 = createProfileChip(chips[i])
-            val isLastSingle = i + 1 >= chips.size
-            val isFullWidth = chips[i].first == "Pixiv URL"
-
-            if (isFullWidth || isLastSingle) {
-                chip1.layoutParams =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                row.addView(chip1)
-            } else {
-                chip1.layoutParams =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        marginEnd = chipGap
-                    }
-                row.addView(chip1)
-
-                val chip2 = createProfileChip(chips[i + 1])
-                chip2.layoutParams =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        marginStart = chipGap
-                    }
-                row.addView(chip2)
-                i++
-            }
-            grid.addView(row)
-            i++
-        }
-    }
-
-    private fun createProfileChip(data: Triple<String, String, Boolean>): View {
-        val binding = ItemV3ProfileChipBinding.inflate(LayoutInflater.from(mContext))
-        binding.chipLabel.text = data.first
-        binding.chipValue.text = data.second
-        if (data.second == "★ Premium User") {
-            binding.chipValue.setTextColor(0xFFFFC233.toInt())
-        }
-        if (data.second.startsWith("http://") || data.second.startsWith("https://")) {
-            binding.chipValue.autoLinkMask = android.text.util.Linkify.WEB_URLS
-            binding.chipValue.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-            binding.chipValue.text = data.second
-        }
-        return binding.root
-    }
-
-    private fun setupWorkspaceCard(workspace: WorkspaceBean?) {
-        if (workspace == null) return
-
-        val items = mutableListOf<Pair<String, String>>()
-        workspace.pc?.takeIf { it.isNotBlank() }?.let { items.add("PC" to it) }
-        workspace.monitor?.takeIf { it.isNotBlank() }?.let { items.add("Monitor" to it) }
-        workspace.tool?.takeIf { it.isNotBlank() }?.let { items.add("Tool" to it) }
-        workspace.tablet?.takeIf { it.isNotBlank() }?.let { items.add("Tablet" to it) }
-        workspace.scanner?.takeIf { it.isNotBlank() }?.let { items.add("Scanner" to it) }
-        workspace.mouse?.takeIf { it.isNotBlank() }?.let { items.add("Mouse" to it) }
-        workspace.printer?.takeIf { it.isNotBlank() }?.let { items.add("Printer" to it) }
-        workspace.desktop?.takeIf { it.isNotBlank() }?.let { items.add("Desktop" to it) }
-        workspace.music?.takeIf { it.isNotBlank() }?.let { items.add("Music" to it) }
-        workspace.desk?.takeIf { it.isNotBlank() }?.let { items.add("Desk" to it) }
-        workspace.chair?.takeIf { it.isNotBlank() }?.let { items.add("Chair" to it) }
-        workspace.comment?.takeIf { it.isNotBlank() }?.let { items.add("Comment" to it) }
-
-        if (items.isEmpty()) return
-
-        baseBind.workspaceCard.visibility = View.VISIBLE
-        val grid = baseBind.workspaceGrid
-        grid.removeAllViews()
-        val density = resources.displayMetrics.density
-        val rowGap = (10 * density).toInt()
-        val chipGap = (5 * density).toInt()
-
-        var i = 0
-        while (i < items.size) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = rowGap }
-            }
-
-            val isLastSingle = i + 1 >= items.size
-            val chip1 = createWorkspaceChip(items[i])
-
-            if (isLastSingle) {
-                chip1.layoutParams =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                row.addView(chip1)
-            } else {
-                chip1.layoutParams =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        marginEnd = chipGap
-                    }
-                row.addView(chip1)
-
-                val chip2 = createWorkspaceChip(items[i + 1])
-                chip2.layoutParams =
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                        marginStart = chipGap
-                    }
-                row.addView(chip2)
-                i++
-            }
-            grid.addView(row)
-            i++
-        }
-
-        // Toggle
-        baseBind.workspaceHeaderToggle.setOnClickListener {
-            val isVisible = baseBind.workspaceGrid.visibility == View.VISIBLE
-            baseBind.workspaceGrid.visibility = if (isVisible) View.GONE else View.VISIBLE
-            baseBind.workspaceArrow.rotation = if (isVisible) 0f else 180f
-        }
-    }
-
-    private fun createWorkspaceChip(data: Pair<String, String>): View {
-        val binding = ItemV3ProfileChipBinding.inflate(LayoutInflater.from(mContext))
-        binding.chipLabel.text = data.first
-        binding.chipValue.text = data.second
-        return binding.root
-    }
-
     private fun showMoreMenu(data: UserDetailResponse, isSelf: Boolean) {
         val isMuted = mUserViewModel.isUserMuted.value == true
         val labels = mutableListOf<String>()
@@ -794,14 +472,14 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 else getString(R.string.block_this_users_work)
             )
             actions.add {
+                // mute switch lives in UserV3InfoFragment now; just push state via shared
+                // UserViewModel and the fragment's observer keeps the switch in sync.
                 if (isMuted) {
                     PixivOperate.unMuteUser(data.user)
                     mUserViewModel.isUserMuted.value = false
-                    baseBind.muteSwitch.isChecked = false
                 } else {
                     PixivOperate.muteUser(data.user)
                     mUserViewModel.isUserMuted.value = true
-                    baseBind.muteSwitch.isChecked = true
                 }
                 mUserViewModel.refreshEvent.value = Event(100, 0L)
             }
@@ -843,15 +521,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             intent.putExtra(Params.INITIAL_OFFSET, offset)
             if (pickedDate != null) intent.putExtra(Params.TARGET_DATE, pickedDate)
             startActivity(intent)
-        }
-    }
-
-    private fun openUrl(url: String?) {
-        if (url.isNullOrEmpty()) return
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (e: Exception) {
-            Common.showToast(url)
         }
     }
 
