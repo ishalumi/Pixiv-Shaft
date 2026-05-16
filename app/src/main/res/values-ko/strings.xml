@@ -123,8 +123,13 @@
   <string name="recommend_user">추천 유저</string>  
   <string name="recommend">추천 하 다.</string>  
   <string name="discover">발견 하 다.</string>  
-  <string name="whats_new">동태.</string>  
-  <string name="account">계좌번호</string>  
+  <string name="whats_new">동태.</string>
+  <string name="me_tab">나</string>
+  <string name="me_greeting_format">안녕, %1$s</string>
+  <string name="me_greeting_guest">안녕하세요</string>
+  <string name="me_subinfo_uid_format">ID: %1$d</string>
+  <string name="me_section_quick">자주 사용</string>
+  <string name="account">계좌번호</string>
   <string name="account_manage">계 정 관리</string>  
   <string name="login_out">로그아웃 로그 인</string>  
   <string name="normal">상규.</string>  

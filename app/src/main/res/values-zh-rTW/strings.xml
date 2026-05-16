@@ -115,6 +115,11 @@
   <string name="recommend">推薦</string>
   <string name="discover">發現</string>
   <string name="whats_new">動態</string>
+  <string name="me_tab">我</string>
+  <string name="me_greeting_format">Hi, %1$s</string>
+  <string name="me_greeting_guest">Hi</string>
+  <string name="me_subinfo_uid_format">ID: %1$d</string>
+  <string name="me_section_quick">常用</string>
   <string name="account">帳號</string>
   <string name="account_manage">帳號管理</string>
   <string name="login_out">登出</string>

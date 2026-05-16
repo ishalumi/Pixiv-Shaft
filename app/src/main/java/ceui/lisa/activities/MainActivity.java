@@ -42,6 +42,7 @@ import ceui.lisa.fragments.FragmentCenter;
 import ceui.lisa.fragments.FragmentLeft;
 import ceui.lisa.fragments.FragmentRight;
 import ceui.lisa.fragments.FragmentViewPager;
+import ceui.pixiv.ui.me.MeFragment;
 import ceui.lisa.helper.DrawerLayoutHelper;
 import ceui.lisa.helper.NavigationLocationHelper;
 import ceui.lisa.utils.Common;
@@ -92,14 +93,13 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         // 发现入口默认隐藏，画像完备后才展示
         baseBind.navView.getMenu().findItem(R.id.nav_discovery).setVisible(false);
         updateDiscoveryVisibility();
-        // 调试入口仅 debug 构建可见,release build 不暴露给用户
+        // 试验性分区在 release 也保留,仅暴露「批量下载 Debug」(存储占用诊断,普通用户也用得到);其它调试入口仍仅 debug 可见
         boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
         baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
-        baseBind.navView.getMenu().findItem(R.id.nav_debug_bulk_dl).setVisible(isDebugBuild);
-        baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(isDebugBuild);
         baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(isDebugBuild);
         baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(isDebugBuild);
         baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
+        baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(isDebugBuild);
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(
@@ -142,6 +142,10 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
                     return true;
                 } else if (item.getItemId() == R.id.action_4) {
                     baseBind.viewPager.setCurrentItem(3);
+                    return true;
+                } else if (item.getItemId() == R.id.action_5) {
+                    // 「我」始终在最末位:非 R18 模式 = 3,R18 模式 = 4
+                    baseBind.viewPager.setCurrentItem(baseFragments.length - 1);
                     return true;
                 }
                 return false;
@@ -192,7 +196,12 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
                 } else if (position == 2) {
                     baseBind.navigationView.setSelectedItemId(R.id.action_3);
                 } else if (position == 3) {
-                    baseBind.navigationView.setSelectedItemId(R.id.action_4);
+                    // 非 R18 模式 position 3 就是「我」(action_4 在该菜单不存在);R18 模式 position 3 才是 R18 (action_4)
+                    boolean isR18Tab = baseFragments[3] instanceof FragmentViewPager;
+                    baseBind.navigationView.setSelectedItemId(isR18Tab ? R.id.action_4 : R.id.action_5);
+                } else if (position == 4) {
+                    // 仅 R18 模式存在 position 4 = 「我」
+                    baseBind.navigationView.setSelectedItemId(R.id.action_5);
                 }
             }
 
@@ -219,13 +228,15 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
                     new FragmentCenter(),
                     new FragmentRight(),
                     FragmentViewPager.newInstance(Params.VIEW_PAGER_R18),
+                    new MeFragment(),
             };
         } else {
             baseBind.navigationView.inflateMenu(R.menu.main_activity0);
             baseFragments = new Fragment[]{
                     new FragmentLeft(),
                     new FragmentCenter(),
-                    new FragmentRight()
+                    new FragmentRight(),
+                    new MeFragment(),
             };
         }
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager()) {
@@ -309,9 +320,17 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
     @SuppressLint("NonConstantResourceId")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
-        // Handle navigation view item clicks here.
-        int id = item.getItemId();
+        handleDrawerAction(item.getItemId());
+        baseBind.drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
 
+    /**
+     * 侧边栏 / MeFragment 共用的入口分发。switch 跟 menu/activity_main_drawer.xml 的 id 对齐;
+     * MeFragment 直接传 R.id.xxx 走这里,避免两边维护同样的跳转。
+     */
+    @SuppressLint("NonConstantResourceId")
+    public void handleDrawerAction(int id) {
         Intent intent = null;
         if (id == nav_gallery) {
             intent = new Intent(mContext, TemplateActivity.class);
@@ -405,9 +424,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         if (intent != null) {
             startActivity(intent);
         }
-
-        baseBind.drawerLayout.closeDrawer(GravityCompat.START);
-        return true;
     }
 
     @Override

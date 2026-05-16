@@ -123,8 +123,13 @@
   <string name="recommend_user">Recommended Users</string>  
   <string name="recommend">Recommended</string>  
   <string name="discover">Discover</string>  
-  <string name="whats_new">Feed</string>  
-  <string name="account">Account</string>  
+  <string name="whats_new">Feed</string>
+  <string name="me_tab">Me</string>
+  <string name="me_greeting_format">Hi, %1$s</string>
+  <string name="me_greeting_guest">Hi</string>
+  <string name="me_subinfo_uid_format">ID: %1$d</string>
+  <string name="me_section_quick">Quick Access</string>
+  <string name="account">Account</string>
   <string name="account_manage">Account Management</string>  
   <string name="login_out">Sign out</string>  
   <string name="normal">Common</string>  

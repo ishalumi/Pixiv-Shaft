@@ -123,8 +123,13 @@
   <string name="recommend_user">おすすめユーザー</string>
   <string name="recommend">おすすめ</string>  
   <string name="discover">フィード</string>
-  <string name="whats_new">新着</string>  
-  <string name="account">アカウント</string>  
+  <string name="whats_new">新着</string>
+  <string name="me_tab">マイページ</string>
+  <string name="me_greeting_format">こんにちは、%1$s</string>
+  <string name="me_greeting_guest">こんにちは</string>
+  <string name="me_subinfo_uid_format">ID: %1$d</string>
+  <string name="me_section_quick">よく使う</string>
+  <string name="account">アカウント</string>
   <string name="account_manage">アカウントの管理</string>
   <string name="login_out">ログアウト</string>  
   <string name="normal">一般</string>  

@@ -132,6 +132,11 @@
     <string name="recommend">推荐</string>
     <string name="discover">发现</string>
     <string name="whats_new">动态</string>
+    <string name="me_tab">我</string>
+    <string name="me_greeting_format">Hi, %1$s</string>
+    <string name="me_greeting_guest">Hi</string>
+    <string name="me_subinfo_uid_format">ID: %1$d</string>
+    <string name="me_section_quick">常用</string>
     <string name="account">账号</string>
     <string name="account_manage">账号管理</string>
     <string name="login_out">退出登录</string>
@@ -1813,7 +1818,7 @@
     <string name="chat_error_serialization">服务器返回的数据无效</string>
     <string name="chat_error_unknown">出错了</string>
 
-    <!-- Plaza (shaft-plaza-api;debug 入口隐藏在 nav_experimental_section) -->
+    <!-- Plaza (shaft-plaza-api;debug 入口,MainActivity 里按 BuildConfig.DEBUG gate) -->
     <string name="plaza_drawer_entry">广场</string>
     <string name="plaza_title">广场</string>
     <string name="plaza_compose_title">发帖</string>

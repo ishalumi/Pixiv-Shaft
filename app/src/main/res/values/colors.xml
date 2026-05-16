@@ -207,6 +207,9 @@
     <color name="secondary_text_color">#888888</color>
     <color name="divider_color">#1F000000</color>
 
+    <!-- MeFragment stat-card 圆角图标背景:v3_blue 10% 透明,light/dark 各自对齐 -->
+    <color name="me_stat_icon_bg">#1A2B6FCC</color>
+
     <!-- V3 Detail — Light Mode -->
     <color name="v3_bg">#FAFAFA</color>
     <color name="v3_surface_1">#08000000</color>

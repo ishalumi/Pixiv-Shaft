@@ -3,6 +3,7 @@ package ceui.lisa.database;
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
@@ -28,6 +29,7 @@ public class ComicBookmarkEntity {
 
     public ComicBookmarkEntity() {}
 
+    @Ignore
     public ComicBookmarkEntity(long illustId, int pageIndex, int totalPages,
                                @NonNull String previewUrl, @NonNull String note,
                                long createdTime) {

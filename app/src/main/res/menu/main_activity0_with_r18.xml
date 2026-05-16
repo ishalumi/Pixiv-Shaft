@@ -29,4 +29,11 @@
         android:icon="@drawable/ic_xiongbu"
         app:showAsAction="always" />
 
+    <item
+        android:id="@+id/action_5"
+        android:orderInCategory="100"
+        android:title="@string/me_tab"
+        android:icon="@drawable/ic_me"
+        app:showAsAction="always" />
+
 </menu>

@@ -123,8 +123,13 @@
   <string name="recommend_user">рекомендуемый пользователь</string>  
   <string name="recommend">рекомендовать</string>  
   <string name="discover">обнаружить</string>  
-  <string name="whats_new">динамика</string>  
-  <string name="account">номер счета</string>  
+  <string name="whats_new">динамика</string>
+  <string name="me_tab">Я</string>
+  <string name="me_greeting_format">Привет, %1$s</string>
+  <string name="me_greeting_guest">Привет</string>
+  <string name="me_subinfo_uid_format">ID: %1$d</string>
+  <string name="me_section_quick">Часто используемое</string>
+  <string name="account">номер счета</string>
   <string name="account_manage">управление счетами</string>  
   <string name="login_out">выход из системы</string>  
   <string name="normal">обычный</string>  

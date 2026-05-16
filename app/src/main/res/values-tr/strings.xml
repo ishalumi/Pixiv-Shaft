@@ -122,8 +122,13 @@
   <string name="see_more">Daha fazla</string>  
   <string name="recommend">Önerilen</string>  
   <string name="discover">Keşfet</string>  
-  <string name="whats_new">Akış</string>  
-  <string name="account">Hesap</string>  
+  <string name="whats_new">Akış</string>
+  <string name="me_tab">Ben</string>
+  <string name="me_greeting_format">Merhaba, %1$s</string>
+  <string name="me_greeting_guest">Merhaba</string>
+  <string name="me_subinfo_uid_format">ID: %1$d</string>
+  <string name="me_section_quick">Sık Kullanılanlar</string>
+  <string name="account">Hesap</string>
   <string name="account_manage">Hesap Yönetimi</string>  
   <string name="login_out">Çıkış yap</string>  
   <string name="normal">Genel</string>  

@@ -87,6 +87,9 @@
     <color name="secondary_text_color">#999999</color>
     <color name="divider_color">#1FFFFFFF</color>
 
+    <!-- MeFragment stat-card 圆角图标背景:dark 模式用 v3_blue dark 色 14% 透明,提对比 -->
+    <color name="me_stat_icon_bg">#243D8BFD</color>
+
     <!-- V3 Detail — Dark Mode -->
     <color name="v3_bg">#08080C</color>
     <color name="v3_surface_1">#08FFFFFF</color>
