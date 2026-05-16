@@ -9,7 +9,10 @@ import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.loxia.NovelSeriesDetail
 import ceui.pixiv.download.config.DownloadItems
-import ceui.pixiv.ui.common.saveToDownloadsScopedStorage
+import ceui.pixiv.ui.novel.reader.export.ExportFormat
+import ceui.pixiv.ui.novel.reader.export.MergedChapter
+import ceui.pixiv.ui.novel.reader.export.MergedNovelContent
+import ceui.pixiv.ui.novel.reader.export.MergedNovelWriters
 import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -18,19 +21,21 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * 合并下载：把一个系列的全部章节抓下来合并成一个 TXT 文件。
+ * 合并下载：把一个系列的全部章节抓下来合并成一个文件。格式由 [format] 决定
+ * （TXT / Markdown / PDF / EPUB），实际落盘逻辑委托给 [MergedNovelWriters]。
  *
  * 恢复自 [ceui.lisa.fragments.FragmentNovelSeriesDetail.batch_download_as_one]
  * 旧实现（Java + RxJava 版），用 coroutine + 现有下载基础设施重写。单个章节
  * 抓取失败时跳过、不中断整个任务 —— 原 Java 版一旦某一章 parse 失败整批就 NPE。
  *
  * UI 入口：NovelSeriesFragment 右下「下载」按钮 → SeriesDownloadOptionsSheet
- * 的「合并下载」选项。
+ * 「合并下载」→ ExportSheet 选格式 → 本任务。
  */
 class MergeDownloadNovelSeriesTask(
     private val activity: FragmentActivity,
     private val seriesDetail: NovelSeriesDetail,
     private val knownNovels: List<Novel>,
+    private val format: ExportFormat,
     private val onFinished: (ok: Boolean, failedCount: Int) -> Unit,
 ) {
 
@@ -54,33 +59,18 @@ class MergeDownloadNovelSeriesTask(
                 val total = allNovels.size
                 ToastUtils.show(ctx.getString(R.string.merge_download_preparing, total))
 
-                // 2) 构造系列信息头（模仿原 Java 版格式）
-                val lineSep = "\n"
-                val header = buildString {
-                    append("《").append(seriesDetail.title.orEmpty()).append("》").append(lineSep)
-                    seriesDetail.user?.let { u ->
-                        append("Name:").append(u.name.orEmpty())
-                            .append("(https://www.pixiv.net/users/").append(u.id).append(")")
-                            .append(lineSep)
-                    }
-                    append("Source:https://www.pixiv.net/novel/series/").append(seriesDetail.id).append(lineSep)
-                    val caption = seriesDetail.caption.orEmpty().trim()
-                    if (caption.isNotEmpty()) {
-                        append("Caption:").append(lineSep).append(caption).append(lineSep)
-                    }
-                    append(lineSep)
-                    append("----------------------").append(lineSep).append(lineSep).append(lineSep)
-                }
-
-                // 3) 顺序抓每一章的正文（失败跳过）
-                val chapterBodies = StringBuilder()
+                // 2) 顺序抓每一章的正文（失败跳过）
+                val chapters = mutableListOf<MergedChapter>()
                 var failedCount = 0
                 allNovels.forEachIndexed { index, novel ->
                     val done = index + 1
                     ToastUtils.show(ctx.getString(R.string.merge_download_progress, done, total))
                     try {
-                        val body = withContext(Dispatchers.IO) { fetchChapterBody(novel, done) }
-                        chapterBodies.append(body).append(lineSep)
+                        val body = withContext(Dispatchers.IO) { fetchChapterBody(novel) }
+                        chapters += MergedChapter(
+                            title = "第${done}篇•" + truncate(novel.title.orEmpty(), 30),
+                            text = body,
+                        )
                     } catch (ex: Exception) {
                         Timber.e(ex, "MergeDownloadNovelSeriesTask: chapter ${novel.id} failed")
                         failedCount++
@@ -88,15 +78,21 @@ class MergeDownloadNovelSeriesTask(
                     if (done < total) delay(1500L)
                 }
 
-                // 4) 写入文件 —— 目录从用户的 Novel 命名预设里取，文件名保留
+                // 3) 写入文件 —— 目录从用户的 Novel 命名预设里取，文件名保留
                 //    合集自己的命名（带「_合集_ID...」后缀），让合集文件落在和
                 //    单本下载相同的目录下。
-                val mergeName = buildMergeFileName(seriesDetail)
+                val mergeName = buildMergeFileName(seriesDetail, format)
                 val destination = DownloadItems.novelMergeDestination(seriesDetail, mergeName)
-                val content = header + chapterBodies.toString()
-                val ok = withContext(Dispatchers.IO) {
-                    saveToDownloadsScopedStorage(ctx, destination, content)
-                }
+                val content = MergedNovelContent(
+                    displayTitle = seriesDetail.title.orEmpty(),
+                    author = seriesDetail.user?.name,
+                    sourceUrl = "https://www.pixiv.net/novel/series/${seriesDetail.id}",
+                    caption = seriesDetail.caption,
+                    chapters = chapters,
+                    documentId = "novel_series_${seriesDetail.id}",
+                )
+                val writer = MergedNovelWriters.forFormat(format)
+                val ok = withContext(Dispatchers.IO) { writer.write(ctx, content, destination) }
                 if (!ok) {
                     ToastUtils.show(ctx.getString(R.string.merge_download_failed_save))
                     onFinished(false, failedCount)
@@ -144,29 +140,23 @@ class MergeDownloadNovelSeriesTask(
         return all
     }
 
-    private suspend fun fetchChapterBody(novel: Novel, seriesIndex: Int): String {
+    private suspend fun fetchChapterBody(novel: Novel): String {
         val html = Client.appApi.getNovelText(novel.id).string()
         val wNovel = WebNovelParser.parsePixivObject(html)?.novel
             ?: throw RuntimeException("invalid web novel: ${novel.id}")
-        val chapterTitle = "第${seriesIndex}篇•" + truncate(novel.title.orEmpty(), 30)
-        val lineSep = "\n"
-        return buildString {
-            append(lineSep).append(lineSep)
-            append("<===== ").append(chapterTitle).append(" =====>")
-            append(lineSep).append(lineSep)
-            append(DownloadNovelTask.replaceBrWithNewLine(wNovel.text))
-            append(lineSep).append(lineSep)
-        }
+        return DownloadNovelTask.replaceBrWithNewLine(wNovel.text)
     }
 
     private fun truncate(input: String, max: Int): String {
         return if (input.length <= max) input else input.substring(0, max)
     }
 
-    private fun buildMergeFileName(detail: NovelSeriesDetail): String {
-        val raw = detail.title.orEmpty()
-        val sanitized = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(40)
-        val base = if (sanitized.isEmpty()) "novel_series_${detail.id}" else sanitized
-        return "${base}_合集_ID${detail.id}.txt"
+    companion object {
+        fun buildMergeFileName(detail: NovelSeriesDetail, format: ExportFormat): String {
+            val raw = detail.title.orEmpty()
+            val sanitized = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(40)
+            val base = if (sanitized.isEmpty()) "novel_series_${detail.id}" else sanitized
+            return "${base}_合集_ID${detail.id}.${format.extension}"
+        }
     }
 }

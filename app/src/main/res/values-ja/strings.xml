@@ -823,7 +823,6 @@
   <string name="v3_label_navigate">ナビゲート</string>
   <string name="v3_label_profile_details">プロフィール詳細</string>
   <string name="v3_label_workspace">作業環境</string>
-  <string name="v3_label_social">ソーシャル</string>
 
   <!-- Novel reader V3 -->
   <string name="reader_settings_title">リーダー設定</string>
@@ -833,6 +832,11 @@
   <string name="reader_section_screen">画面</string>
   <string name="reader_section_image">画像</string>
   <string name="reader_btn_chapters">目次</string>
+  <string name="reader_btn_watchlist_add">追跡</string>
+  <string name="reader_btn_watchlist_added">追跡中</string>
+  <string name="reader_watchlist_added_toast">ウォッチリストに追加しました</string>
+  <string name="reader_watchlist_removed_toast">ウォッチリストから削除しました</string>
+  <string name="reader_watchlist_toggle_failed">ウォッチリストの更新に失敗しました</string>
   <string name="reader_btn_settings">設定</string>
   <string name="reader_btn_search">検索</string>
   <string name="reader_btn_more">その他</string>
@@ -1070,6 +1074,10 @@
     <string name="cross_series_download_merge_progress">結合ダウンロード シリーズ %1$d/%2$d - 章 %3$d/%4$d</string>
     <string name="cross_series_download_merge_finished">シリーズ横断の結合ダウンロード完了：%1$s</string>
     <string name="cross_series_download_merge_failed_save">シリーズ横断の結合ダウンロード失敗：ファイルの書き込みに失敗しました</string>
+    <string name="cross_series_download_caption">%1$d シリーズ</string>
+    <string name="history_search_hint">タイトル・作者で検索</string>
+    <string name="history_search_result_count">%1$d 件ヒット</string>
+    <string name="dlmgr_done_search_hint">ダウンロード済みを検索</string>
 
     <!-- C: 小説詳細のヘッダー / セクション / アクション -->
     <string name="novel_header_series_prefix">シリーズ：%1$s</string>

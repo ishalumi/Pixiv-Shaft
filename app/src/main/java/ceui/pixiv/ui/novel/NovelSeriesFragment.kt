@@ -38,6 +38,9 @@ import ceui.pixiv.ui.common.PixivFragment
 import ceui.pixiv.ui.common.constructVM
 import ceui.pixiv.ui.common.setUpRefreshState
 import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.ui.novel.reader.export.ExportFormat
+import ceui.pixiv.ui.novel.reader.ui.ExportFormatCallback
+import ceui.pixiv.ui.novel.reader.ui.ExportSheet
 import ceui.pixiv.ui.task.BatchDownloadNovelsTask
 import ceui.pixiv.ui.task.FailedNovel
 import ceui.pixiv.ui.task.FetchAllTask
@@ -53,7 +56,8 @@ import java.util.UUID
 class NovelSeriesFragment :
     PixivFragment(R.layout.fragment_pixiv_list),
     NovelMultiSelectReceiver,
-    NovelSeriesHeaderActionReceiver {
+    NovelSeriesHeaderActionReceiver,
+    ExportFormatCallback {
 
     private val binding by viewBinding(FragmentPixivListBinding::bind)
     private val seriesId: Long by lazy { arguments?.getLong(ARG_SERIES_ID, 0L) ?: 0L }
@@ -164,6 +168,14 @@ class NovelSeriesFragment :
         }.show(childFragmentManager, SeriesDownloadOptionsSheet.TAG)
     }
 
+    /**
+     * Pending action set right before showing [ExportSheet]; consumed when the
+     * sheet calls back into [onExportFormatChosen]. Kept as a field so we can
+     * keep capture context (detail/dedup) without serializing args through the
+     * sheet's Bundle.
+     */
+    private var pendingMergeAction: ((ExportFormat) -> Unit)? = null
+
     private fun launchMergeDownload() {
         val detail = viewModel.series.value?.novel_series_detail
         if (detail == null) {
@@ -172,12 +184,21 @@ class NovelSeriesFragment :
         }
         val known = viewModel.series.value?.novels.orEmpty() + viewModel.allLoadedNovels()
         val dedup = known.distinctBy { it.id }
-        MergeDownloadNovelSeriesTask(
-            activity = requireActivity(),
-            seriesDetail = detail,
-            knownNovels = dedup,
-            onFinished = { _, _ -> /* task 已经自己 toast 过了 */ },
-        )
+        pendingMergeAction = { format ->
+            MergeDownloadNovelSeriesTask(
+                activity = requireActivity(),
+                seriesDetail = detail,
+                knownNovels = dedup,
+                format = format,
+                onFinished = { _, _ -> /* task 已经自己 toast 过了 */ },
+            )
+        }
+        ExportSheet().show(childFragmentManager, ExportSheet.TAG)
+    }
+
+    override fun onExportFormatChosen(format: ExportFormat) {
+        pendingMergeAction?.invoke(format)
+        pendingMergeAction = null
     }
 
     /**

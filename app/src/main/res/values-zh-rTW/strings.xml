@@ -837,7 +837,6 @@
   <string name="v3_label_navigate">導航</string>
   <string name="v3_label_profile_details">個人資料</string>
   <string name="v3_label_workspace">工作環境</string>
-  <string name="v3_label_social">社交</string>
 
   <!-- Novel reader V3 -->
   <string name="reader_settings_title">閱讀器設定</string>
@@ -847,6 +846,11 @@
   <string name="reader_section_screen">螢幕</string>
   <string name="reader_section_image">圖片</string>
   <string name="reader_btn_chapters">目錄</string>
+  <string name="reader_btn_watchlist_add">追更</string>
+  <string name="reader_btn_watchlist_added">已追</string>
+  <string name="reader_watchlist_added_toast">已加入追更列表</string>
+  <string name="reader_watchlist_removed_toast">已移出追更列表</string>
+  <string name="reader_watchlist_toggle_failed">追更操作失敗</string>
   <string name="reader_btn_settings">設定</string>
   <string name="reader_btn_search">搜尋</string>
   <string name="reader_btn_more">更多</string>
@@ -1084,6 +1088,10 @@
     <string name="cross_series_download_merge_progress">合併下載 系列 %1$d/%2$d - 章節 %3$d/%4$d</string>
     <string name="cross_series_download_merge_finished">跨系列合併下載完成：%1$s</string>
     <string name="cross_series_download_merge_failed_save">跨系列合併下載失敗：寫入檔案失敗</string>
+    <string name="cross_series_download_caption">共 %1$d 個系列</string>
+    <string name="history_search_hint">搜尋標題或作者</string>
+    <string name="history_search_result_count">搜尋到 %1$d 條</string>
+    <string name="dlmgr_done_search_hint">搜尋已下載內容</string>
 
     <!-- C 組：小說詳情頁 header / section / actions -->
     <string name="novel_header_series_prefix">系列：%1$s</string>

@@ -722,7 +722,6 @@
   <string name="v3_label_navigate">Gezinti</string>
   <string name="v3_label_profile_details">Profil Detayları</string>
   <string name="v3_label_workspace">Çalışma Alanı</string>
-  <string name="v3_label_social">Sosyal</string>
 
   <!-- Novel reader V3 -->
   <string name="reader_settings_title">Okuyucu Ayarları</string>
@@ -732,6 +731,11 @@
   <string name="reader_section_screen">Ekran</string>
   <string name="reader_section_image">Görsel</string>
   <string name="reader_btn_chapters">İçindekiler</string>
+  <string name="reader_btn_watchlist_add">Takip Et</string>
+  <string name="reader_btn_watchlist_added">Takipte</string>
+  <string name="reader_watchlist_added_toast">İzleme listesine eklendi</string>
+  <string name="reader_watchlist_removed_toast">İzleme listesinden çıkarıldı</string>
+  <string name="reader_watchlist_toggle_failed">İzleme listesi güncellenemedi</string>
   <string name="reader_btn_settings">Ayarlar</string>
   <string name="reader_btn_search">Ara</string>
   <string name="reader_btn_more">Daha fazla</string>
@@ -969,6 +973,10 @@
     <string name="cross_series_download_merge_progress">Birleştirme seri %1$d/%2$d - bölüm %3$d/%4$d</string>
     <string name="cross_series_download_merge_finished">Seriler arası birleştirilmiş indirme tamamlandı: %1$s</string>
     <string name="cross_series_download_merge_failed_save">Seriler arası birleştirilmiş indirme başarısız: dosya yazılamadı</string>
+    <string name="cross_series_download_caption">%1$d seri</string>
+    <string name="history_search_hint">Başlık veya yazar ara</string>
+    <string name="history_search_result_count">%1$d sonuç</string>
+    <string name="dlmgr_done_search_hint">İndirilenleri ara</string>
 
     <!-- C: Roman detayı başlık / bölüm / eylemler -->
     <string name="novel_header_series_prefix">Seri: %1$s</string>

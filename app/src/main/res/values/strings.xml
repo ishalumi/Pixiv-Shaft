@@ -937,6 +937,10 @@
     <string name="cross_series_download_merge_progress">合并下载 系列 %1$d/%2$d - 章节 %3$d/%4$d</string>
     <string name="cross_series_download_merge_finished">跨系列合并下载完成：%1$s</string>
     <string name="cross_series_download_merge_failed_save">跨系列合并下载失败：写入文件失败</string>
+    <string name="cross_series_download_caption">共 %1$d 个系列</string>
+    <string name="history_search_hint">搜索标题或作者</string>
+    <string name="history_search_result_count">搜索到 %1$d 条</string>
+    <string name="dlmgr_done_search_hint">搜索已下载内容</string>
     <string name="turn_on_v5_ui">体验新版UI(公测中)</string>
     <string name="use_new_ui">体验新版</string>
     <string name="turn_off_v5_ui">切换为旧版UI</string>
@@ -1053,7 +1057,6 @@
     <string name="v3_label_navigate">导航</string>
     <string name="v3_label_profile_details">个人资料</string>
     <string name="v3_label_workspace">工作环境</string>
-    <string name="v3_label_social">社交</string>
     <string name="v3_follows_you">互相关注</string>
     <string name="v3_mypixiv_badge">好P友</string>
     <string name="v3_official">Official</string>
@@ -1074,6 +1077,11 @@
     <string name="reader_section_image">图片</string>
     <string name="reader_btn_chapters">目录</string>
     <string name="reader_btn_series">系列</string>
+    <string name="reader_btn_watchlist_add">追更</string>
+    <string name="reader_btn_watchlist_added">已追</string>
+    <string name="reader_watchlist_added_toast">已加入追更列表</string>
+    <string name="reader_watchlist_removed_toast">已移出追更列表</string>
+    <string name="reader_watchlist_toggle_failed">追更操作失败</string>
     <string name="reader_btn_settings">设置</string>
     <string name="reader_btn_search">搜索</string>
     <string name="reader_btn_more">更多</string>

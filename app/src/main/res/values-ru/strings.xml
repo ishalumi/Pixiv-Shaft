@@ -724,7 +724,6 @@
   <string name="v3_label_navigate">Навигация</string>
   <string name="v3_label_profile_details">Профиль</string>
   <string name="v3_label_workspace">Рабочее место</string>
-  <string name="v3_label_social">Соцсети</string>
 
   <!-- Novel reader V3 -->
   <string name="reader_settings_title">Настройки читалки</string>
@@ -734,6 +733,11 @@
   <string name="reader_section_screen">Экран</string>
   <string name="reader_section_image">Изображения</string>
   <string name="reader_btn_chapters">Оглавление</string>
+  <string name="reader_btn_watchlist_add">Подписка</string>
+  <string name="reader_btn_watchlist_added">Подписан</string>
+  <string name="reader_watchlist_added_toast">Добавлено в список отслеживания</string>
+  <string name="reader_watchlist_removed_toast">Удалено из списка отслеживания</string>
+  <string name="reader_watchlist_toggle_failed">Не удалось обновить список</string>
   <string name="reader_btn_settings">Настройки</string>
   <string name="reader_btn_search">Поиск</string>
   <string name="reader_btn_more">Ещё</string>
@@ -971,6 +975,10 @@
     <string name="cross_series_download_merge_progress">Объединение серия %1$d/%2$d - глава %3$d/%4$d</string>
     <string name="cross_series_download_merge_finished">Объединённая загрузка серий завершена: %1$s</string>
     <string name="cross_series_download_merge_failed_save">Ошибка объединённой загрузки серий: не удалось записать файл</string>
+    <string name="cross_series_download_caption">Серий: %1$d</string>
+    <string name="history_search_hint">Поиск по названию или автору</string>
+    <string name="history_search_result_count">Найдено: %1$d</string>
+    <string name="dlmgr_done_search_hint">Поиск загрузок</string>
 
     <!-- C: Шапка / разделы / действия в деталях новеллы -->
     <string name="novel_header_series_prefix">Серия: %1$s</string>

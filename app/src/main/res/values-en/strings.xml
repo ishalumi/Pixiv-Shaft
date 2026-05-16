@@ -792,7 +792,6 @@
   <string name="v3_label_navigate">Navigate</string>
   <string name="v3_label_profile_details">Profile Details</string>
   <string name="v3_label_workspace">Workspace</string>
-  <string name="v3_label_social">Social</string>
 
   <!-- Novel reader V3 -->
   <string name="reader_settings_title">Reader Settings</string>
@@ -802,6 +801,11 @@
   <string name="reader_section_screen">Screen</string>
   <string name="reader_section_image">Image</string>
   <string name="reader_btn_chapters">Contents</string>
+  <string name="reader_btn_watchlist_add">Follow</string>
+  <string name="reader_btn_watchlist_added">Following</string>
+  <string name="reader_watchlist_added_toast">Added to watchlist</string>
+  <string name="reader_watchlist_removed_toast">Removed from watchlist</string>
+  <string name="reader_watchlist_toggle_failed">Watchlist update failed</string>
   <string name="reader_btn_settings">Settings</string>
   <string name="reader_btn_search">Search</string>
   <string name="reader_btn_more">More</string>
@@ -1039,6 +1043,10 @@
     <string name="cross_series_download_merge_progress">Merging series %1$d/%2$d - chapter %3$d/%4$d</string>
     <string name="cross_series_download_merge_finished">Cross-series merged download finished: %1$s</string>
     <string name="cross_series_download_merge_failed_save">Cross-series merged download failed: could not write file</string>
+    <string name="cross_series_download_caption">%1$d series</string>
+    <string name="history_search_hint">Search title or author</string>
+    <string name="history_search_result_count">%1$d match(es)</string>
+    <string name="dlmgr_done_search_hint">Search downloads</string>
 
     <!-- C: Novel detail header / section / actions -->
     <string name="novel_header_series_prefix">Series: %1$s</string>

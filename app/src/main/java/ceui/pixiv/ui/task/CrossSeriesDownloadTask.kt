@@ -9,7 +9,10 @@ import ceui.lisa.models.NovelSeriesItem
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.pixiv.download.config.DownloadItems
-import ceui.pixiv.ui.common.saveToDownloadsScopedStorage
+import ceui.pixiv.ui.novel.reader.export.ExportFormat
+import ceui.pixiv.ui.novel.reader.export.MergedChapter
+import ceui.pixiv.ui.novel.reader.export.MergedNovelContent
+import ceui.pixiv.ui.novel.reader.export.MergedNovelWriters
 import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -21,11 +24,11 @@ import timber.log.Timber
  * 跨系列批量下载：由 FragmentNovelSeries（某作者的小说系列总览）的顶部
  * 下载按钮驱动，支持三种模式——
  *
- *  1. PerSeries:            选中若干系列 / 全部系列，**每个系列各自合并为一个独立 txt**。
- *  2. AllSeriesMergedOne:   所有系列的全部章节合并为**唯一一个 txt**。
+ *  1. PerSeries:            选中若干系列 / 全部系列，**每个系列各自合并为一个独立文件**。
+ *  2. AllSeriesMergedOne:   所有系列的全部章节合并为**唯一一个文件**。
  *
- * 复用 [MergeDownloadNovelSeriesTask] 里的合并格式思路：信息头 + 分章节块。
- * 抓章节失败不中断整个批次，仅计数。
+ * 输出格式由调用方传入的 [ExportFormat] 决定（TXT/MD/PDF/EPUB），实际落盘
+ * 走 [MergedNovelWriters]。抓章节失败不中断整个批次，仅计数。
  */
 object CrossSeriesDownloadTask {
 
@@ -49,6 +52,7 @@ object CrossSeriesDownloadTask {
     fun runPerSeries(
         activity: FragmentActivity,
         seriesList: List<NovelSeriesItem>,
+        format: ExportFormat,
         onFinished: (success: Int, failures: List<SeriesFailure>) -> Unit,
     ) {
         if (seriesList.isEmpty()) {
@@ -70,7 +74,7 @@ object CrossSeriesDownloadTask {
                 )
                 try {
                     withContext(Dispatchers.IO) {
-                        downloadOneSeriesToSingleFile(seriesItem)
+                        downloadOneSeriesToSingleFile(seriesItem, format)
                     }
                     successCount++
                     ToastUtils.show(
@@ -111,6 +115,7 @@ object CrossSeriesDownloadTask {
         seriesList: List<NovelSeriesItem>,
         authorName: String?,
         authorId: Int,
+        format: ExportFormat,
         onFinished: (ok: Boolean, skippedChapters: Int) -> Unit,
     ) {
         if (seriesList.isEmpty()) {
@@ -120,19 +125,7 @@ object CrossSeriesDownloadTask {
         val ctx = Shaft.getContext()
         activity.lifecycleScope.launch {
             try {
-                val lineSep = "\n"
-                // 顶层信息头（作者 + 系列数量）
-                val header = buildString {
-                    append("===== 作者 ").append(authorName.orEmpty()).append(" 的小说系列合集 =====")
-                    append(lineSep)
-                    append("User:").append(authorName.orEmpty())
-                        .append("(https://www.pixiv.net/users/").append(authorId).append(")")
-                    append(lineSep)
-                    append("系列数：").append(seriesList.size).append(lineSep)
-                    append("======================").append(lineSep).append(lineSep)
-                }
-
-                val out = StringBuilder(header)
+                val chapters = mutableListOf<MergedChapter>()
                 var skippedChapters = 0
 
                 seriesList.forEachIndexed { sIdx, seriesItem ->
@@ -146,14 +139,11 @@ object CrossSeriesDownloadTask {
                         emptyList()
                     }
 
-                    // 系列块信息头
-                    out.append(lineSep).append(lineSep)
-                    out.append("<<<<< 系列 ").append(sPos).append("/").append(seriesList.size)
-                        .append(" 《").append(seriesItem.title.orEmpty()).append("》 >>>>>")
-                    out.append(lineSep)
-                    out.append("SeriesId:").append(seriesItem.id).append(lineSep)
-                    out.append("Chapters:").append(allNovels.size).append(lineSep)
-                    out.append(lineSep)
+                    // 用一个 chapter 当 series 分隔头（用户在 reader 里能看到目录分级）
+                    chapters += MergedChapter(
+                        title = "<系列 $sPos/${seriesList.size}>《${seriesItem.title.orEmpty()}》",
+                        text = "SeriesId: ${seriesItem.id}\nChapters: ${allNovels.size}",
+                    )
 
                     allNovels.forEachIndexed { cIdx, novel ->
                         val cPos = cIdx + 1
@@ -165,9 +155,12 @@ object CrossSeriesDownloadTask {
                         )
                         try {
                             val body = withContext(Dispatchers.IO) {
-                                fetchChapterBody(novel, cPos)
+                                fetchChapterBody(novel)
                             }
-                            out.append(body).append(lineSep)
+                            chapters += MergedChapter(
+                                title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
+                                text = body,
+                            )
                         } catch (ex: Exception) {
                             Timber.e(ex, "chapter ${novel.id} failed (series ${seriesItem.id})")
                             skippedChapters++
@@ -177,15 +170,25 @@ object CrossSeriesDownloadTask {
                     }
                 }
 
-                val mergeName = buildMergedFileName(authorName, authorId)
+                val mergeName = buildMergedFileName(authorName, authorId, format)
                 val destination = DownloadItems.novelMergeDestinationForAuthor(
                     authorId = authorId,
                     authorName = authorName,
                     mergeFileName = mergeName,
                 )
-                val ok = withContext(Dispatchers.IO) {
-                    saveToDownloadsScopedStorage(ctx, destination, out.toString())
-                }
+                val content = MergedNovelContent(
+                    displayTitle = "${authorName.orEmpty()} 全系列合集",
+                    author = authorName,
+                    sourceUrl = "https://www.pixiv.net/users/$authorId",
+                    caption = ctx.getString(
+                        R.string.cross_series_download_caption,
+                        seriesList.size,
+                    ),
+                    chapters = chapters,
+                    documentId = "pixiv_author_${authorId}_merged",
+                )
+                val writer = MergedNovelWriters.forFormat(format)
+                val ok = withContext(Dispatchers.IO) { writer.write(ctx, content, destination) }
                 if (ok) {
                     ToastUtils.show(
                         ctx.getString(R.string.cross_series_download_merge_finished, destination.filename)
@@ -208,9 +211,14 @@ object CrossSeriesDownloadTask {
 
     /**
      * 复用 [MergeDownloadNovelSeriesTask] 的路子：对一个 series，抓全部章节，
-     * 合并后写一个文件。直接调用已有的 task，避免重复实现同一格式。
+     * 合并后写一个文件。这里独立实现是因为 cross-series 入口已经在
+     * NovelSeriesItem 维度迭代，没走 NovelSeriesDetail VM。
      */
-    private suspend fun downloadOneSeriesToSingleFile(seriesItem: NovelSeriesItem) {
+    private suspend fun downloadOneSeriesToSingleFile(
+        seriesItem: NovelSeriesItem,
+        format: ExportFormat,
+    ) {
+        val ctx = Shaft.getContext()
         val seriesId = seriesItem.id.toLong()
         // 先拉一次 getNovelSeries 拿 detail（带 user / caption 等），然后翻页。
         val initial = Client.appApi.getNovelSeries(seriesId)
@@ -222,28 +230,14 @@ object CrossSeriesDownloadTask {
             throw RuntimeException("series ${seriesItem.title} has no chapters")
         }
 
-        val lineSep = "\n"
-        val header = buildString {
-            append("《").append(detail.title.orEmpty()).append("》").append(lineSep)
-            detail.user?.let { u ->
-                append("Name:").append(u.name.orEmpty())
-                    .append("(https://www.pixiv.net/users/").append(u.id).append(")")
-                    .append(lineSep)
-            }
-            append("Source:https://www.pixiv.net/novel/series/").append(detail.id).append(lineSep)
-            val caption = detail.caption.orEmpty().trim()
-            if (caption.isNotEmpty()) {
-                append("Caption:").append(lineSep).append(caption).append(lineSep)
-            }
-            append(lineSep)
-            append("----------------------").append(lineSep).append(lineSep).append(lineSep)
-        }
-
-        val body = StringBuilder()
+        val chapters = mutableListOf<MergedChapter>()
         allNovels.forEachIndexed { index, novel ->
             val cPos = index + 1
             try {
-                body.append(fetchChapterBody(novel, cPos)).append(lineSep)
+                chapters += MergedChapter(
+                    title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
+                    text = fetchChapterBody(novel),
+                )
             } catch (ex: Exception) {
                 Timber.e(ex, "chapter ${novel.id} failed in PerSeries mode")
                 // swallow — the file still saves, just with fewer chapters
@@ -251,12 +245,19 @@ object CrossSeriesDownloadTask {
             if (cPos < allNovels.size) delay(1500L)
         }
 
-        val ctx = Shaft.getContext()
-        val mergeName = buildPerSeriesFileName(detail.title.orEmpty(), detail.id)
+        val mergeName = buildPerSeriesFileName(detail.title.orEmpty(), detail.id, format)
         val destination = DownloadItems.novelMergeDestination(detail, mergeName)
-        val content = header + body.toString()
-        val ok = saveToDownloadsScopedStorage(ctx, destination, content)
-        if (!ok) throw RuntimeException("saveToDownloadsScopedStorage returned false")
+        val content = MergedNovelContent(
+            displayTitle = detail.title.orEmpty(),
+            author = detail.user?.name,
+            sourceUrl = "https://www.pixiv.net/novel/series/${detail.id}",
+            caption = detail.caption,
+            chapters = chapters,
+            documentId = "novel_series_${detail.id}",
+        )
+        val writer = MergedNovelWriters.forFormat(format)
+        val ok = writer.write(ctx, content, destination)
+        if (!ok) throw RuntimeException("writer.write returned false")
     }
 
     /**
@@ -295,35 +296,35 @@ object CrossSeriesDownloadTask {
         return all
     }
 
-    private suspend fun fetchChapterBody(novel: Novel, seriesIndex: Int): String {
+    private suspend fun fetchChapterBody(novel: Novel): String {
         val html = Client.appApi.getNovelText(novel.id).string()
         val wNovel = WebNovelParser.parsePixivObject(html)?.novel
             ?: throw RuntimeException("invalid web novel: ${novel.id}")
-        val chapterTitle = "第${seriesIndex}篇•" + truncate(novel.title.orEmpty(), 30)
-        val lineSep = "\n"
-        return buildString {
-            append(lineSep).append(lineSep)
-            append("<===== ").append(chapterTitle).append(" =====>")
-            append(lineSep).append(lineSep)
-            append(DownloadNovelTask.replaceBrWithNewLine(wNovel.text))
-            append(lineSep).append(lineSep)
-        }
+        return DownloadNovelTask.replaceBrWithNewLine(wNovel.text)
     }
 
     private fun truncate(input: String, max: Int): String {
         return if (input.length <= max) input else input.substring(0, max)
     }
 
-    private fun buildPerSeriesFileName(rawTitle: String, seriesId: Long): String {
+    private fun buildPerSeriesFileName(
+        rawTitle: String,
+        seriesId: Long,
+        format: ExportFormat,
+    ): String {
         val sanitized = rawTitle.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(40)
         val base = if (sanitized.isEmpty()) "novel_series_$seriesId" else sanitized
-        return "${base}_合集_ID${seriesId}.txt"
+        return "${base}_合集_ID${seriesId}.${format.extension}"
     }
 
-    private fun buildMergedFileName(authorName: String?, authorId: Int): String {
+    private fun buildMergedFileName(
+        authorName: String?,
+        authorId: Int,
+        format: ExportFormat,
+    ): String {
         val sanitized = authorName.orEmpty()
             .replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(40)
         val base = if (sanitized.isEmpty()) "user_$authorId" else sanitized
-        return "${base}_全系列合集_U${authorId}.txt"
+        return "${base}_全系列合集_U${authorId}.${format.extension}"
     }
 }
