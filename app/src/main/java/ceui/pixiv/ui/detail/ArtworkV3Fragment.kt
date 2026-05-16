@@ -195,6 +195,17 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                     "adapterAlreadyCreated=${illustAdapter != null}"
             )
             if (illustAdapter == null) {
+                // Dump the full illust JSON once per page open — for debugging
+                // server-side shape changes / missing fields. Tag: V3IllustJson.
+                runCatching {
+                    val json = Shaft.sGson.toJson(illust)
+                    // Logcat truncates each line around 4k chars; chunk so multi-page
+                    // works with long tag arrays still show in full.
+                    json.chunked(3500).forEachIndexed { idx, chunk ->
+                        Timber.tag("V3IllustJson").d("[$illustId p${idx + 1}/${(json.length + 3499) / 3500}] $chunk")
+                    }
+                }.onFailure { Timber.tag("V3IllustJson").w(it, "toJson failed for illustId=$illustId") }
+
                 // Use 70% of screen height as max — not full screen, so single-page
                 // images don't stretch to fill the entire viewport
                 val maxHeight = (resources.displayMetrics.heightPixels * 0.7f).toInt()
