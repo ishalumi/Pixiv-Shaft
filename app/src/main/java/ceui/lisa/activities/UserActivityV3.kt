@@ -17,6 +17,7 @@ import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ActivityUserV3Binding
 import ceui.lisa.databinding.ItemV3NavTagBinding
 import ceui.lisa.fragments.FragmentUserIllust
+import ceui.lisa.fragments.FragmentUserManga
 import ceui.lisa.helper.UserIllustJumpHelper
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.http.Retro
@@ -48,11 +49,37 @@ import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
+private const val KEY_HAS_MANGA_TAB = "user_v3_has_manga_tab"
+
 class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
 
     private var userId = 0
     private lateinit var mUserViewModel: UserViewModel
     private lateinit var palette: V3Palette
+
+    private enum class TabKind { ILLUST, MANGA, INFO }
+
+    // 漫画 tab 是否插入要等 getUserDetail 返回后才知道 (profile.total_manga),
+    // 所以先 2 tab 起步,有漫画再 notifyItemInserted 把它塞中间。
+    // 旋转 / 进程重建时,从 savedInstanceState 提前恢复 MANGA,避免 FragmentStateAdapter
+    // 把旋转前保存的 MANGA fragment state 当成「已废弃」清掉。
+    private val tabKinds = mutableListOf(TabKind.ILLUST, TabKind.INFO)
+    private var pagerAdapter: FragmentStateAdapter? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // 在 super.onCreate 之前预插 MANGA,这样 BaseActivity.onCreate 里跑 setupViewPager 时
+        // FragmentStateAdapter 看到的 itemId 集合就包含 MANGA,旋转前保存的 fragment state
+        // 才会被恢复而不是当成「已废弃」被清掉。
+        if (savedInstanceState?.getBoolean(KEY_HAS_MANGA_TAB, false) == true) {
+            if (!tabKinds.contains(TabKind.MANGA)) tabKinds.add(1, TabKind.MANGA)
+        }
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_HAS_MANGA_TAB, tabKinds.contains(TabKind.MANGA))
+    }
 
     override fun initLayout(): Int = R.layout.activity_user_v3
 
@@ -178,23 +205,50 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     override fun hideStatusBar(): Boolean = true
 
     private fun setupViewPager() {
-        baseBind.viewPager.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount(): Int = 2
+        pagerAdapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = tabKinds.size
 
-            override fun createFragment(position: Int): Fragment = when (position) {
-                0 -> FragmentUserIllust.newInstance(userId, false)
-                else -> UserV3InfoFragment()
+            override fun createFragment(position: Int): Fragment = when (tabKinds[position]) {
+                TabKind.ILLUST -> FragmentUserIllust.newInstance(userId, false)
+                TabKind.MANGA -> FragmentUserManga.newInstance(userId, false)
+                TabKind.INFO -> UserV3InfoFragment()
             }
+
+            // 稳定 id 让 notifyItemInserted 不会把已建的 fragment 推倒重来
+            override fun getItemId(position: Int): Long = tabKinds[position].ordinal.toLong()
+
+            override fun containsItem(itemId: Long): Boolean =
+                tabKinds.any { it.ordinal.toLong() == itemId }
         }
-        // 双 Tab 离屏保活,左右切换时不重建 view,体验更稳
-        baseBind.viewPager.offscreenPageLimit = 1
+        baseBind.viewPager.adapter = pagerAdapter
+        // Tab 离屏保活,左右切换时不重建 view,体验更稳
+        baseBind.viewPager.offscreenPageLimit = (tabKinds.size - 1).coerceAtLeast(1)
 
         TabLayoutMediator(baseBind.tabLayout, baseBind.viewPager) { tab, position ->
-            tab.text = when (position) {
-                0 -> getString(R.string.string_246)
-                else -> getString(R.string.v3_label_profile_details)
+            tab.text = when (tabKinds[position]) {
+                TabKind.ILLUST -> getString(R.string.string_246)
+                TabKind.MANGA -> getString(R.string.string_233)
+                TabKind.INFO -> getString(R.string.v3_label_profile_details)
             }
         }.attach()
+    }
+
+    private fun ensureMangaTab(totalManga: Int) {
+        if (totalManga <= 0 || tabKinds.contains(TabKind.MANGA)) return
+        // 保留用户当前所在 tab,别因为插入新 tab 把人「踢」到 MANGA
+        val currentId = baseBind.viewPager.currentItem
+            .takeIf { it in tabKinds.indices }
+            ?.let { tabKinds[it].ordinal.toLong() }
+        tabKinds.add(1, TabKind.MANGA)
+        pagerAdapter?.notifyItemInserted(1)
+        baseBind.viewPager.offscreenPageLimit = (tabKinds.size - 1).coerceAtLeast(1)
+        // TabLayoutMediator 自身监听 adapter dataset 变化,会自动 re-populate tabs
+        if (currentId != null) {
+            val restored = tabKinds.indexOfFirst { it.ordinal.toLong() == currentId }
+            if (restored >= 0 && restored != baseBind.viewPager.currentItem) {
+                baseBind.viewPager.setCurrentItem(restored, false)
+            }
+        }
     }
 
     private fun updateFollowState(user: UserBean) {
@@ -219,6 +273,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         val isSelf = userId.toLong() == SessionManager.loggedInUid
         val profile = data.profile
         val user = data.user
+
+        // 跟 UActivity 一致:有漫画作品才在中间插一个漫画 tab
+        ensureMangaTab(profile.total_manga)
 
         // Banner
         val bannerUrl = profile.background_image_url
