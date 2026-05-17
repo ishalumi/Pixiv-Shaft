@@ -1475,4 +1475,6 @@
     <string name="plaza_comment_send_failed">傳送失敗:%1$s</string>
     <string name="plaza_like_failed">按讚失敗:%1$s</string>
     <string name="plaza_author_tag">作者</string>
+    <string name="update_apk_invalid">下載的安裝包不完整,請重新下載</string>
+    <string name="update_install_failed">安裝失敗,已為你打開瀏覽器下載</string>
 </resources>

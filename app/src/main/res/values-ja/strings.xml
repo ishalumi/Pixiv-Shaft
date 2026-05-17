@@ -1461,4 +1461,6 @@
     <string name="plaza_comment_send_failed">送信失敗:%1$s</string>
     <string name="plaza_like_failed">いいねに失敗:%1$s</string>
     <string name="plaza_author_tag">作者</string>
+    <string name="update_apk_invalid">ダウンロードしたインストーラが不完全です、再ダウンロードしてください</string>
+    <string name="update_install_failed">インストールに失敗しました。ブラウザでダウンロードします</string>
 </resources>

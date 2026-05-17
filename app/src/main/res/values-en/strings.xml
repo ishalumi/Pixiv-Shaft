@@ -1456,4 +1456,6 @@
     <string name="plaza_comment_send_failed">Send failed: %1$s</string>
     <string name="plaza_like_failed">Like failed: %1$s</string>
     <string name="plaza_author_tag">Author</string>
+    <string name="update_apk_invalid">Downloaded installer is incomplete, please retry</string>
+    <string name="update_install_failed">Install failed, opening browser to download</string>
 </resources>

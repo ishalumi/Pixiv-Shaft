@@ -240,11 +240,29 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
     ) {
         stopProgressPolling()
         AppUpdateChecker.clearOngoingDownload()
+        // DM 在某些 OEM 上会把"网络中断时截断的文件"也标成 STATUS_SUCCESSFUL,
+        // 装出来就是"解析包出错"。拿 GitHub asset.size 兜个底
+        if (!isApkComplete(apkFile)) {
+            if (apkFile.exists()) apkFile.delete()
+            Common.showToast(getString(R.string.update_apk_invalid))
+            progressBar.progress = 0
+            progressText.setText(R.string.update_download_failed)
+            btnDownload.isEnabled = true
+            btnDownload.setText(R.string.update_retry)
+            return
+        }
         progressBar.progress = 100
         progressText.text = "100%"
         btnDownload.isEnabled = true
         btnDownload.setText(R.string.update_install)
         btnDownload.setOnClickListener { installApk(apkFile) }
+    }
+
+    private fun isApkComplete(apkFile: File): Boolean {
+        if (!apkFile.exists() || apkFile.length() <= 0) return false
+        val expected = release?.let { AppUpdateChecker.findApkAsset(it)?.size } ?: return true
+        if (expected <= 0) return true
+        return apkFile.length() == expected
     }
 
     private fun queryDownloadStatus(dm: DownloadManager, id: Long): Int {
@@ -288,7 +306,7 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
                 attachToDownload(existingId, apkFile, progressBar, progressText, btnDownload, progressContainer)
             }
             DownloadManager.STATUS_SUCCESSFUL -> {
-                if (apkFile.exists()) {
+                if (isApkComplete(apkFile)) {
                     btnSkip.visibility = View.GONE
                     progressContainer.visibility = View.VISIBLE
                     progressBar.progress = 100
@@ -296,12 +314,16 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
                     btnDownload.setText(R.string.update_install)
                     btnDownload.setOnClickListener { installApk(apkFile) }
                 } else {
+                    if (apkFile.exists()) apkFile.delete()
                     AppUpdateChecker.clearOngoingDownload()
+                    Common.showToast(getString(R.string.update_apk_invalid))
                 }
             }
             else -> {
                 try { dm.remove(existingId) } catch (_: Exception) {}
+                if (apkFile.exists()) apkFile.delete()
                 AppUpdateChecker.clearOngoingDownload()
+                Common.showToast(getString(R.string.update_download_failed))
             }
         }
     }
@@ -398,7 +420,14 @@ class UpdateBottomSheet : BottomSheetDialogFragment() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        startActivity(intent)
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            Common.showToast(getString(R.string.update_install_failed))
+            val fallback = release?.htmlUrl
+                ?: "https://github.com/${GitHubApi.OWNER}/${GitHubApi.REPO}/releases/latest"
+            openInBrowser(fallback)
+        }
     }
 
     private fun openInBrowser(url: String) {

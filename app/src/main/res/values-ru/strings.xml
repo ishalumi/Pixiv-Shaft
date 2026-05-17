@@ -1362,4 +1362,6 @@
     <string name="plaza_comment_send_failed">Ошибка отправки: %1$s</string>
     <string name="plaza_like_failed">Не удалось поставить лайк: %1$s</string>
     <string name="plaza_author_tag">Автор</string>
+    <string name="update_apk_invalid">Загруженный установщик повреждён, повторите загрузку</string>
+    <string name="update_install_failed">Сбой установки, открываю браузер для загрузки</string>
 </resources>

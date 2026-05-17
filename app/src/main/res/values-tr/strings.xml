@@ -1360,4 +1360,6 @@
     <string name="plaza_comment_send_failed">Gönderim başarısız: %1$s</string>
     <string name="plaza_like_failed">Beğeni başarısız: %1$s</string>
     <string name="plaza_author_tag">Yazar</string>
+    <string name="update_apk_invalid">İndirilen kurulum paketi bozuk, lütfen yeniden indirin</string>
+    <string name="update_install_failed">Kurulum başarısız, indirme için tarayıcı açılıyor</string>
 </resources>
