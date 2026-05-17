@@ -8,12 +8,14 @@ import ceui.lisa.fragments.WebNovelParser
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.loxia.NovelSeriesDetail
+import ceui.loxia.WebNovel
 import ceui.pixiv.download.config.DownloadItems
 import ceui.pixiv.ui.novel.reader.export.ExportFormat
 import ceui.pixiv.ui.novel.reader.export.MergedChapter
 import ceui.pixiv.ui.novel.reader.export.MergedNovelContent
 import ceui.pixiv.ui.novel.reader.export.MergedNovelWriters
 import com.hjq.toast.ToastUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,11 +68,14 @@ class MergeDownloadNovelSeriesTask(
                     val done = index + 1
                     ToastUtils.show(ctx.getString(R.string.merge_download_progress, done, total))
                     try {
-                        val body = withContext(Dispatchers.IO) { fetchChapterBody(novel) }
+                        val wNovel = withContext(Dispatchers.IO) { fetchChapterWebNovel(novel) }
                         chapters += MergedChapter(
                             title = "第${done}篇•" + truncate(novel.title.orEmpty(), 30),
-                            text = body,
+                            text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
+                            webNovel = wNovel,
                         )
+                    } catch (ex: CancellationException) {
+                        throw ex
                     } catch (ex: Exception) {
                         Timber.e(ex, "MergeDownloadNovelSeriesTask: chapter ${novel.id} failed")
                         failedCount++
@@ -105,6 +110,10 @@ class MergeDownloadNovelSeriesTask(
                     ToastUtils.show(ctx.getString(R.string.merge_download_finished, destination.filename))
                 }
                 onFinished(true, failedCount)
+            } catch (ex: CancellationException) {
+                // 用户切走/退出导致 lifecycleScope 被取消;别 Toast「Job was cancelled」
+                // ——那是 JobCancellationException 的 message,正常生命周期不该当成错误。
+                throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "MergeDownloadNovelSeriesTask failed")
                 ToastUtils.show(ex.message ?: ex::class.java.simpleName)
@@ -140,11 +149,15 @@ class MergeDownloadNovelSeriesTask(
         return all
     }
 
-    private suspend fun fetchChapterBody(novel: Novel): String {
+    /**
+     * 拉一章 Web 端 HTML 并解出 [WebNovel]。caller 负责再走 [DownloadNovelTask.replaceBrWithNewLine]
+     * 拿正文,WebNovel 整体留着是为了让 EPUB writer 能从 `illusts` / `images` 图表
+     * 里把 `[pixivimage:XXX]` / `[uploadedimage:XXX]` 解析成真实 URL。
+     */
+    private suspend fun fetchChapterWebNovel(novel: Novel): WebNovel {
         val html = Client.appApi.getNovelText(novel.id).string()
-        val wNovel = WebNovelParser.parsePixivObject(html)?.novel
+        return WebNovelParser.parsePixivObject(html)?.novel
             ?: throw RuntimeException("invalid web novel: ${novel.id}")
-        return DownloadNovelTask.replaceBrWithNewLine(wNovel.text)
     }
 
     private fun truncate(input: String, max: Int): String {

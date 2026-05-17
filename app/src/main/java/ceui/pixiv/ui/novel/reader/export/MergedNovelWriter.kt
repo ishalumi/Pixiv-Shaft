@@ -7,7 +7,11 @@ import android.graphics.pdf.PdfDocument
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import ceui.loxia.WebNovel
 import ceui.pixiv.download.model.RelativePath
+import ceui.pixiv.ui.novel.reader.model.ContentToken
+import ceui.pixiv.ui.novel.reader.paginate.ContentParser
+import ceui.pixiv.ui.novel.reader.paginate.ImageResolver
 import ceui.pixiv.ui.novel.reader.paginate.TextMeasurer
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
@@ -48,7 +52,18 @@ data class MergedNovelContent(
     val documentId: String,
 )
 
-data class MergedChapter(val title: String, val text: String)
+/**
+ * 合并下载的一章。[text] 是已经做过 br→\n 清洗的正文字符串，所有 writer 都会用。
+ * [webNovel] 是 EPUB writer 额外需要的——里面带着 `illusts` / `images` 两张图表，
+ * 用来把 `[pixivimage:XXX]` / `[uploadedimage:XXX]` 占位符解析成真实 URL 然后嵌
+ * 进 EPUB。其他 writer（TXT/MD/PDF）忽略；caller 也可以传 null（比如 cross-series
+ * 模式里合成的「系列分隔头」章节本来就没插图）。
+ */
+data class MergedChapter(
+    val title: String,
+    val text: String,
+    val webNovel: WebNovel? = null,
+)
 
 object MergedNovelWriters {
     private val writers: Map<ExportFormat, MergedNovelWriter> = mapOf(
@@ -331,12 +346,26 @@ private object MergedPdfWriter : MergedNovelWriter {
 // ────────────────────────────────────────────────────────────────────
 //
 // Mirrors single-novel [EpubExporter] structure: mimetype (STORED first),
-// META-INF/container.xml, OEBPS/{content.opf, toc.ncx, content.xhtml}.
-// One combined XHTML with h2 anchors per chapter — same approach as the
-// single-novel exporter. Skip images on purpose (see PDF note).
+// META-INF/container.xml, OEBPS/{content.opf, toc.ncx, content.xhtml,
+// images/<id>.jpg}. One combined XHTML with h2 anchors per chapter.
+//
+// 与 PDF/TXT/MD 不同——EPUB 是「我要图」那一档（见上面 PDF 段的注释）。每章
+// 都把 text 跑一遍 [ContentParser.tokenize]，遇到 `[pixivimage:XXX]` /
+// `[uploadedimage:XXX]` 就用本章 [MergedChapter.webNovel] 里的 illusts / images
+// 图表去解析 URL，Glide 同步抓回来 → JPEG → 塞 OEBPS/images/。整本 EPUB 内全
+// 局按 image key 去重（同一张插画在多章引用只下载一次）。网络失败 / 没图表 /
+// 解析不出 URL：单张降级成 `<em>[图片 ...]</em>` 文本占位，整本继续导出。
 
 private object MergedEpubWriter : MergedNovelWriter {
     override val format = ExportFormat.Epub
+
+    private data class BundledImage(val fileName: String, val bytes: ByteArray)
+
+    private class TokenizedChapter(
+        val title: String,
+        val tokens: List<ContentToken>,
+        val resolver: (ContentToken) -> String?,
+    )
 
     override suspend fun write(
         context: Context,
@@ -347,9 +376,34 @@ private object MergedEpubWriter : MergedNovelWriter {
         val novelId = content.documentId.ifEmpty { System.currentTimeMillis().toString() }
         val author = content.author.orEmpty()
 
-        val chapterHtml = buildChapterXhtml(title, author, content.sourceUrl, content.caption, content.chapters)
-        val opf = buildContentOpf(novelId, title, author)
-        val ncx = buildTocNcx(novelId, title, content.chapters)
+        val tokenized = content.chapters.map { ch ->
+            val resolver: (ContentToken) -> String? =
+                ch.webNovel?.let { ImageResolver.of(it) } ?: { null }
+            TokenizedChapter(
+                title = ch.title,
+                tokens = ContentParser.tokenize(ch.text),
+                resolver = resolver,
+            )
+        }
+
+        // 跨章节去重：相同 image key 的插画只下载一次。第一次解析到 URL 就抓。
+        val images = linkedMapOf<String, BundledImage>()
+        for (ch in tokenized) {
+            for (token in ch.tokens) {
+                val key = imageKey(token) ?: continue
+                if (images.containsKey(key)) continue
+                val url = ch.resolver(token) ?: continue
+                val bitmap = ExportUtils.loadBitmap(context, url) ?: continue
+                val jpeg = ExportUtils.bitmapToJpeg(bitmap)
+                images[key] = BundledImage("$key.jpg", jpeg)
+            }
+        }
+
+        val chapterHtml = buildChapterXhtml(
+            title, author, content.sourceUrl, content.caption, tokenized, images,
+        )
+        val opf = buildContentOpf(novelId, title, author, images.keys)
+        val ncx = buildTocNcx(novelId, title, tokenized)
 
         val uri = ExportUtils.saveToDownloads(context, destination, format.mimeType) { out ->
             ZipOutputStream(out).use { zip ->
@@ -358,9 +412,18 @@ private object MergedEpubWriter : MergedNovelWriter {
                 deflateEntry(zip, "OEBPS/content.opf", opf.toByteArray(Charsets.UTF_8))
                 deflateEntry(zip, "OEBPS/toc.ncx", ncx.toByteArray(Charsets.UTF_8))
                 deflateEntry(zip, "OEBPS/content.xhtml", chapterHtml.toByteArray(Charsets.UTF_8))
+                for ((_, img) in images) {
+                    deflateEntry(zip, "OEBPS/images/${img.fileName}", img.bytes)
+                }
             }
         }
         return uri != null
+    }
+
+    private fun imageKey(token: ContentToken): String? = when (token) {
+        is ContentToken.UploadedImage -> "uploaded_${token.imageId}"
+        is ContentToken.PixivImage -> "pixiv_${token.illustId}_${token.pageIndex}"
+        else -> null
     }
 
     private fun buildChapterXhtml(
@@ -368,7 +431,8 @@ private object MergedEpubWriter : MergedNovelWriter {
         author: String,
         sourceUrl: String?,
         caption: String?,
-        chapters: List<MergedChapter>,
+        chapters: List<TokenizedChapter>,
+        images: Map<String, BundledImage>,
     ): String {
         val body = buildString {
             append("<h1>").append(escape(title)).append("</h1>\n")
@@ -388,10 +452,48 @@ private object MergedEpubWriter : MergedNovelWriter {
                 val anchor = "ch${index + 1}"
                 append("<h2 id=\"").append(anchor).append("\">")
                 append(escape(ch.title)).append("</h2>\n")
-                ch.text.split('\n').forEach { line ->
-                    val trimmed = line.trim()
-                    if (trimmed.isEmpty()) append("<br/>\n")
-                    else append("<p>").append(escape(trimmed)).append("</p>\n")
+                for (token in ch.tokens) {
+                    when (token) {
+                        is ContentToken.Paragraph -> {
+                            append("<p>").append(escape(token.text)).append("</p>\n")
+                        }
+                        is ContentToken.BlankLine -> append("<br/>\n")
+                        is ContentToken.PageBreak -> append("<hr/>\n")
+                        is ContentToken.Chapter -> {
+                            // 章内嵌套的 [chapter:] 标题降一级，避免和合集 h2 撞
+                            append("<h3>").append(escape(token.title)).append("</h3>\n")
+                        }
+                        is ContentToken.PixivImage -> {
+                            val key = imageKey(token)
+                            if (key != null && images.containsKey(key)) {
+                                append("<p class=\"image\"><img src=\"images/").append(key)
+                                    .append(".jpg\" alt=\"pixiv ").append(token.illustId)
+                                    .append("\"/></p>\n")
+                            } else {
+                                val url = ch.resolver(token).orEmpty()
+                                append("<p class=\"image\"><em>[图片 pixiv ")
+                                    .append(token.illustId).append(": ")
+                                    .append(escape(url)).append("]</em></p>\n")
+                            }
+                        }
+                        is ContentToken.UploadedImage -> {
+                            val key = imageKey(token)
+                            if (key != null && images.containsKey(key)) {
+                                append("<p class=\"image\"><img src=\"images/").append(key)
+                                    .append(".jpg\" alt=\"uploaded ").append(token.imageId)
+                                    .append("\"/></p>\n")
+                            } else {
+                                val url = ch.resolver(token).orEmpty()
+                                append("<p class=\"image\"><em>[图片 ")
+                                    .append(token.imageId).append(": ")
+                                    .append(escape(url)).append("]</em></p>\n")
+                            }
+                        }
+                        is ContentToken.Jump -> {
+                            append("<p class=\"jump\"><em>[跳转→第 ")
+                                .append(token.target).append(" 段]</em></p>\n")
+                        }
+                    }
                 }
             }
         }
@@ -405,10 +507,13 @@ private object MergedEpubWriter : MergedNovelWriter {
     body { font-family: serif; line-height: 1.7; padding: 1em; }
     h1 { text-align: center; }
     h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.25em; margin-top: 2em; }
+    h3 { margin-top: 1.5em; }
     p { text-indent: 2em; margin: 0.5em 0; }
     p.meta { text-indent: 0; color: #666; font-size: 0.9em; text-align: center; }
     .caption { border-left: 3px solid #ccc; padding: 0.5em 1em; margin: 1em 0; background: #f9f9f9; }
     .caption p { text-indent: 0; color: #555; font-size: 0.95em; }
+    p.image { text-indent: 0; text-align: center; margin: 1em 0; }
+    p.image img { max-width: 100%; }
     hr { border: 0; border-top: 1px dashed #aaa; margin: 2em 25%; }
   </style>
 </head>
@@ -419,7 +524,15 @@ $body
 """
     }
 
-    private fun buildContentOpf(novelId: String, title: String, author: String): String {
+    private fun buildContentOpf(
+        novelId: String,
+        title: String,
+        author: String,
+        imageKeys: Set<String>,
+    ): String {
+        val imageManifest = imageKeys.joinToString("\n    ") { key ->
+            """<item id="img_$key" href="images/$key.jpg" media-type="image/jpeg"/>"""
+        }
         return """<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
@@ -432,6 +545,7 @@ $body
   <manifest>
     <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    ${if (imageManifest.isNotEmpty()) imageManifest else ""}
   </manifest>
   <spine toc="ncx">
     <itemref idref="content"/>
@@ -440,7 +554,7 @@ $body
 """
     }
 
-    private fun buildTocNcx(novelId: String, title: String, chapters: List<MergedChapter>): String {
+    private fun buildTocNcx(novelId: String, title: String, chapters: List<TokenizedChapter>): String {
         val navPoints = if (chapters.isEmpty()) {
             """<navPoint id="p1" playOrder="1">
               <navLabel><text>${escape(title)}</text></navLabel>

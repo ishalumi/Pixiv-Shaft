@@ -8,12 +8,14 @@ import ceui.lisa.fragments.WebNovelParser
 import ceui.lisa.models.NovelSeriesItem
 import ceui.loxia.Client
 import ceui.loxia.Novel
+import ceui.loxia.WebNovel
 import ceui.pixiv.download.config.DownloadItems
 import ceui.pixiv.ui.novel.reader.export.ExportFormat
 import ceui.pixiv.ui.novel.reader.export.MergedChapter
 import ceui.pixiv.ui.novel.reader.export.MergedNovelContent
 import ceui.pixiv.ui.novel.reader.export.MergedNovelWriters
 import com.hjq.toast.ToastUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -80,6 +82,8 @@ object CrossSeriesDownloadTask {
                     ToastUtils.show(
                         ctx.getString(R.string.cross_series_download_series_ok, title)
                     )
+                } catch (ex: CancellationException) {
+                    throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "CrossSeriesDownloadTask: series ${seriesItem.id} failed")
                     failures += SeriesFailure(
@@ -134,6 +138,8 @@ object CrossSeriesDownloadTask {
                         withContext(Dispatchers.IO) {
                             fetchAllNovels(seriesItem.id.toLong())
                         }
+                    } catch (ex: CancellationException) {
+                        throw ex
                     } catch (ex: Exception) {
                         Timber.e(ex, "fetchAllNovels failed for series ${seriesItem.id}")
                         emptyList()
@@ -154,13 +160,16 @@ object CrossSeriesDownloadTask {
                             )
                         )
                         try {
-                            val body = withContext(Dispatchers.IO) {
-                                fetchChapterBody(novel)
+                            val wNovel = withContext(Dispatchers.IO) {
+                                fetchChapterWebNovel(novel)
                             }
                             chapters += MergedChapter(
                                 title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
-                                text = body,
+                                text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
+                                webNovel = wNovel,
                             )
+                        } catch (ex: CancellationException) {
+                            throw ex
                         } catch (ex: Exception) {
                             Timber.e(ex, "chapter ${novel.id} failed (series ${seriesItem.id})")
                             skippedChapters++
@@ -199,6 +208,8 @@ object CrossSeriesDownloadTask {
                     )
                 }
                 onFinished(ok, skippedChapters)
+            } catch (ex: CancellationException) {
+                throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "CrossSeriesDownloadTask.runAllMergedOne failed")
                 ToastUtils.show(ex.message ?: ex::class.java.simpleName)
@@ -234,10 +245,14 @@ object CrossSeriesDownloadTask {
         allNovels.forEachIndexed { index, novel ->
             val cPos = index + 1
             try {
+                val wNovel = fetchChapterWebNovel(novel)
                 chapters += MergedChapter(
                     title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
-                    text = fetchChapterBody(novel),
+                    text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
+                    webNovel = wNovel,
                 )
+            } catch (ex: CancellationException) {
+                throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "chapter ${novel.id} failed in PerSeries mode")
                 // swallow — the file still saves, just with fewer chapters
@@ -296,11 +311,11 @@ object CrossSeriesDownloadTask {
         return all
     }
 
-    private suspend fun fetchChapterBody(novel: Novel): String {
+    /** 同 [MergeDownloadNovelSeriesTask.fetchChapterWebNovel]:整体留 WebNovel 让 EPUB 拿到 illusts/images。 */
+    private suspend fun fetchChapterWebNovel(novel: Novel): WebNovel {
         val html = Client.appApi.getNovelText(novel.id).string()
-        val wNovel = WebNovelParser.parsePixivObject(html)?.novel
+        return WebNovelParser.parsePixivObject(html)?.novel
             ?: throw RuntimeException("invalid web novel: ${novel.id}")
-        return DownloadNovelTask.replaceBrWithNewLine(wNovel.text)
     }
 
     private fun truncate(input: String, max: Int): String {

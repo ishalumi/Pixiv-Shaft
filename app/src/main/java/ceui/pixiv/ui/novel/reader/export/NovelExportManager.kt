@@ -10,6 +10,7 @@ import ceui.loxia.WebNovel
 import ceui.pixiv.download.config.DownloadItems
 import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.ui.novel.reader.model.ContentToken
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -52,9 +53,16 @@ object NovelExportManager {
         }
         val exporter = exporters[format]
             ?: return@withContext ExportResult.Failure(context.getString(ceui.lisa.R.string.msg_unknown_format, context.getString(format.displayNameResId)))
-        val result = runCatching {
+        // Kotlin stdlib runCatching 会把 CancellationException 一起捕到,变成
+        // ExportResult.Failure 弹「Job was cancelled」给用户(单本导出场景同样
+        // 受影响)。改成手写 try/catch,显式重抛 CE。
+        val result = try {
             exporter.export(context, novel, webNovel, tokens, destination)
-        }.getOrElse { ExportResult.Failure(it.message ?: "导出失败", it) }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            ExportResult.Failure(t.message ?: "导出失败", t)
+        }
         if (result is ExportResult.Success) {
             recordDownload(novel, result)
         }
