@@ -1,8 +1,5 @@
 package ceui.pixiv.ui.task
 
-import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.lifecycleScope
-import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.fragments.WebNovelParser
 import ceui.loxia.Client
@@ -10,133 +7,169 @@ import ceui.loxia.Novel
 import ceui.loxia.NovelSeriesDetail
 import ceui.loxia.WebNovel
 import ceui.pixiv.download.config.DownloadItems
+import ceui.pixiv.ui.bulk.FetchEvent
 import ceui.pixiv.ui.novel.reader.export.ExportFormat
 import ceui.pixiv.ui.novel.reader.export.MergedChapter
 import ceui.pixiv.ui.novel.reader.export.MergedNovelContent
 import ceui.pixiv.ui.novel.reader.export.MergedNovelWriters
-import com.hjq.toast.ToastUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * 合并下载：把一个系列的全部章节抓下来合并成一个文件。格式由 [format] 决定
- * （TXT / Markdown / PDF / EPUB），实际落盘逻辑委托给 [MergedNovelWriters]。
+ * 合并下载小说系列的 Flow 版 fetcher —— 旧 [MergeDownloadNovelSeriesTask] 类(自己
+ * 起协程 + 一连串 Toast)已下线;现在跟 batch illust 走同一套 [FetchProgressDialog]
+ * CLI 风格 dialog。caller 拿到 Flow 后 dialog.show(fm, flow, config) 即可。
  *
- * 恢复自 [ceui.lisa.fragments.FragmentNovelSeriesDetail.batch_download_as_one]
- * 旧实现（Java + RxJava 版），用 coroutine + 现有下载基础设施重写。单个章节
- * 抓取失败时跳过、不中断整个任务 —— 原 Java 版一旦某一章 parse 失败整批就 NPE。
+ * UI 入口:NovelSeriesFragment 右下「下载」→ SeriesDownloadOptionsSheet「合并下载」
+ * → ExportSheet 选格式 → [bulkMergeNovelSeries]。
  *
- * UI 入口：NovelSeriesFragment 右下「下载」按钮 → SeriesDownloadOptionsSheet
- * 「合并下载」→ ExportSheet 选格式 → 本任务。
+ * 合作式取消:caller 传入 [AtomicBoolean] stopSignal,dialog 的 cancel 按钮把它置
+ * true。producer 在章节循环之间检查 —— 已抓到的章节会继续走完写盘流程,产物是
+ * 「截短版」合集。直接 Job.cancel 会让 emit 在 collector 端立即断,无法报 Done。
  */
-class MergeDownloadNovelSeriesTask(
-    private val activity: FragmentActivity,
-    private val seriesDetail: NovelSeriesDetail,
-    private val knownNovels: List<Novel>,
-    private val format: ExportFormat,
-    private val onFinished: (ok: Boolean, failedCount: Int) -> Unit,
-) {
+object MergeDownloadNovelSeriesTask {
 
-    init {
-        start()
-    }
+    fun bulkMergeNovelSeries(
+        seriesDetail: NovelSeriesDetail,
+        knownNovels: List<Novel>,
+        format: ExportFormat,
+        stopSignal: AtomicBoolean,
+    ): Flow<FetchEvent> = flow {
+        val startedAt = System.currentTimeMillis()
+        val seriesId = seriesDetail.id
 
-    private fun start() {
-        activity.lifecycleScope.launch {
-            val ctx = Shaft.getContext()
-            try {
-                // 1) 先把系列所有章节列表拉完（NovelSeriesFragment 的 VM 可能没翻到底，
-                //    比如用户刚打开就点了合并下载）。有 next_url 就继续翻页。
-                val allNovels = withContext(Dispatchers.IO) { fetchAllNovels(seriesDetail.id, knownNovels) }
-                if (allNovels.isEmpty()) {
-                    ToastUtils.show(ctx.getString(R.string.merge_download_failed_empty))
-                    onFinished(false, 0)
-                    return@launch
-                }
+        emit(FetchEvent.Started(
+            taskName = "merge-novel-series --format=${format.extension}",
+            subtitle = "/novel/series/$seriesId",
+        ))
 
-                val total = allNovels.size
-                ToastUtils.show(ctx.getString(R.string.merge_download_preparing, total))
-
-                // 2) 顺序抓每一章的正文（失败跳过）
-                val chapters = mutableListOf<MergedChapter>()
-                var failedCount = 0
-                allNovels.forEachIndexed { index, novel ->
-                    val done = index + 1
-                    ToastUtils.show(ctx.getString(R.string.merge_download_progress, done, total))
-                    try {
-                        val wNovel = withContext(Dispatchers.IO) { fetchChapterWebNovel(novel) }
-                        chapters += MergedChapter(
-                            title = "第${done}篇•" + truncate(novel.title.orEmpty(), 30),
-                            text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
-                            webNovel = wNovel,
-                        )
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        Timber.e(ex, "MergeDownloadNovelSeriesTask: chapter ${novel.id} failed")
-                        failedCount++
-                    }
-                    if (done < total) delay(1500L)
-                }
-
-                // 3) 写入文件 —— 目录从用户的 Novel 命名预设里取，文件名保留
-                //    合集自己的命名（带「_合集_ID...」后缀），让合集文件落在和
-                //    单本下载相同的目录下。
-                val mergeName = buildMergeFileName(seriesDetail, format)
-                val destination = DownloadItems.novelMergeDestination(seriesDetail, mergeName)
-                val content = MergedNovelContent(
-                    displayTitle = seriesDetail.title.orEmpty(),
-                    author = seriesDetail.user?.name,
-                    sourceUrl = "https://www.pixiv.net/novel/series/${seriesDetail.id}",
-                    caption = seriesDetail.caption,
-                    chapters = chapters,
-                    documentId = "novel_series_${seriesDetail.id}",
-                )
-                val writer = MergedNovelWriters.forFormat(format)
-                val ok = withContext(Dispatchers.IO) { writer.write(ctx, content, destination) }
-                if (!ok) {
-                    ToastUtils.show(ctx.getString(R.string.merge_download_failed_save))
-                    onFinished(false, failedCount)
-                    return@launch
-                }
-
-                if (failedCount > 0) {
-                    ToastUtils.show(ctx.getString(R.string.merge_download_some_chapters_failed, failedCount))
-                } else {
-                    ToastUtils.show(ctx.getString(R.string.merge_download_finished, destination.filename))
-                }
-                onFinished(true, failedCount)
-            } catch (ex: CancellationException) {
-                // 用户切走/退出导致 lifecycleScope 被取消;别 Toast「Job was cancelled」
-                // ——那是 JobCancellationException 的 message,正常生命周期不该当成错误。
-                throw ex
-            } catch (ex: Exception) {
-                Timber.e(ex, "MergeDownloadNovelSeriesTask failed")
-                ToastUtils.show(ex.message ?: ex::class.java.simpleName)
-                onFinished(false, -1)
-            }
+        // ── 1) 把系列所有章节列表拉完 ──
+        emit(FetchEvent.Log("> resolving full chapter list…"))
+        val allNovels = fetchAllNovels(seriesId, knownNovels) { event -> emit(event) }
+        if (allNovels.isEmpty()) {
+            emit(FetchEvent.Errored("series 没找到任何章节", 0))
+            return@flow
         }
-    }
+        emit(FetchEvent.Log("  ↳ ${allNovels.size} chapters resolved"))
 
-    private suspend fun fetchAllNovels(seriesId: Long, initial: List<Novel>): List<Novel> {
-        val all = initial.toMutableList()
-        var lastOrder: Int? = if (all.isEmpty()) null else all.size
-        // 如果初始列表为空或可能不完整，主动翻页。直到接口返回空或 next_url 为空。
-        // getNovelSeries 的分页是通过 last_order 驱动的，这里沿用 VM 里的做法。
-        var safetyGuard = 0
-        while (safetyGuard < 50) {
-            safetyGuard++
-            val resp = try {
-                Client.appApi.getNovelSeries(seriesId, lastOrder)
-            } catch (ex: Exception) {
-                Timber.e(ex, "getNovelSeries pagination failed at lastOrder=$lastOrder")
+        // ── 2) 顺序抓每一章 ──
+        val chapters = mutableListOf<MergedChapter>()
+        var skipped = 0
+        val total = allNovels.size
+        for ((idx, novel) in allNovels.withIndex()) {
+            if (stopSignal.get()) {
+                emit(FetchEvent.Log("> ⏹ user stop at ch ${idx + 1}/$total · 已抓 ${chapters.size} 章会写成截短版"))
                 break
             }
+            val cPos = idx + 1
+            emit(FetchEvent.Networking(pageIndex = cPos, endpoint = "/v1/novel/text?id=${novel.id}"))
+            val t0 = System.currentTimeMillis()
+            try {
+                val wNovel = fetchChapterWebNovel(novel)
+                val chapter = MergedChapter(
+                    title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
+                    text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
+                    webNovel = wNovel,
+                )
+                chapters += chapter
+                emit(FetchEvent.ChapterMerged(
+                    chapterIndex = cPos,
+                    totalChapters = total,
+                    title = novel.title.orEmpty(),
+                    latencyMs = System.currentTimeMillis() - t0,
+                ))
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                Timber.e(e, "merge-novel-series: chapter ${novel.id} failed")
+                skipped++
+                emit(FetchEvent.Warning("ch $cPos/$total (id=${novel.id}) failed: ${e.message ?: e::class.java.simpleName}"))
+            }
+            if (cPos < total && !stopSignal.get()) {
+                emit(FetchEvent.RateLimit(CHAPTER_DELAY_MS))
+                delay(CHAPTER_DELAY_MS)
+            }
+        }
+
+        if (chapters.isEmpty()) {
+            // 区分:用户提前 cancel 没抓到任何东西 vs 全部章节都失败
+            val msg = if (stopSignal.get()) {
+                "用户停止 · 还没来得及抓任何章节"
+            } else {
+                "全部 $total 章都抓取失败,无法写文件"
+            }
+            emit(FetchEvent.Errored(msg, 0))
+            return@flow
+        }
+
+        // ── 3) 写文件 ──
+        val mergeName = buildMergeFileName(seriesDetail, format)
+        val destination = DownloadItems.novelMergeDestination(seriesDetail, mergeName)
+        emit(FetchEvent.WritingFile(mergeName))
+
+        val content = MergedNovelContent(
+            displayTitle = seriesDetail.title.orEmpty(),
+            author = seriesDetail.user?.name,
+            sourceUrl = "https://www.pixiv.net/novel/series/$seriesId",
+            caption = seriesDetail.caption,
+            chapters = chapters,
+            documentId = "novel_series_$seriesId",
+        )
+        val writer = MergedNovelWriters.forFormat(format)
+        val ok = writer.write(Shaft.getContext(), content, destination) { key, bytes ->
+            emit(FetchEvent.ImageFetched(key, bytes))
+        }
+        if (!ok) {
+            emit(FetchEvent.Errored("写入文件失败 ($mergeName)", chapters.size))
+            return@flow
+        }
+
+        // ── 4) 终态 ──
+        if (skipped > 0) {
+            emit(FetchEvent.Log("  ⚠ 跳过 $skipped 章 (网络/解析失败)"))
+        }
+        if (stopSignal.get()) {
+            emit(FetchEvent.Log("  ▸ 用户停止 · 截短版 (${chapters.size}/$total 章)"))
+        }
+        emit(FetchEvent.Log("  ▸ 文件: $mergeName"))
+        emit(FetchEvent.Done(
+            total = chapters.size,
+            elapsedMs = System.currentTimeMillis() - startedAt,
+            pageCount = chapters.size,
+        ))
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun fetchAllNovels(
+        seriesId: Long,
+        initial: List<Novel>,
+        emit: suspend (FetchEvent) -> Unit,
+    ): List<Novel> {
+        val all = initial.toMutableList()
+        var lastOrder: Int? = if (all.isEmpty()) null else all.size
+        var safetyGuard = 0
+        var pageIdx = 0
+        while (safetyGuard < 50) {
+            safetyGuard++
+            pageIdx++
+            emit(FetchEvent.Networking(pageIdx, "/v1/novel/series?series_id=$seriesId&last_order=${lastOrder ?: "—"}"))
+            val t0 = System.currentTimeMillis()
+            val resp = try {
+                Client.appApi.getNovelSeries(seriesId, lastOrder)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                emit(FetchEvent.Warning("getNovelSeries lastOrder=$lastOrder failed: ${ex.message}"))
+                break
+            }
+            val latency = System.currentTimeMillis() - t0
             val page = resp.novels.orEmpty()
+            emit(FetchEvent.PageReceived(pageIdx, page.size, latency, all.size + page.size))
             if (page.isEmpty()) break
             val existingIds = all.map { it.id }.toHashSet()
             val fresh = page.filter { it.id !in existingIds }
@@ -144,7 +177,7 @@ class MergeDownloadNovelSeriesTask(
             all.addAll(fresh)
             if (resp.next_url.isNullOrEmpty()) break
             lastOrder = all.size
-            delay(1000L)
+            delay(SERIES_PAGE_DELAY_MS)
         }
         return all
     }
@@ -164,12 +197,13 @@ class MergeDownloadNovelSeriesTask(
         return if (input.length <= max) input else input.substring(0, max)
     }
 
-    companion object {
-        fun buildMergeFileName(detail: NovelSeriesDetail, format: ExportFormat): String {
-            val raw = detail.title.orEmpty()
-            val sanitized = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(40)
-            val base = if (sanitized.isEmpty()) "novel_series_${detail.id}" else sanitized
-            return "${base}_合集_ID${detail.id}.${format.extension}"
-        }
+    fun buildMergeFileName(detail: NovelSeriesDetail, format: ExportFormat): String {
+        val raw = detail.title.orEmpty()
+        val sanitized = raw.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(40)
+        val base = if (sanitized.isEmpty()) "novel_series_${detail.id}" else sanitized
+        return "${base}_合集_ID${detail.id}.${format.extension}"
     }
+
+    private const val CHAPTER_DELAY_MS = 1500L
+    private const val SERIES_PAGE_DELAY_MS = 1000L
 }

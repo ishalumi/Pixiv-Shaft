@@ -1120,6 +1120,15 @@
     <string name="bulk_fetch_dialog_btn_cancel">İptal</string>
     <string name="bulk_fetch_dialog_btn_open_manager">İndirme yöneticisi →</string>
     <string name="bulk_fetch_dialog_btn_close">Kapat</string>
+    <string name="merge_novel_dialog_close_hint">Bu pencereyi kapatmak görevi durdurmaz; dosya «İndirilenler/Novel» konumuna yazılır.</string>
+    <string name="merge_novel_dialog_canceled">^C  user canceled — alınan bölümler atıldı; dosya yazılmadı.</string>
+    <string name="merge_novel_dialog_stop_requested">&gt; user stop — kısaltılmış sürüm yazılıyor, bitiriliyor…</string>
+    <string name="merge_novel_dialog_done_title">✓ Birleştirme tamamlandı</string>
+    <string name="merge_novel_dialog_done_total">  ▸ Toplam: %1$d bölüm birleştirildi</string>
+    <string name="merge_novel_dialog_done_pages">  ▸ %1$d bölüm · süre %2$s</string>
+    <string name="merge_novel_dialog_failed_title">✗ Yazma başarısız</string>
+    <string name="merge_novel_dialog_failed_message">  ▸ %1$s</string>
+    <string name="merge_novel_dialog_failed_partial">  ▸ Birleştirilen %1$d bölüm kayboldu</string>
 
     <string name="dlmgr_title">İndirme yöneticisi</string>
     <string name="dlmgr_tab_queue">Kuyruk</string>

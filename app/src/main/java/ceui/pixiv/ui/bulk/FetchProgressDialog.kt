@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import ceui.lisa.activities.TemplateActivity
@@ -30,14 +31,19 @@ import java.util.Locale
  * 关键体感：
  *   - 顶部状态行 100ms 一刷，包含：
  *       {spinner 帧} {当前操作描述}  ·  page=N/total  ·  elapsed  ·  rate
- *   - 网络/DB/池/速率限制 都有独立子文案
+ *   - 网络/DB/池/速率限制 / 章节合并 / 插画抓取 / 文件写入 都有独立子文案
  *   - rate-limit 实时倒计时 "1.20s 后继续"
  *   - 日志区记录每一个微动作（page received / latency / db ms / pool ms / cumulative）
+ *
+ * 通用化：通过 [Config] 把「标题 / header cmd / 名词 / 终态文案 / cancel 行为」抽出来。
+ * Batch illust 走的是 [Config.batchIllustDefault]（行为完全跟旧版一致）；novel
+ * merge 走 [Config.novelMergeDefault]（章节 / 插画 / 截短输出语义）。
  */
 class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
 
     private var flow: Flow<FetchEvent>? = null
     private var fetchJob: Job? = null
+    private var config: Config = Config()
 
     private lateinit var titleView: TextView
     private lateinit var logText: TextView
@@ -53,7 +59,11 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
     @Volatile private var viewAlive: Boolean = false
 
     // —— 状态机 ——
-    private enum class Phase { IDLE, NETWORKING, RECEIVED, DB, ENQUEUED, RATE_LIMIT, DONE, FAILED, CANCELED }
+    private enum class Phase {
+        IDLE, NETWORKING, RECEIVED, DB, ENQUEUED, RATE_LIMIT,
+        MERGING_CHAPTER, FETCHING_IMAGE, WRITING_FILE,
+        DONE, FAILED, CANCELED,
+    }
     @Volatile private var phase: Phase = Phase.IDLE
     @Volatile private var phaseDetail: String = ""
     @Volatile private var rateLimitUntil: Long = 0L
@@ -64,6 +74,9 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
     /** 进终态后冻结，refreshStatusLine 不再重新计算 elapsed，spinner ticker 也停止。 */
     @Volatile private var frozenElapsedMs: Long? = null
 
+    /** 用户已按 cancel 按钮(COOPERATIVE 模式下让 status line 显示「stopping…」)。 */
+    @Volatile private var stopRequested: Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 允许 back 收起 dialog —— fetch 在 activity scope 仍跑
@@ -72,6 +85,10 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
 
     fun bindFlow(flow: Flow<FetchEvent>) {
         this.flow = flow
+    }
+
+    fun bindConfig(config: Config) {
+        this.config = config
     }
 
     override fun onStart() {
@@ -91,22 +108,35 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         openManagerBtn = view.findViewById(R.id.openManagerBtn)
         closeBtn = view.findViewById(R.id.closeBtn)
 
-        titleView.text = "batch-download"
+        titleView.text = config.title
         statusLine.text = "${SPINNER[0]} starting…"
-        statusMetrics.text = "page=— · total=0 · elapsed=0s · —"
-        appendLine("$ fetch-author-works --stream --verbose")
-        appendLine("  " + getString(R.string.bulk_fetch_dialog_close_hint))
+        statusMetrics.text = "${config.stepNoun}=— · total=0 · elapsed=0s · —"
+        appendLine(config.headerCmd)
+        appendLine("  " + getString(config.closeHintRes))
         flushLog()
 
         cancelBtn.setOnClickListener {
-            fetchJob?.cancel()
-            phase = Phase.CANCELED
-            phaseDetail = "user canceled"
-            freezeTimer()
-            appendLine(getString(R.string.bulk_fetch_dialog_canceled))
-            cancelBtn.visibility = View.GONE
-            closeBtn.visibility = View.VISIBLE
-            flushLog()
+            config.onCancelRequested()
+            when (config.cancelMode) {
+                CancelMode.HARD -> {
+                    fetchJob?.cancel()
+                    phase = Phase.CANCELED
+                    phaseDetail = "user canceled"
+                    freezeTimer()
+                    appendLine(getString(config.canceledLineRes))
+                    cancelBtn.visibility = View.GONE
+                    closeBtn.visibility = View.VISIBLE
+                    flushLog()
+                }
+                CancelMode.COOPERATIVE -> {
+                    // 不 cancel job —— producer 会自己收尾(写截短文件 / emit Done)
+                    stopRequested = true
+                    cancelBtn.isEnabled = false
+                    cancelBtn.text = "stopping…"
+                    appendLine(getString(config.stopRequestedLineRes))
+                    flushLog()
+                }
+            }
         }
         closeBtn.setOnClickListener { dismissAllowingStateLoss() }
         openManagerBtn.setOnClickListener {
@@ -143,7 +173,7 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         when (e) {
             is FetchEvent.Started -> {
                 if (viewAlive) {
-                    titleView.text = "batch-download · ${e.subtitle}"
+                    titleView.text = "${config.title} · ${e.subtitle}"
                     appendLine("> ${e.taskName}")
                     appendLine("  source=${e.subtitle}, streaming pages…")
                     flushLog()
@@ -154,15 +184,15 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                 phaseDetail = "GET ${e.endpoint}"
                 pageIndex = e.pageIndex
                 if (viewAlive) {
-                    appendLine("> page ${e.pageIndex}: GET ${e.endpoint}")
+                    appendLine("> ${config.stepNoun} ${e.pageIndex}: GET ${e.endpoint}")
                     flushLog()
                 }
             }
             is FetchEvent.PageReceived -> {
                 phase = Phase.RECEIVED
-                phaseDetail = "received ${e.pageSize} illusts in ${e.latencyMs}ms"
+                phaseDetail = "received ${e.pageSize} ${config.itemNoun} in ${e.latencyMs}ms"
                 if (viewAlive) {
-                    appendLine("  ↳ received ${e.pageSize} illusts in ${e.latencyMs}ms")
+                    appendLine("  ↳ received ${e.pageSize} ${config.itemNoun} in ${e.latencyMs}ms")
                     flushLog()
                 }
             }
@@ -193,6 +223,45 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                     flushLog()
                 }
             }
+            is FetchEvent.ChapterMerged -> {
+                phase = Phase.MERGING_CHAPTER
+                totalSoFar = e.chapterIndex
+                pageIndex = e.chapterIndex
+                phaseDetail = "ch ${e.chapterIndex}/${e.totalChapters} · ${e.latencyMs}ms"
+                if (viewAlive) {
+                    val shortTitle = e.title.take(40)
+                    appendLine("  ↳ ch ${e.chapterIndex}/${e.totalChapters}: $shortTitle  (${e.latencyMs}ms)")
+                    flushLog()
+                }
+            }
+            is FetchEvent.ImageFetched -> {
+                phase = Phase.FETCHING_IMAGE
+                phaseDetail = "img ${e.key} · ${e.bytes / 1024}KB"
+                if (viewAlive) {
+                    appendLine("  ↳ img ${e.key}: ${e.bytes / 1024}KB")
+                    flushLog()
+                }
+            }
+            is FetchEvent.WritingFile -> {
+                phase = Phase.WRITING_FILE
+                phaseDetail = "writing ${e.filename}"
+                if (viewAlive) {
+                    appendLine("> writing ${e.filename}…")
+                    flushLog()
+                }
+            }
+            is FetchEvent.Log -> {
+                if (viewAlive) {
+                    appendLine(e.line)
+                    flushLog()
+                }
+            }
+            is FetchEvent.Warning -> {
+                if (viewAlive) {
+                    appendLine("  ⚠ ${e.message}")
+                    flushLog()
+                }
+            }
             is FetchEvent.Done -> {
                 phase = Phase.DONE
                 phaseDetail = "completed"
@@ -202,32 +271,35 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                 if (viewAlive) {
                     appendLine("")
                     appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    appendLine(getString(R.string.bulk_fetch_dialog_done_title))
+                    appendLine(getString(config.doneTitleRes))
                     appendLine("")
-                    appendLine(getString(R.string.bulk_fetch_dialog_done_total, e.total))
-                    appendLine(getString(R.string.bulk_fetch_dialog_done_pages, e.pageCount, formatDuration(e.elapsedMs)))
-                    appendLine(getString(R.string.bulk_fetch_dialog_done_queue))
-                    appendLine(getString(R.string.bulk_fetch_dialog_done_started))
+                    appendLine(getString(config.doneTotalRes, e.total))
+                    appendLine(getString(config.donePagesRes, e.pageCount, formatDuration(e.elapsedMs)))
+                    config.doneExtraRes.forEach { appendLine(getString(it)) }
                     appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     cancelBtn.visibility = View.GONE
-                    openManagerBtn.visibility = View.VISIBLE
+                    if (config.showOpenManager) openManagerBtn.visibility = View.VISIBLE
                     closeBtn.visibility = View.VISIBLE
                     flushLog()
                 }
             }
             is FetchEvent.Errored -> {
                 phase = Phase.FAILED
-                phaseDetail = "page ${e.pageIndex} failed"
+                phaseDetail = "${config.stepNoun} ${e.pageIndex} failed"
                 freezeTimer()
                 if (viewAlive) {
                     appendLine("")
                     appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    appendLine(getString(R.string.bulk_fetch_dialog_failed_title, e.pageIndex))
-                    appendLine(getString(R.string.bulk_fetch_dialog_failed_message, e.message))
-                    appendLine(getString(R.string.bulk_fetch_dialog_failed_partial, totalSoFar))
+                    appendLine(getString(config.failedTitleRes, e.pageIndex))
+                    appendLine(getString(config.failedMessageRes, e.message))
+                    // 0 时不出「已合并的 0 章丢失」这种废话行 —— batch illust 路径
+                    // 也顺带受益(以前 totalSoFar=0 时也会出「已入队 0 项」)。
+                    if (totalSoFar > 0) {
+                        appendLine(getString(config.failedPartialRes, totalSoFar))
+                    }
                     appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                     cancelBtn.visibility = View.GONE
-                    if (totalSoFar > 0) openManagerBtn.visibility = View.VISIBLE
+                    if (config.showOpenManager && totalSoFar > 0) openManagerBtn.visibility = View.VISIBLE
                     closeBtn.visibility = View.VISIBLE
                     flushLog()
                 }
@@ -238,7 +310,7 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
     /**
      * 双行固定结构的状态显示（避免 wrap_content 多行带来的 dialog 高度跳变）：
      *   行 1（statusLine）: "{spinner} {action}"  —— singleLine + ellipsize
-     *   行 2（statusMetrics）: "page=N · total=M · elapsed=X · R/s"
+     *   行 2（statusMetrics）: "step=N · total=M · elapsed=X · R/s"
      */
     private fun freezeTimer() {
         if (frozenElapsedMs == null) {
@@ -252,21 +324,25 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         val elapsedMs = frozenElapsedMs
             ?: if (startedAt == 0L) 0L else now - startedAt
         val spin = SPINNER[spinnerFrame]
+        val stopHint = if (stopRequested && phase !in TERMINAL_PHASES) " · stopping…" else ""
 
         val (icon, action) = when (phase) {
             Phase.IDLE -> spin to "starting…"
-            Phase.NETWORKING -> spin to "fetching page $pageIndex · $phaseDetail"
-            Phase.RECEIVED -> spin to "page $pageIndex received · $phaseDetail"
-            Phase.DB -> spin to "writing db · $phaseDetail"
-            Phase.ENQUEUED -> spin to "page $pageIndex enqueued"
+            Phase.NETWORKING -> spin to "fetching ${config.stepNoun} $pageIndex · $phaseDetail$stopHint"
+            Phase.RECEIVED -> spin to "${config.stepNoun} $pageIndex received · $phaseDetail$stopHint"
+            Phase.DB -> spin to "writing db · $phaseDetail$stopHint"
+            Phase.ENQUEUED -> spin to "${config.stepNoun} $pageIndex enqueued$stopHint"
             Phase.RATE_LIMIT -> {
                 val left = (rateLimitUntil - now).coerceAtLeast(0L)
                 if (left > 0) "⏳" to getString(R.string.bulk_fetch_dialog_rate_limit, left / 1000.0)
-                else spin to "fetching next page…"
+                else spin to "fetching next ${config.stepNoun}…"
             }
-            Phase.DONE -> "✓" to "completed · ${totalSoFar} items queued"
-            Phase.FAILED -> "✗" to "failed at page $pageIndex"
-            Phase.CANCELED -> "●" to "canceled · ${totalSoFar} items kept"
+            Phase.MERGING_CHAPTER -> spin to "merging · $phaseDetail$stopHint"
+            Phase.FETCHING_IMAGE -> spin to "fetching image · $phaseDetail$stopHint"
+            Phase.WRITING_FILE -> spin to "writing file · $phaseDetail"
+            Phase.DONE -> "✓" to "completed · ${totalSoFar} ${config.itemNoun} ${config.completedVerb}"
+            Phase.FAILED -> "✗" to "failed at ${config.stepNoun} $pageIndex"
+            Phase.CANCELED -> "●" to "canceled · ${totalSoFar} ${config.itemNoun} ${config.canceledVerb}"
         }
 
         // 速率：每秒入队多少 item
@@ -276,7 +352,7 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
 
         statusLine.text = "$icon $action"
         statusMetrics.text = buildString {
-            append("page=").append(if (pageIndex == 0) "—" else pageIndex.toString())
+            append(config.stepNoun).append("=").append(if (pageIndex == 0) "—" else pageIndex.toString())
             append(" · total=").append(totalSoFar)
             append(" · elapsed=").append(formatDuration(elapsedMs))
             append(" · ").append(rate)
@@ -312,6 +388,51 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         // 故意不取消 fetchJob —— activity scope 让抓取在 dialog 关掉后继续
     }
 
+    // ────────────────────────────────────────────────────────────────────
+    // Config + 默认工厂
+    // ────────────────────────────────────────────────────────────────────
+
+    enum class CancelMode {
+        /** 立刻 cancel job,UI 进 CANCELED 终态(默认,batch illust 走这条) */
+        HARD,
+        /** 不 cancel job,只标 "stopping…",让 producer 自己优雅收尾(merge 走这条) */
+        COOPERATIVE,
+    }
+
+    data class Config(
+        /** 顶部 fake-terminal 标题 */
+        val title: String = "batch-download",
+        /** 开场提示符行 */
+        val headerCmd: String = "\$ fetch-author-works --stream --verbose",
+        /** 是否显示「去下载管理」按钮(到 Done/Errored 终态时) */
+        val showOpenManager: Boolean = true,
+        /** status line / 终态总结里用作单位的名词,例 "items" / "chapters" */
+        val itemNoun: String = "items",
+        /** status line / 进度行的步骤名词,例 "page" / "ch" */
+        val stepNoun: String = "page",
+        /** "completed · N items queued" 里的动词 */
+        val completedVerb: String = "queued",
+        /** "canceled · N items kept" 里的动词 */
+        val canceledVerb: String = "kept",
+        @StringRes val closeHintRes: Int = R.string.bulk_fetch_dialog_close_hint,
+        @StringRes val canceledLineRes: Int = R.string.bulk_fetch_dialog_canceled,
+        @StringRes val stopRequestedLineRes: Int = R.string.bulk_fetch_dialog_canceled,
+        @StringRes val doneTitleRes: Int = R.string.bulk_fetch_dialog_done_title,
+        @StringRes val doneTotalRes: Int = R.string.bulk_fetch_dialog_done_total,
+        @StringRes val donePagesRes: Int = R.string.bulk_fetch_dialog_done_pages,
+        val doneExtraRes: List<Int> = listOf(
+            R.string.bulk_fetch_dialog_done_queue,
+            R.string.bulk_fetch_dialog_done_started,
+        ),
+        @StringRes val failedTitleRes: Int = R.string.bulk_fetch_dialog_failed_title,
+        @StringRes val failedMessageRes: Int = R.string.bulk_fetch_dialog_failed_message,
+        @StringRes val failedPartialRes: Int = R.string.bulk_fetch_dialog_failed_partial,
+        /** cancel 按钮按下时的行为 */
+        val cancelMode: CancelMode = CancelMode.HARD,
+        /** cancel 按钮按下时无论 cancelMode 都会触发的钩子 */
+        val onCancelRequested: () -> Unit = {},
+    )
+
     companion object {
         private const val MAX_LINES = 200
         private const val STATUS_TICK_MS = 100L
@@ -319,8 +440,21 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         // Braille spinner — 比 / - \ | 平滑得多
         private val SPINNER = arrayOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
+        private val TERMINAL_PHASES = setOf(Phase.DONE, Phase.FAILED, Phase.CANCELED)
+
+        /** 旧 API:不传 config = 走 batch illust 默认。BulkActions 那条路保持不动。 */
         fun show(fm: FragmentManager, flow: Flow<FetchEvent>): FetchProgressDialog {
             val dialog = FetchProgressDialog().apply { bindFlow(flow) }
+            dialog.show(fm, "FetchProgressDialog")
+            return dialog
+        }
+
+        /** 新 API:带 config,merge novel series 等场景用。 */
+        fun show(fm: FragmentManager, flow: Flow<FetchEvent>, config: Config): FetchProgressDialog {
+            val dialog = FetchProgressDialog().apply {
+                bindFlow(flow)
+                bindConfig(config)
+            }
             dialog.show(fm, "FetchProgressDialog")
             return dialog
         }

@@ -50,6 +50,31 @@ sealed class FetchEvent {
     data class RateLimit(val waitMs: Long) : FetchEvent()
     data class Done(val total: Int, val elapsedMs: Long, val pageCount: Int) : FetchEvent()
     data class Errored(val message: String, val pageIndex: Int) : FetchEvent()
+
+    // ── 合并下载 / 通用 CLI 扩展 ──
+    // batch illust 的 page→db→enqueue 三件套对合并下载小说语义不对,加几个更准确的事件:
+    // 章节合并 / 插画抓取 / 文件写入。dialog 把它们渲染成对应状态行 + 日志行;batch
+    // illust 流不 emit 这些,旧行为完全不动。
+
+    /** 一章解析完成并合到 buffer 里。[chapterIndex] 1-based,[totalChapters] 预估总数。 */
+    data class ChapterMerged(
+        val chapterIndex: Int,
+        val totalChapters: Int,
+        val title: String,
+        val latencyMs: Long,
+    ) : FetchEvent()
+
+    /** 一张插画从网络抓回并编入 EPUB images/。[bytes] 编码后 JPEG 长度。 */
+    data class ImageFetched(val key: String, val bytes: Int) : FetchEvent()
+
+    /** 最终输出文件准备开始写盘(zip/pdf/txt 等)。 */
+    data class WritingFile(val filename: String) : FetchEvent()
+
+    /** 任意自定义日志行,producer 想追加什么就 emit 什么;不影响 phase/status。 */
+    data class Log(val line: String) : FetchEvent()
+
+    /** 非致命警告(如某章抓取失败被跳过)。日志里加显眼标记,但不进 FAILED 终态。 */
+    data class Warning(val message: String) : FetchEvent()
 }
 
 /**

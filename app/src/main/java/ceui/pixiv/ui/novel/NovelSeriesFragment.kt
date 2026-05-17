@@ -41,11 +41,13 @@ import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.novel.reader.export.ExportFormat
 import ceui.pixiv.ui.novel.reader.ui.ExportFormatCallback
 import ceui.pixiv.ui.novel.reader.ui.ExportSheet
+import ceui.pixiv.ui.bulk.FetchProgressDialog
 import ceui.pixiv.ui.task.BatchDownloadNovelsTask
 import ceui.pixiv.ui.task.FailedNovel
 import ceui.pixiv.ui.task.FetchAllTask
 import ceui.pixiv.ui.task.MergeDownloadNovelSeriesTask
 import ceui.pixiv.ui.task.PixivTaskType
+import java.util.concurrent.atomic.AtomicBoolean
 import ceui.pixiv.utils.setOnClick
 import com.hjq.toast.ToastUtils
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -185,13 +187,38 @@ class NovelSeriesFragment :
         val known = viewModel.series.value?.novels.orEmpty() + viewModel.allLoadedNovels()
         val dedup = known.distinctBy { it.id }
         pendingMergeAction = { format ->
-            MergeDownloadNovelSeriesTask(
-                activity = requireActivity(),
+            // 用 batch illust 那套 CLI 风格 dialog;cancel 走合作式(stopSignal),让
+            // producer 写出截短版后再 emit Done,而不是 collector 被 cancel 后什么
+            // 都看不到。
+            val stopSignal = AtomicBoolean(false)
+            val flow = MergeDownloadNovelSeriesTask.bulkMergeNovelSeries(
                 seriesDetail = detail,
                 knownNovels = dedup,
                 format = format,
-                onFinished = { _, _ -> /* task 已经自己 toast 过了 */ },
+                stopSignal = stopSignal,
             )
+            val config = FetchProgressDialog.Config(
+                title = "merge-novel-series",
+                headerCmd = "\$ merge-novel-series --format=${format.extension} --stream --verbose",
+                showOpenManager = false,
+                itemNoun = "chapters",
+                stepNoun = "ch",
+                completedVerb = "merged",
+                canceledVerb = "kept",
+                closeHintRes = R.string.merge_novel_dialog_close_hint,
+                canceledLineRes = R.string.merge_novel_dialog_canceled,
+                stopRequestedLineRes = R.string.merge_novel_dialog_stop_requested,
+                doneTitleRes = R.string.merge_novel_dialog_done_title,
+                doneTotalRes = R.string.merge_novel_dialog_done_total,
+                donePagesRes = R.string.merge_novel_dialog_done_pages,
+                doneExtraRes = emptyList(),
+                failedTitleRes = R.string.merge_novel_dialog_failed_title,
+                failedMessageRes = R.string.merge_novel_dialog_failed_message,
+                failedPartialRes = R.string.merge_novel_dialog_failed_partial,
+                cancelMode = FetchProgressDialog.CancelMode.COOPERATIVE,
+                onCancelRequested = { stopSignal.set(true) },
+            )
+            FetchProgressDialog.show(requireActivity().supportFragmentManager, flow, config)
         }
         ExportSheet().show(childFragmentManager, ExportSheet.TAG)
     }

@@ -1616,6 +1616,15 @@
     <string name="bulk_fetch_dialog_btn_cancel">取消</string>
     <string name="bulk_fetch_dialog_btn_open_manager">去下载管理 →</string>
     <string name="bulk_fetch_dialog_btn_close">关闭</string>
+    <string name="merge_novel_dialog_close_hint">关掉此窗口不会停止任务，文件会写到 \"下载/Novel\" 目录</string>
+    <string name="merge_novel_dialog_canceled">^C  user canceled — 已抓的章节会被丢弃，不写文件</string>
+    <string name="merge_novel_dialog_stop_requested">&gt; user stop — 写出截短版，稍等收尾…</string>
+    <string name="merge_novel_dialog_done_title">✓ 合集已写出</string>
+    <string name="merge_novel_dialog_done_total">  ▸ 总计: %1$d 章已合并</string>
+    <string name="merge_novel_dialog_done_pages">  ▸ 共 %1$d 章 · 耗时 %2$s</string>
+    <string name="merge_novel_dialog_failed_title">✗ 写入失败</string>
+    <string name="merge_novel_dialog_failed_message">  ▸ %1$s</string>
+    <string name="merge_novel_dialog_failed_partial">  ▸ 已合并的 %1$d 章丢失</string>
 
     <!-- 下载管理 -->
     <string name="dlmgr_title">下载管理</string>

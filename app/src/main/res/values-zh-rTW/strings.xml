@@ -1235,6 +1235,15 @@
     <string name="bulk_fetch_dialog_btn_cancel">取消</string>
     <string name="bulk_fetch_dialog_btn_open_manager">去下載管理 →</string>
     <string name="bulk_fetch_dialog_btn_close">關閉</string>
+    <string name="merge_novel_dialog_close_hint">關掉此視窗不會停止任務，檔案會寫到 \"下載/Novel\" 目錄</string>
+    <string name="merge_novel_dialog_canceled">^C  user canceled — 已抓的章節會被丟棄，不寫檔案</string>
+    <string name="merge_novel_dialog_stop_requested">&gt; user stop — 寫出截短版，稍等收尾…</string>
+    <string name="merge_novel_dialog_done_title">✓ 合集已寫出</string>
+    <string name="merge_novel_dialog_done_total">  ▸ 總計: %1$d 章已合併</string>
+    <string name="merge_novel_dialog_done_pages">  ▸ 共 %1$d 章 · 耗時 %2$s</string>
+    <string name="merge_novel_dialog_failed_title">✗ 寫入失敗</string>
+    <string name="merge_novel_dialog_failed_message">  ▸ %1$s</string>
+    <string name="merge_novel_dialog_failed_partial">  ▸ 已合併的 %1$d 章遺失</string>
 
     <string name="dlmgr_title">下載管理</string>
     <string name="dlmgr_tab_queue">批次佇列</string>

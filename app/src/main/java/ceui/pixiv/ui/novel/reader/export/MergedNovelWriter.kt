@@ -28,10 +28,15 @@ import java.util.zip.ZipOutputStream
 interface MergedNovelWriter {
     val format: ExportFormat
 
+    /**
+     * [onImageBundled] 每张插画抓回 + 编码完调一次,callsite 可以借此往 UI(比如
+     * CLI 进度 dialog)报实时进度。除 EPUB writer 外其他实现都不会调。
+     */
     suspend fun write(
         context: Context,
         content: MergedNovelContent,
         destination: RelativePath,
+        onImageBundled: suspend (key: String, bytes: Int) -> Unit = { _, _ -> },
     ): Boolean
 }
 
@@ -87,6 +92,7 @@ private object MergedTxtWriter : MergedNovelWriter {
         context: Context,
         content: MergedNovelContent,
         destination: RelativePath,
+        onImageBundled: suspend (key: String, bytes: Int) -> Unit,
     ): Boolean {
         val text = buildString {
             append("《").append(content.displayTitle).append("》\n")
@@ -120,6 +126,7 @@ private object MergedMarkdownWriter : MergedNovelWriter {
         context: Context,
         content: MergedNovelContent,
         destination: RelativePath,
+        onImageBundled: suspend (key: String, bytes: Int) -> Unit,
     ): Boolean {
         val text = buildString {
             append("# ").append(content.displayTitle).append("\n\n")
@@ -166,6 +173,7 @@ private object MergedPdfWriter : MergedNovelWriter {
         context: Context,
         content: MergedNovelContent,
         destination: RelativePath,
+        onImageBundled: suspend (key: String, bytes: Int) -> Unit,
     ): Boolean {
         val bodyPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = Typeface.create("serif", Typeface.NORMAL)
@@ -371,6 +379,7 @@ private object MergedEpubWriter : MergedNovelWriter {
         context: Context,
         content: MergedNovelContent,
         destination: RelativePath,
+        onImageBundled: suspend (key: String, bytes: Int) -> Unit,
     ): Boolean {
         val title = content.displayTitle.ifEmpty { "novel_merge" }
         val novelId = content.documentId.ifEmpty { System.currentTimeMillis().toString() }
@@ -396,6 +405,7 @@ private object MergedEpubWriter : MergedNovelWriter {
                 val bitmap = ExportUtils.loadBitmap(context, url) ?: continue
                 val jpeg = ExportUtils.bitmapToJpeg(bitmap)
                 images[key] = BundledImage("$key.jpg", jpeg)
+                onImageBundled(key, jpeg.size)
             }
         }
 
