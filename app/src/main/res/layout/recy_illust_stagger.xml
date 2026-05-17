@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
@@ -34,6 +35,18 @@
                 android:orientation="horizontal"
                 android:padding="@dimen/six_dp"
                 android:layout_height="wrap_content">
+
+                <!--
+                  站长推荐 score pill。只在 trending repo 注入 trendingScore 时显示,
+                  其他 fragment 复用同一 holder 时保持 gone。放在 LinearLayout 第一位
+                  是为了在 ▲ 旁边可能并排出现 5P / GIF / AI / NEW 时占左端最显眼位置。
+                -->
+                <TextView
+                    android:id="@+id/trending_score"
+                    style="@style/TrendingScorePill"
+                    android:layout_marginEnd="@dimen/six_dp"
+                    tools:text="▲ 1.2k"
+                    tools:visibility="visible"/>
 
                 <TextView
                     android:id="@+id/p_size"

@@ -376,4 +376,11 @@ public class IllustsBean implements Serializable, Starable, Deduplicatable, Mode
         public static final int CreatedByHuman = 1;
         public static final int CreatedByAI = 2;
     }
+
+    // 站长推荐 score(/api/v1/trending/works 返回的加权值)。transient 保证
+    // Gson 序列化和 Java Serializable 都跳过——这是 trending 流水线注入的
+    // 装饰字段,不属于 pixiv 原始模型,不应该跟着对象一起持久化或上传。
+    private transient Float trendingScore;
+    public Float getTrendingScore() { return trendingScore; }
+    public void setTrendingScore(Float trendingScore) { this.trendingScore = trendingScore; }
 }

@@ -339,4 +339,10 @@ public class NovelBean implements Serializable, Starable, ModelObject {
     public int getObjectType() {
         return ObjectSpec.JNOVEL;
     }
+
+    // 站长推荐 score(/api/v1/trending/works 返回的加权值)。transient 保证
+    // Gson 序列化和 Java Serializable 都跳过——装饰字段,不属于 pixiv 原始模型。
+    private transient Float trendingScore;
+    public Float getTrendingScore() { return trendingScore; }
+    public void setTrendingScore(Float trendingScore) { this.trendingScore = trendingScore; }
 }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
@@ -31,6 +32,21 @@
                 app:riv_corner_radius="@dimen/eight_dp">
 
             </com.makeramen.roundedimageview.RoundedImageView>
+
+            <!--
+              站长推荐 score pill,叠在封面左上角(4dp 内缩,避开 8dp 圆角)。
+              必须放在 cover 之后才能在 z 轴上盖住封面。其他 fragment 复用同一
+              holder 时 NAdapter 不会 setVisibility,style 自带 gone 保证隐形。
+            -->
+            <TextView
+                android:id="@+id/trending_score"
+                style="@style/TrendingScorePill"
+                android:layout_alignTop="@+id/cover"
+                android:layout_alignStart="@+id/cover"
+                android:layout_marginTop="@dimen/four_dp"
+                android:layout_marginStart="@dimen/four_dp"
+                tools:text="▲ 1.2k"
+                tools:visibility="visible"/>
 
 
             <RelativeLayout

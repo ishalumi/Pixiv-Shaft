@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  站长推荐 score pill 背景。315° = 起点在 top-left,所以 startColor (dark)
+  在左上,endColor (透明) 在右下,实现 mockup 里的渐变收边效果。corner 4dp
+  让 pill 在小尺寸下也有视觉圆润感。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+       android:shape="rectangle">
+    <corners android:radius="4dp"/>
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="#CC000000"
+        android:endColor="#00000000"/>
+</shape>

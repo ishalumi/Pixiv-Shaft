@@ -264,5 +264,8 @@
     <color name="v3_banner_placeholder_center">#DED8EE</color>
     <color name="v3_banner_placeholder_end">#E0E4F0</color>
 
+    <!-- 站长推荐 score pill 字色:琥珀金 + 强阴影,任何封面底都能看清。 -->
+    <color name="trending_score_amber">#FFD54F</color>
+
 </resources>
 

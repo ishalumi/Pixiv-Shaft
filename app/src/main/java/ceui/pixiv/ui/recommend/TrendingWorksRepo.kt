@@ -59,7 +59,14 @@ class TrendingWorksRepo(
         val gson = Shaft.sGson
         val illusts = resp.items.mapNotNull { item ->
             item.bean?.let { json ->
-                try { gson.fromJson(json, IllustsBean::class.java) }
+                try {
+                    gson.fromJson(json, IllustsBean::class.java).apply {
+                        // 把 server 的 trending score 装饰到 bean 上,IAdapter 渲染时
+                        // 读这个字段决定是否露出左上角的 score pill。transient 保证不
+                        // 串进 Gson 序列化 / Java Serializable 的输出。
+                        trendingScore = item.score.toFloat()
+                    }
+                }
                 catch (e: Throwable) {
                     Timber.tag("SiteRecmd").w(e, "skip malformed bean id=${item.target_id}")
                     null
@@ -115,7 +122,12 @@ class TrendingNovelsRepo(
         val gson = Shaft.sGson
         val novels = resp.items.mapNotNull { item ->
             item.bean?.let { json ->
-                try { gson.fromJson(json, NovelBean::class.java) }
+                try {
+                    gson.fromJson(json, NovelBean::class.java).apply {
+                        // 同上,把 trending score 装饰到 NovelBean,NAdapter 渲染时读。
+                        trendingScore = item.score.toFloat()
+                    }
+                }
                 catch (e: Throwable) {
                     Timber.tag("SiteRecmd").w(e, "skip malformed novel bean id=${item.target_id}")
                     null

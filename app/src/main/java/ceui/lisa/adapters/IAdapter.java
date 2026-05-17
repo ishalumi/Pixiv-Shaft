@@ -41,6 +41,7 @@ import ceui.lisa.page.ScreenUtils;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
+import ceui.pixiv.ui.recommend.TrendingScoreFormatKt;
 import ceui.pixiv.ui.slideshow.SlideshowLauncher;
 
 public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding> implements MultiDownload {
@@ -152,6 +153,9 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
             bindView.baseBind.pSize.setText(String.format(Locale.getDefault(), "%dP", target.getPage_count()));
         }
         bindView.baseBind.pGif.setVisibility(target.isGif() ? View.VISIBLE : View.GONE);
+        // 站长推荐场景:trending repo 把 score 注入 bean。其他 fragment 复用此
+        // adapter 时 trendingScore=null,bindTrendingScore 内部走 GONE,无副作用。
+        TrendingScoreFormatKt.bindTrendingScore(bindView.baseBind.trendingScore, target.getTrendingScore());
         bindView.itemView.setOnClickListener(view -> {
             if (mOnItemClickListener != null) {
                 mOnItemClickListener.onItemClick(view, position, 0);

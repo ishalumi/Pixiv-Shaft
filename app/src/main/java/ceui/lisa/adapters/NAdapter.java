@@ -30,6 +30,7 @@ import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
 import ceui.loxia.Tag;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
+import ceui.pixiv.ui.recommend.TrendingScoreFormatKt;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function2;
 
@@ -113,6 +114,9 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
         bindView.baseBind.howManyWord.setText(String.format(Locale.getDefault(), "%d字\n%s", target.getText_length(),date));
         bindView.baseBind.author.setText(target.getUser().getName());
         bindView.baseBind.bookmarkCount.setText(String.valueOf(target.getTotal_bookmarks()));
+        // 站长推荐场景:trending repo 把 score 注入 bean。其他 fragment 复用此
+        // adapter 时 trendingScore=null,bindTrendingScore 内部走 GONE,无副作用。
+        TrendingScoreFormatKt.bindTrendingScore(bindView.baseBind.trendingScore, target.getTrendingScore());
         Glide.with(mContext).load(GlideUtil.getUrl(target.getImage_urls().getMaxImage())).into(bindView.baseBind.cover);
         Glide.with(mContext).load(GlideUtil.getHead(target.getUser())).into(bindView.baseBind.userHead);
         if (target.isIs_bookmarked()) {

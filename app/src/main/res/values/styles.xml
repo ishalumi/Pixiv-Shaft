@@ -489,6 +489,30 @@
         <item name="cornerSizeBottomLeft">4dp</item>
         <item name="cornerSizeBottomRight">20dp</item>
     </style>
+
+    <!--
+      站长推荐 score pill。封面左上叠层,金渐变背景 + 琥珀金字 + 黑 shadow。
+      默认 visibility=gone,只有 trending repo 把 score 注入到 bean 时才显示。
+      在 IAdapter / NAdapter 共用,与现有 tag_stroke 风格刻意区分以表明语义不同。
+    -->
+    <style name="TrendingScorePill">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/bg_trending_score_pill</item>
+        <item name="android:paddingStart">6dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:paddingBottom">2dp</item>
+        <item name="android:textColor">@color/trending_score_amber</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:shadowColor">#000000</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">1</item>
+        <item name="android:shadowRadius">2</item>
+        <item name="android:visibility">gone</item>
+    </style>
 </resources>
 
 
