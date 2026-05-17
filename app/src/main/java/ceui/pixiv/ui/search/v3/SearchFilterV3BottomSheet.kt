@@ -143,6 +143,10 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.rowLang.root.setOnClick { showLangPicker() }
         binding.rowOther.root.setOnClick { showOtherSheet() }
 
+        // 语种行仅 novel 展示；illust/manga 不需要语种维度
+        binding.dividerLang.isVisible = isNovel
+        binding.rowLang.root.isVisible = isNovel
+
         // novel 专属两个开关行（illust 模式整段保持 GONE）
         if (isNovel) setupNovelSwitches()
 

@@ -124,7 +124,9 @@
                     android:id="@+id/row_tool_or_genre"
                     layout="@layout/cell_search_filter_row" />
 
+                <!-- 语种 —— 仅 novel 展示；illust/manga 模式下整行 + divider 隐藏 -->
                 <View
+                    android:id="@+id/divider_lang"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="18dp"
