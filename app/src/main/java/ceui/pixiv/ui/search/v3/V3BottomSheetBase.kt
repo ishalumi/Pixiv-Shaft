@@ -8,6 +8,7 @@ import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import ceui.lisa.R
 import ceui.lisa.utils.V3Palette
 import ceui.pixiv.utils.screenHeight
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -34,7 +35,9 @@ abstract class V3BottomSheetBase : BottomSheetDialogFragment() {
     protected open val maxHeightFraction: Float = 0.85F
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        BottomSheetDialog(requireContext(), theme)
+        // 用 V3 专用 theme 把 edgeToEdge 打开 —— Material 会顺手 setDecorFitsSystemWindows=false
+        // + nav bar 透明，dialog window 就能画到 gesture nav 底下。
+        BottomSheetDialog(requireContext(), R.style.ThemeOverlay_V3_BottomSheetDialog)
 
     override fun onStart() {
         super.onStart()
@@ -48,6 +51,12 @@ abstract class V3BottomSheetBase : BottomSheetDialogFragment() {
         // 我们自己的 root 用 bg_v3_sheet_top（顶部圆角）画背景；把 Material 默认的擦掉，
         // 否则会盖掉圆角。
         sheet.background = ColorDrawable(Color.TRANSPARENT)
+        // Material 在 edgeToEdge=true 时给 design_bottom_sheet 装了 inset listener，
+        // 会把 nav inset pad 到 sheet 容器本身 → 我们的 root MATCH_PARENT 被压缩，root 的
+        // V3 bg 就盖不到 nav bar 区域，scrim 透出来形成那条灰带。改成 noop：root 的 bg
+        // 撑满到屏幕底，nav bar padding 由 [onViewCreated] 里对 root 的 listener 单独做。
+        ViewCompat.setOnApplyWindowInsetsListener(sheet) { _, insets -> insets }
+        sheet.setPadding(0, 0, 0, 0)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

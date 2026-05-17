@@ -37,6 +37,15 @@
         <item name="android:navigationBarColor" tools:ignore="NewApi">@android:color/transparent</item>
     </style>
 
+    <!-- V3 系列 sheet 专用：开启 edgeToEdge，让 sheet 背景覆盖到 gesture nav 区域，
+         避免「sheet 底部和系统栏之间露出 scrim」的视觉空隙。
+         [ceui.pixiv.ui.search.v3.V3BottomSheetBase] 在 onStart 里再把 Material 给
+         design_bottom_sheet 装的 inset listener 摘掉——content 的 nav bar padding
+         由 V3 sheet 自己在 root 上做，统一一处。 -->
+    <style name="ThemeOverlay.V3.BottomSheetDialog" parent="ThemeOverlay.App.BottomSheetDialog">
+        <item name="enableEdgeToEdge">true</item>
+    </style>
+
     <style name="UpdateBottomSheetStyle" parent="Widget.Design.BottomSheet.Modal">
         <item name="android:background">@drawable/bg_update_bottom_sheet</item>
     </style>
