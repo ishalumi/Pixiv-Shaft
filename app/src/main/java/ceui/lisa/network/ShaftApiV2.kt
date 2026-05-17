@@ -8,6 +8,7 @@ import retrofit2.http.HTTP
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface ShaftApiV2 {
 
@@ -37,6 +38,9 @@ interface ShaftApiV2 {
      * - window: day | week | month
      * - sort: score（加权） | bookmark（纯收藏数倒序）
      * - includeMeta=1 时服务端会过滤掉还没有客户端上传过 payload 的 id，保证返回的每个 item 都能渲染
+     *
+     * 翻页:首屏调本接口拿 offset=0,后续走 [trendingWorksByUrl] 喂服务端给的 `next_url`
+     * (绝对 URL,已经带好原始 query 参数 + 新 offset),server 端 null 即榜单到底。
      */
     @GET("api/v1/trending/works")
     suspend fun trendingWorks(
@@ -45,7 +49,12 @@ interface ShaftApiV2 {
         @Query("limit") limit: Int = 60,
         @Query("sort") sort: String = "bookmark",
         @Query("include_meta") includeMeta: Int = 1,
+        @Query("offset") offset: Int = 0,
     ): TrendingWorksResponse
+
+    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL),避免客户端自己算 offset。 */
+    @GET
+    suspend fun trendingWorksByUrl(@Url url: String): TrendingWorksResponse
 
     data class TrendingWorksResponse(
         val type: String,
@@ -54,6 +63,10 @@ interface ShaftApiV2 {
         val sort: String,
         val computed_at: Long,
         val items: List<TrendingWorkItem>,
+        /** offset/total/next_url 是 v2 新增字段,nullable 是为了兼容尚未升级的服务端。 */
+        val offset: Int? = null,
+        val total: Int? = null,
+        val next_url: String? = null,
     )
 
     data class TrendingWorkItem(

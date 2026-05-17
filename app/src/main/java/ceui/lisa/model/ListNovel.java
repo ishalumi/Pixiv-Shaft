@@ -43,4 +43,8 @@ public class ListNovel implements ListShow<NovelBean>, Serializable {
         return next_url;
     }
 
+    public void setNext_url(String next_url) {
+        this.next_url = next_url;
+    }
+
 }
