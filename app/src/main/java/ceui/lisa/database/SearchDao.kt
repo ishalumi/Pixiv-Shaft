@@ -20,13 +20,12 @@ interface SearchDao {
     @Query("DELETE FROM search_table WHERE pinned = 0")
     fun deleteAllUnpinned()
 
-    /**
-     * Get all search history
-     * @param limit The maximum number of search history
-     * @return The search history List
-     * */
-    @Query("SELECT * FROM search_table ORDER BY pinned DESC, searchTime DESC LIMIT :limit")
-    fun getAll(limit: Int): List<SearchEntity>
+    // 固定标签全量返回，不能被 recent-history LIMIT 截掉（issue #524）
+    @Query("SELECT * FROM search_table WHERE pinned = 1 ORDER BY searchTime DESC")
+    fun getAllPinned(): List<SearchEntity>
+
+    @Query("SELECT * FROM search_table WHERE pinned = 0 ORDER BY searchTime DESC LIMIT :limit")
+    fun getRecentUnpinned(limit: Int): List<SearchEntity>
 
     @get:Query("SELECT * FROM search_table")
     val allSearchEntities: List<SearchEntity>

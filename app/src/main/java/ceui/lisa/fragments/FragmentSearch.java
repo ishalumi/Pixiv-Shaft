@@ -26,6 +26,7 @@ import com.zhy.view.flowlayout.FlowLayout;
 import com.zhy.view.flowlayout.TagAdapter;
 import com.zhy.view.flowlayout.TagFlowLayout;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -353,7 +354,13 @@ public class FragmentSearch extends BaseFragment<FragmentSearchBinding> {
          * history:Represents the search history
          * history: size = {x} (x Represents the number of search history)
          * */
-        List<SearchEntity> history = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getAll(50);
+        // 固定标签全量取，最近搜索另取上限；不能把两者塞进同一个 LIMIT，否则
+        // 固定数量超出上限时会被静默挤掉（issue #524）
+        List<SearchEntity> pinned = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getAllPinned();
+        List<SearchEntity> recent = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getRecentUnpinned(50);
+        List<SearchEntity> history = new ArrayList<>(pinned.size() + recent.size());
+        history.addAll(pinned);
+        history.addAll(recent);
         baseBind.searchHistory.setAdapter(new TagAdapter<SearchEntity>(history) {
             @Override
             public View getView(FlowLayout parent, int position, SearchEntity searchEntity) {
