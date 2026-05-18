@@ -97,10 +97,6 @@ class WsChatMessageStream(
                 _typingFrames.tryEmit(frame)
             }
             is ChatFrame.Pong -> Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)
-            // artist_new_work 不走 stream 的 side-channel 体系 — 它独立由
-            // ShaftChatGateway.startArtistNewWorkFanout 直接订阅 incoming 解码,
-            // 接 BannerBridge / Toast 等 surface。这里仅为穷举性 silently 接住。
-            is ChatFrame.ArtistNewWork -> Unit
             is ChatFrame.Unknown -> Timber.tag(TAG).d("⇣ unknown frame dead-lettered")
         }
     }

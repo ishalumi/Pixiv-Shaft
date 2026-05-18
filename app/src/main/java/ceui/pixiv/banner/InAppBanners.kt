@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import ceui.lisa.activities.TemplateActivity
-import ceui.pixiv.ui.notification.routeNotificationTargetUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,7 +62,6 @@ object InAppBanners {
         app.registerActivityLifecycleCallbacks(foreground)
 
         ChatBannerBridge(manager, scope).start()
-        ArtistNewWorkBannerBridge(manager, scope).start()
 
         scope.launch {
             manager.events
@@ -77,26 +75,6 @@ object InAppBanners {
     private suspend fun handleTap(app: Application, deepLink: String?) {
         deepLink ?: return
         val uri = runCatching { Uri.parse(deepLink) }.getOrNull() ?: return
-
-        // pixiv:// (illusts/novels/users)— 复用通知路由层的统一出口,免得在这里
-        // 重复维护"打开作品/小说/用户"的 Intent 拼装逻辑。banner 只在 app 前台
-        // 时可见,所以 foreground activity 应该有;没有的话 (异常时序) 就放弃
-        // navigate,不靠 Application + NEW_TASK 兜底 — banner 不该在背景态点。
-        if (uri.scheme == "pixiv") {
-            val activity = foreground.current() ?: run {
-                Timber.tag(TAG).w("pixiv:// banner tapped but no foreground activity")
-                return
-            }
-            withContext(Dispatchers.Main) {
-                try {
-                    activity.routeNotificationTargetUrl(deepLink)
-                } catch (t: Throwable) {
-                    Timber.tag(TAG).w(t, "Failed to route pixiv:// banner tap")
-                }
-            }
-            return
-        }
-
         if (uri.scheme != SCHEME || uri.host != HOST_CHAT) return
 
         val activity = foreground.current()
