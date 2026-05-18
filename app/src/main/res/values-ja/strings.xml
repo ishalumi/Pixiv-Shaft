@@ -798,6 +798,7 @@
   <string name="v3_label_tags">タグ</string>
   <string name="v3_label_series">シリーズ</string>
   <string name="v3_label_related">関連作品</string>
+  <string name="v3_no_related_works">関連作品が見つかりませんでした</string>
   <string name="v3_label_artwork_details">作品詳細</string>
   <string name="v3_type_illustration">イラスト</string>
   <string name="v3_type_manga">マンガ</string>

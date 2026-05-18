@@ -1029,6 +1029,7 @@
     <string name="v3_label_tags">标签</string>
     <string name="v3_label_series">系列</string>
     <string name="v3_label_related">相关作品</string>
+    <string name="v3_no_related_works">没有找到相关作品</string>
     <string name="v3_label_artwork_details">作品详情</string>
     <string name="v3_type_illustration">插画</string>
     <string name="v3_type_manga">漫画</string>

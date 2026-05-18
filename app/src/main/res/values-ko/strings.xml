@@ -706,6 +706,7 @@
   <string name="v3_label_tags">태그</string>
   <string name="v3_label_series">시리즈</string>
   <string name="v3_label_related">관련 작품</string>
+  <string name="v3_no_related_works">관련 작품을 찾을 수 없습니다</string>
   <string name="v3_label_artwork_details">작품 상세</string>
   <string name="v3_type_illustration">일러스트</string>
   <string name="v3_type_manga">만화</string>

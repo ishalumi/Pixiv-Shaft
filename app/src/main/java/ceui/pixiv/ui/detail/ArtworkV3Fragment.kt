@@ -403,6 +403,15 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             v.layoutParams = lp
             windowInsets
         }
+        // RV 自己 match_parent 延伸到屏幕最底(背景填满 safe area),滚动时通过
+        // clipToPadding=false + bottomPadding=navBar inset 让最后一个 item 停在
+        // 系统导航栏之上,不被遮挡。
+        baseBind.recyclerView.clipToPadding = false
+        ViewCompat.setOnApplyWindowInsetsListener(baseBind.recyclerView) { v, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, insets.bottom)
+            windowInsets
+        }
         // Pin the floating "收起" pill just below the top overlay column
         // (toolbar + optional retry banner). Driving the margin from the
         // column's actual bottom keeps the pill clear of the banner when it

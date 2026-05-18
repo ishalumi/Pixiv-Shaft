@@ -699,6 +699,7 @@
   <string name="v3_label_tags">Теги</string>
   <string name="v3_label_series">Серия</string>
   <string name="v3_label_related">Похожее</string>
+  <string name="v3_no_related_works">Похожих работ не найдено</string>
   <string name="v3_label_artwork_details">Детали работы</string>
   <string name="v3_type_illustration">Иллюстрация</string>
   <string name="v3_type_manga">Манга</string>

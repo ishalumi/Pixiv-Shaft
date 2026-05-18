@@ -697,6 +697,7 @@
   <string name="v3_label_tags">Etiketler</string>
   <string name="v3_label_series">Seri</string>
   <string name="v3_label_related">İlgili</string>
+  <string name="v3_no_related_works">İlgili eser bulunamadı</string>
   <string name="v3_label_artwork_details">Eser Detayları</string>
   <string name="v3_type_illustration">İllüstrasyon</string>
   <string name="v3_type_manga">Manga</string>

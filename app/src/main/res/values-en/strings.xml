@@ -764,6 +764,7 @@
   <string name="v3_label_tags">Tags</string>
   <string name="v3_label_series">Series</string>
   <string name="v3_label_related">Related</string>
+  <string name="v3_no_related_works">No related works found</string>
   <string name="v3_label_artwork_details">Artwork Details</string>
   <string name="v3_type_illustration">Illustration</string>
   <string name="v3_type_manga">Manga</string>

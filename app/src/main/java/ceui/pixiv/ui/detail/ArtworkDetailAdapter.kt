@@ -669,16 +669,19 @@ class ArtworkDetailAdapter(
                 null -> {
                     b.relatedLoadingContainer.isVisible = true
                     b.relatedSeeMore.isVisible = false
+                    b.relatedEmpty.isVisible = false
                 }
 
                 false -> {
                     b.relatedLoadingContainer.isVisible = false
                     b.relatedSeeMore.isVisible = false
+                    b.relatedEmpty.isVisible = true
                 }
 
                 true -> {
                     b.relatedLoadingContainer.isVisible = false
                     b.relatedSeeMore.isVisible = true
+                    b.relatedEmpty.isVisible = false
                 }
             }
         }
