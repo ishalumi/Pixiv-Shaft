@@ -25,7 +25,7 @@ data class SearchConfig(
     val widthMax: Int? = null,
     val heightMin: Int? = null,
     val heightMax: Int? = null,
-    // 正文长度 3 单位（仅 novel）—— text_length_* + word_count_* iOS 抓包确认；reading_time_* 仍是 mockup
+    // 正文长度 3 单位（仅 novel）—— iOS pixiv 8.6.6 抓包确认
     val textLengthMin: Int? = null,
     val textLengthMax: Int? = null,
     val wordCountMin: Int? = null,

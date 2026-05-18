@@ -203,10 +203,10 @@ enum class ResolutionBucket(
  * 状态只存最终 (unit, min, max) 三元组——picker 渲染时 (min, max) 对照 [CharLengthBucket] /
  * [WordLengthBucket] / [ReadingTimeBucket] 反查是否命中预设档，未命中则视为自定义。
  *
- * API 落地：
- *   - unit = Char         →  `text_length_min`  / `text_length_max`    （iOS 抓包确认）
- *   - unit = Word         →  `word_count_min`   / `word_count_max`     （iOS 抓包确认）
- *   - unit = ReadingTime  →  `reading_time_min` / `reading_time_max`   （mockup，待抓包，单位「分钟」）
+ * API 落地（iOS pixiv 8.6.6 抓包确认）：
+ *   - unit = Char         →  `text_length_min`  / `text_length_max`
+ *   - unit = Word         →  `word_count_min`   / `word_count_max`
+ *   - unit = ReadingTime  →  `reading_time_min` / `reading_time_max`   （单位「分钟」）
  */
 data class BodyLengthSpec(
     val unit: BodyLengthUnit,
