@@ -37,7 +37,14 @@ class RankIllustRepo(
 
     override fun mapper(): Function<in ListIllust, ListIllust> {
         return Function { listIllust ->
-            val mapped = Mapper<ListIllust>().apply(listIllust)
+            val mapper = Mapper<ListIllust>()
+            // R18 专属榜单端点（day_r18 / week_r18 / day_male_r18 / day_female_r18 /
+            // day_r18_ai / week_r18g / day_r18_manga）本身就是用来看 R18 的，
+            // 不再用全局 R18 过滤把内容清空
+            if (mode?.contains("r18") == true) {
+                mapper.skipR18Filter()
+            }
+            val mapped = mapper.apply(listIllust)
             if (Shaft.sSettings.isFilterRankBookmarked) {
                 val filtered = PixivOperate.getListWithoutBooked(mapped)
                 mapped.setIllusts(filtered)

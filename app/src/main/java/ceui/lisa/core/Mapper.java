@@ -18,6 +18,13 @@ import io.reactivex.functions.Function;
  */
 public class Mapper<T extends ListShow<?>> implements Function<T, T> {
 
+    private boolean skipR18Filter = false;
+
+    public Mapper<T> skipR18Filter() {
+        this.skipR18Filter = true;
+        return this;
+    }
+
     @Override
     public T apply(T t) {
         List<Object> dash = new ArrayList<>();
@@ -32,7 +39,7 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
                 boolean isTagBanned = IllustNovelFilter.judgeTag(illust);
                 boolean isIdBanned = IllustNovelFilter.judgeID(illust);
                 boolean isUserBanned = IllustNovelFilter.judgeUserID(illust);
-                boolean isR18FilterBanned = IllustNovelFilter.judgeR18Filter(illust);
+                boolean isR18FilterBanned = !skipR18Filter && IllustNovelFilter.judgeR18Filter(illust);
                 boolean isCreatedByAI = illust.isCreatedByAI();
                 if (isTagBanned || isIdBanned || isUserBanned || isR18FilterBanned) {
                     dash.add(o);
@@ -46,7 +53,7 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
                 boolean isTagBanned = IllustNovelFilter.judgeTag((NovelBean) o);
                 boolean isIdBanned = IllustNovelFilter.judgeID((NovelBean) o);
                 boolean isUserBanned = IllustNovelFilter.judgeUserID((NovelBean) o);
-                boolean isR18FilterBanned = IllustNovelFilter.judgeR18Filter((NovelBean) o);
+                boolean isR18FilterBanned = !skipR18Filter && IllustNovelFilter.judgeR18Filter((NovelBean) o);
                 if (isTagBanned || isIdBanned || isUserBanned || isR18FilterBanned) {
                     dash.add(o);
                 }
