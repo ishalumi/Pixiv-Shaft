@@ -1,6 +1,7 @@
 package ceui.pixiv.chat.api
 
 import android.app.Application
+import ceui.lisa.BuildConfig
 import ceui.pixiv.chat.core.ChatMessageStream
 import ceui.pixiv.chat.data.ChatDatabase
 import ceui.pixiv.chat.data.ChatMessageDao
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -99,9 +101,25 @@ object ShaftChatGateway {
         // `distinctUntilChanged` makes sure the manager's `flatMapLatest`
         // doesn't tear down + rebuild on every irrelevant LiveData write
         // (e.g. token refresh that keeps the same uid).
-        val ready: Flow<Boolean> = SessionManager.loggedInAccount.asFlow()
-            .map { account -> (account?.user?.id ?: 0L) > 0L }
-            .distinctUntilChanged()
+        //
+        // Fork builds compile with `SHAFT_EVENTS_HMAC=""` (see app/build.gradle
+        // — "Forks build with empty secret"). The HTTP `/events/batch` path
+        // already gates itself via `EventReporter.hmacEnabled`, but the WS path
+        // doesn't: `ShaftHmacAuthProvider.dynamicUrl` would call
+        // `SecretKeySpec(emptyBytes, "HmacSHA256")` which throws
+        // `IllegalArgumentException: Empty key` inside the manager's coroutine
+        // and crashes the app at launch. Pin `ready` to `false` here so the
+        // manager never activates → no client built → no signing attempt.
+        // Public getters still work (subscribers see Idle / never-emitting
+        // flows), so banner bridge / chat fragments don't NPE.
+        val ready: Flow<Boolean> = if (BuildConfig.SHAFT_EVENTS_HMAC.isEmpty()) {
+            Timber.tag(TAG).i("HMAC secret not configured — chat WS disabled for this build (fork mode)")
+            flowOf(false)
+        } else {
+            SessionManager.loggedInAccount.asFlow()
+                .map { account -> (account?.user?.id ?: 0L) > 0L }
+                .distinctUntilChanged()
+        }
 
         manager = WebSocketManager(
             loggedIn = ready,
