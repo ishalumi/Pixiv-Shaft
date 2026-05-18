@@ -145,10 +145,93 @@ object ShaftChatGateway {
         startAlwaysOnRawLog()
         startAlwaysOnPersister()
         startFatalAuthMonitor()
+        startArtistSubscriber()
+        startArtistNewWorkFanout()
 
         // 收到 DM 消息时短震一下。subscribe 到同一份 manager.incoming SharedFlow,
         // 跟 persister / banner bridge 共用单 socket,无额外开销。
         ChatHapticBridge(app, manager.incoming, scope).start()
+    }
+
+    // ── 画师订阅推送(测试中) ─────────────────────────────────────────────
+
+    /**
+     * 测试期硬编码:订阅单画师 uid=11103082。后续接入 ProfileManager 或用户手动
+     * 选画师时替换这里。
+     *
+     * 列表写在 const 而不是 List<Long>(11103082) 字面量是为了改测试 uid 时
+     * 一处搞定。
+     *
+     * TODO: 真上前删掉,改成由 ProfileManager / 设置页注入,Gateway 只暴露
+     *  `submitSubscription(uids)` API,业务上"该订阅谁"不该在 Gateway 内。
+     */
+    private val TEST_SUBSCRIBE_ARTIST_IDS = listOf(11103082L)
+
+    /**
+     * 出站 artist_new_work 流。订阅方(UI bridge / 测试 logger)通过这个 Flow
+     * 拿到结构化事件,不需要自己再 decode 一遍。
+     *
+     * extraBufferCapacity=16:测试场景一波突发(限流上限 5/min 单画师)远低于
+     * 16,正常 collector 跟得上;不挂订阅者时 SharedFlow 默认丢弃,不阻塞 ws。
+     */
+    private val _artistNewWork = MutableSharedFlow<ChatFrame.ArtistNewWork>(
+        replay = 0,
+        extraBufferCapacity = 16,
+    )
+
+    /**
+     * 每次 WS 进入 Connected 状态就重发一次 `sub_artists`。server 端的订阅状态
+     * 是 in-memory,server 重启 / 客户端重连后必须重申。manager.state 是
+     * StateFlow,新订阅者会立刻收到当前值,所以加这个 collector 时若已 Connected
+     * 也会立即 fire 一次。
+     *
+     * 不在 incoming 收到 hello 时发,因为 Connected → hello 之间客户端就有理由
+     * 已经能 send 了(底层 socket 通了)。等 hello 多一个 RTT 没必要。
+     *
+     * log 不打完整列表:测试期 1 个 id 可以接受,真上几百到上千个 id 全展开会爆
+     * log。size + 前 3 个 sample 足够 debug 判断"对不对"。
+     */
+    private fun startArtistSubscriber() {
+        scope.launch {
+            manager.state
+                .filterIsInstance<WebSocketState.Connected>()
+                .collect {
+                    val ids = TEST_SUBSCRIBE_ARTIST_IDS
+                    val frame = ChatFrameEncoder.subArtists(ids)
+                    val accepted = manager.send(frame)
+                    Timber.tag(TAG).i(
+                        "⇡ sub_artists sent size=%d sample=%s accepted=%b",
+                        ids.size, ids.take(3), accepted,
+                    )
+                }
+        }
+    }
+
+    /**
+     * 把 incoming SharedFlow 里所有 artist_new_work 帧解码后 fanout 到
+     * [_artistNewWork]。tryEmit 理论上不会失败(extraBufferCapacity=16 +
+     * server 5/min 限流),但失败时静默丢帧很难查,记一条 warn 兜底。
+     */
+    private fun startArtistNewWorkFanout() {
+        scope.launch {
+            manager.incoming
+                .filterIsInstance<IncomingMessage.Text>()
+                .map { ChatFrameDecoder.decode(it.text) }
+                .filterIsInstance<ChatFrame.ArtistNewWork>()
+                .collect { frame ->
+                    Timber.tag(TAG).i(
+                        "⇣ artist_new_work uid=%d target=%s/%d title=%s",
+                        frame.userId, frame.targetType, frame.targetId,
+                        frame.title?.take(40) ?: "-",
+                    )
+                    if (!_artistNewWork.tryEmit(frame)) {
+                        Timber.tag(TAG).w(
+                            "⚠ _artistNewWork.tryEmit dropped frame target=%s/%d (buffer full?)",
+                            frame.targetType, frame.targetId,
+                        )
+                    }
+                }
+        }
     }
 
     /**
@@ -275,6 +358,15 @@ object ShaftChatGateway {
     val helloFrames: Flow<ChatFrame.Hello> get() = stream.helloFrames
     val errorFrames: Flow<ChatFrame.Err> get() = stream.errorFrames
     val typingFrames: Flow<ChatFrame.Typing> get() = stream.typingFrames
+
+    /**
+     * 画师订阅推送(测试中)。订阅方:
+     *  - 测试 logger / Toast bridge — 验证链路通
+     *  - 未来:Banner bridge,跳作品详情页
+     *
+     * 没人订阅时 SharedFlow 默认丢弃帧(replay=0),不会内存累积。
+     */
+    val artistNewWork: Flow<ChatFrame.ArtistNewWork> get() = _artistNewWork
 
     /**
      * 401 handshake failure — `bad_sig` / `bad_ts` / `ts_skew` / `bad_uid`

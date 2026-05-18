@@ -29,6 +29,17 @@ interface ShaftEventsApi {
         @Header("X-Shaft-Sign") sig: String,
         @Body body: RequestBody
     ): EventBatchResponse
+
+    /**
+     * 静默上报 (client_id, uid) 绑定关系。server 端 ON CONFLICT 幂等 —
+     * 重复 POST 只更新 last_seen,不会建重复行。client 自己也 cache 上一次
+     * 成功提交的 (uid, clientId) 在 MMKV,值不变就 skip POST。
+     */
+    @POST("/api/v1/uid-bindings")
+    suspend fun bindUid(
+        @Header("X-Shaft-Sign") sig: String,
+        @Body body: RequestBody
+    ): UidBindingResponse
 }
 
 data class EventBatchResponse(
@@ -37,6 +48,12 @@ data class EventBatchResponse(
     val total: Int,
     val meta_inserted: Int? = null,
     val meta_skipped: Int? = null,
+)
+
+/** `status` = "inserted"(新建)/"touched"(已存在,仅 bump last_seen)。 */
+data class UidBindingResponse(
+    val ok: Boolean = false,
+    val status: String? = null,
 )
 
 object ShaftEventsClient {

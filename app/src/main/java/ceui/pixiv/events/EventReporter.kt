@@ -1,8 +1,10 @@
 package ceui.pixiv.events
 
 import android.content.Context
+import androidx.lifecycle.asFlow
 import ceui.lisa.BuildConfig
 import ceui.lisa.activities.Shaft
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.shaftapi.ShaftHmac
 import ceui.loxia.Client
 import ceui.loxia.ObjectPool
@@ -16,6 +18,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -65,6 +70,10 @@ object EventReporter {
     }
 
     private const val MMKV_KEY_CLIENT_ID = "shaft_events_client_id"
+    /** 上一次成功 POST 到 server 的 (uid, clientId) tuple,值是 "uid:clientId"
+     *  连接串。值匹配当前则跳过 POST(server 端 ON CONFLICT 幂等兜底,这只是
+     *  省一次网络往返 + 一次 HMAC 计算)。uid 或 clientId 变化都会 cache miss。*/
+    private const val MMKV_KEY_LAST_UID_BINDING = "shaft_events_uid_binding_last"
     private const val FLUSH_INTERVAL_MS = 30_000L
     private const val FLUSH_THRESHOLD = 10           // POST when queue reaches this many
     private const val MAX_BATCH = 50                 // server caps at 100; stay well under
@@ -86,6 +95,9 @@ object EventReporter {
     )
     private val mutex = Mutex()
     private val queue = ArrayDeque<EventEntry>()
+    /** Serializes binding POSTs — observer 可能在快速登录/登出场景下短时间内
+     *  连发几次,锁住保证同一时刻只有一个 POST 在路上,避免无意义并发。 */
+    private val uidBindingMutex = Mutex()
 
     @Volatile private var clientId: String = ""
     @Volatile private var hmacEnabled: Boolean = false
@@ -147,6 +159,24 @@ object EventReporter {
                         Timber.tag(TAG).e(t, "tick loop iteration crashed; continuing")
                     }
                 }
+            }
+
+            // ── uid ↔ client_id binding observer ───────────────────────────
+            // SessionManager.loggedInAccount 一变 → uid > 0 时静默 POST
+            // /uid-bindings 把 (this device 的 anonymous client_id, 用户 pixiv uid)
+            // 落到 server。distinctUntilChanged 防止 token refresh 这类同 uid
+            // re-emit 触发重复 POST;filter > 0 跳过未登录态。submitUidBinding
+            // 内部还有 MMKV cache 二次过滤,observer 只是"事件触发点"。
+            scope.launch {
+                Timber.tag(TAG).i("uid_binding observer launching (will watch SessionManager.loggedInAccount)")
+                SessionManager.loggedInAccount.asFlow()
+                    .map { it?.user?.id ?: 0L }
+                    .distinctUntilChanged()
+                    .filter { it > 0L }
+                    .collect { uid ->
+                        Timber.tag(TAG).i("uid_binding observer fired uid=%d → submitUidBinding()", uid)
+                        submitUidBinding(uid)
+                    }
             }
         } catch (t: Throwable) {
             // Initialization must never crash the app. If MMKV isn't available,
@@ -333,6 +363,108 @@ object EventReporter {
                 cause,
                 "flush failed: requeue=%d drop=%d (queue=%d, maxRetries=%d)",
                 requeued, dropped, queue.size, MAX_RETRIES,
+            )
+        }
+    }
+
+    /**
+     * 静默 POST `(uid, clientId)` 绑定到 server。每个决策点都打 log,方便
+     * `adb logcat -s EventReporter` 一眼定位卡在哪。
+     *
+     * 跳过条件(按顺序检查):
+     *   - reporter 未 init → skip
+     *   - HMAC disabled (fork build) → skip(端点强制 HMAC,发了也是 401)
+     *   - uid <= 0 → skip(observer 已 filter,这里二次防御)
+     *   - clientId 空 → skip(init 失败时可能没赋值)
+     *   - MMKV 里上一次成功的 token 跟当前完全一致 → skip
+     *
+     * 否则在 IO scope launch coroutine 进 mutex 走 POST,成功后写 MMKV cache。
+     * 失败不抛、不重试 — 下次 observer 触发(再登录 / 重启 app)会重试。
+     */
+    fun submitUidBinding(uid: Long) {
+        if (!initialized.get()) {
+            Timber.tag(TAG).d("uid_binding skip: reporter not initialized (uid=%d)", uid)
+            return
+        }
+        if (!hmacEnabled) {
+            Timber.tag(TAG).d("uid_binding skip: hmac disabled (fork build) (uid=%d)", uid)
+            return
+        }
+        if (uid <= 0L) {
+            Timber.tag(TAG).d("uid_binding skip: non-positive uid (uid=%d)", uid)
+            return
+        }
+        val cid = clientId
+        if (cid.isEmpty()) {
+            Timber.tag(TAG).w("uid_binding skip: clientId empty (init failed?) (uid=%d)", uid)
+            return
+        }
+
+        val token = "$uid:$cid"
+        val mmkv = MMKV.defaultMMKV()
+        val cached = mmkv?.getString(MMKV_KEY_LAST_UID_BINDING, null)
+        if (cached == token) {
+            Timber.tag(TAG).i(
+                "uid_binding skip: cache hit (uid=%d clientId head=%s..)",
+                uid, cid.take(8),
+            )
+            return
+        }
+        Timber.tag(TAG).i(
+            "uid_binding cache miss: cached=%s current=%d:%s.. — queueing POST",
+            cached?.take(20)?.plus("..") ?: "<null>",
+            uid, cid.take(8),
+        )
+
+        scope.launch {
+            uidBindingMutex.withLock {
+                // 进锁后再 check 一次:并发触发(罕见)时第二个 caller 看到第一个
+                // 已经写过 cache 就直接退,避免重复 POST。
+                val cachedNow = MMKV.defaultMMKV()?.getString(MMKV_KEY_LAST_UID_BINDING, null)
+                if (cachedNow == token) {
+                    Timber.tag(TAG).d("uid_binding skip after lock: another caller wrote cache (uid=%d)", uid)
+                    return@withLock
+                }
+                postUidBindingOnce(uid, cid, token)
+            }
+        }
+    }
+
+    private suspend fun postUidBindingOnce(uid: Long, cid: String, token: String) {
+        // 手动拼 JSON,跟 ChatFrameEncoder 同风格 — 两个字段无 metachar 风险,
+        // clientId 是 hex64、uid 是 Long,直接字符串内插安全。
+        val body = """{"client_id":"$cid","uid":$uid}"""
+        val sig = ShaftHmac.signHex(body, BuildConfig.SHAFT_EVENTS_HMAC)
+        Timber.tag(TAG).d(
+            "uid_binding POST starting uid=%d clientId head=%s.. bodyBytes=%d sig head=%s.. sig tail=%s",
+            uid, cid.take(8), body.length, sig.take(8), sig.takeLast(4),
+        )
+        val t0 = System.currentTimeMillis()
+        try {
+            val resp = ShaftEventsClient.api.bindUid(
+                sig,
+                body.toRequestBody("application/json".toMediaType()),
+            )
+            val elapsed = System.currentTimeMillis() - t0
+            if (resp.ok) {
+                MMKV.defaultMMKV()?.putString(MMKV_KEY_LAST_UID_BINDING, token)
+                Timber.tag(TAG).i(
+                    "uid_binding POST ok uid=%d status=%s elapsedMs=%d → cache written",
+                    uid, resp.status ?: "-", elapsed,
+                )
+            } else {
+                // server 返回 ok=false 是协议异常(我们写的 endpoint 只有 ok=true
+                // 或 4xx/5xx),理论上不该发生 — 不写 cache,下次重试。
+                Timber.tag(TAG).w(
+                    "uid_binding POST returned ok=false uid=%d status=%s elapsedMs=%d (NOT caching)",
+                    uid, resp.status ?: "-", elapsed,
+                )
+            }
+        } catch (t: Throwable) {
+            val elapsed = System.currentTimeMillis() - t0
+            Timber.tag(TAG).w(
+                t, "uid_binding POST failed uid=%d elapsedMs=%d (will retry on next observer fire)",
+                uid, elapsed,
             )
         }
     }

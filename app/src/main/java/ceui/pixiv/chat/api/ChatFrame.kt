@@ -83,6 +83,32 @@ sealed interface ChatFrame {
         val ts: Long,
     ) : ChatFrame
 
+    /**
+     * `{ "kind": "artist_new_work", "user_id", "target_type", "target_id",
+     *    "title"?, "thumb_url"?, "discovered_at" }`
+     *
+     * Server-initiated push: an illust/manga/novel by an artist this client
+     * has subscribed to (via outbound `sub_artists` frame) was just seen for
+     * the first time in shaft-api-v2's meta table — i.e. some other client
+     * (could be anyone, including this user on another device) interacted
+     * with it and reported the IllustsBean payload, server matched the
+     * `user_id` against the live in-memory subscription router, and fanned
+     * out to this connection.
+     *
+     * **No client_msg_id, no echo, no dedup**: this is a notification, not
+     * a message; same target_id can arrive twice if server is restarted +
+     * client re-subs + first sensor re-interacts (rare). UI should be
+     * idempotent on (target_type, target_id).
+     */
+    data class ArtistNewWork(
+        val userId: Long,
+        val targetType: String,
+        val targetId: Long,
+        val title: String?,
+        val thumbUrl: String?,
+        val discoveredAt: Long,
+    ) : ChatFrame
+
     /** Valid JSON but unknown / malformed envelope. Logged, dead-lettered, stream stays alive. */
     data class Unknown(val raw: String) : ChatFrame
 }
@@ -146,6 +172,23 @@ object ChatFrameDecoder {
                 clientMsgId = obj.get("client_msg_id")?.asStringOrNull(),
             )
             "pong" -> ChatFrame.Pong(serverTs = obj.get("server_ts")?.asLongOrNull() ?: 0L)
+            "artist_new_work" -> {
+                // Required: user_id, target_type, target_id. Missing any → dead letter.
+                val userId = obj.get("user_id")?.asLongOrNull()
+                val targetType = obj.get("target_type")?.asStringOrNull()
+                val targetId = obj.get("target_id")?.asLongOrNull()
+                if (userId == null || targetType == null || targetId == null) {
+                    Timber.tag(TAG).w("artist_new_work missing user_id/target_type/target_id: %s", raw.take(120))
+                    ChatFrame.Unknown(raw)
+                } else ChatFrame.ArtistNewWork(
+                    userId = userId,
+                    targetType = targetType,
+                    targetId = targetId,
+                    title = obj.get("title")?.asStringOrNull(),
+                    thumbUrl = obj.get("thumb_url")?.asStringOrNull(),
+                    discoveredAt = obj.get("discovered_at")?.asLongOrNull() ?: 0L,
+                )
+            }
             "typing" -> {
                 // Required: uid, room. `ts` is informational (client uses
                 // its own wall clock for the 5s timeout), `state` defaults
@@ -259,6 +302,27 @@ object ChatFrameEncoder {
             }
             append('}')
         }
+    }
+
+    /**
+     * Build a `sub_artists` frame:
+     * `{"kind":"sub_artists","user_ids":[123, 456, ...]}`
+     *
+     * Full-replace semantics: this list overwrites any previous subscription
+     * on the server. Empty list = unsubscribe from everything. Server caps
+     * at 1500 unique uids per call — callers must trim before sending.
+     *
+     * Each uid is serialized as a JSON number (not string) — pixiv uids fit
+     * in Long which fits in JSON number range; matches server's preferred
+     * shape (server accepts strings too but numbers are unambiguous).
+     */
+    fun subArtists(userIds: List<Long>): String = buildString {
+        append("""{"kind":"sub_artists","user_ids":[""")
+        userIds.forEachIndexed { i, id ->
+            if (i > 0) append(',')
+            append(id)
+        }
+        append("]}")
     }
 
     private fun escapeJsonString(s: String): String {
