@@ -1,6 +1,5 @@
 package ceui.pixiv.ui.search.v3
 
-import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -169,32 +168,9 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.dividerBodyLength.isVisible = isNovel
         binding.rowBodyLength.root.isVisible = isNovel
 
-        // novel 专属两个开关行（illust 模式整段保持 GONE）
-        if (isNovel) setupNovelSwitches()
-
         registerPickerListeners(viewLifecycleOwner)
         renderRows()
         ensureSearchOptionsLoaded()
-    }
-
-    private fun setupNovelSwitches() {
-        binding.dividerOriginalOnly.isVisible = true
-        binding.rowOriginalOnly.root.isVisible = true
-        binding.dividerReplaceableOnly.isVisible = true
-        binding.rowReplaceableOnly.root.isVisible = true
-        binding.rowOriginalOnly.inlineSwitchTitle.setText(R.string.search_filter_v3_row_original_only)
-        binding.rowReplaceableOnly.inlineSwitchTitle.setText(R.string.search_filter_v3_row_replaceable_only)
-        val accentTint = ColorStateList.valueOf(palette.primary)
-        binding.rowOriginalOnly.inlineSwitchToggle.thumbTintList = accentTint
-        binding.rowReplaceableOnly.inlineSwitchToggle.thumbTintList = accentTint
-        // 整行点击切换 switch（与 iOS 行为一致）；switch 自身的 listener 在 renderRows
-        // 与 isChecked 同步——避免 set 触发回调的死循环。
-        binding.rowOriginalOnly.root.setOnClick {
-            binding.rowOriginalOnly.inlineSwitchToggle.toggle()
-        }
-        binding.rowReplaceableOnly.root.setOnClick {
-            binding.rowReplaceableOnly.inlineSwitchToggle.toggle()
-        }
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -315,7 +291,14 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             @Suppress("DEPRECATION")
             val patch = bundle.getSerializable(OtherFilterSheet.KEY_PATCH)
                     as? OtherFilterSheet.Patch ?: return@setFragmentResultListener
-            updateFilter { it.copy(excludeAi = patch.excludeAi, r18Mode = patch.r18Mode) }
+            updateFilter {
+                it.copy(
+                    excludeAi = patch.excludeAi,
+                    r18Mode = patch.r18Mode,
+                    isOriginalOnly = patch.isOriginalOnly,
+                    isReplaceableOnly = patch.isReplaceableOnly,
+                )
+            }
         }
     }
 
@@ -350,21 +333,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         }
 
         bindRow(binding.rowOther, R.string.search_filter_v3_row_other, otherSummary(filter))
-
-        // novel 专属开关 —— 同步 toggle 状态。Switch 的 isChecked 写入会触发 listener，
-        // 所以先摘后装：避免 set → listener → updateFilter → renderRows 死循环。
-        if (isNovel) {
-            binding.rowOriginalOnly.inlineSwitchToggle.setOnCheckedChangeListener(null)
-            binding.rowReplaceableOnly.inlineSwitchToggle.setOnCheckedChangeListener(null)
-            binding.rowOriginalOnly.inlineSwitchToggle.isChecked = filter.isOriginalOnly
-            binding.rowReplaceableOnly.inlineSwitchToggle.isChecked = filter.isReplaceableOnly
-            binding.rowOriginalOnly.inlineSwitchToggle.setOnCheckedChangeListener { _, checked ->
-                updateFilter { it.copy(isOriginalOnly = checked) }
-            }
-            binding.rowReplaceableOnly.inlineSwitchToggle.setOnCheckedChangeListener { _, checked ->
-                updateFilter { it.copy(isReplaceableOnly = checked) }
-            }
-        }
     }
 
     private fun bindRow(row: CellSearchFilterRowBinding, titleRes: Int, value: String) {
@@ -528,6 +496,13 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             R18Mode.SafeOnly -> flags += getString(R.string.search_filter_v3_r18_safe)
             R18Mode.R18Only  -> flags += getString(R.string.search_filter_v3_r18_only)
             R18Mode.All -> Unit
+        }
+        // novel 专属 2 个 switch —— 也在「其他条件」sheet 里设置；开了就上 summary
+        if (isNovel && filter.isOriginalOnly) {
+            flags += getString(R.string.search_filter_v3_row_original_only)
+        }
+        if (isNovel && filter.isReplaceableOnly) {
+            flags += getString(R.string.search_filter_v3_row_replaceable_only)
         }
         return if (flags.isEmpty()) getString(R.string.search_filter_v3_other_summary_none)
         else flags.joinToString(" · ")
@@ -759,7 +734,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     }
 
     private fun showOtherSheet() {
-        OtherFilterSheet.newInstance(REQUEST_OTHER, currentFilter())
+        OtherFilterSheet.newInstance(REQUEST_OTHER, currentFilter(), isNovel = isNovel)
             .show(childFragmentManager, REQUEST_OTHER)
     }
 
