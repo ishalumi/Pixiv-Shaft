@@ -93,12 +93,19 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         // 发现入口默认隐藏，画像完备后才展示
         baseBind.navView.getMenu().findItem(R.id.nav_discovery).setVisible(false);
         updateDiscoveryVisibility();
-        // 试验性分区在 release 也保留,「批量下载 Debug」(存储占用诊断) +「操作记录」(用户自查动作历史) release 也开;其它调试入口仍仅 debug 可见
+        // 试验性分区:
+        //   github 渠道 release 保留「批量下载 Debug」(存储占用诊断) +「操作记录」(用户自查动作历史);其它调试入口仅 debug 可见。
+        //   google play 渠道为合规起见整段隐藏 (试验性分区 + 批量下载 Debug + 操作记录 全部不显示)。
         boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
-        baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
-        baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(isDebugBuild);
-        baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
-        baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(isDebugBuild);
+        boolean isGoogleChannel = "google".equals(ceui.lisa.BuildConfig.UPDATE_CHANNEL);
+        if (isGoogleChannel && !isDebugBuild) {
+            baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(false);
+        } else {
+            baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
+            baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(isDebugBuild);
+            baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
+            baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(isDebugBuild);
+        }
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(
