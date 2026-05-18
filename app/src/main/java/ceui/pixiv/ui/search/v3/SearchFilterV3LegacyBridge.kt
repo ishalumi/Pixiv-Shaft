@@ -168,8 +168,10 @@ object SearchFilterV3LegacyBridge {
             tool = if (isNovel) null else (searchModel.tool.value ?: baseline.tool),
             genre = if (isNovel) (searchModel.genre.value ?: baseline.genre) else null,
             lang = searchModel.lang.value ?: baseline.lang,
-            // durationBucket 不从 SearchModel 反向解析（legacy 没存 bucket，只有 start/end_date）
-            durationBucket = baseline.durationBucket,
+            // bucket 名字反解到 enum；命中不到（含 null）→ baseline
+            durationBucket = searchModel.durationBucket.value?.let { name ->
+                DurationBucket.values().firstOrNull { it.name == name }
+            } ?: baseline.durationBucket,
             startDate = searchModel.startDate.value ?: baseline.startDate,
             endDate = searchModel.endDate.value ?: baseline.endDate,
             r18Mode = r18,
@@ -208,12 +210,17 @@ object SearchFilterV3LegacyBridge {
         searchModel.tool.value = filter.tool
         searchModel.genre.value = filter.genre
         searchModel.lang.value = filter.lang
-        // 投稿期间：bucket 当场算 today−N → start/end_date；自定义日期原样透传；都空 = 不限
-        val today = java.time.LocalDate.now()
-        val (computedStart, computedEnd) = filter.durationBucket?.toDateRange(today)
-            ?: (filter.startDate to filter.endDate)
-        searchModel.startDate.value = computedStart
-        searchModel.endDate.value = computedEnd
+        // 投稿期间:bucket 名字写到 SearchModel.durationBucket,Repo.initApi 当场算 today−N
+        // (跨午夜窗口自动跟随今天);bucket 非空时 start/end_date 互斥清空。
+        // null bucket → bucket 字段清空,start/end_date 用 filter 原值(指定期间自定义/不限)
+        searchModel.durationBucket.value = filter.durationBucket?.name
+        if (filter.durationBucket != null) {
+            searchModel.startDate.value = null
+            searchModel.endDate.value = null
+        } else {
+            searchModel.startDate.value = filter.startDate
+            searchModel.endDate.value = filter.endDate
+        }
         searchModel.r18Restriction.value = when (filter.r18Mode) {
             R18Mode.All -> 0
             R18Mode.SafeOnly -> 1

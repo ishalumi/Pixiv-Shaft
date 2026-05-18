@@ -1382,6 +1382,7 @@
     <string name="search_filter_v3_row_other">Other conditions</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">All bookmarks</string>
     <string name="search_filter_v3_tool_all_summary">All tools</string>
+    <string name="search_filter_v3_tool_loading">Loading tools, please try again shortly</string>
     <string name="search_filter_v3_genre_all_summary">All genres</string>
     <string name="search_filter_v3_lang_all_summary">All languages</string>
     <string name="search_filter_v3_other_summary_no_ai">Hide AI</string>

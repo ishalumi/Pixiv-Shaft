@@ -1284,6 +1284,7 @@
     <string name="search_filter_v3_row_other">Diğer koşullar</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">Tümü</string>
     <string name="search_filter_v3_tool_all_summary">Tüm araçlar</string>
+    <string name="search_filter_v3_tool_loading">Araç listesi yükleniyor, biraz sonra tekrar deneyin</string>
     <string name="search_filter_v3_genre_all_summary">Tüm türler</string>
     <string name="search_filter_v3_lang_all_summary">Tüm diller</string>
     <string name="search_filter_v3_other_summary_no_ai">YZ gizle</string>

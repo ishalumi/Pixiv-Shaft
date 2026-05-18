@@ -46,7 +46,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private val isLegacy: Boolean
         get() = arguments?.getBoolean(ARG_LEGACY, false) ?: false
 
-    private val searchViewModel: SearchViewModel by lazy {
+    /** internal so child sheets (e.g. [OtherFilterSheet]) can read live VM state. */
+    internal val searchViewModel: SearchViewModel by lazy {
         val owner: ViewModelStoreOwner = if (isLegacy) {
             requireActivity()
         } else {
@@ -723,12 +724,9 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     }
 
     private fun showOtherSheet() {
-        // illust 模式才需要 tool 候选;novel 模式列表空着无副作用,sheet 自己整张卡片隐藏
-        val toolOpts = if (isNovel) emptyList()
-            else searchViewModel.searchOptions.value?.illust?.tool?.options.orEmpty()
-        OtherFilterSheet.newInstance(
-            REQUEST_OTHER, currentFilter(), isNovel = isNovel, toolOptions = toolOpts,
-        )
+        // 工具候选不再 snapshot 透传;OtherFilterSheet 直接从 parent VM 现读,
+        // /v1/search/options 异步加载完一到位下次点击就生效
+        OtherFilterSheet.newInstance(REQUEST_OTHER, currentFilter(), isNovel = isNovel)
             .show(childFragmentManager, REQUEST_OTHER)
     }
 
@@ -736,7 +734,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     // /v1/search/options 拉取
     // ──────────────────────────────────────────────────────────────────
 
-    private fun ensureSearchOptionsLoaded() {
+    /** internal so child sheets can re-trigger the load if they find options still empty. */
+    internal fun ensureSearchOptionsLoaded() {
         if (searchViewModel.searchOptions.value != null) return
         // /v1/search/options 实测响应与 word 无关，但服务端要求该参数非空。
         // 直接用用户的 keyword；空就传一个无害占位。

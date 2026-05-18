@@ -13,6 +13,7 @@ import ceui.lisa.activities.Shaft
 import ceui.lisa.databinding.CellSearchFilterCheckRowBinding
 import ceui.lisa.databinding.CellSearchFilterSwitchRowBinding
 import ceui.lisa.databinding.DialogSearchFilterOtherBinding
+import ceui.lisa.utils.Common
 import ceui.lisa.utils.Local
 import ceui.pixiv.utils.setOnClick
 import java.io.Serializable
@@ -39,8 +40,14 @@ class OtherFilterSheet : V3BottomSheetBase() {
     private val isNovel: Boolean
         get() = requireArguments().getBoolean(ARG_IS_NOVEL, false)
 
-    private val toolOptions: List<String>
-        get() = requireArguments().getStringArrayList(ARG_TOOL_OPTIONS).orEmpty()
+    /**
+     * 实时读 parent sheet 持有的 SearchViewModel.searchOptions —— 不再用 args snapshot,
+     * 这样即便用户进 sheet 时 /v1/search/options 还没拉到,options 一到位下一次点击就生效。
+     * Cast 不上时回退空 list（自身被遗弃/单独显示时 fail-safe）。
+     */
+    private fun currentToolOptions(): List<String> =
+        (parentFragment as? SearchFilterV3BottomSheet)
+            ?.searchViewModel?.searchOptions?.value?.illust?.tool?.options.orEmpty()
 
     data class Patch(
         val excludeAi: Boolean,
@@ -131,8 +138,11 @@ class OtherFilterSheet : V3BottomSheetBase() {
             binding.rowTool.root.setOnClick { showToolPicker() }
             childFragmentManager.setFragmentResultListener(REQUEST_TOOL_PICKER, this) { _, bundle ->
                 val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
-                // idx 0 = "不限"，1.. = toolOptions[idx-1]
-                draftTool = if (idx == 0) null else toolOptions.getOrNull(idx - 1)
+                // idx 0 = "不限"，1.. = currentToolOptions()[idx-1]
+                // 读 picker 展示时的同一份 options(此刻 options 必非空,picker 是从 currentToolOptions
+                // build 出来的);用 currentToolOptions() 比缓存 args 更不容易过期
+                val opts = currentToolOptions()
+                draftTool = if (idx == 0) null else opts.getOrNull(idx - 1)
                 renderToolRow()
             }
         }
@@ -167,12 +177,17 @@ class OtherFilterSheet : V3BottomSheetBase() {
     }
 
     private fun showToolPicker() {
-        // 候选为空（/v1/search/options 还没拉到）就 no-op，父 sheet 已经在打开过滤器时
-        // 触发 ensureSearchOptionsLoaded —— 真到达「其他条件」时一般已就绪
-        if (toolOptions.isEmpty()) return
-        val labels = listOf(getString(R.string.search_filter_v3_tool_all_summary)) + toolOptions
+        val opts = currentToolOptions()
+        if (opts.isEmpty()) {
+            // /v1/search/options 还没回 —— 重启一次拉取 + toast 让用户稍后再试,
+            // 不再像旧版那样一声不吭地吃掉点击
+            (parentFragment as? SearchFilterV3BottomSheet)?.ensureSearchOptionsLoaded()
+            Common.showToast(getString(R.string.search_filter_v3_tool_loading))
+            return
+        }
+        val labels = listOf(getString(R.string.search_filter_v3_tool_all_summary)) + opts
         val selected = draftTool?.let {
-            val idx = toolOptions.indexOf(it)
+            val idx = opts.indexOf(it)
             if (idx < 0) 0 else idx + 1
         } ?: 0
         SimplePickerSheet.newInstance(
@@ -219,22 +234,19 @@ class OtherFilterSheet : V3BottomSheetBase() {
         private const val ARG_REQUEST_KEY = "requestKey"
         private const val ARG_INITIAL = "initial"
         private const val ARG_IS_NOVEL = "isNovel"
-        private const val ARG_TOOL_OPTIONS = "toolOptions"
         private const val KEY_DRAFT = "draft"
 
-        // 内部 picker 与父 sheet REQUEST_OTHER 互不重叠;snapshot 工具候选作为 arg 透传
+        // 内部 picker 的 request key,与父 sheet REQUEST_OTHER 互不重叠
         private const val REQUEST_TOOL_PICKER = "v3_other_tool_picker"
 
         fun newInstance(
             requestKey: String,
             current: SearchFilterV3,
             isNovel: Boolean,
-            toolOptions: List<String>,
         ): OtherFilterSheet = OtherFilterSheet().apply {
             arguments = Bundle().apply {
                 putString(ARG_REQUEST_KEY, requestKey)
                 putBoolean(ARG_IS_NOVEL, isNovel)
-                putStringArrayList(ARG_TOOL_OPTIONS, ArrayList(toolOptions))
                 putSerializable(ARG_INITIAL, Patch(
                     current.excludeAi,
                     current.r18Mode,

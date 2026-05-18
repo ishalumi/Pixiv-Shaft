@@ -8,7 +8,9 @@ import ceui.lisa.model.ListNovel
 import ceui.lisa.utils.PixivSearchParamUtil
 import ceui.lisa.viewmodel.SearchModel
 import ceui.pixiv.ui.search.SortType
+import ceui.pixiv.ui.search.v3.DurationBucket
 import io.reactivex.Observable
+import java.time.LocalDate
 
 class SearchNovelRepo @JvmOverloads constructor(
     var keyword: String?,
@@ -32,6 +34,12 @@ class SearchNovelRepo @JvmOverloads constructor(
     private var wordCountMax: Int? = null,
     private var readingTimeMin: Int? = null,
     private var readingTimeMax: Int? = null,
+    /**
+     * 投稿期间相对预设档（[DurationBucket].name 字串形式）—— V3 sheet 写入。
+     * 与 [startDate]/[endDate] 互斥：非 null 时 [initApi] 当场算 today−N 覆盖发出去，
+     * 跨午夜也不会窗口停滞。null 时直接用 [startDate]/[endDate]（指定期间自定义）。
+     */
+    private var durationBucket: String? = null,
 ) : RemoteRepo<ListNovel>() {
 
     override fun initApi(): Observable<ListNovel> {
@@ -52,11 +60,15 @@ class SearchNovelRepo @JvmOverloads constructor(
                 ((sortType == PixivSearchParamUtil.POPULAR_SORT_VALUE ||
                   sortType == PixivSearchParamUtil.TRENDING_BUILTIN_SORT_VALUE) && isPremium != true)
 
+        // 投稿期间相对档当场算 today−N(每次 initApi 都重算,跨午夜窗口自动跟随今天);
+        // bucket 为空时回落到自定义起止日期
+        val (effectiveStartDate, effectiveEndDate) = resolveDateRange()
+
         return if (usePopularPreview) {
             Retro.getAppApi().popularNovelPreview(
                 assembledKeyword,
-                startDate,
-                endDate,
+                effectiveStartDate,
+                effectiveEndDate,
                 searchType,
                 bookmarkMin,
                 genre,
@@ -75,8 +87,8 @@ class SearchNovelRepo @JvmOverloads constructor(
             Retro.getAppApi().searchNovel(
                 assembledKeyword,
                 sortType,
-                startDate,
-                endDate,
+                effectiveStartDate,
+                effectiveEndDate,
                 searchType,
                 bookmarkMin,
                 genre,
@@ -92,6 +104,19 @@ class SearchNovelRepo @JvmOverloads constructor(
                 readingTimeMax,
             )
         }
+    }
+
+    /**
+     * 投稿期间 → (start_date, end_date)：
+     *   - bucket 非空：今日往前推 N 天/月/年（[DurationBucket.toDateRange]）
+     *   - bucket 为空：回落到 [startDate]/[endDate] 原值（V3「指定期间」自定义）
+     *   - bucket 名称无效：当作空 bucket 处理（fail-safe）
+     */
+    private fun resolveDateRange(): Pair<String?, String?> {
+        val bucket = durationBucket?.let { name ->
+            DurationBucket.values().firstOrNull { it.name == name }
+        } ?: return startDate to endDate
+        return bucket.toDateRange(LocalDate.now())
     }
 
     override fun initNextApi(): Observable<ListNovel> {
@@ -120,5 +145,6 @@ class SearchNovelRepo @JvmOverloads constructor(
         wordCountMax = searchModel.wordCountMax.value
         readingTimeMin = searchModel.readingTimeMin.value
         readingTimeMax = searchModel.readingTimeMax.value
+        durationBucket = searchModel.durationBucket.value
     }
 }

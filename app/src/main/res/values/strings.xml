@@ -1807,6 +1807,7 @@
     <string name="search_filter_v3_row_other">其他条件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">所有点赞数</string>
     <string name="search_filter_v3_tool_all_summary">所有的制图工具</string>
+    <string name="search_filter_v3_tool_loading">工具列表加载中，请稍后再试</string>
     <string name="search_filter_v3_genre_all_summary">全部类型</string>
     <string name="search_filter_v3_lang_all_summary">所有语种</string>
     <string name="search_filter_v3_other_summary_no_ai">屏蔽 AI</string>

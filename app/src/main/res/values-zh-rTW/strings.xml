@@ -1399,6 +1399,7 @@
     <string name="search_filter_v3_row_other">其他條件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">所有讚數</string>
     <string name="search_filter_v3_tool_all_summary">所有的繪圖工具</string>
+    <string name="search_filter_v3_tool_loading">工具列表載入中，請稍後再試</string>
     <string name="search_filter_v3_genre_all_summary">全部類型</string>
     <string name="search_filter_v3_lang_all_summary">所有語種</string>
     <string name="search_filter_v3_other_summary_no_ai">屏蔽 AI</string>

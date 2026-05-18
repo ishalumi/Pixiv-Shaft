@@ -12,8 +12,10 @@ import ceui.lisa.utils.SearchTypeUtil
 import ceui.lisa.viewmodel.SearchModel
 import ceui.pixiv.ui.prime.PrimeIllustLoader
 import ceui.pixiv.ui.search.SortType
+import ceui.pixiv.ui.search.v3.DurationBucket
 import io.reactivex.Observable
 import io.reactivex.functions.Function
+import java.time.LocalDate
 
 class SearchIllustRepo @JvmOverloads constructor(
     var keyword: String?,
@@ -37,6 +39,12 @@ class SearchIllustRepo @JvmOverloads constructor(
     private var widthMax: Int? = null,
     private var heightMin: Int? = null,
     private var heightMax: Int? = null,
+    /**
+     * 投稿期间相对预设档（[DurationBucket].name 字串形式）—— V3 sheet 写入。
+     * 与 [startDate]/[endDate] 互斥：非 null 时 [initApi] 当场用 today−N 算出真实 start/end_date
+     * 覆盖发出去，跨午夜也不会窗口停滞。null 时直接用 [startDate]/[endDate]（指定期间自定义）。
+     */
+    private var durationBucket: String? = null,
 ) : RemoteRepo<ListIllust>() {
 
     private var filterMapper: FilterMapper? = null
@@ -65,11 +73,15 @@ class SearchIllustRepo @JvmOverloads constructor(
         val usePopularPreview = sortType == SortType.POPULAR_PREVIEW ||
                 (sortType == PixivSearchParamUtil.POPULAR_SORT_VALUE && isPremium != true)
 
+        // 投稿期间相对档当场算 today−N（每次 initApi 都重算,跨午夜窗口自动跟随今天）;
+        // bucket 为空时回落到自定义起止日期
+        val (effectiveStartDate, effectiveEndDate) = resolveDateRange()
+
         return if (usePopularPreview) {
             Retro.getAppApi().popularPreview(
                 assembledKeyword,
-                startDate,
-                endDate,
+                effectiveStartDate,
+                effectiveEndDate,
                 searchType,
                 bookmarkMin,
                 tool,
@@ -85,8 +97,8 @@ class SearchIllustRepo @JvmOverloads constructor(
             Retro.getAppApi().searchIllust(
                 assembledKeyword,
                 sortType,
-                startDate,
-                endDate,
+                effectiveStartDate,
+                effectiveEndDate,
                 searchType,
                 bookmarkMin,
                 tool,
@@ -99,6 +111,19 @@ class SearchIllustRepo @JvmOverloads constructor(
                 heightMax,
             )
         }
+    }
+
+    /**
+     * 投稿期间 → (start_date, end_date)：
+     *   - bucket 非空：今日往前推 N 天/月/年（[DurationBucket.toDateRange]）
+     *   - bucket 为空：回落到 [startDate]/[endDate] 原值（V3「指定期间」自定义）
+     *   - bucket 名称无效：当作空 bucket 处理（fail-safe）
+     */
+    private fun resolveDateRange(): Pair<String?, String?> {
+        val bucket = durationBucket?.let { name ->
+            DurationBucket.values().firstOrNull { it.name == name }
+        } ?: return startDate to endDate
+        return bucket.toDateRange(LocalDate.now())
     }
 
     override fun initNextApi(): Observable<ListIllust> {
@@ -117,8 +142,9 @@ class SearchIllustRepo @JvmOverloads constructor(
         if (result != null) {
             return Observable.just(result)
         }
+        val (effectiveStartDate, effectiveEndDate) = resolveDateRange()
         return Retro.getAppApi().popularPreview(
-            keyword ?: "", startDate, endDate, searchType,
+            keyword ?: "", effectiveStartDate, effectiveEndDate, searchType,
             bookmarkMin, tool, lang, searchAiType, ratioPattern,
             widthMin, widthMax, heightMin, heightMax,
         )
@@ -142,6 +168,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         widthMax = searchModel.widthMax.value
         heightMin = searchModel.heightMin.value
         heightMax = searchModel.heightMax.value
+        durationBucket = searchModel.durationBucket.value
         // 老版没显式 AI 字段；用全局开关派生（FragmentFilter 历史就这么干）。
         searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
 

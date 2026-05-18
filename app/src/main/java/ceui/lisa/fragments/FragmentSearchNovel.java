@@ -101,7 +101,8 @@ public class FragmentSearchNovel extends NetListFragment<FragmentBaseListBinding
                 searchModel.getWordCountMin().getValue(),
                 searchModel.getWordCountMax().getValue(),
                 searchModel.getReadingTimeMin().getValue(),
-                searchModel.getReadingTimeMax().getValue()
+                searchModel.getReadingTimeMax().getValue(),
+                searchModel.getDurationBucket().getValue()
         );
     }
 

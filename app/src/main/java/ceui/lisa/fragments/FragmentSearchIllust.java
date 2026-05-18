@@ -123,7 +123,8 @@ public class FragmentSearchIllust extends NetListFragment<FragmentBaseListBindin
                 searchModel.getWidthMin().getValue(),
                 searchModel.getWidthMax().getValue(),
                 searchModel.getHeightMin().getValue(),
-                searchModel.getHeightMax().getValue()
+                searchModel.getHeightMax().getValue(),
+                searchModel.getDurationBucket().getValue()
         );
     }
 

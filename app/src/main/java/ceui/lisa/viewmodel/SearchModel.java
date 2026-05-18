@@ -17,10 +17,14 @@ public class SearchModel extends ViewModel {
     //上一个排序模式
     private final MutableLiveData<String> lastSortType = new MutableLiveData<>();
 
-    //开始日期
+    //开始日期 —— 与 durationBucket 互斥:bucket 非空时这两个字段保持 null
     private final MutableLiveData<String> startDate = new MutableLiveData<>();
     //结束日期
     private final MutableLiveData<String> endDate = new MutableLiveData<>();
+
+    // 投稿期间相对预设档名(DurationBucket.name);非空时 Repo.initApi 当场算 today−N 覆盖
+    // start/end_date,跨午夜也不会窗口停滞
+    private final MutableLiveData<String> durationBucket = new MutableLiveData<>();
 
     private final MutableLiveData<String> nowGo = new MutableLiveData<>();
 
@@ -76,6 +80,10 @@ public class SearchModel extends ViewModel {
 
     public MutableLiveData<String> getEndDate() {
         return endDate;
+    }
+
+    public MutableLiveData<String> getDurationBucket() {
+        return durationBucket;
     }
 
     public MutableLiveData<String> getLastSortType() {
