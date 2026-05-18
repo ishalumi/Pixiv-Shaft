@@ -42,7 +42,7 @@ class RankIllustRepo(
             // day_r18_ai / week_r18g / day_r18_manga）本身就是用来看 R18 的，
             // 不再用全局 R18 过滤把内容清空
             if (mode?.contains("r18") == true) {
-                mapper.skipR18Filter()
+                mapper.enableSkipR18Filter()
             }
             val mapped = mapper.apply(listIllust)
             if (Shaft.sSettings.isFilterRankBookmarked) {

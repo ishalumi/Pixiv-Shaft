@@ -20,7 +20,7 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
 
     private boolean skipR18Filter = false;
 
-    public Mapper<T> skipR18Filter() {
+    public Mapper<T> enableSkipR18Filter() {
         this.skipR18Filter = true;
         return this;
     }
