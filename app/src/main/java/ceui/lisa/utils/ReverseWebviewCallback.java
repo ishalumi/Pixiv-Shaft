@@ -5,9 +5,11 @@ import android.content.Intent;
 import android.net.Uri;
 
 import androidx.appcompat.app.AppCompatActivity;
+import ceui.lisa.R;
 import ceui.lisa.activities.MainActivity;
 import ceui.lisa.activities.TemplateActivity;
 import io.reactivex.disposables.Disposable;
+import java.io.IOException;
 import okhttp3.ResponseBody;
 import retrofit2.Response;
 
@@ -45,6 +47,10 @@ public class ReverseWebviewCallback implements ReverseImage.Callback {
     @Override
     public void onError(Throwable e) {
         e.printStackTrace();
-        Common.showToast(e.getMessage());
+        if (e instanceof IOException) {
+            Common.showToast(mContext.getString(R.string.reverse_image_network_error));
+        } else {
+            Common.showToast(e.getMessage());
+        }
     }
 }

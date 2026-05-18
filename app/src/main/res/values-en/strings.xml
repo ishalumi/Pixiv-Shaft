@@ -592,6 +592,7 @@
   <string name="string_408">URL format is incorrect</string>
   <string name="string_409">Auto bookmark when download</string>
   <string name="string_410">The size of the source image exceeds the limit</string>
+  <string name="reverse_image_network_error">Connection reset; a proxy may be required. Try switching to Ascii2D from the top-right menu.</string>
   <string name="string_411">Fourth group</string>
   <string name="string_412">Birthday</string>
   <string name="string_413">The details page displays the original picture</string>

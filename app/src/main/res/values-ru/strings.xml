@@ -585,6 +585,7 @@
   <string name="string_408">Формат URL неверный</string>
   <string name="string_409">Автоматический сбор при скачивании</string>
   <string name="string_410">Размер исходного изображения, найденного по изображению, превышает предел</string>
+  <string name="reverse_image_network_error">Соединение сброшено; возможно, нужен прокси. Попробуйте переключиться на Ascii2D в меню справа сверху.</string>
   <string name="string_411">Четыре группы</string>
   <string name="string_412">день рождения</string>
   <string name="string_413">На странице сведений показано исходное изображение</string>
