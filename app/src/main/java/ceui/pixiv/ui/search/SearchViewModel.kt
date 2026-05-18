@@ -129,7 +129,7 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             widthMax = if (isNovel) null else filter.resolutionBucket?.widthMax,
             heightMin = if (isNovel) null else filter.resolutionBucket?.heightMin,
             heightMax = if (isNovel) null else filter.resolutionBucket?.heightMax,
-            // 正文长度 / 阅读用时仅 novel；text vs word 二选一（unit 决定哪组 query 生效）
+            // 正文长度仅 novel；按 unit 三选一分派到对应 query 组（其余两组保持 null）
             textLengthMin = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Char)
                 filter.bodyLength.min else null,
             textLengthMax = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Char)
@@ -138,8 +138,10 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
                 filter.bodyLength.min else null,
             wordCountMax = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Word)
                 filter.bodyLength.max else null,
-            readingTimeMin = if (isNovel) filter.readingTime?.min else null,
-            readingTimeMax = if (isNovel) filter.readingTime?.max else null,
+            readingTimeMin = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.ReadingTime)
+                filter.bodyLength.min else null,
+            readingTimeMax = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.ReadingTime)
+                filter.bodyLength.max else null,
         )
     }
 }

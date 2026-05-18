@@ -1254,6 +1254,7 @@
     <string name="search_filter_v3_body_length_all">Не ограничено</string>
     <string name="search_filter_v3_body_length_section_char">Кол-во символов</string>
     <string name="search_filter_v3_body_length_section_word">Кол-во слов</string>
+    <string name="search_filter_v3_body_length_section_time">Время чтения</string>
     <string name="search_filter_v3_body_length_micro">Микро (до 4 999 симв.)</string>
     <string name="search_filter_v3_body_length_short">Короткий (5 000 – 19 999 симв.)</string>
     <string name="search_filter_v3_body_length_medium">Средний (20 000 – 79 999 симв.)</string>
@@ -1268,8 +1269,6 @@
     <string name="search_filter_v3_body_length_unit_word">слов</string>
     <string name="search_filter_v3_body_length_custom_char_summary">Символов %1$s</string>
     <string name="search_filter_v3_body_length_custom_word_summary">Слов %1$s</string>
-    <string name="search_filter_v3_row_reading_time">Время чтения</string>
-    <string name="search_filter_v3_reading_time_all">Не ограничено</string>
     <string name="search_filter_v3_reading_time_under_10">До 9 мин</string>
     <string name="search_filter_v3_reading_time_10_59">10 – 59 мин</string>
     <string name="search_filter_v3_reading_time_60_179">60 – 179 мин</string>

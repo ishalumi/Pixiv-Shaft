@@ -1353,6 +1353,7 @@
     <string name="search_filter_v3_body_length_all">指定なし</string>
     <string name="search_filter_v3_body_length_section_char">文字数</string>
     <string name="search_filter_v3_body_length_section_word">単語数</string>
+    <string name="search_filter_v3_body_length_section_time">読了予想時間</string>
     <string name="search_filter_v3_body_length_micro">ショートショート（4,999 文字以下）</string>
     <string name="search_filter_v3_body_length_short">短編（5,000 – 19,999 文字）</string>
     <string name="search_filter_v3_body_length_medium">中編（20,000 – 79,999 文字）</string>
@@ -1367,8 +1368,6 @@
     <string name="search_filter_v3_body_length_unit_word">単語</string>
     <string name="search_filter_v3_body_length_custom_char_summary">文字数指定 %1$s</string>
     <string name="search_filter_v3_body_length_custom_word_summary">単語数指定 %1$s</string>
-    <string name="search_filter_v3_row_reading_time">読了予想時間</string>
-    <string name="search_filter_v3_reading_time_all">指定なし</string>
     <string name="search_filter_v3_reading_time_under_10">9 分以下</string>
     <string name="search_filter_v3_reading_time_10_59">10 – 59 分</string>
     <string name="search_filter_v3_reading_time_60_179">60 – 179 分</string>

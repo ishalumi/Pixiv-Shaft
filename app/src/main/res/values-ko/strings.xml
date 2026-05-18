@@ -1261,6 +1261,7 @@
     <string name="search_filter_v3_body_length_all">제한 없음</string>
     <string name="search_filter_v3_body_length_section_char">글자 수</string>
     <string name="search_filter_v3_body_length_section_word">단어 수</string>
+    <string name="search_filter_v3_body_length_section_time">읽기 예상 시간</string>
     <string name="search_filter_v3_body_length_micro">초단편(4,999자 이하)</string>
     <string name="search_filter_v3_body_length_short">단편(5,000 – 19,999자)</string>
     <string name="search_filter_v3_body_length_medium">중편(20,000 – 79,999자)</string>
@@ -1275,8 +1276,6 @@
     <string name="search_filter_v3_body_length_unit_word">단어</string>
     <string name="search_filter_v3_body_length_custom_char_summary">글자 수 지정 %1$s</string>
     <string name="search_filter_v3_body_length_custom_word_summary">단어 수 지정 %1$s</string>
-    <string name="search_filter_v3_row_reading_time">읽기 예상 시간</string>
-    <string name="search_filter_v3_reading_time_all">제한 없음</string>
     <string name="search_filter_v3_reading_time_under_10">9분 이하</string>
     <string name="search_filter_v3_reading_time_10_59">10 – 59분</string>
     <string name="search_filter_v3_reading_time_60_179">60 – 179분</string>

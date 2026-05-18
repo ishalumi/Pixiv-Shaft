@@ -1350,6 +1350,7 @@
     <string name="search_filter_v3_body_length_all">Unlimited</string>
     <string name="search_filter_v3_body_length_section_char">Character count</string>
     <string name="search_filter_v3_body_length_section_word">Word count</string>
+    <string name="search_filter_v3_body_length_section_time">Reading time</string>
     <string name="search_filter_v3_body_length_micro">Micro (under 4,999 chars)</string>
     <string name="search_filter_v3_body_length_short">Short (5,000 – 19,999 chars)</string>
     <string name="search_filter_v3_body_length_medium">Medium (20,000 – 79,999 chars)</string>
@@ -1364,8 +1365,6 @@
     <string name="search_filter_v3_body_length_unit_word">words</string>
     <string name="search_filter_v3_body_length_custom_char_summary">Custom chars %1$s</string>
     <string name="search_filter_v3_body_length_custom_word_summary">Custom words %1$s</string>
-    <string name="search_filter_v3_row_reading_time">Reading time</string>
-    <string name="search_filter_v3_reading_time_all">Unlimited</string>
     <string name="search_filter_v3_reading_time_under_10">Under 9 min</string>
     <string name="search_filter_v3_reading_time_10_59">10 – 59 min</string>
     <string name="search_filter_v3_reading_time_60_179">60 – 179 min</string>

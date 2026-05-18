@@ -1773,6 +1773,7 @@
     <string name="search_filter_v3_body_length_all">不限</string>
     <string name="search_filter_v3_body_length_section_char">文字数</string>
     <string name="search_filter_v3_body_length_section_word">单词数</string>
+    <string name="search_filter_v3_body_length_section_time">阅读预计用时</string>
     <string name="search_filter_v3_body_length_micro">微型小说（4,999 字以下）</string>
     <string name="search_filter_v3_body_length_short">短篇小说（5,000 – 19,999 字）</string>
     <string name="search_filter_v3_body_length_medium">中篇小说（20,000 – 79,999 字）</string>
@@ -1787,9 +1788,7 @@
     <string name="search_filter_v3_body_length_unit_word">词</string>
     <string name="search_filter_v3_body_length_custom_char_summary">指定文字数 %1$s</string>
     <string name="search_filter_v3_body_length_custom_word_summary">指定单词数 %1$s</string>
-    <!-- 阅读预计用时（novel） -->
-    <string name="search_filter_v3_row_reading_time">阅读预计用时</string>
-    <string name="search_filter_v3_reading_time_all">不限</string>
+    <!-- 阅读预计用时 —— 现作为正文长度 picker 第三段的标签/桶 -->
     <string name="search_filter_v3_reading_time_under_10">9 分钟以下</string>
     <string name="search_filter_v3_reading_time_10_59">10 – 59 分钟</string>
     <string name="search_filter_v3_reading_time_60_179">60 – 179 分钟</string>

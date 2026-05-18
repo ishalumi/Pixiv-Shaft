@@ -146,22 +146,21 @@ object SearchFilterV3LegacyBridge {
                     it.heightMin == hMin && it.heightMax == hMax
             } ?: baseline.resolutionBucket
         }
-        // 正文长度：text vs word 二选一；任意一边设了就构造 spec，否则空
+        // 正文长度：text / word / reading-time 三选一；任意一组设了就构造对应单位的 spec。
+        // 三组同时存了的话按优先级 char > word > reading-time 取第一非空。
         val bodyLength = if (!isNovel) null else {
             val tMin = searchModel.textLengthMin.value
             val tMax = searchModel.textLengthMax.value
             val wMin = searchModel.wordCountMin.value
             val wMax = searchModel.wordCountMax.value
+            val rMin = searchModel.readingTimeMin.value
+            val rMax = searchModel.readingTimeMax.value
             when {
                 tMin != null || tMax != null -> BodyLengthSpec(BodyLengthUnit.Char, tMin, tMax)
                 wMin != null || wMax != null -> BodyLengthSpec(BodyLengthUnit.Word, wMin, wMax)
+                rMin != null || rMax != null -> BodyLengthSpec(BodyLengthUnit.ReadingTime, rMin, rMax)
                 else -> baseline.bodyLength
             }
-        }
-        val readingTime = if (!isNovel) null else {
-            val rMin = searchModel.readingTimeMin.value
-            val rMax = searchModel.readingTimeMax.value
-            if (rMin != null || rMax != null) ReadingTimeSpec(rMin, rMax) else baseline.readingTime
         }
 
         return SearchFilterV3(
@@ -183,7 +182,6 @@ object SearchFilterV3LegacyBridge {
             ratioPattern = ratio,
             resolutionBucket = resolution,
             bodyLength = bodyLength,
-            readingTime = readingTime,
         )
     }
 
@@ -229,14 +227,15 @@ object SearchFilterV3LegacyBridge {
         searchModel.widthMax.value = filter.resolutionBucket?.widthMax
         searchModel.heightMin.value = filter.resolutionBucket?.heightMin
         searchModel.heightMax.value = filter.resolutionBucket?.heightMax
-        // 正文长度：unit 选 Char 就只写 text_length，选 Word 就只写 word_count；另一边一律清空
+        // 正文长度：unit 三选一分派到对应组；另两组一律清空，避免之前留下的值串味儿
         val isChar = filter.bodyLength?.unit == BodyLengthUnit.Char
         val isWord = filter.bodyLength?.unit == BodyLengthUnit.Word
+        val isRead = filter.bodyLength?.unit == BodyLengthUnit.ReadingTime
         searchModel.textLengthMin.value = if (isChar) filter.bodyLength?.min else null
         searchModel.textLengthMax.value = if (isChar) filter.bodyLength?.max else null
         searchModel.wordCountMin.value = if (isWord) filter.bodyLength?.min else null
         searchModel.wordCountMax.value = if (isWord) filter.bodyLength?.max else null
-        searchModel.readingTimeMin.value = filter.readingTime?.min
-        searchModel.readingTimeMax.value = filter.readingTime?.max
+        searchModel.readingTimeMin.value = if (isRead) filter.bodyLength?.min else null
+        searchModel.readingTimeMax.value = if (isRead) filter.bodyLength?.max else null
     }
 }

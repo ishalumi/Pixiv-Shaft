@@ -1252,6 +1252,7 @@
     <string name="search_filter_v3_body_length_all">Sınırsız</string>
     <string name="search_filter_v3_body_length_section_char">Karakter sayısı</string>
     <string name="search_filter_v3_body_length_section_word">Kelime sayısı</string>
+    <string name="search_filter_v3_body_length_section_time">Okuma süresi</string>
     <string name="search_filter_v3_body_length_micro">Mikro (4.999 karakter altı)</string>
     <string name="search_filter_v3_body_length_short">Kısa (5.000 – 19.999 karakter)</string>
     <string name="search_filter_v3_body_length_medium">Orta (20.000 – 79.999 karakter)</string>
@@ -1266,8 +1267,6 @@
     <string name="search_filter_v3_body_length_unit_word">kelime</string>
     <string name="search_filter_v3_body_length_custom_char_summary">Karakter %1$s</string>
     <string name="search_filter_v3_body_length_custom_word_summary">Kelime %1$s</string>
-    <string name="search_filter_v3_row_reading_time">Okuma süresi</string>
-    <string name="search_filter_v3_reading_time_all">Sınırsız</string>
     <string name="search_filter_v3_reading_time_under_10">9 dakika altı</string>
     <string name="search_filter_v3_reading_time_10_59">10 – 59 dakika</string>
     <string name="search_filter_v3_reading_time_60_179">60 – 179 dakika</string>

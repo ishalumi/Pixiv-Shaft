@@ -214,7 +214,7 @@ interface API {
         @Query("end_date") end_date: String? = null,
         @Query("is_original_only") is_original_only: Boolean? = null,
         @Query("is_replaceable_only") is_replaceable_only: Boolean? = null,
-        // TODO 正文长度 / 阅读用时 —— 参数名是 mockup，真实抓包到了再替换
+        // text_length_* iOS 抓包确认；word_count_* / reading_time_* 仍是 mockup，待抓包
         @Query("text_length_min") text_length_min: Int? = null,
         @Query("text_length_max") text_length_max: Int? = null,
         @Query("word_count_min") word_count_min: Int? = null,
@@ -265,7 +265,7 @@ interface API {
         @Query("end_date") end_date: String? = null,
         @Query("is_original_only") is_original_only: Boolean? = null,
         @Query("is_replaceable_only") is_replaceable_only: Boolean? = null,
-        // TODO 正文长度 / 阅读用时 —— 参数名是 mockup，真实抓包到了再替换
+        // text_length_* iOS 抓包确认；word_count_* / reading_time_* 仍是 mockup，待抓包
         @Query("text_length_min") text_length_min: Int? = null,
         @Query("text_length_max") text_length_max: Int? = null,
         @Query("word_count_min") word_count_min: Int? = null,

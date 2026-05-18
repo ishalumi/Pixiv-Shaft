@@ -23,8 +23,8 @@ import ceui.pixiv.ui.search.SortType
  *  11. r18Mode               — R18 限制（沿用旧版「-R-18」「R-18」关键字 hack）
  *  12. ratioPattern          — 长宽比（仅 illust/manga，走官方 `ratio_pattern` query 参数）
  *  13. resolutionBucket      — 分辨率档位（仅 illust/manga，走官方 `width_min/max` + `height_min/max`）
- *  14. bodyLength            — 正文长度（仅 novel；文字数 / 单词数 两单位，4 个预设档 + 指定自定义）
- *  15. readingTime           — 阅读预计用时（仅 novel；4 个分钟档 + 指定自定义）
+ *  14. bodyLength            — 正文长度（仅 novel；统一维度，按 unit 三选一：文字数 / 单词数 /
+ *                              阅读预计用时；每种 4 个预设档 + 指定自定义）
  */
 data class SearchFilterV3(
     val sort: String = SortType.DATE_DESC,
@@ -42,7 +42,6 @@ data class SearchFilterV3(
     val ratioPattern: RatioPattern? = null,   // illust/manga only
     val resolutionBucket: ResolutionBucket? = null,   // illust/manga only
     val bodyLength: BodyLengthSpec? = null,           // novel only
-    val readingTime: ReadingTimeSpec? = null,         // novel only
     // novel 专属（pixiv iOS 8.6.5 「仅限原创作品」/「仅限支持单词置换的作品」开关）
     val isOriginalOnly: Boolean = false,
     val isReplaceableOnly: Boolean = false,
@@ -95,7 +94,6 @@ data class SearchFilterV3(
         if (!isNovel && ratioPattern != null) n++
         if (!isNovel && resolutionBucket != null) n++
         if (isNovel && bodyLength != null) n++
-        if (isNovel && readingTime != null) n++
         return n
     }
 }
@@ -199,13 +197,16 @@ enum class ResolutionBucket(
 }
 
 /**
- * 正文长度（仅 novel）—— 文字数 / 单词数 两种单位，每种 4 个预设档 + 「指定」自定义范围。
- * 状态只存最终 (unit, min, max) 三元组——picker 渲染时 (min, max) 对照 [CharLengthBucket] /
- * [WordLengthBucket] 反查是否命中预设档，未命中则视为自定义。
+ * 正文长度（仅 novel）—— 三种单位（文字数 / 单词数 / 阅读预计用时）的统一维度，每种 4 个
+ * 预设档 + 「指定」自定义范围。三种单位互斥，picker 单选；min/max 是 nullable 区间端。
  *
- * API 落地（mockup 命名，待用户补真实抓包替换）：
- *   - unit = Char  →  `text_length_min` / `text_length_max`
- *   - unit = Word  →  `word_count_min`  / `word_count_max`
+ * 状态只存最终 (unit, min, max) 三元组——picker 渲染时 (min, max) 对照 [CharLengthBucket] /
+ * [WordLengthBucket] / [ReadingTimeBucket] 反查是否命中预设档，未命中则视为自定义。
+ *
+ * API 落地：
+ *   - unit = Char         →  `text_length_min`  / `text_length_max`    （iOS 抓包确认）
+ *   - unit = Word         →  `word_count_min`   / `word_count_max`     （mockup，待抓包）
+ *   - unit = ReadingTime  →  `reading_time_min` / `reading_time_max`   （mockup，待抓包，单位「分钟」）
  */
 data class BodyLengthSpec(
     val unit: BodyLengthUnit,
@@ -213,7 +214,7 @@ data class BodyLengthSpec(
     val max: Int?,
 )
 
-enum class BodyLengthUnit { Char, Word }
+enum class BodyLengthUnit { Char, Word, ReadingTime }
 
 /** 文字数预设档（iOS pixiv 8.6.6「文字数」picker 一致）。 */
 enum class CharLengthBucket(val min: Int?, val max: Int?) {
@@ -231,16 +232,7 @@ enum class WordLengthBucket(val min: Int?, val max: Int?) {
     Above80000(80000, null),
 }
 
-/**
- * 阅读预计用时（仅 novel）—— 单位「分钟」。4 个预设档 + 「指定」自定义范围。
- * API 落地（mockup）：`reading_time_min` / `reading_time_max`。
- */
-data class ReadingTimeSpec(
-    val min: Int?,   // minutes
-    val max: Int?,
-)
-
-/** 阅读预计用时预设档（iOS pixiv 8.6.6「阅读预计用时」picker 一致）。 */
+/** 阅读预计用时预设档（iOS pixiv 8.6.6「阅读预计用时」picker 一致；单位「分钟」）。 */
 enum class ReadingTimeBucket(val min: Int?, val max: Int?) {
     Under10(null, 9),
     From10To59(10, 59),
