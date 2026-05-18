@@ -1941,4 +1941,10 @@
     <string name="plaza_author_tag">作者</string>
     <string name="update_apk_invalid">下载的安装包不完整,请重新下载</string>
     <string name="update_install_failed">安装失败,已为你打开浏览器下载</string>
+
+    <!-- 通知中心:抓 /v1/notification/list 与 /v1/info/* 实现的官方通知 + 公告页 -->
+    <string name="notifications_and_info">通知与公告</string>
+    <string name="tab_notifications">通知</string>
+    <string name="tab_info">公告</string>
+    <string name="notification_view_more_chip">展开全部 · %1$s</string>
 </resources>

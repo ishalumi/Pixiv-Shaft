@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  V3 公告条目:玻璃卡 + 紧排正文 + 单行 metadata。is_recent 时右侧加色点。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/info_entry_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/v3_glass_surface"
+    android:foreground="@drawable/v3_glass_surface_ripple">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="14dp">
+
+        <TextView
+            android:id="@+id/info_title"
+            style="@style/textMontserratSemiBold"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:letterSpacing="-0.01"
+            android:lineSpacingMultiplier="1.3"
+            android:maxLines="2"
+            android:textColor="@color/v3_text_1"
+            android:textSize="13.5sp"
+            app:layout_constraintEnd_toStartOf="@+id/info_recent_dot"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Latest pixiv announcement title goes here and may wrap two lines" />
+
+        <View
+            android:id="@+id/info_recent_dot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/tab_item_red_dot"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/info_date"
+            style="@style/textMontserratMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:letterSpacing="0.08"
+            android:textAllCaps="true"
+            android:textColor="@color/v3_text_3"
+            android:textSize="9.5sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/info_title"
+            tools:text="2026-04-21" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

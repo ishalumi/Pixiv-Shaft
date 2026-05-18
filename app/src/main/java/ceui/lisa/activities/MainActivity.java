@@ -106,6 +106,10 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
             baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(isDebugBuild);
         }
+        // 通知中心走 pixiv 官方 API,google play release 渠道为合规起见隐藏整个入口。
+        if (isGoogleChannel && !isDebugBuild) {
+            baseBind.navView.getMenu().findItem(R.id.nav_notifications).setVisible(false);
+        }
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(
@@ -366,6 +370,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         } else if (id == nav_slideshow) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "浏览记录");
+        } else if (id == R.id.nav_notifications) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "通知中心");
         } else if (id == R.id.nav_manage) {
             ceui.lisa.utils.LayoutPrewarmer.prewarm(this, R.layout.fragment_settings);
             intent = new Intent(mContext, TemplateActivity.class);

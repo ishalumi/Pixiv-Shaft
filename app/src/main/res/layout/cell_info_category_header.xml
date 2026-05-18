@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  V3 公告分类小标:粉→金 accent strip + 较大正文级字号(15sp)。
+  注意 V3 通用 section_v3_*_header 走 ALL-CAPS 英文样式(11-12sp + letterSpacing 0.12),
+  那套对中文 no-op,这里改用中文友好的 bold 标题,字号跟下面 entry title 拉开半个档位。
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/category_header_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="22dp"
+    android:paddingBottom="8dp">
+
+    <!-- accent 必须自己锚到 parent.start;不能跟 category_title 互锚(start↔end 会循环,
+         结果 title 0dp 宽,文字不显示,旁边 category_more 的 baseline 对齐也跟着塌)。
+         高度 18dp 大致匹配 15sp 中文字 ascent→descent,显眼不抢戏。 -->
+    <View
+        android:id="@+id/category_accent"
+        android:layout_width="4dp"
+        android:layout_height="18dp"
+        android:background="@drawable/v3_notification_accent_strip"
+        app:layout_constraintBottom_toBottomOf="@+id/category_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/category_title" />
+
+    <!-- 间距走 title 的 marginStart;不能用 accent.marginEnd —— accent 没有 end 约束,
+         marginEnd 无效。这是我前一版踩的坑。 -->
+    <TextView
+        android:id="@+id/category_title"
+        style="@style/textMontserratExtraBold"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:letterSpacing="-0.01"
+        android:textColor="@color/v3_text_1"
+        android:textSize="15sp"
+        app:layout_constraintEnd_toStartOf="@+id/category_more"
+        app:layout_constraintStart_toEndOf="@+id/category_accent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="全部" />
+
+    <!-- 只有"查看更多"自己带 ripple,整行不响应点击;保留 minWidth/Height 给手指留点击热区。 -->
+    <TextView
+        android:id="@+id/category_more"
+        style="@style/textMontserratSemiBold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:minHeight="32dp"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:text="@string/see_more"
+        android:textColor="@color/v3_ambient_primary"
+        android:textSize="12sp"
+        app:layout_constraintBaseline_toBaselineOf="@+id/category_title"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

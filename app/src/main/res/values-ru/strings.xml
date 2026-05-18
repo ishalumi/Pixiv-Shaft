@@ -1427,4 +1427,9 @@
     <string name="plaza_author_tag">Автор</string>
     <string name="update_apk_invalid">Загруженный установщик повреждён, повторите загрузку</string>
     <string name="update_install_failed">Сбой установки, открываю браузер для загрузки</string>
+
+    <string name="notifications_and_info">Уведомления</string>
+    <string name="tab_notifications">Активность</string>
+    <string name="tab_info">Новости</string>
+    <string name="notification_view_more_chip">Показать все · %1$s</string>
 </resources>

@@ -342,4 +342,20 @@ interface API {
 
     @GET("/idp-urls")
     suspend fun getIdpUrls(): IdpUrlsResponse
+
+    @GET("/v1/notification/list")
+    suspend fun getNotificationList(): NotificationListResponse
+
+    @GET("/v1/notification/view-more")
+    suspend fun getNotificationViewMore(
+        @Query("notification_id") notification_id: Long,
+    ): NotificationListResponse
+
+    @GET("/v1/info/latest")
+    suspend fun getInfoLatest(): InfoLatestResponse
+
+    @GET("/v1/info/list")
+    suspend fun getInfoList(
+        @Query("cid") cid: Int,
+    ): InfoListResponse
 }

@@ -1526,4 +1526,9 @@
     <string name="plaza_author_tag">作者</string>
     <string name="update_apk_invalid">ダウンロードしたインストーラが不完全です、再ダウンロードしてください</string>
     <string name="update_install_failed">インストールに失敗しました。ブラウザでダウンロードします</string>
+
+    <string name="notifications_and_info">お知らせ</string>
+    <string name="tab_notifications">通知</string>
+    <string name="tab_info">お知らせ</string>
+    <string name="notification_view_more_chip">すべて表示 · %1$s</string>
 </resources>

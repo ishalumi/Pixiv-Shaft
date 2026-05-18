@@ -88,6 +88,9 @@ import ceui.loxia.ObjectType;
 import ceui.loxia.flag.FlagDescFragment;
 import ceui.loxia.flag.FlagReasonFragment;
 import ceui.pixiv.ui.comments.CommentsFragment;
+import ceui.pixiv.ui.notification.InfoCategoryListFragment;
+import ceui.pixiv.ui.notification.NotificationPagerFragment;
+import ceui.pixiv.ui.notification.NotificationViewMoreFragment;
 import ceui.pixiv.ui.prime.PrimeTagDetailFragment;
 import ceui.pixiv.ui.prime.PrimeTagsFragment;
 
@@ -430,6 +433,12 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                         ceui.pixiv.plaza.ui.PlazaPostDetailFragment.EXTRA_POST_ID, 0L);
                     return ceui.pixiv.plaza.ui.PlazaPostDetailFragment.Companion.newInstance(postId);
                 }
+                case "通知中心":
+                    return new NotificationPagerFragment();
+                case "通知展开":
+                    return new NotificationViewMoreFragment();
+                case "公告分类":
+                    return new InfoCategoryListFragment();
                 default:
                     return new Fragment();
             }

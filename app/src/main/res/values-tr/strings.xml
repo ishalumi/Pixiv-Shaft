@@ -1425,4 +1425,9 @@
     <string name="plaza_author_tag">Yazar</string>
     <string name="update_apk_invalid">İndirilen kurulum paketi bozuk, lütfen yeniden indirin</string>
     <string name="update_install_failed">Kurulum başarısız, indirme için tarayıcı açılıyor</string>
+
+    <string name="notifications_and_info">Bildirimler</string>
+    <string name="tab_notifications">Etkinlik</string>
+    <string name="tab_info">Duyurular</string>
+    <string name="notification_view_more_chip">Tümünü gör · %1$s</string>
 </resources>

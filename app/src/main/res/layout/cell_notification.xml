@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  V3 通知卡片:glass surface + 左侧 accent strip(未读时显色)+ 右侧缩略图。
+  对齐 section_v3_artist / cell_history_illust_v3 的视觉语言:18-24dp 圆角、
+  细 stroke、v3_text_1/3 字阶、letterSpacing 紧排。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/notification_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/v3_glass_surface"
+    android:foreground="@drawable/v3_glass_surface_ripple">
+
+    <!-- 未读 accent 条:左缘竖向 3dp 渐变,跟 v3_accent_line 一致,只在未读时显 -->
+    <View
+        android:id="@+id/unread_accent"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:layout_marginVertical="14dp"
+        android:background="@drawable/v3_notification_accent_strip"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="14dp">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/left_avatar"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/chat_avatar_placeholder"
+            app:civ_border_color="#1A08080C"
+            app:civ_border_width="2dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/notification_text"
+            style="@style/textMontserratMedium"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="12dp"
+            android:letterSpacing="-0.01"
+            android:lineSpacingMultiplier="1.35"
+            android:textColor="@color/v3_text_1"
+            android:textSize="13.5sp"
+            app:layout_constraintEnd_toStartOf="@+id/right_thumb"
+            app:layout_constraintStart_toEndOf="@+id/left_avatar"
+            app:layout_constraintTop_toTopOf="@+id/left_avatar"
+            tools:text="Someone liked your work today afternoon." />
+
+        <TextView
+            android:id="@+id/notification_time"
+            style="@style/textMontserratMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:letterSpacing="0.08"
+            android:textAllCaps="true"
+            android:textColor="@color/v3_text_3"
+            android:textSize="10sp"
+            app:layout_constraintStart_toStartOf="@+id/notification_text"
+            app:layout_constraintTop_toBottomOf="@+id/notification_text"
+            tools:text="2 hr · NEW" />
+
+        <net.csdn.roundview.RoundImageView
+            android:id="@+id/right_thumb"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@color/v3_surface_2"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/left_avatar"
+            app:rRadius="10dp"
+            tools:visibility="visible" />
+
+        <!-- view_more 展开按钮:玻璃 chip,跟 v3_detail_chip_bg 同款圆角 -->
+        <TextView
+            android:id="@+id/view_more_button"
+            style="@style/textMontserratSemiBold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/v3_notification_chip_bg"
+            android:gravity="center"
+            android:letterSpacing="0.04"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="7dp"
+            android:textColor="@color/v3_text_1"
+            android:textSize="11sp"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@+id/notification_text"
+            app:layout_constraintTop_toBottomOf="@+id/notification_time"
+            tools:text="VIEW ALL · 5"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

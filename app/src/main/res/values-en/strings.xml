@@ -1521,4 +1521,9 @@
     <string name="plaza_author_tag">Author</string>
     <string name="update_apk_invalid">Downloaded installer is incomplete, please retry</string>
     <string name="update_install_failed">Install failed, opening browser to download</string>
+
+    <string name="notifications_and_info">Notifications</string>
+    <string name="tab_notifications">Activity</string>
+    <string name="tab_info">News</string>
+    <string name="notification_view_more_chip">View all · %1$s</string>
 </resources>
