@@ -142,6 +142,13 @@ public interface DownloadDao {
     List<IllustHistoryEntity> getAllViewHistoryEntities();
 
     /**
+     * 只取 illustID 列,给 DiscoveryPool 之类只需要 id 集合的调用方用。
+     * 全表 SELECT * 会把每行 illustJson 一起塞进 CursorWindow,历史攒多了就 OOM。
+     */
+    @Query("SELECT illustID FROM illust_table")
+    List<Integer> getAllViewHistoryIds();
+
+    /**
      * 浏览历史总条数
      */
     @Query("SELECT COUNT(*) FROM illust_table")
