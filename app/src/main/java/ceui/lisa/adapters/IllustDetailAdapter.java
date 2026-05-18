@@ -34,7 +34,41 @@ import static com.bumptech.glide.load.resource.bitmap.BitmapTransitionOptions.wi
  */
 public class IllustDetailAdapter extends AbstractIllustAdapter<RecyclerView.ViewHolder> {
 
+    /** 折叠时只渲染前 N 张，避免靠"容器高度写死 + 内容裁切"造出白边。 */
+    private static final int COLLAPSED_COUNT = 1;
+
     private Fragment mFragment;
+    private boolean expanded = true;
+
+    public boolean isCollapsible() {
+        return allIllust != null && allIllust.getPage_count() > COLLAPSED_COUNT;
+    }
+
+    public boolean isExpanded() {
+        return expanded;
+    }
+
+    @Override
+    public int getItemCount() {
+        int total = super.getItemCount();
+        return expanded ? total : Math.min(total, COLLAPSED_COUNT);
+    }
+
+    public void expand() {
+        if (expanded) return;
+        int prev = getItemCount();
+        expanded = true;
+        int added = getItemCount() - prev;
+        if (added > 0) notifyItemRangeInserted(prev, added);
+    }
+
+    public void collapse() {
+        if (!expanded) return;
+        int prev = getItemCount();
+        expanded = false;
+        int removed = prev - getItemCount();
+        if (removed > 0) notifyItemRangeRemoved(getItemCount(), removed);
+    }
 
     public IllustDetailAdapter(IllustsBean list, Context context, boolean isForceOriginal) {
         mContext = context;

@@ -2,80 +2,58 @@ package ceui.lisa.view;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
-
+/**
+ * 折叠语义已迁移到 IllustDetailAdapter（按 itemCount 折叠，不再裁容器高度）。
+ * 该类保留为薄 CardView 壳，仅同步内层 RecyclerView 的滚动开关，避免 xml/binding 类型改动。
+ * open()/close() 不再修改 layoutParams.height —— 那是 issue #549 白边的根因。
+ */
 public class ExpandCard extends CardView {
 
-    private boolean isExpand = true;//默认展开
-    private int maxHeight = 0;
-    private Context mContext;
-
-    private void init(Context pContext) {
-        mContext = pContext;
-        maxHeight = (mContext.getResources().getDisplayMetrics().heightPixels) * 7 / 10;
-    }
+    private boolean isExpand = true;
 
     public ExpandCard(@NonNull Context context) {
         super(context);
-        init(context);
     }
 
     public ExpandCard(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
-        init(context);
     }
 
     public ExpandCard(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init(context);
     }
 
     public void open() {
-        if(isExpand){
-            return;
-        }
-
-        ViewGroup.LayoutParams layoutParams = getLayoutParams();
-        layoutParams.height = WRAP_CONTENT;
-        for (int i = 0; i < getChildCount(); i++) {
-            if (getChildAt(i) instanceof RecyclerView) {
-                final RecyclerView recyclerView = ((RecyclerView) getChildAt(i));
-                if (recyclerView.getLayoutManager() instanceof ScrollChange) {
-                    ((ScrollChange) recyclerView.getLayoutManager()).setScrollEnabled(true);
-                    break;
-                }
-            }
-        }
-        setLayoutParams(layoutParams);
+        if (isExpand) return;
+        setInnerScrollEnabled(true);
         isExpand = true;
     }
 
     public void close() {
-        if(isExpand){
-            ViewGroup.LayoutParams layoutParams = getLayoutParams();
-            layoutParams.height = maxHeight;
-            for (int i = 0; i < getChildCount(); i++) {
-                if (getChildAt(i) instanceof RecyclerView) {
-                    final RecyclerView recyclerView = ((RecyclerView) getChildAt(i));
-                    if (recyclerView.getLayoutManager() instanceof ScrollChange) {
-                        ((ScrollChange) recyclerView.getLayoutManager()).setScrollEnabled(false);
-                    }
-                }
-            }
-            setLayoutParams(layoutParams);
-            isExpand = false;
-        }
+        if (!isExpand) return;
+        setInnerScrollEnabled(false);
+        isExpand = false;
     }
 
     public boolean isExpand() {
         return isExpand;
     }
 
+    private void setInnerScrollEnabled(boolean enabled) {
+        for (int i = 0; i < getChildCount(); i++) {
+            if (getChildAt(i) instanceof RecyclerView) {
+                RecyclerView rv = (RecyclerView) getChildAt(i);
+                if (rv.getLayoutManager() instanceof ScrollChange) {
+                    ((ScrollChange) rv.getLayoutManager()).setScrollEnabled(enabled);
+                    break;
+                }
+            }
+        }
+    }
 }

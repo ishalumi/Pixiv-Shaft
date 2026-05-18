@@ -21,6 +21,7 @@ import android.widget.TextView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.lifecycle.Observer;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.qmuiteam.qmui.skin.QMUISkinManager;
@@ -231,7 +232,12 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
                     Common.copy(mContext, url);
                     return true;
                 } else if (menuItem.getItemId() == R.id.action_show_original) {
-                    baseBind.recyclerView.setAdapter(new IllustDetailAdapter(FragmentSingleIllust.this, illust, true));
+                    // 折叠状态从旧 adapter 继承到新 adapter，否则切原图后 see_all 文案和 adapter 状态会反
+                    IllustDetailAdapter newAdapter = new IllustDetailAdapter(FragmentSingleIllust.this, illust, true);
+                    if (illust.getPage_count() > 1 && !baseBind.illustList.isExpand()) {
+                        newAdapter.collapse();
+                    }
+                    baseBind.recyclerView.setAdapter(newAdapter);
                     return true;
                 } else if (menuItem.getItemId() == R.id.action_mute_illust) {
                     PixivOperate.muteIllust(illust);
@@ -467,13 +473,24 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
             baseBind.darkBlank.setVisibility(View.VISIBLE);
             baseBind.seeAll.setVisibility(View.VISIBLE);
             baseBind.illustList.close();
+            // 折叠交给 adapter（按 itemCount 折，不裁容器高度），见 issue #549
+            RecyclerView.Adapter<?> currentAdapter = baseBind.recyclerView.getAdapter();
+            if (currentAdapter instanceof IllustDetailAdapter) {
+                ((IllustDetailAdapter) currentAdapter).collapse();
+            }
+            baseBind.seeAll.setText("点击展开");
             baseBind.seeAll.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (baseBind.illustList.isExpand()) {
+                    RecyclerView.Adapter<?> a = baseBind.recyclerView.getAdapter();
+                    if (!(a instanceof IllustDetailAdapter)) return;
+                    IllustDetailAdapter detail = (IllustDetailAdapter) a;
+                    if (detail.isExpanded()) {
+                        detail.collapse();
                         baseBind.illustList.close();
                         baseBind.seeAll.setText("点击展开");
                     } else {
+                        detail.expand();
                         baseBind.illustList.open();
                         baseBind.seeAll.setText("点击折叠");
                     }
