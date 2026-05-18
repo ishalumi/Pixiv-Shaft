@@ -1726,11 +1726,12 @@
     <string name="search_filter_v3_bookmark_min">%d+</string>
 
     <string name="search_filter_v3_duration_all">不限</string>
-    <string name="search_filter_v3_duration_day">一日内</string>
+    <string name="search_filter_v3_duration_24h">24 小时内</string>
     <string name="search_filter_v3_duration_week">一周内</string>
-    <string name="search_filter_v3_duration_month">一月内</string>
+    <string name="search_filter_v3_duration_month">一个月内</string>
     <string name="search_filter_v3_duration_half_year">半年内</string>
     <string name="search_filter_v3_duration_year">一年内</string>
+    <string name="search_filter_v3_duration_custom">指定期间</string>
 
     <string name="search_filter_v3_date_clear">清除</string>
 

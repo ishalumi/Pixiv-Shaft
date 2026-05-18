@@ -129,9 +129,6 @@ object SearchFilterV3LegacyBridge {
             2 -> R18Mode.R18Only
             else -> baseline.r18Mode
         }
-        val storedDuration = searchModel.duration.value
-        val duration = SearchDuration.values().firstOrNull { it.apiValue == storedDuration }
-            ?: baseline.duration
         val ratio = if (isNovel) null
             else RatioPattern.values().firstOrNull { it.apiValue == searchModel.ratioPattern.value }
                 ?: baseline.ratioPattern
@@ -171,7 +168,8 @@ object SearchFilterV3LegacyBridge {
             tool = if (isNovel) null else (searchModel.tool.value ?: baseline.tool),
             genre = if (isNovel) (searchModel.genre.value ?: baseline.genre) else null,
             lang = searchModel.lang.value ?: baseline.lang,
-            duration = duration,
+            // durationBucket 不从 SearchModel 反向解析（legacy 没存 bucket，只有 start/end_date）
+            durationBucket = baseline.durationBucket,
             startDate = searchModel.startDate.value ?: baseline.startDate,
             endDate = searchModel.endDate.value ?: baseline.endDate,
             r18Mode = r18,
@@ -210,9 +208,12 @@ object SearchFilterV3LegacyBridge {
         searchModel.tool.value = filter.tool
         searchModel.genre.value = filter.genre
         searchModel.lang.value = filter.lang
-        searchModel.duration.value = filter.duration?.apiValue
-        searchModel.startDate.value = filter.startDate
-        searchModel.endDate.value = filter.endDate
+        // 投稿期间：bucket 当场算 today−N → start/end_date；自定义日期原样透传；都空 = 不限
+        val today = java.time.LocalDate.now()
+        val (computedStart, computedEnd) = filter.durationBucket?.toDateRange(today)
+            ?: (filter.startDate to filter.endDate)
+        searchModel.startDate.value = computedStart
+        searchModel.endDate.value = computedEnd
         searchModel.r18Restriction.value = when (filter.r18Mode) {
             R18Mode.All -> 0
             R18Mode.SafeOnly -> 1

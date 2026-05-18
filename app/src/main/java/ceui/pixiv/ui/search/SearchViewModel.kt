@@ -115,9 +115,14 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             tool = if (isNovel) null else filter.tool,
             genre = if (isNovel) filter.genre else null,
             lang = filter.lang,
-            duration = filter.duration?.apiValue,
-            startDate = filter.startDate,
-            endDate = filter.endDate,
+            // 投稿期间 3 选 1（互斥）：
+            //   1) durationBucket 非空：当场用 today−N 算 start/end_date
+            //   2) 否则用 filter.startDate/endDate（指定期间自定义）
+            //   3) 都空：不传，对应 iOS「不限」
+            startDate = filter.durationBucket?.toDateRange(java.time.LocalDate.now())?.first
+                ?: filter.startDate,
+            endDate = filter.durationBucket?.toDateRange(java.time.LocalDate.now())?.second
+                ?: filter.endDate,
             searchAiType = if (filter.excludeAi) 1 else 0,
             // novel-only switches —— illust 路径忽略；nullable 保留 retrofit 不传 query 的语义
             isOriginalOnly = if (isNovel && filter.isOriginalOnly) true else null,

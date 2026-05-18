@@ -1208,11 +1208,12 @@
     <string name="search_filter_v3_bookmark_min">%d+</string>
 
     <string name="search_filter_v3_duration_all">Любая</string>
-    <string name="search_filter_v3_duration_day">За сутки</string>
+    <string name="search_filter_v3_duration_24h">За 24 часа</string>
     <string name="search_filter_v3_duration_week">За неделю</string>
     <string name="search_filter_v3_duration_month">За месяц</string>
     <string name="search_filter_v3_duration_half_year">За полгода</string>
     <string name="search_filter_v3_duration_year">За год</string>
+    <string name="search_filter_v3_duration_custom">Указать период</string>
 
     <string name="search_filter_v3_date_clear">Очистить</string>
 

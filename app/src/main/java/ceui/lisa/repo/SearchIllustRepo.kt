@@ -30,7 +30,6 @@ class SearchIllustRepo @JvmOverloads constructor(
     private var bookmarkMin: Int? = null,
     private var tool: String? = null,
     private var lang: String? = null,
-    private var duration: String? = null,
     private var searchAiType: Int? = null,
     private var ratioPattern: String? = null,
     // 分辨率档位 4 项 —— V3 sheet 写入，老 FragmentFilter 不暴露
@@ -75,7 +74,6 @@ class SearchIllustRepo @JvmOverloads constructor(
                 bookmarkMin,
                 tool,
                 lang,
-                duration,
                 searchAiType,
                 ratioPattern,
                 widthMin,
@@ -93,7 +91,6 @@ class SearchIllustRepo @JvmOverloads constructor(
                 bookmarkMin,
                 tool,
                 lang,
-                duration,
                 searchAiType,
                 ratioPattern,
                 widthMin,
@@ -122,7 +119,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         }
         return Retro.getAppApi().popularPreview(
             keyword ?: "", startDate, endDate, searchType,
-            bookmarkMin, tool, lang, duration, searchAiType, ratioPattern,
+            bookmarkMin, tool, lang, searchAiType, ratioPattern,
             widthMin, widthMax, heightMin, heightMax,
         )
     }
@@ -140,7 +137,6 @@ class SearchIllustRepo @JvmOverloads constructor(
         bookmarkMin = searchModel.bookmarkMin.value
         tool = searchModel.tool.value
         lang = searchModel.lang.value
-        duration = searchModel.duration.value
         ratioPattern = searchModel.ratioPattern.value
         widthMin = searchModel.widthMin.value
         widthMax = searchModel.widthMax.value

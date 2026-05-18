@@ -16,9 +16,13 @@ import ceui.pixiv.ui.search.SortType
  *   5. tool                  — 绘画工具（仅 illust，从 /v1/search/options 拉）
  *   6. genre                 — 小说类型（仅 novel）
  *   7. lang                  — 语种
- *   8. duration              — 投稿时间（相对）
+ *   8. durationBucket        — 投稿期间相对预设档（24小时内/一周内/一月内/半年内/一年内）；
+ *                              与 startDate/endDate 互斥
  *   9. startDate /
- *      endDate               — 投稿时间（绝对，与 duration 互斥）
+ *      endDate               — 投稿期间「指定期间」自定义起止；与 durationBucket 互斥
+ *                              说明：V3 不再发 within_last_* 的 `duration` 参数；durationBucket
+ *                              在 [buildSearchConfig] 当场算 today−N → start_date/end_date 发出去，
+ *                              对齐 iOS pixiv 8.6.6 抓包行为
  *  10. excludeAi             — 屏蔽 AI 作品（驱动 search_ai_type）
  *  11. r18Mode               — R18 限制（沿用旧版「-R-18」「R-18」关键字 hack）
  *  12. ratioPattern          — 长宽比（仅 illust/manga，走官方 `ratio_pattern` query 参数）
@@ -34,8 +38,8 @@ data class SearchFilterV3(
     val tool: String? = null,
     val genre: Int? = null,
     val lang: String? = null,
-    val duration: SearchDuration? = null,
-    val startDate: String? = null,    // YYYY-MM-DD
+    val durationBucket: DurationBucket? = null,
+    val startDate: String? = null,    // YYYY-MM-DD —— 与 durationBucket 互斥
     val endDate: String? = null,      // YYYY-MM-DD
     val excludeAi: Boolean = false,
     val r18Mode: R18Mode = R18Mode.All,
@@ -85,7 +89,7 @@ data class SearchFilterV3(
         if (!isNovel && tool != null) n++
         if (isNovel && genre != null) n++
         if (lang != null) n++
-        if (duration != null) n++
+        if (durationBucket != null) n++
         if (startDate != null || endDate != null) n++
         if (excludeAi) n++
         if (r18Mode != R18Mode.All) n++
@@ -156,12 +160,31 @@ enum class KeywordUsersBucket(val min: Int) {
     fun keywordSuffix(): String = if (min > 0) "${min}users入り" else ""
 }
 
-enum class SearchDuration(val apiValue: String) {
-    Day("within_last_day"),
-    Week("within_last_week"),
-    Month("within_last_month"),
-    HalfYear("within_last_half_year"),
-    Year("within_last_year"),
+/**
+ * 投稿期间相对预设档。iOS pixiv 8.6.6 抓包确认：不再发 `duration=within_last_*`，而是把
+ * 「24 小时内 / 一周内 / 一月内 / 半年内 / 一年内」当场算成 today−N → start_date/end_date 发出。
+ * 「不限」=不传 start_date/end_date；「指定期间」走 [SearchFilterV3.startDate]/[endDate] 自定义。
+ *
+ * 三组互斥：bucket 非空 → 用 bucket；start/end 任一非空 → 用 custom；都空 → 不限。
+ * UI 层 [DurationPickerSheet] 保证这条互斥律。
+ */
+enum class DurationBucket {
+    Last24Hours, LastWeek, LastMonth, LastHalfYear, LastYear;
+
+    /**
+     * 按今日往前推 N 天/月/年，返回 (start_date, end_date) 字符串，皆 YYYY-MM-DD。
+     * 对齐 iOS：end_date = today；start_date = today − offset。
+     */
+    fun toDateRange(today: java.time.LocalDate): Pair<String, String> {
+        val start = when (this) {
+            Last24Hours  -> today.minusDays(1)
+            LastWeek     -> today.minusWeeks(1)
+            LastMonth    -> today.minusMonths(1)
+            LastHalfYear -> today.minusMonths(6)
+            LastYear     -> today.minusYears(1)
+        }
+        return start.toString() to today.toString()
+    }
 }
 
 enum class R18Mode(val keywordSuffix: String) {

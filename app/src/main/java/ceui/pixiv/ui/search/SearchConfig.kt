@@ -13,7 +13,8 @@ data class SearchConfig(
     val tool: String? = null,        // illust only
     val genre: Int? = null,          // novel only
     val lang: String? = null,
-    val duration: String? = null,    // within_last_day | week | month | half_year | year
+    // 投稿期间：V3 不再发 within_last_* 的 duration 参数；durationBucket 已经在 SearchViewModel
+    // 当场算成 start/end_date 塞进这两个字段。
     val startDate: String? = null,   // YYYY-MM-DD
     val endDate: String? = null,
     val searchAiType: Int = 0,       // 0 = include AI（默认）；1 = exclude AI

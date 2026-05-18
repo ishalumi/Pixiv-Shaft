@@ -35,7 +35,6 @@ public class SearchModel extends ViewModel {
     private final MutableLiveData<String> tool = new MutableLiveData<>();
     private final MutableLiveData<Integer> genre = new MutableLiveData<>();
     private final MutableLiveData<String> lang = new MutableLiveData<>();
-    private final MutableLiveData<String> duration = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isOriginalOnly = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isReplaceableOnly = new MutableLiveData<>();
     // 长宽比（仅 illust/manga）—— V3 sheet 写入，老 FragmentFilter 不暴露
@@ -113,10 +112,6 @@ public class SearchModel extends ViewModel {
 
     public MutableLiveData<String> getLang() {
         return lang;
-    }
-
-    public MutableLiveData<String> getDuration() {
-        return duration;
     }
 
     public MutableLiveData<Boolean> getIsOriginalOnly() {

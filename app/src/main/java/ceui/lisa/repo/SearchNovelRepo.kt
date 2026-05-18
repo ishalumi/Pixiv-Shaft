@@ -22,7 +22,6 @@ class SearchNovelRepo @JvmOverloads constructor(
     private var bookmarkMin: Int? = null,
     private var genre: Int? = null,
     private var lang: String? = null,
-    private var duration: String? = null,
     private var searchAiType: Int? = null,
     private var isOriginalOnly: Boolean? = null,
     private var isReplaceableOnly: Boolean? = null,
@@ -62,7 +61,6 @@ class SearchNovelRepo @JvmOverloads constructor(
                 bookmarkMin,
                 genre,
                 lang,
-                duration,
                 searchAiType,
                 isOriginalOnly,
                 isReplaceableOnly,
@@ -83,7 +81,6 @@ class SearchNovelRepo @JvmOverloads constructor(
                 bookmarkMin,
                 genre,
                 lang,
-                duration,
                 searchAiType,
                 isOriginalOnly,
                 isReplaceableOnly,
@@ -113,7 +110,6 @@ class SearchNovelRepo @JvmOverloads constructor(
         bookmarkMin = searchModel.bookmarkMin.value
         genre = searchModel.genre.value
         lang = searchModel.lang.value
-        duration = searchModel.duration.value
         searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
         // null 让 retrofit 跳过 query；只有显式 true 才传，行为对齐 iOS（关闭时不带）
         isOriginalOnly = if (searchModel.isOriginalOnly.value == true) true else null

@@ -1215,11 +1215,12 @@
     <string name="search_filter_v3_bookmark_min">%d+</string>
 
     <string name="search_filter_v3_duration_all">제한 없음</string>
-    <string name="search_filter_v3_duration_day">24시간 이내</string>
+    <string name="search_filter_v3_duration_24h">24시간 이내</string>
     <string name="search_filter_v3_duration_week">1주일 이내</string>
     <string name="search_filter_v3_duration_month">1개월 이내</string>
     <string name="search_filter_v3_duration_half_year">6개월 이내</string>
     <string name="search_filter_v3_duration_year">1년 이내</string>
+    <string name="search_filter_v3_duration_custom">기간 지정</string>
 
     <string name="search_filter_v3_date_clear">지우기</string>
 

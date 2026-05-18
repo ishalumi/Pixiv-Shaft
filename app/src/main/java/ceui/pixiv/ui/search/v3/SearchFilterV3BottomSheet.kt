@@ -288,9 +288,24 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             @Suppress("DEPRECATION")
             val patch = bundle.getSerializable(DurationPickerSheet.KEY_PATCH)
                     as? DurationPickerSheet.Patch ?: return@setFragmentResultListener
+            if (patch.openCustomRange) {
+                // 选了「指定期间」→ 不动 filter，直接弹 DateRangePickerSheet 让用户填日期
+                showDateRangePicker()
+            } else {
+                // 选了某个相对档或「不限」—— 自定义日期一并清掉，三者互斥
+                updateFilter {
+                    it.copy(durationBucket = patch.bucket, startDate = null, endDate = null)
+                }
+            }
+        }
+        fm.setFragmentResultListener(REQUEST_DURATION_DATES, lifecycleOwner) { _, bundle ->
+            @Suppress("DEPRECATION")
+            val patch = bundle.getSerializable(DateRangePickerSheet.KEY_PATCH)
+                    as? DateRangePickerSheet.Patch ?: return@setFragmentResultListener
+            // 用户在「指定期间」sheet 按确定 → 用 custom 起止覆盖；bucket 互斥清空
             updateFilter {
                 it.copy(
-                    duration = patch.duration,
+                    durationBucket = null,
                     startDate = patch.startDate,
                     endDate = patch.endDate,
                 )
@@ -397,17 +412,20 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         else "${bucket.min}users入り"
 
     private fun durationSummary(filter: SearchFilterV3): String {
+        // 三者互斥；bucket 优先；其次 custom 日期；最后「不限」
+        filter.durationBucket?.let { bucket ->
+            return getString(when (bucket) {
+                DurationBucket.Last24Hours   -> R.string.search_filter_v3_duration_24h
+                DurationBucket.LastWeek      -> R.string.search_filter_v3_duration_week
+                DurationBucket.LastMonth     -> R.string.search_filter_v3_duration_month
+                DurationBucket.LastHalfYear  -> R.string.search_filter_v3_duration_half_year
+                DurationBucket.LastYear      -> R.string.search_filter_v3_duration_year
+            })
+        }
         if (filter.startDate != null || filter.endDate != null) {
             return (filter.startDate ?: "—") + " → " + (filter.endDate ?: "—")
         }
-        return getString(when (filter.duration) {
-            null                    -> R.string.search_filter_v3_duration_all
-            SearchDuration.Day      -> R.string.search_filter_v3_duration_day
-            SearchDuration.Week     -> R.string.search_filter_v3_duration_week
-            SearchDuration.Month    -> R.string.search_filter_v3_duration_month
-            SearchDuration.HalfYear -> R.string.search_filter_v3_duration_half_year
-            SearchDuration.Year     -> R.string.search_filter_v3_duration_year
-        })
+        return getString(R.string.search_filter_v3_duration_all)
     }
 
     private fun toolSummary(filter: SearchFilterV3): String =
@@ -735,6 +753,11 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             .show(childFragmentManager, REQUEST_DURATION)
     }
 
+    private fun showDateRangePicker() {
+        DateRangePickerSheet.newInstance(REQUEST_DURATION_DATES, currentFilter())
+            .show(childFragmentManager, REQUEST_DURATION_DATES)
+    }
+
     private fun showOtherSheet() {
         OtherFilterSheet.newInstance(REQUEST_OTHER, currentFilter())
             .show(childFragmentManager, REQUEST_OTHER)
@@ -785,6 +808,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_BODY_LENGTH_CUSTOM_WORD = "v3_filter_body_length_custom_word"
         private const val REQUEST_BODY_LENGTH_CUSTOM_TIME = "v3_filter_body_length_custom_time"
         private const val REQUEST_DURATION = "v3_filter_duration"
+        private const val REQUEST_DURATION_DATES = "v3_filter_duration_dates"
         private const val REQUEST_OTHER    = "v3_filter_other"
 
         @JvmStatic

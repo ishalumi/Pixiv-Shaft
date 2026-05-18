@@ -1206,11 +1206,12 @@
     <string name="search_filter_v3_bookmark_min">%d+</string>
 
     <string name="search_filter_v3_duration_all">Sınırsız</string>
-    <string name="search_filter_v3_duration_day">Son 1 gün</string>
+    <string name="search_filter_v3_duration_24h">Son 24 saat</string>
     <string name="search_filter_v3_duration_week">Son 1 hafta</string>
     <string name="search_filter_v3_duration_month">Son 1 ay</string>
     <string name="search_filter_v3_duration_half_year">Son 6 ay</string>
     <string name="search_filter_v3_duration_year">Son 1 yıl</string>
+    <string name="search_filter_v3_duration_custom">Tarih aralığı belirle</string>
 
     <string name="search_filter_v3_date_clear">Temizle</string>
 
