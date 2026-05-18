@@ -280,6 +280,18 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                                         mContext, t -> finish());
                                 return;
                             }
+
+                            // shaftintent://search?... 对外暴露的搜索入口(#694)
+                            //   关键词: shaftintent://search?keyword=xxx  (兼容 key=xxx)
+                            //   作品ID: shaftintent://search?illust_id=xxx  (兼容 key=xxx&type=illust)
+                            //   用户ID: shaftintent://search?user_id=xxx    (兼容 key=xxx&type=user)
+                            //   小说ID: shaftintent://search?novel_id=xxx   (兼容 key=xxx&type=novel)
+                            // 纯数字会先按 type 分发,无 type 时落到关键词搜索路径,避免歧义。
+                            if (host.equals("search")) {
+                                if (handleExternalSearch(uri)) {
+                                    return;
+                                }
+                            }
                         }
                     }
                 }
@@ -296,5 +308,66 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
             startActivity(i);
             finish();
         }
+    }
+
+    /**
+     * 处理 shaftintent://search?... 外部搜索 deep link。返回 true 表示已分发,
+     * 调用方应直接 return;返回 false 走默认 fallback。
+     */
+    private boolean handleExternalSearch(Uri uri) {
+        String illustId = uri.getQueryParameter("illust_id");
+        String userId = uri.getQueryParameter("user_id");
+        String novelId = uri.getQueryParameter("novel_id");
+        String keyword = uri.getQueryParameter("keyword");
+        String key = uri.getQueryParameter("key");
+        String type = uri.getQueryParameter("type");
+
+        // key + type 简写,映射到对应字段
+        if (TextUtils.isEmpty(illustId) && TextUtils.isEmpty(userId)
+                && TextUtils.isEmpty(novelId) && !TextUtils.isEmpty(key)) {
+            if ("illust".equalsIgnoreCase(type)) {
+                illustId = key;
+            } else if ("user".equalsIgnoreCase(type)) {
+                userId = key;
+            } else if ("novel".equalsIgnoreCase(type)) {
+                novelId = key;
+            } else if (TextUtils.isEmpty(keyword)) {
+                // 无 type 时把 key 当 keyword 处理。即使是纯数字也按关键词搜,
+                // 让 SearchActivity 里同时给出关键词命中和 ID 直达提示,避免猜错意图。
+                keyword = key;
+            }
+        }
+
+        // ID 路径:粘贴来的 ID 可能夹杂表情/符号,跟 SearchAllFragment.checkAndNextId 一致,只保留数字
+        if (!TextUtils.isEmpty(illustId)) {
+            String digits = illustId.replaceAll("\\D", "");
+            if (TextUtils.isEmpty(digits)) return false;
+            PixivOperate.getIllustByID(tryParseId(digits), mContext, t -> finish(), null);
+            return true;
+        }
+        if (!TextUtils.isEmpty(userId)) {
+            String digits = userId.replaceAll("\\D", "");
+            if (TextUtils.isEmpty(digits)) return false;
+            Intent userIntent = new Intent(mContext, UActivity.class);
+            userIntent.putExtra(Params.USER_ID, Integer.valueOf(digits));
+            startActivity(userIntent);
+            finish();
+            return true;
+        }
+        if (!TextUtils.isEmpty(novelId)) {
+            String digits = novelId.replaceAll("\\D", "");
+            if (TextUtils.isEmpty(digits)) return false;
+            PixivOperate.getNovelByID(tryParseId(digits), mContext, t -> finish());
+            return true;
+        }
+        if (!TextUtils.isEmpty(keyword)) {
+            Intent intent = new Intent(mContext, SearchActivity.class);
+            intent.putExtra(Params.KEY_WORD, keyword.trim());
+            intent.putExtra(Params.INDEX, 0);
+            startActivity(intent);
+            finish();
+            return true;
+        }
+        return false;
     }
 }
