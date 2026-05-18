@@ -1,79 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  批量选择 cell。选中态视觉做三层差：
-   1. 整张卡 scaleX/Y=0.94（adapter 在 bind 时改）让选中项明显"凹"进去
-   2. 一圈 3dp v3_blue 实心边框（selectedBorder 覆盖整 cell）
-   3. 右上角 32dp 实心 v3_blue 圆形勾标（checkBadge）
+  批量选择 cell —— V3 风格:
+   - 外层 FrameLayout 不做 round clip,留给 selectedBorder 描完整个 14dp 圆角
+   - 内层 thumbContainer 用 clipToOutline + bulk_select_cell_bg 做 14dp 圆角剪裁,
+     图片严丝合缝;空图位也有 v3_surface_2 + 1dp v3_border_2 描边做占位
+   - selectedBorder 作为顶层 sibling 覆盖,2.5dp v3_blue 描边,圆角对齐不被截
+   - checkBadge 顶层 sibling,28dp 实心 colorPrimary 圆形 + 白勾,1dp elevation
+     有一点 V3 浮起感
 
-  原方案：33% 半透蓝色叠加 + 28dp 角标，对比不够，被用户指出"选中态不明显"。
-  新方案对齐 Google Photos / Telegram 多选 UI 的现代规范。
+  历史:之前 CardView 把 selectedBorder 当 child 包进来,14dp round clip 把 stroke
+  的尖角截了,选中态边框看起来"贴不上"。换成 FrameLayout 外层 + 圆角 drawable
+  内层后,圆角完整,跟 thumb 严丝合缝。
 -->
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
-    android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="@color/v3_bg"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="1.5dp">
+    android:foreground="?attr/selectableItemBackground">
 
+    <!-- Thumb container:14dp 圆角剪裁,Glide 加载之前用 v3_surface_2 占位 +
+         1dp v3_border_2 描边给一个轮廓 -->
     <FrameLayout
+        android:id="@+id/thumbContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="140dp"
+        android:background="@drawable/bulk_select_cell_bg"
+        android:clipToOutline="true">
 
         <ImageView
             android:id="@+id/thumb"
             android:layout_width="match_parent"
-            android:layout_height="140dp"
+            android:layout_height="match_parent"
             android:adjustViewBounds="true"
-            android:background="@color/v3_surface_2"
             android:contentDescription="@null"
             android:scaleType="centerCrop" />
-
-        <!-- 选中边框：3dp v3_blue stroke，14dp 圆角对齐 card -->
-        <View
-            android:id="@+id/selectedBorder"
-            android:layout_width="match_parent"
-            android:layout_height="140dp"
-            android:background="@drawable/bulk_select_border"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <!-- 多页徽章（左上） -->
-        <TextView
-            android:id="@+id/pBadge"
-            style="@style/V3StatusBadge"
-            android:layout_gravity="top|start"
-            android:layout_margin="6dp"
-            android:visibility="gone"
-            tools:text="3P"
-            tools:visibility="visible" />
-
-        <!-- GIF 徽章（左下，避开右上 checkBadge 的位置；GIF 不可选所以也不会有 checkBadge） -->
-        <TextView
-            android:id="@+id/gifBadge"
-            style="@style/V3StatusBadge"
-            android:layout_gravity="bottom|start"
-            android:layout_margin="6dp"
-            android:textColor="#FFB454"
-            android:visibility="gone"
-            tools:text="GIF" />
-
-        <!-- 选中勾标：32dp v3_blue 实心圆 + 白勾，右上角，只在选中时显示 -->
-        <ImageView
-            android:id="@+id/checkBadge"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_gravity="top|end"
-            android:layout_margin="6dp"
-            android:background="@drawable/bulk_select_check_bg"
-            android:contentDescription="@null"
-            android:padding="4dp"
-            android:src="@drawable/ic_check_24dp"
-            android:visibility="gone"
-            app:tint="#FFFFFF"
-            tools:visibility="visible" />
     </FrameLayout>
-</androidx.cardview.widget.CardView>
+
+    <!-- 选中边框:2.5dp colorPrimary stroke,14dp 圆角对齐 thumb。挂在 thumb
+         container 之外,所以 stroke 不被 round clip 截 -->
+    <View
+        android:id="@+id/selectedBorder"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:background="@drawable/bulk_select_border"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <!-- 多页徽章(左上) -->
+    <TextView
+        android:id="@+id/pBadge"
+        style="@style/V3StatusBadge"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:visibility="gone"
+        tools:text="3P"
+        tools:visibility="visible" />
+
+    <!-- GIF 徽章(左下,避开右上 checkBadge 的位置;GIF 不可选所以也不会有 checkBadge) -->
+    <TextView
+        android:id="@+id/gifBadge"
+        style="@style/V3StatusBadge"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="6dp"
+        android:textColor="#FFB454"
+        android:visibility="gone"
+        tools:text="GIF" />
+
+    <!-- 选中勾标:28dp colorPrimary 实心圆 + 白勾,右上角,只在选中时显示;
+         1.5dp elevation 让勾标稍微浮起,跟 V3 fab/check 风一致 -->
+    <ImageView
+        android:id="@+id/checkBadge"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="6dp"
+        android:background="@drawable/bulk_select_check_bg"
+        android:contentDescription="@null"
+        android:elevation="1.5dp"
+        android:padding="4dp"
+        android:src="@drawable/ic_check_24dp"
+        android:visibility="gone"
+        app:tint="#FFFFFF"
+        tools:visibility="visible" />
+</FrameLayout>
