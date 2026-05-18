@@ -147,8 +147,9 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.rowDuration.root.setOnClick { showDurationPicker() }
         binding.rowBookmark.root.setOnClick { showBookmarkPicker() }
         binding.rowKeywordBookmark.root.setOnClick { showKeywordBookmarkPicker() }
+        // illust 模式整行隐藏(制图工具已搬到「其他条件」),只 novel 时点开 → 类型 picker
         binding.rowToolOrGenre.root.setOnClick {
-            if (isNovel) showGenrePicker() else showToolPicker()
+            if (isNovel) showGenrePicker()
         }
         binding.rowLang.root.setOnClick { showLangPicker() }
         binding.rowRatio.root.setOnClick { showRatioPicker() }
@@ -159,6 +160,10 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         // 语种行仅 novel 展示；illust/manga 不需要语种维度
         binding.dividerLang.isVisible = isNovel
         binding.rowLang.root.isVisible = isNovel
+        // 制图工具 / 类型 共用同一行：illust 把制图工具搬到「其他条件」sheet,这里整行 + divider 隐藏;
+        // novel 保留作为类型入口
+        binding.dividerToolOrGenre.isVisible = isNovel
+        binding.rowToolOrGenre.root.isVisible = isNovel
         // 长宽比 + 分辨率仅 illust/manga 展示；novel 模式整行 + divider 隐藏
         binding.dividerRatio.isVisible = !isNovel
         binding.rowRatio.root.isVisible = !isNovel
@@ -197,12 +202,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             keywordUsersList.getOrNull(idx)?.let { b ->
                 updateFilter { it.copy(keywordUsersBucket = b) }
             }
-        }
-        fm.setFragmentResultListener(REQUEST_TOOL, lifecycleOwner) { _, bundle ->
-            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
-            val opts = searchViewModel.searchOptions.value?.illust?.tool?.options.orEmpty()
-            // idx 0 = "不限"，1.. = opts[idx-1]
-            updateFilter { it.copy(tool = if (idx == 0) null else opts.getOrNull(idx - 1)) }
         }
         fm.setFragmentResultListener(REQUEST_GENRE, lifecycleOwner) { _, bundle ->
             val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
@@ -297,6 +296,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
                     r18Mode = patch.r18Mode,
                     isOriginalOnly = patch.isOriginalOnly,
                     isReplaceableOnly = patch.isReplaceableOnly,
+                    tool = patch.tool,
                 )
             }
         }
@@ -322,9 +322,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         )
         if (isNovel) {
             bindRow(binding.rowToolOrGenre, R.string.search_filter_v3_row_genre, genreSummary(filter))
-        } else {
-            bindRow(binding.rowToolOrGenre, R.string.search_filter_v3_row_tool, toolSummary(filter))
         }
+        // illust 模式 rowToolOrGenre 整行隐藏,不用 bind;制图工具入口在「其他条件」sheet
         bindRow(binding.rowLang, R.string.search_filter_v3_row_lang, langSummary(filter))
         bindRow(binding.rowRatio, R.string.search_filter_v3_row_ratio, ratioSummary(filter))
         bindRow(binding.rowResolution, R.string.search_filter_v3_row_resolution, resolutionSummary(filter))
@@ -395,9 +394,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         }
         return getString(R.string.search_filter_v3_duration_all)
     }
-
-    private fun toolSummary(filter: SearchFilterV3): String =
-        filter.tool ?: getString(R.string.search_filter_v3_tool_all_summary)
 
     private fun genreSummary(filter: SearchFilterV3): String {
         val opts = searchViewModel.searchOptions.value?.novel?.genre?.options.orEmpty()
@@ -497,6 +493,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             R18Mode.R18Only  -> flags += getString(R.string.search_filter_v3_r18_only)
             R18Mode.All -> Unit
         }
+        // illust 专属:制图工具(也搬进了「其他条件」sheet);非「不限」就上 summary
+        if (!isNovel) filter.tool?.let { flags += it }
         // novel 专属 2 个 switch —— 也在「其他条件」sheet 里设置；开了就上 summary
         if (isNovel && filter.isOriginalOnly) {
             flags += getString(R.string.search_filter_v3_row_original_only)
@@ -556,15 +554,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             keywordUsersList.map(::keywordBookmarkLabel),
             keywordUsersList.indexOf(currentFilter().keywordUsersBucket).coerceAtLeast(0),
         )
-    }
-
-    private fun showToolPicker() {
-        val opts = searchViewModel.searchOptions.value?.illust?.tool?.options.orEmpty()
-        if (opts.isEmpty()) { ensureSearchOptionsLoaded(); return }
-        val labels = listOf(getString(R.string.search_filter_v3_tool_all_summary)) + opts
-        val cur = currentFilter().tool
-        val selected = if (cur == null) 0 else opts.indexOf(cur).let { if (it < 0) 0 else it + 1 }
-        showSimplePicker(REQUEST_TOOL, getString(R.string.search_filter_v3_row_tool), labels, selected)
     }
 
     private fun showGenrePicker() {
@@ -734,7 +723,12 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     }
 
     private fun showOtherSheet() {
-        OtherFilterSheet.newInstance(REQUEST_OTHER, currentFilter(), isNovel = isNovel)
+        // illust 模式才需要 tool 候选;novel 模式列表空着无副作用,sheet 自己整张卡片隐藏
+        val toolOpts = if (isNovel) emptyList()
+            else searchViewModel.searchOptions.value?.illust?.tool?.options.orEmpty()
+        OtherFilterSheet.newInstance(
+            REQUEST_OTHER, currentFilter(), isNovel = isNovel, toolOptions = toolOpts,
+        )
             .show(childFragmentManager, REQUEST_OTHER)
     }
 
@@ -773,7 +767,6 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_SORT     = "v3_filter_sort"
         private const val REQUEST_BOOKMARK = "v3_filter_bookmark"
         private const val REQUEST_KEYWORD_BOOKMARK = "v3_filter_keyword_bookmark"
-        private const val REQUEST_TOOL     = "v3_filter_tool"
         private const val REQUEST_GENRE    = "v3_filter_genre"
         private const val REQUEST_LANG     = "v3_filter_lang"
         private const val REQUEST_RATIO    = "v3_filter_ratio"

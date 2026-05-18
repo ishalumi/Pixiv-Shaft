@@ -113,13 +113,16 @@
                     android:id="@+id/row_keyword_bookmark"
                     layout="@layout/cell_search_filter_row" />
 
+                <!-- divider 上方 row_tool_or_genre 专属;illust 模式下两者一起 gone(制图工具
+                     已搬到「其他条件」sheet),novel 模式正常显示作为类型入口 -->
                 <View
+                    android:id="@+id/divider_tool_or_genre"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="18dp"
                     android:background="@color/v3_border_2" />
 
-                <!-- 同一行：illust=制图工具 / novel=类型；Kotlin 切换 title+value -->
+                <!-- novel = 类型;illust 模式整行 + 上方 divider 隐藏 -->
                 <include
                     android:id="@+id/row_tool_or_genre"
                     layout="@layout/cell_search_filter_row" />

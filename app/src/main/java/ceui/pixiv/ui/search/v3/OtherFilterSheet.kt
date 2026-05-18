@@ -33,15 +33,21 @@ class OtherFilterSheet : V3BottomSheetBase() {
     private var draftR18: R18Mode = R18Mode.All
     private var draftOriginalOnly: Boolean = false
     private var draftReplaceableOnly: Boolean = false
+    /** illust-only;null = 「不限」。父 sheet 通过 args 注入初值 + 候选列表。 */
+    private var draftTool: String? = null
 
     private val isNovel: Boolean
         get() = requireArguments().getBoolean(ARG_IS_NOVEL, false)
+
+    private val toolOptions: List<String>
+        get() = requireArguments().getStringArrayList(ARG_TOOL_OPTIONS).orEmpty()
 
     data class Patch(
         val excludeAi: Boolean,
         val r18Mode: R18Mode,
         val isOriginalOnly: Boolean,
         val isReplaceableOnly: Boolean,
+        val tool: String?,
     ) : Serializable
 
     private var _binding: DialogSearchFilterOtherBinding? = null
@@ -60,12 +66,13 @@ class OtherFilterSheet : V3BottomSheetBase() {
         draftR18 = patch?.r18Mode ?: R18Mode.All
         draftOriginalOnly = patch?.isOriginalOnly ?: false
         draftReplaceableOnly = patch?.isReplaceableOnly ?: false
+        draftTool = patch?.tool
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putSerializable(KEY_DRAFT,
-            Patch(draftExcludeAi, draftR18, draftOriginalOnly, draftReplaceableOnly))
+            Patch(draftExcludeAi, draftR18, draftOriginalOnly, draftReplaceableOnly, draftTool))
     }
 
     override fun onCreateView(
@@ -97,9 +104,11 @@ class OtherFilterSheet : V3BottomSheetBase() {
             // 小说专属 switch：illust 模式下卡片整体隐藏，强制 false 防止状态串味儿
             val originalOnly = if (isNovel) draftOriginalOnly else false
             val replaceableOnly = if (isNovel) draftReplaceableOnly else false
+            // 制图工具同理：novel 模式整张卡片隐藏，强制清 null
+            val tool = if (isNovel) null else draftTool
             parentFragmentManager.setFragmentResult(
                 requestKey,
-                bundleOf(KEY_PATCH to Patch(draftExcludeAi, draftR18, originalOnly, replaceableOnly)),
+                bundleOf(KEY_PATCH to Patch(draftExcludeAi, draftR18, originalOnly, replaceableOnly, tool)),
             )
             dismissAllowingStateLoss()
         }
@@ -111,6 +120,21 @@ class OtherFilterSheet : V3BottomSheetBase() {
         binding.rowAi.switchToggle.isChecked = draftExcludeAi
         binding.rowAi.switchToggle.setOnCheckedChangeListener { _, checked ->
             draftExcludeAi = checked
+        }
+
+        // 制图工具（illust/manga 专属）—— novel 模式整张卡片隐藏
+        binding.illustToolSpace.isVisible = !isNovel
+        binding.illustToolCard.isVisible = !isNovel
+        if (!isNovel) {
+            binding.rowTool.rowValue.setTextColor(palette.textAccent)
+            renderToolRow()
+            binding.rowTool.root.setOnClick { showToolPicker() }
+            childFragmentManager.setFragmentResultListener(REQUEST_TOOL_PICKER, this) { _, bundle ->
+                val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+                // idx 0 = "不限"，1.. = toolOptions[idx-1]
+                draftTool = if (idx == 0) null else toolOptions.getOrNull(idx - 1)
+                renderToolRow()
+            }
         }
 
         // 小说专属：仅限原创 / 仅限单词置换
@@ -134,6 +158,29 @@ class OtherFilterSheet : V3BottomSheetBase() {
         bindR18Row(binding.rowR18Safe, R18Mode.SafeOnly, R.string.search_filter_v3_r18_safe)
         bindR18Row(binding.rowR18Only, R18Mode.R18Only,  R.string.search_filter_v3_r18_only)
         renderR18Marks()
+    }
+
+    private fun renderToolRow() {
+        binding.rowTool.rowTitle.setText(R.string.search_filter_v3_row_tool)
+        binding.rowTool.rowValue.text =
+            draftTool ?: getString(R.string.search_filter_v3_tool_all_summary)
+    }
+
+    private fun showToolPicker() {
+        // 候选为空（/v1/search/options 还没拉到）就 no-op，父 sheet 已经在打开过滤器时
+        // 触发 ensureSearchOptionsLoaded —— 真到达「其他条件」时一般已就绪
+        if (toolOptions.isEmpty()) return
+        val labels = listOf(getString(R.string.search_filter_v3_tool_all_summary)) + toolOptions
+        val selected = draftTool?.let {
+            val idx = toolOptions.indexOf(it)
+            if (idx < 0) 0 else idx + 1
+        } ?: 0
+        SimplePickerSheet.newInstance(
+            REQUEST_TOOL_PICKER,
+            getString(R.string.search_filter_v3_row_tool),
+            labels,
+            selected,
+        ).show(childFragmentManager, REQUEST_TOOL_PICKER)
     }
 
     private fun bindNovelSwitch(
@@ -172,21 +219,28 @@ class OtherFilterSheet : V3BottomSheetBase() {
         private const val ARG_REQUEST_KEY = "requestKey"
         private const val ARG_INITIAL = "initial"
         private const val ARG_IS_NOVEL = "isNovel"
+        private const val ARG_TOOL_OPTIONS = "toolOptions"
         private const val KEY_DRAFT = "draft"
+
+        // 内部 picker 与父 sheet REQUEST_OTHER 互不重叠;snapshot 工具候选作为 arg 透传
+        private const val REQUEST_TOOL_PICKER = "v3_other_tool_picker"
 
         fun newInstance(
             requestKey: String,
             current: SearchFilterV3,
             isNovel: Boolean,
+            toolOptions: List<String>,
         ): OtherFilterSheet = OtherFilterSheet().apply {
             arguments = Bundle().apply {
                 putString(ARG_REQUEST_KEY, requestKey)
                 putBoolean(ARG_IS_NOVEL, isNovel)
+                putStringArrayList(ARG_TOOL_OPTIONS, ArrayList(toolOptions))
                 putSerializable(ARG_INITIAL, Patch(
                     current.excludeAi,
                     current.r18Mode,
                     current.isOriginalOnly,
                     current.isReplaceableOnly,
+                    current.tool,
                 ))
             }
         }
