@@ -60,6 +60,10 @@ class NovelSeriesHeroViewHolder(bd: CellNovelSeriesHeroBinding) :
 
         binding.title.text = series.title ?: ""
         binding.title.setOnClick { Common.copy(it.context, series.title) }
+        // 长按也复制(对齐 V3 illust detail 的长按体验)
+        binding.title.setOnLongClickListener {
+            Common.copy(it.context, series.title); true
+        }
 
         // Bookmark — tap to toggle watchlist. 旧页 FragmentNovelSeriesDetail 用
         // 文字按钮"加入观看清单 / 已加入"做这件事；新页统一用图标按钮，靠 tint

@@ -53,6 +53,10 @@ class NovelHeaderViewHolder(bd: CellNovelHeaderBinding) :
         binding.title.setOnClick {
             Common.copy(context, liveNovel.value?.title)
         }
+        // 长按也复制(对齐 V3 illust detail 的长按体验)
+        binding.title.setOnLongClickListener {
+            Common.copy(context, liveNovel.value?.title); true
+        }
         liveNovel.observe(lifecycleOwner) { novel ->
             if (novel == null) return@observe
             // Bookmark tint: icon_not_liked is white — invisible on light bg

@@ -15,6 +15,7 @@ import ceui.lisa.activities.followUser
 import ceui.lisa.activities.unfollowUser
 import ceui.lisa.annotations.ItemHolder
 import ceui.lisa.databinding.SectionV3ArtistBinding
+import ceui.lisa.utils.Common
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
@@ -54,6 +55,13 @@ class ArtworkV3ViewHolder(private val b: SectionV3ArtistBinding) :
 
         b.artistName.text = user.name
         b.artistHandle.text = "@${user.account ?: ""}"
+        // 长按复制作者昵称 / handle —— 跟 V3 illust detail 对齐
+        b.artistName.setOnLongClickListener {
+            Common.copy(ctx, user.name.orEmpty()); true
+        }
+        b.artistHandle.setOnLongClickListener {
+            Common.copy(ctx, b.artistHandle.text?.toString().orEmpty()); true
+        }
         Glide.with(ctx).load(GlideUtil.getUrl(user.profile_image_urls?.medium))
             .error(R.drawable.no_profile)
             .into(b.artistAvatar)

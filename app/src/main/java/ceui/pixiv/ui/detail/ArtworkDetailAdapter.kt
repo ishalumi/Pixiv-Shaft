@@ -249,6 +249,10 @@ class ArtworkDetailAdapter(
     inner class HeroVH(private val b: SectionV3HeroBinding) : RecyclerView.ViewHolder(b.root) {
         fun bind(illust: IllustsBean) {
             b.heroTitle.text = illust.title
+            // 长按标题复制 —— 跟 novel V3 / novel series V3 的同名组件一致
+            b.heroTitle.setOnLongClickListener {
+                Common.copy(ctx, illust.title.orEmpty()); true
+            }
             b.metaType.text = when (illust.type) {
                 "manga" -> ctx.getString(R.string.v3_type_manga)
                 "ugoira" -> ctx.getString(R.string.v3_type_ugoira)
@@ -304,6 +308,13 @@ class ArtworkDetailAdapter(
             val user = illust.user ?: return
             b.artistName.text = user.name
             b.artistHandle.text = "@${user.account ?: ""}"
+            // 长按复制作者昵称 / handle —— 跟其它 V3 详情页对齐
+            b.artistName.setOnLongClickListener {
+                Common.copy(ctx, user.name.orEmpty()); true
+            }
+            b.artistHandle.setOnLongClickListener {
+                Common.copy(ctx, b.artistHandle.text?.toString().orEmpty()); true
+            }
             glide.load(GlideUtil.getUrl(user.profile_image_urls?.medium))
                 .error(R.drawable.no_profile)
                 .into(b.artistAvatar)
