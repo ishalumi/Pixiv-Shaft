@@ -55,10 +55,20 @@ class ArtworkV3ViewHolder(private val b: SectionV3ArtistBinding) :
 
         b.artistName.text = user.name
         b.artistHandle.text = "@${user.account ?: ""}"
-        // 长按复制作者昵称 / handle —— 跟 V3 illust detail 对齐
+
+        val openUser = View.OnClickListener {
+            val intent = Intent(ctx, UActivity::class.java)
+            intent.putExtra(Params.USER_ID, user.id.toInt())
+            ctx.startActivity(intent)
+        }
+        b.artistCard.setOnClickListener(openUser)
+        // 长按复制作者昵称 / handle；单击仍走 openUser 跳 V3 主页
+        // (设置 longClickListener 会让 TextView 自己消费 touch,事件不会冒泡到父 card)
+        b.artistName.setOnClickListener(openUser)
         b.artistName.setOnLongClickListener {
             Common.copy(ctx, user.name.orEmpty()); true
         }
+        b.artistHandle.setOnClickListener(openUser)
         b.artistHandle.setOnLongClickListener {
             Common.copy(ctx, b.artistHandle.text?.toString().orEmpty()); true
         }
@@ -66,11 +76,6 @@ class ArtworkV3ViewHolder(private val b: SectionV3ArtistBinding) :
             .error(R.drawable.no_profile)
             .into(b.artistAvatar)
 
-        b.artistCard.setOnClickListener {
-            val intent = Intent(ctx, UActivity::class.java)
-            intent.putExtra(Params.USER_ID, user.id.toInt())
-            ctx.startActivity(intent)
-        }
         applyTouchScale(b.artistCard)
 
         bindFollowState(user)
