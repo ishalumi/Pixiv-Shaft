@@ -132,6 +132,9 @@ object SearchFilterV3LegacyBridge {
         val storedDuration = searchModel.duration.value
         val duration = SearchDuration.values().firstOrNull { it.apiValue == storedDuration }
             ?: baseline.duration
+        val ratio = if (isNovel) null
+            else RatioPattern.values().firstOrNull { it.apiValue == searchModel.ratioPattern.value }
+                ?: baseline.ratioPattern
 
         return SearchFilterV3(
             sort = sort,
@@ -149,6 +152,7 @@ object SearchFilterV3LegacyBridge {
             excludeAi = baseline.excludeAi,
             isOriginalOnly = isNovel && searchModel.isOriginalOnly.value == true,
             isReplaceableOnly = isNovel && searchModel.isReplaceableOnly.value == true,
+            ratioPattern = ratio,
         )
     }
 
@@ -187,5 +191,7 @@ object SearchFilterV3LegacyBridge {
         }
         searchModel.isOriginalOnly.value = filter.isOriginalOnly
         searchModel.isReplaceableOnly.value = filter.isReplaceableOnly
+        // ratio_pattern 仅 illust/manga；novel 路径 SearchIllustRepo 不读，写入 SearchModel 也无副作用
+        searchModel.ratioPattern.value = filter.ratioPattern?.apiValue
     }
 }

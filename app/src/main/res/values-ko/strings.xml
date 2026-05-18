@@ -1247,6 +1247,11 @@
     <string name="search_filter_v3_row_tool">제작 도구</string>
     <string name="search_filter_v3_row_genre">장르</string>
     <string name="search_filter_v3_row_lang">작품 언어</string>
+    <string name="search_filter_v3_row_ratio">화면 비율</string>
+    <string name="search_filter_v3_ratio_all">모든 비율</string>
+    <string name="search_filter_v3_ratio_landscape">가로</string>
+    <string name="search_filter_v3_ratio_portrait">세로</string>
+    <string name="search_filter_v3_ratio_square">정사각형</string>
     <string name="search_filter_v3_row_other">기타 조건</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">전체</string>
     <string name="search_filter_v3_tool_all_summary">모든 도구</string>

@@ -191,6 +191,7 @@ interface API {
         @Query("duration") duration: String? = null,
         @Query("start_date") start_date: String? = null,
         @Query("end_date") end_date: String? = null,
+        @Query("ratio_pattern") ratio_pattern: String? = null,
     ): IllustResponse
 
     @GET("/v1/search/popular-preview/novel?include_potential_violation_works=false")
@@ -230,6 +231,7 @@ interface API {
         @Query("duration") duration: String? = null,
         @Query("start_date") start_date: String? = null,
         @Query("end_date") end_date: String? = null,
+        @Query("ratio_pattern") ratio_pattern: String? = null,
     ): IllustResponse
 
     @GET("/v1/search/novel?include_potential_violation_works=false")

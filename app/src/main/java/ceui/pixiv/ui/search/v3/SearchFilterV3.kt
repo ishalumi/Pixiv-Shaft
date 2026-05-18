@@ -21,6 +21,7 @@ import ceui.pixiv.ui.search.SortType
  *      endDate               — 投稿时间（绝对，与 duration 互斥）
  *  10. excludeAi             — 屏蔽 AI 作品（驱动 search_ai_type）
  *  11. r18Mode               — R18 限制（沿用旧版「-R-18」「R-18」关键字 hack）
+ *  12. ratioPattern          — 长宽比（仅 illust/manga，走官方 `ratio_pattern` query 参数）
  */
 data class SearchFilterV3(
     val sort: String = SortType.DATE_DESC,
@@ -35,6 +36,7 @@ data class SearchFilterV3(
     val endDate: String? = null,      // YYYY-MM-DD
     val excludeAi: Boolean = false,
     val r18Mode: R18Mode = R18Mode.All,
+    val ratioPattern: RatioPattern? = null,   // illust/manga only
     // novel 专属（pixiv iOS 8.6.5 「仅限原创作品」/「仅限支持单词置换的作品」开关）
     val isOriginalOnly: Boolean = false,
     val isReplaceableOnly: Boolean = false,
@@ -84,6 +86,7 @@ data class SearchFilterV3(
         if (r18Mode != R18Mode.All) n++
         if (isNovel && isOriginalOnly) n++
         if (isNovel && isReplaceableOnly) n++
+        if (!isNovel && ratioPattern != null) n++
         return n
     }
 }
@@ -158,4 +161,14 @@ enum class R18Mode(val keywordSuffix: String) {
     All(""),
     SafeOnly("-R-18"),
     R18Only("R-18"),
+}
+
+/**
+ * 长宽比（仅 illust/manga）—— 走官方 `ratio_pattern` query 参数。
+ * 「所有纵横比」= 不传该参数（[SearchFilterV3.ratioPattern] = null）。
+ */
+enum class RatioPattern(val apiValue: String) {
+    Landscape("landscape"),
+    Portrait("portrait"),
+    Square("square"),
 }

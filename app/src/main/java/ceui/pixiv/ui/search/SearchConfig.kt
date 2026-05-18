@@ -19,4 +19,5 @@ data class SearchConfig(
     val searchAiType: Int = 0,       // 0 = include AI（默认）；1 = exclude AI
     val isOriginalOnly: Boolean? = null,    // novel only
     val isReplaceableOnly: Boolean? = null, // novel only
+    val ratioPattern: String? = null,       // illust/manga only: landscape | portrait | square
 )

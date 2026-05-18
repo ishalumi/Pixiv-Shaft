@@ -136,6 +136,18 @@
                     android:id="@+id/row_lang"
                     layout="@layout/cell_search_filter_row" />
 
+                <!-- 长宽比 —— 仅 illust/manga 展示；novel 模式下整行 + divider 隐藏 -->
+                <View
+                    android:id="@+id/divider_ratio"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_ratio"
+                    layout="@layout/cell_search_filter_row" />
+
                 <!-- novel 专属：仅限原创 / 仅限支持单词置换 —— 在 SearchFilterV3BottomSheet
                      的 isNovel 分支统一切显隐 -->
                 <View

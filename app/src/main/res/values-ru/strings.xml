@@ -1240,6 +1240,11 @@
     <string name="search_filter_v3_row_tool">Инструмент</string>
     <string name="search_filter_v3_row_genre">Жанр</string>
     <string name="search_filter_v3_row_lang">Язык работы</string>
+    <string name="search_filter_v3_row_ratio">Соотношение сторон</string>
+    <string name="search_filter_v3_ratio_all">Все соотношения</string>
+    <string name="search_filter_v3_ratio_landscape">Альбомное</string>
+    <string name="search_filter_v3_ratio_portrait">Книжное</string>
+    <string name="search_filter_v3_ratio_square">Квадратное</string>
     <string name="search_filter_v3_row_other">Прочее</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">Все</string>
     <string name="search_filter_v3_tool_all_summary">Все инструменты</string>

@@ -1336,6 +1336,11 @@
     <string name="search_filter_v3_row_tool">Drawing tool</string>
     <string name="search_filter_v3_row_genre">Genre</string>
     <string name="search_filter_v3_row_lang">Language</string>
+    <string name="search_filter_v3_row_ratio">Aspect ratio</string>
+    <string name="search_filter_v3_ratio_all">All ratios</string>
+    <string name="search_filter_v3_ratio_landscape">Landscape</string>
+    <string name="search_filter_v3_ratio_portrait">Portrait</string>
+    <string name="search_filter_v3_ratio_square">Square</string>
     <string name="search_filter_v3_row_other">Other conditions</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">All bookmarks</string>
     <string name="search_filter_v3_tool_all_summary">All tools</string>

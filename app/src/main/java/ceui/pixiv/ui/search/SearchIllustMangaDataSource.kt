@@ -29,6 +29,7 @@ class SearchIllustMangaDataSource(
                 duration = config.duration,
                 start_date = config.startDate,
                 end_date = config.endDate,
+                ratio_pattern = config.ratioPattern,
             )
         } else {
             Client.appApi.searchIllustManga(
@@ -44,6 +45,7 @@ class SearchIllustMangaDataSource(
                 duration = config.duration,
                 start_date = config.startDate,
                 end_date = config.endDate,
+                ratio_pattern = config.ratioPattern,
             )
         }
     },

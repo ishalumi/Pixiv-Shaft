@@ -1238,6 +1238,11 @@
     <string name="search_filter_v3_row_tool">Çizim aracı</string>
     <string name="search_filter_v3_row_genre">Tür</string>
     <string name="search_filter_v3_row_lang">Eser dili</string>
+    <string name="search_filter_v3_row_ratio">En boy oranı</string>
+    <string name="search_filter_v3_ratio_all">Tüm oranlar</string>
+    <string name="search_filter_v3_ratio_landscape">Yatay</string>
+    <string name="search_filter_v3_ratio_portrait">Dikey</string>
+    <string name="search_filter_v3_ratio_square">Kare</string>
     <string name="search_filter_v3_row_other">Diğer koşullar</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">Tümü</string>
     <string name="search_filter_v3_tool_all_summary">Tüm araçlar</string>

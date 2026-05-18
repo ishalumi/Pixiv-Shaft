@@ -32,6 +32,7 @@ class SearchIllustRepo @JvmOverloads constructor(
     private var lang: String? = null,
     private var duration: String? = null,
     private var searchAiType: Int? = null,
+    private var ratioPattern: String? = null,
 ) : RemoteRepo<ListIllust>() {
 
     private var filterMapper: FilterMapper? = null
@@ -71,6 +72,7 @@ class SearchIllustRepo @JvmOverloads constructor(
                 lang,
                 duration,
                 searchAiType,
+                ratioPattern,
             )
         } else {
             Retro.getAppApi().searchIllust(
@@ -84,6 +86,7 @@ class SearchIllustRepo @JvmOverloads constructor(
                 lang,
                 duration,
                 searchAiType,
+                ratioPattern,
             )
         }
     }
@@ -106,7 +109,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         }
         return Retro.getAppApi().popularPreview(
             keyword ?: "", startDate, endDate, searchType,
-            bookmarkMin, tool, lang, duration, searchAiType,
+            bookmarkMin, tool, lang, duration, searchAiType, ratioPattern,
         )
     }
 
@@ -124,6 +127,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         tool = searchModel.tool.value
         lang = searchModel.lang.value
         duration = searchModel.duration.value
+        ratioPattern = searchModel.ratioPattern.value
         // 老版没显式 AI 字段；用全局开关派生（FragmentFilter 历史就这么干）。
         searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
 

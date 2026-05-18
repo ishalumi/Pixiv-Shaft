@@ -1758,6 +1758,11 @@
     <string name="search_filter_v3_row_tool">制图工具</string>
     <string name="search_filter_v3_row_genre">类型</string>
     <string name="search_filter_v3_row_lang">作品语言</string>
+    <string name="search_filter_v3_row_ratio">长宽比</string>
+    <string name="search_filter_v3_ratio_all">所有纵横比</string>
+    <string name="search_filter_v3_ratio_landscape">横图</string>
+    <string name="search_filter_v3_ratio_portrait">纵图</string>
+    <string name="search_filter_v3_ratio_square">正方形图</string>
     <string name="search_filter_v3_row_other">其他条件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">所有点赞数</string>
     <string name="search_filter_v3_tool_all_summary">所有的制图工具</string>

@@ -1353,6 +1353,11 @@
     <string name="search_filter_v3_row_tool">繪圖工具</string>
     <string name="search_filter_v3_row_genre">類型</string>
     <string name="search_filter_v3_row_lang">作品語言</string>
+    <string name="search_filter_v3_row_ratio">長寬比</string>
+    <string name="search_filter_v3_ratio_all">所有縱橫比</string>
+    <string name="search_filter_v3_ratio_landscape">橫圖</string>
+    <string name="search_filter_v3_ratio_portrait">縱圖</string>
+    <string name="search_filter_v3_ratio_square">正方形圖</string>
     <string name="search_filter_v3_row_other">其他條件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">所有讚數</string>
     <string name="search_filter_v3_tool_all_summary">所有的繪圖工具</string>

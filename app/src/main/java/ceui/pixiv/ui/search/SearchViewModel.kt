@@ -121,6 +121,8 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             // novel-only switches —— illust 路径忽略；nullable 保留 retrofit 不传 query 的语义
             isOriginalOnly = if (isNovel && filter.isOriginalOnly) true else null,
             isReplaceableOnly = if (isNovel && filter.isReplaceableOnly) true else null,
+            // 长宽比仅 illust/manga 维度；novel endpoint 不识别 ratio_pattern
+            ratioPattern = if (isNovel) null else filter.ratioPattern?.apiValue,
         )
     }
 }

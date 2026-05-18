@@ -91,6 +91,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     )
     private val bookmarkList = BookmarkBucket.values().toList()
     private val keywordUsersList = KeywordUsersBucket.values().toList()
+    // 长宽比候选；index 0 = "所有纵横比"（null），1.. = RatioPattern.values()[idx-1]
+    private val ratioList = RatioPattern.values().toList()
     private val targetList: List<SearchTarget>
         get() = if (isNovel) SearchTarget.forNovel() else SearchTarget.forIllust()
 
@@ -128,6 +130,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             binding.rowKeywordBookmark,
             binding.rowToolOrGenre,
             binding.rowLang,
+            binding.rowRatio,
             binding.rowOther,
         ).forEach { it.rowValue.setTextColor(palette.textAccent) }
 
@@ -141,11 +144,15 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             if (isNovel) showGenrePicker() else showToolPicker()
         }
         binding.rowLang.root.setOnClick { showLangPicker() }
+        binding.rowRatio.root.setOnClick { showRatioPicker() }
         binding.rowOther.root.setOnClick { showOtherSheet() }
 
         // 语种行仅 novel 展示；illust/manga 不需要语种维度
         binding.dividerLang.isVisible = isNovel
         binding.rowLang.root.isVisible = isNovel
+        // 长宽比仅 illust/manga 展示；novel 模式整行 + divider 隐藏
+        binding.dividerRatio.isVisible = !isNovel
+        binding.rowRatio.root.isVisible = !isNovel
 
         // novel 专属两个开关行（illust 模式整段保持 GONE）
         if (isNovel) setupNovelSwitches()
@@ -217,6 +224,13 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
                        else searchViewModel.searchOptions.value?.illust?.lang?.options.orEmpty()
             updateFilter { it.copy(lang = if (idx == 0) null else opts.getOrNull(idx - 1)?.code) }
         }
+        fm.setFragmentResultListener(REQUEST_RATIO, lifecycleOwner) { _, bundle ->
+            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+            // idx 0 = "所有纵横比"（null），1.. = ratioList[idx-1]
+            updateFilter {
+                it.copy(ratioPattern = if (idx == 0) null else ratioList.getOrNull(idx - 1))
+            }
+        }
         fm.setFragmentResultListener(REQUEST_DURATION, lifecycleOwner) { _, bundle ->
             @Suppress("DEPRECATION")
             val patch = bundle.getSerializable(DurationPickerSheet.KEY_PATCH)
@@ -261,6 +275,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             bindRow(binding.rowToolOrGenre, R.string.search_filter_v3_row_tool, toolSummary(filter))
         }
         bindRow(binding.rowLang, R.string.search_filter_v3_row_lang, langSummary(filter))
+        bindRow(binding.rowRatio, R.string.search_filter_v3_row_ratio, ratioSummary(filter))
 
         bindRow(binding.rowOther, R.string.search_filter_v3_row_other, otherSummary(filter))
 
@@ -357,6 +372,15 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         return opts.firstOrNull { it.code == filter.lang }?.name ?: filter.lang!!
     }
 
+    private fun ratioLabel(pattern: RatioPattern?): String = getString(when (pattern) {
+        null                    -> R.string.search_filter_v3_ratio_all
+        RatioPattern.Landscape  -> R.string.search_filter_v3_ratio_landscape
+        RatioPattern.Portrait   -> R.string.search_filter_v3_ratio_portrait
+        RatioPattern.Square     -> R.string.search_filter_v3_ratio_square
+    })
+
+    private fun ratioSummary(filter: SearchFilterV3): String = ratioLabel(filter.ratioPattern)
+
     private fun otherSummary(filter: SearchFilterV3): String {
         val flags = mutableListOf<String>()
         if (filter.excludeAi) flags += getString(R.string.search_filter_v3_other_summary_no_ai)
@@ -447,6 +471,14 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         showSimplePicker(REQUEST_LANG, getString(R.string.search_filter_v3_row_lang), labels, selected)
     }
 
+    private fun showRatioPicker() {
+        val labels = listOf(getString(R.string.search_filter_v3_ratio_all)) +
+            ratioList.map { ratioLabel(it) }
+        val cur = currentFilter().ratioPattern
+        val selected = if (cur == null) 0 else ratioList.indexOf(cur).let { if (it < 0) 0 else it + 1 }
+        showSimplePicker(REQUEST_RATIO, getString(R.string.search_filter_v3_row_ratio), labels, selected)
+    }
+
     private fun showDurationPicker() {
         DurationPickerSheet.newInstance(REQUEST_DURATION, currentFilter())
             .show(childFragmentManager, REQUEST_DURATION)
@@ -495,6 +527,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_TOOL     = "v3_filter_tool"
         private const val REQUEST_GENRE    = "v3_filter_genre"
         private const val REQUEST_LANG     = "v3_filter_lang"
+        private const val REQUEST_RATIO    = "v3_filter_ratio"
         private const val REQUEST_DURATION = "v3_filter_duration"
         private const val REQUEST_OTHER    = "v3_filter_other"
 

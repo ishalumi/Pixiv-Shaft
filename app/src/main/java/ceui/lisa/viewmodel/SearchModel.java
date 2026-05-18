@@ -38,6 +38,8 @@ public class SearchModel extends ViewModel {
     private final MutableLiveData<String> duration = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isOriginalOnly = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isReplaceableOnly = new MutableLiveData<>();
+    // 长宽比（仅 illust/manga）—— V3 sheet 写入，老 FragmentFilter 不暴露
+    private final MutableLiveData<String> ratioPattern = new MutableLiveData<>();
 
     public MutableLiveData<String> getKeyword() {
         return keyword;
@@ -111,5 +113,9 @@ public class SearchModel extends ViewModel {
 
     public MutableLiveData<Boolean> getIsReplaceableOnly() {
         return isReplaceableOnly;
+    }
+
+    public MutableLiveData<String> getRatioPattern() {
+        return ratioPattern;
     }
 }

@@ -1339,6 +1339,11 @@
     <string name="search_filter_v3_row_tool">ペイントツール</string>
     <string name="search_filter_v3_row_genre">ジャンル</string>
     <string name="search_filter_v3_row_lang">作品の言語</string>
+    <string name="search_filter_v3_row_ratio">アスペクト比</string>
+    <string name="search_filter_v3_ratio_all">すべてのアスペクト比</string>
+    <string name="search_filter_v3_ratio_landscape">横長</string>
+    <string name="search_filter_v3_ratio_portrait">縦長</string>
+    <string name="search_filter_v3_ratio_square">正方形</string>
     <string name="search_filter_v3_row_other">その他の条件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">すべて</string>
     <string name="search_filter_v3_tool_all_summary">すべてのツール</string>
