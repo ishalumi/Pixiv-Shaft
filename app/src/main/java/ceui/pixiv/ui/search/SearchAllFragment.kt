@@ -42,8 +42,7 @@ class SearchAllFragment : PixivFragment(R.layout.fragment_search_all) {
             searchViewModel.inputDraft.value = ""
         }
         binding.idSearchIllust.setOnClick { sender ->
-            checkAndNext(sender) { word ->
-                val id = word.toLong()
+            checkAndNextId(sender) { id ->
                 val illust = Client.appApi.getIllust(id).illust
                 if (illust != null) {
                     ArtworksMap.store[fragmentViewModel.fragmentUniqueId] = listOf(id)
@@ -53,8 +52,7 @@ class SearchAllFragment : PixivFragment(R.layout.fragment_search_all) {
             }
         }
         binding.idSearchUser.setOnClick { sender ->
-            checkAndNext(sender) { word ->
-                val id = word.toLong()
+            checkAndNextId(sender) { id ->
                 val userResp = Client.appApi.getUserProfile(id)
                 userResp.user?.let { user ->
                     ObjectPool.update(user)
@@ -63,8 +61,7 @@ class SearchAllFragment : PixivFragment(R.layout.fragment_search_all) {
             }
         }
         binding.idSearchNovel.setOnClick { sender ->
-            checkAndNext(sender) { word ->
-                val id = word.toLong()
+            checkAndNextId(sender) { id ->
                 val novel = Client.appApi.getNovel(id).novel
                 if (novel != null) {
                     ArtworksMap.store[fragmentViewModel.fragmentUniqueId] = listOf(id)
@@ -82,10 +79,14 @@ class SearchAllFragment : PixivFragment(R.layout.fragment_search_all) {
         }
     }
 
-    private fun checkAndNext(sender: ProgressIndicator, block: suspend (String) -> Unit) {
+    private fun checkAndNext(
+        sender: ProgressIndicator,
+        transform: (String) -> String = { it },
+        block: suspend (String) -> Unit,
+    ) {
         val inputBox = binding.inputBox
         launchSuspend(sender) {
-            val word = searchViewModel.inputDraft.value ?: ""
+            val word = transform(searchViewModel.inputDraft.value ?: "")
             if (word.trim().isNotEmpty()) {
                 block(word)
             } else {
@@ -95,6 +96,13 @@ class SearchAllFragment : PixivFragment(R.layout.fragment_search_all) {
                     showKeyboard(inputBox)
                 }
             }
+        }
+    }
+
+    // 粘贴来的 ID 可能夹杂表情/符号(防审核屏蔽);ID 搜索路径里只保留数字
+    private fun checkAndNextId(sender: ProgressIndicator, block: suspend (Long) -> Unit) {
+        checkAndNext(sender, transform = { it.filter(Char::isDigit) }) { digits ->
+            block(digits.toLong())
         }
     }
 }
