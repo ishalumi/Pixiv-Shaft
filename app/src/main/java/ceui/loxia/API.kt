@@ -192,6 +192,10 @@ interface API {
         @Query("start_date") start_date: String? = null,
         @Query("end_date") end_date: String? = null,
         @Query("ratio_pattern") ratio_pattern: String? = null,
+        @Query("width_min") width_min: Int? = null,
+        @Query("width_max") width_max: Int? = null,
+        @Query("height_min") height_min: Int? = null,
+        @Query("height_max") height_max: Int? = null,
     ): IllustResponse
 
     @GET("/v1/search/popular-preview/novel?include_potential_violation_works=false")
@@ -232,6 +236,10 @@ interface API {
         @Query("start_date") start_date: String? = null,
         @Query("end_date") end_date: String? = null,
         @Query("ratio_pattern") ratio_pattern: String? = null,
+        @Query("width_min") width_min: Int? = null,
+        @Query("width_max") width_max: Int? = null,
+        @Query("height_min") height_min: Int? = null,
+        @Query("height_max") height_max: Int? = null,
     ): IllustResponse
 
     @GET("/v1/search/novel?include_potential_violation_works=false")

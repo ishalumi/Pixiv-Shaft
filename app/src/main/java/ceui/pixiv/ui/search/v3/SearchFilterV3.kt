@@ -22,6 +22,7 @@ import ceui.pixiv.ui.search.SortType
  *  10. excludeAi             — 屏蔽 AI 作品（驱动 search_ai_type）
  *  11. r18Mode               — R18 限制（沿用旧版「-R-18」「R-18」关键字 hack）
  *  12. ratioPattern          — 长宽比（仅 illust/manga，走官方 `ratio_pattern` query 参数）
+ *  13. resolutionBucket      — 分辨率档位（仅 illust/manga，走官方 `width_min/max` + `height_min/max`）
  */
 data class SearchFilterV3(
     val sort: String = SortType.DATE_DESC,
@@ -37,6 +38,7 @@ data class SearchFilterV3(
     val excludeAi: Boolean = false,
     val r18Mode: R18Mode = R18Mode.All,
     val ratioPattern: RatioPattern? = null,   // illust/manga only
+    val resolutionBucket: ResolutionBucket? = null,   // illust/manga only
     // novel 专属（pixiv iOS 8.6.5 「仅限原创作品」/「仅限支持单词置换的作品」开关）
     val isOriginalOnly: Boolean = false,
     val isReplaceableOnly: Boolean = false,
@@ -87,6 +89,7 @@ data class SearchFilterV3(
         if (isNovel && isOriginalOnly) n++
         if (isNovel && isReplaceableOnly) n++
         if (!isNovel && ratioPattern != null) n++
+        if (!isNovel && resolutionBucket != null) n++
         return n
     }
 }
@@ -171,4 +174,20 @@ enum class RatioPattern(val apiValue: String) {
     Landscape("landscape"),
     Portrait("portrait"),
     Square("square"),
+}
+
+/**
+ * 分辨率档位（仅 illust/manga）—— 走官方 `width_min` / `width_max` / `height_min` / `height_max`。
+ * 「全部清晰度」= 4 个参数都不传（[SearchFilterV3.resolutionBucket] = null）。
+ * 与 pixiv iOS 8.6.6「分辨率」picker 三档对齐：≥3000、1000~2999、≤999（边界双闭）。
+ */
+enum class ResolutionBucket(
+    val widthMin: Int?,
+    val widthMax: Int?,
+    val heightMin: Int?,
+    val heightMax: Int?,
+) {
+    Above3000(3000, null, 3000, null),
+    Between1000And2999(1000, 2999, 1000, 2999),
+    Below1000(null, 999, null, 999),
 }

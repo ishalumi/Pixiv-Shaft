@@ -33,6 +33,11 @@ class SearchIllustRepo @JvmOverloads constructor(
     private var duration: String? = null,
     private var searchAiType: Int? = null,
     private var ratioPattern: String? = null,
+    // 分辨率档位 4 项 —— V3 sheet 写入，老 FragmentFilter 不暴露
+    private var widthMin: Int? = null,
+    private var widthMax: Int? = null,
+    private var heightMin: Int? = null,
+    private var heightMax: Int? = null,
 ) : RemoteRepo<ListIllust>() {
 
     private var filterMapper: FilterMapper? = null
@@ -73,6 +78,10 @@ class SearchIllustRepo @JvmOverloads constructor(
                 duration,
                 searchAiType,
                 ratioPattern,
+                widthMin,
+                widthMax,
+                heightMin,
+                heightMax,
             )
         } else {
             Retro.getAppApi().searchIllust(
@@ -87,6 +96,10 @@ class SearchIllustRepo @JvmOverloads constructor(
                 duration,
                 searchAiType,
                 ratioPattern,
+                widthMin,
+                widthMax,
+                heightMin,
+                heightMax,
             )
         }
     }
@@ -110,6 +123,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         return Retro.getAppApi().popularPreview(
             keyword ?: "", startDate, endDate, searchType,
             bookmarkMin, tool, lang, duration, searchAiType, ratioPattern,
+            widthMin, widthMax, heightMin, heightMax,
         )
     }
 
@@ -128,6 +142,10 @@ class SearchIllustRepo @JvmOverloads constructor(
         lang = searchModel.lang.value
         duration = searchModel.duration.value
         ratioPattern = searchModel.ratioPattern.value
+        widthMin = searchModel.widthMin.value
+        widthMax = searchModel.widthMax.value
+        heightMin = searchModel.heightMin.value
+        heightMax = searchModel.heightMax.value
         // 老版没显式 AI 字段；用全局开关派生（FragmentFilter 历史就这么干）。
         searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
 

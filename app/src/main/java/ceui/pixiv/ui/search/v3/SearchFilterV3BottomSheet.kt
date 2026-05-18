@@ -93,6 +93,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private val keywordUsersList = KeywordUsersBucket.values().toList()
     // 长宽比候选；index 0 = "所有纵横比"（null），1.. = RatioPattern.values()[idx-1]
     private val ratioList = RatioPattern.values().toList()
+    // 分辨率档位；index 0 = "全部清晰度"（null），1.. = ResolutionBucket.values()[idx-1]
+    private val resolutionList = ResolutionBucket.values().toList()
     private val targetList: List<SearchTarget>
         get() = if (isNovel) SearchTarget.forNovel() else SearchTarget.forIllust()
 
@@ -131,6 +133,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             binding.rowToolOrGenre,
             binding.rowLang,
             binding.rowRatio,
+            binding.rowResolution,
             binding.rowOther,
         ).forEach { it.rowValue.setTextColor(palette.textAccent) }
 
@@ -145,14 +148,17 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         }
         binding.rowLang.root.setOnClick { showLangPicker() }
         binding.rowRatio.root.setOnClick { showRatioPicker() }
+        binding.rowResolution.root.setOnClick { showResolutionPicker() }
         binding.rowOther.root.setOnClick { showOtherSheet() }
 
         // 语种行仅 novel 展示；illust/manga 不需要语种维度
         binding.dividerLang.isVisible = isNovel
         binding.rowLang.root.isVisible = isNovel
-        // 长宽比仅 illust/manga 展示；novel 模式整行 + divider 隐藏
+        // 长宽比 + 分辨率仅 illust/manga 展示；novel 模式整行 + divider 隐藏
         binding.dividerRatio.isVisible = !isNovel
         binding.rowRatio.root.isVisible = !isNovel
+        binding.dividerResolution.isVisible = !isNovel
+        binding.rowResolution.root.isVisible = !isNovel
 
         // novel 专属两个开关行（illust 模式整段保持 GONE）
         if (isNovel) setupNovelSwitches()
@@ -231,6 +237,13 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
                 it.copy(ratioPattern = if (idx == 0) null else ratioList.getOrNull(idx - 1))
             }
         }
+        fm.setFragmentResultListener(REQUEST_RESOLUTION, lifecycleOwner) { _, bundle ->
+            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+            // idx 0 = "全部清晰度"（null），1.. = resolutionList[idx-1]
+            updateFilter {
+                it.copy(resolutionBucket = if (idx == 0) null else resolutionList.getOrNull(idx - 1))
+            }
+        }
         fm.setFragmentResultListener(REQUEST_DURATION, lifecycleOwner) { _, bundle ->
             @Suppress("DEPRECATION")
             val patch = bundle.getSerializable(DurationPickerSheet.KEY_PATCH)
@@ -276,6 +289,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         }
         bindRow(binding.rowLang, R.string.search_filter_v3_row_lang, langSummary(filter))
         bindRow(binding.rowRatio, R.string.search_filter_v3_row_ratio, ratioSummary(filter))
+        bindRow(binding.rowResolution, R.string.search_filter_v3_row_resolution, resolutionSummary(filter))
 
         bindRow(binding.rowOther, R.string.search_filter_v3_row_other, otherSummary(filter))
 
@@ -381,6 +395,16 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
 
     private fun ratioSummary(filter: SearchFilterV3): String = ratioLabel(filter.ratioPattern)
 
+    private fun resolutionLabel(bucket: ResolutionBucket?): String = getString(when (bucket) {
+        null                              -> R.string.search_filter_v3_resolution_all
+        ResolutionBucket.Above3000        -> R.string.search_filter_v3_resolution_above_3000
+        ResolutionBucket.Between1000And2999 -> R.string.search_filter_v3_resolution_1000_2999
+        ResolutionBucket.Below1000        -> R.string.search_filter_v3_resolution_below_1000
+    })
+
+    private fun resolutionSummary(filter: SearchFilterV3): String =
+        resolutionLabel(filter.resolutionBucket)
+
     private fun otherSummary(filter: SearchFilterV3): String {
         val flags = mutableListOf<String>()
         if (filter.excludeAi) flags += getString(R.string.search_filter_v3_other_summary_no_ai)
@@ -479,6 +503,20 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         showSimplePicker(REQUEST_RATIO, getString(R.string.search_filter_v3_row_ratio), labels, selected)
     }
 
+    private fun showResolutionPicker() {
+        val labels = listOf(getString(R.string.search_filter_v3_resolution_all)) +
+            resolutionList.map { resolutionLabel(it) }
+        val cur = currentFilter().resolutionBucket
+        val selected = if (cur == null) 0
+            else resolutionList.indexOf(cur).let { if (it < 0) 0 else it + 1 }
+        showSimplePicker(
+            REQUEST_RESOLUTION,
+            getString(R.string.search_filter_v3_row_resolution),
+            labels,
+            selected,
+        )
+    }
+
     private fun showDurationPicker() {
         DurationPickerSheet.newInstance(REQUEST_DURATION, currentFilter())
             .show(childFragmentManager, REQUEST_DURATION)
@@ -528,6 +566,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_GENRE    = "v3_filter_genre"
         private const val REQUEST_LANG     = "v3_filter_lang"
         private const val REQUEST_RATIO    = "v3_filter_ratio"
+        private const val REQUEST_RESOLUTION = "v3_filter_resolution"
         private const val REQUEST_DURATION = "v3_filter_duration"
         private const val REQUEST_OTHER    = "v3_filter_other"
 

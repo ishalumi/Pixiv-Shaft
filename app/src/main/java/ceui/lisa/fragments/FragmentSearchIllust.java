@@ -120,7 +120,11 @@ public class FragmentSearchIllust extends NetListFragment<FragmentBaseListBindin
                 searchModel.getLang().getValue(),
                 searchModel.getDuration().getValue(),
                 ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust() ? 1 : 0,
-                searchModel.getRatioPattern().getValue()
+                searchModel.getRatioPattern().getValue(),
+                searchModel.getWidthMin().getValue(),
+                searchModel.getWidthMax().getValue(),
+                searchModel.getHeightMin().getValue(),
+                searchModel.getHeightMax().getValue()
         );
     }
 

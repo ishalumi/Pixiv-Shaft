@@ -135,6 +135,17 @@ object SearchFilterV3LegacyBridge {
         val ratio = if (isNovel) null
             else RatioPattern.values().firstOrNull { it.apiValue == searchModel.ratioPattern.value }
                 ?: baseline.ratioPattern
+        // 反向解析分辨率档位：以 4 个 query 参数的组合命中固定枚举值；命中不到 = 全部清晰度
+        val resolution = if (isNovel) null else {
+            val wMin = searchModel.widthMin.value
+            val wMax = searchModel.widthMax.value
+            val hMin = searchModel.heightMin.value
+            val hMax = searchModel.heightMax.value
+            ResolutionBucket.values().firstOrNull {
+                it.widthMin == wMin && it.widthMax == wMax &&
+                    it.heightMin == hMin && it.heightMax == hMax
+            } ?: baseline.resolutionBucket
+        }
 
         return SearchFilterV3(
             sort = sort,
@@ -153,6 +164,7 @@ object SearchFilterV3LegacyBridge {
             isOriginalOnly = isNovel && searchModel.isOriginalOnly.value == true,
             isReplaceableOnly = isNovel && searchModel.isReplaceableOnly.value == true,
             ratioPattern = ratio,
+            resolutionBucket = resolution,
         )
     }
 
@@ -193,5 +205,10 @@ object SearchFilterV3LegacyBridge {
         searchModel.isReplaceableOnly.value = filter.isReplaceableOnly
         // ratio_pattern 仅 illust/manga；novel 路径 SearchIllustRepo 不读，写入 SearchModel 也无副作用
         searchModel.ratioPattern.value = filter.ratioPattern?.apiValue
+        // 分辨率档位 4 项一并落到 SearchModel；null bucket → 4 个全 null（不传 query）
+        searchModel.widthMin.value = filter.resolutionBucket?.widthMin
+        searchModel.widthMax.value = filter.resolutionBucket?.widthMax
+        searchModel.heightMin.value = filter.resolutionBucket?.heightMin
+        searchModel.heightMax.value = filter.resolutionBucket?.heightMax
     }
 }

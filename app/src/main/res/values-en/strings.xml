@@ -1341,6 +1341,11 @@
     <string name="search_filter_v3_ratio_landscape">Landscape</string>
     <string name="search_filter_v3_ratio_portrait">Portrait</string>
     <string name="search_filter_v3_ratio_square">Square</string>
+    <string name="search_filter_v3_row_resolution">Resolution</string>
+    <string name="search_filter_v3_resolution_all">All resolutions</string>
+    <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px and above</string>
+    <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
+    <string name="search_filter_v3_resolution_below_1000">999px × 999px and below</string>
     <string name="search_filter_v3_row_other">Other conditions</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">All bookmarks</string>
     <string name="search_filter_v3_tool_all_summary">All tools</string>

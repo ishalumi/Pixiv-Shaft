@@ -20,4 +20,9 @@ data class SearchConfig(
     val isOriginalOnly: Boolean? = null,    // novel only
     val isReplaceableOnly: Boolean? = null, // novel only
     val ratioPattern: String? = null,       // illust/manga only: landscape | portrait | square
+    // 分辨率档位（仅 illust/manga）—— 4 个独立 query 参数，null 跳过
+    val widthMin: Int? = null,
+    val widthMax: Int? = null,
+    val heightMin: Int? = null,
+    val heightMax: Int? = null,
 )

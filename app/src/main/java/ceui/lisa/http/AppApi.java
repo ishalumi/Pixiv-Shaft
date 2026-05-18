@@ -116,7 +116,7 @@ public interface AppApi {
                                         @Query("end_date") String endDate,
                                         @Query("search_target") String search_target);
 
-    /** V3 filter ext —— bookmark_num_min/max + tool + lang + duration + search_ai_type + ratio_pattern，nullable 自动跳过。
+    /** V3 filter ext —— bookmark_num_min/max + tool + lang + duration + search_ai_type + ratio_pattern + 分辨率档位 4 项，nullable 自动跳过。
      *  与 [ceui.loxia.API.searchIllustManga] 对齐：默认 include_potential_violation_works=false（iOS 默认）。 */
     @GET("v1/search/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
     Observable<ListIllust> searchIllust(@Query("word") String word,
@@ -129,7 +129,11 @@ public interface AppApi {
                                         @Query("lang") String lang,
                                         @Query("duration") String duration,
                                         @Query("search_ai_type") Integer search_ai_type,
-                                        @Query("ratio_pattern") String ratio_pattern);
+                                        @Query("ratio_pattern") String ratio_pattern,
+                                        @Query("width_min") Integer width_min,
+                                        @Query("width_max") Integer width_max,
+                                        @Query("height_min") Integer height_min,
+                                        @Query("height_max") Integer height_max);
 
     /**
      * search_target=exact_match_for_tags,partial_match_for_tags,text(文本),keyword(关键词)
@@ -332,7 +336,11 @@ public interface AppApi {
                                           @Query("lang") String lang,
                                           @Query("duration") String duration,
                                           @Query("search_ai_type") Integer search_ai_type,
-                                          @Query("ratio_pattern") String ratio_pattern);
+                                          @Query("ratio_pattern") String ratio_pattern,
+                                          @Query("width_min") Integer width_min,
+                                          @Query("width_max") Integer width_max,
+                                          @Query("height_min") Integer height_min,
+                                          @Query("height_max") Integer height_max);
 
     @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
     Observable<ListNovel> popularNovelPreview(@Query("word") String word,

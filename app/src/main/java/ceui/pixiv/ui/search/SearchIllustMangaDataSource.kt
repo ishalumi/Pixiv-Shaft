@@ -30,6 +30,10 @@ class SearchIllustMangaDataSource(
                 start_date = config.startDate,
                 end_date = config.endDate,
                 ratio_pattern = config.ratioPattern,
+                width_min = config.widthMin,
+                width_max = config.widthMax,
+                height_min = config.heightMin,
+                height_max = config.heightMax,
             )
         } else {
             Client.appApi.searchIllustManga(
@@ -46,6 +50,10 @@ class SearchIllustMangaDataSource(
                 start_date = config.startDate,
                 end_date = config.endDate,
                 ratio_pattern = config.ratioPattern,
+                width_min = config.widthMin,
+                width_max = config.widthMax,
+                height_min = config.heightMin,
+                height_max = config.heightMax,
             )
         }
     },

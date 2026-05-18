@@ -1344,6 +1344,11 @@
     <string name="search_filter_v3_ratio_landscape">横長</string>
     <string name="search_filter_v3_ratio_portrait">縦長</string>
     <string name="search_filter_v3_ratio_square">正方形</string>
+    <string name="search_filter_v3_row_resolution">解像度</string>
+    <string name="search_filter_v3_resolution_all">すべての解像度</string>
+    <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px 以上</string>
+    <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
+    <string name="search_filter_v3_resolution_below_1000">999px × 999px 以下</string>
     <string name="search_filter_v3_row_other">その他の条件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">すべて</string>
     <string name="search_filter_v3_tool_all_summary">すべてのツール</string>

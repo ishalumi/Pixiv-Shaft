@@ -123,6 +123,11 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             isReplaceableOnly = if (isNovel && filter.isReplaceableOnly) true else null,
             // 长宽比仅 illust/manga 维度；novel endpoint 不识别 ratio_pattern
             ratioPattern = if (isNovel) null else filter.ratioPattern?.apiValue,
+            // 分辨率仅 illust/manga；4 个 query 参数从 bucket 派生
+            widthMin = if (isNovel) null else filter.resolutionBucket?.widthMin,
+            widthMax = if (isNovel) null else filter.resolutionBucket?.widthMax,
+            heightMin = if (isNovel) null else filter.resolutionBucket?.heightMin,
+            heightMax = if (isNovel) null else filter.resolutionBucket?.heightMax,
         )
     }
 }
