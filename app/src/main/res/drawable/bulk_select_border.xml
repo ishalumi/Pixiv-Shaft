@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  批量选择 cell 选中态边框:2.5dp ?attr/colorPrimary 描边,14dp 圆角(贴 thumb 的
-  clipToOutline 14dp)。挂在 thumb container 之上的 sibling overlay View 而不是
-  CardView 内部 child —— 这样 stroke 不会被 round clip 截断,圆角能完整跟 thumb
-  圆角对齐。
+  批量选择 cell 选中态边框 —— 障眼法:明显 inset 在 thumb 圆角里面,圆角小一档,
+  眼睛不会再去比它跟 thumb 圆角对不对齐。
+   - inset 2dp 用 <inset> drawable 实现,不动 selectedBorder View 的 layout
+   - shape 圆角 12dp = 14 − 2,跟 inset 后位置的弧度对得上
+   - 2.5dp stroke,?attr/colorPrimary 跟主题切色
 
-  用 colorPrimary 跟随用户选的主题切色(这 app 有 10 多种主题)。
+  之前是 14dp 圆角描在 thumb 同一 bounds 上,Android 的 stroke 中心绘制 + 圆角
+  outline clip 算法之间会差几个像素,肉眼看就是边框跟图角"贴不上"。inset 之后
+  这道题直接绕过去了 —— stroke 明显在 thumb 圆角"里面",眼睛不会再去比。
 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@android:color/transparent" />
-    <stroke
-        android:width="2.5dp"
-        android:color="?attr/colorPrimary" />
-    <corners android:radius="14dp" />
-</shape>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:inset="2dp">
+    <shape android:shape="rectangle">
+        <solid android:color="@android:color/transparent" />
+        <stroke
+            android:width="2.5dp"
+            android:color="?attr/colorPrimary" />
+        <corners android:radius="12dp" />
+    </shape>
+</inset>

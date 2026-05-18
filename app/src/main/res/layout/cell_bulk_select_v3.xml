@@ -38,8 +38,9 @@
             android:scaleType="centerCrop" />
     </FrameLayout>
 
-    <!-- 选中边框:2.5dp colorPrimary stroke,14dp 圆角对齐 thumb。挂在 thumb
-         container 之外,所以 stroke 不被 round clip 截 -->
+    <!-- 选中边框 —— 障眼法 inset 已经做在 bulk_select_border.xml(<inset> drawable
+         套 shape)里,这里 View 跟 thumb 同 bounds 就行,stroke 自然画在 thumb 圆角
+         里面;眼睛不再去比它跟 thumb 圆角对不对齐。 -->
     <View
         android:id="@+id/selectedBorder"
         android:layout_width="match_parent"
