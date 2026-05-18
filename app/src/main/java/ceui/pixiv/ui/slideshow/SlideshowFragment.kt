@@ -6,6 +6,8 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.LinearInterpolator
@@ -64,6 +66,12 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
      * before doing anything, so a still-downloading prev/next no longer fires after the user
      * skipped past it. */
     private var loadEpoch: Long = 0
+
+    /** Owned handler so cleanup is deterministic. `view?.postDelayed/removeCallbacks` is fragile:
+     * once the view detaches, View.removeCallbacks silently skips the looper queue and only clears
+     * the RunQueue — so any runnable posted while attached can survive a "cleanup" call and fire
+     * after the fragment is gone. With an owned Handler, removeCallbacks always works. */
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val advanceRunnable = Runnable { advanceToNext() }
     private var frontKenBurns: AnimatorSet? = null
@@ -141,7 +149,7 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
         val newPos = (positionInSequence + delta).coerceIn(0, sequence.size - 1)
         if (newPos == positionInSequence) return
         positionInSequence = newPos
-        view?.removeCallbacks(advanceRunnable)
+        mainHandler.removeCallbacks(advanceRunnable)
         cancelTransition()
         showCurrentImage(initial = false)
         // Suppress the auto-advance schedule from showCurrentImage's success path? It calls
@@ -213,13 +221,14 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
     }
 
     private fun queueAdvance() {
-        view?.removeCallbacks(advanceRunnable)
+        mainHandler.removeCallbacks(advanceRunnable)
         if (!isPaused) {
-            view?.postDelayed(advanceRunnable, DISPLAY_DURATION_MS)
+            mainHandler.postDelayed(advanceRunnable, DISPLAY_DURATION_MS)
         }
     }
 
     private fun advanceToNext() {
+        if (!isAdded || view == null || activity == null) return
         val s = session ?: return
         if (sequence.isEmpty() || isPaused) return
         val nextPos = positionInSequence + 1
@@ -319,6 +328,7 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
         onFail: () -> Unit = {},
         onReady: () -> Unit,
     ) {
+        if (!isAdded || activity == null || view == null) return
         Glide.with(this)
             .load(file)
             .dontAnimate()
@@ -390,7 +400,7 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
             else R.drawable.ic_baseline_pause_24
         )
         if (isPaused) {
-            view?.removeCallbacks(advanceRunnable)
+            mainHandler.removeCallbacks(advanceRunnable)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 frontKenBurns?.pause()
                 backKenBurns?.pause()
@@ -417,10 +427,10 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
     }
 
     private fun scheduleControlsHide() {
-        hideControlsRunnable?.let { view?.removeCallbacks(it) }
+        hideControlsRunnable?.let { mainHandler.removeCallbacks(it) }
         val r = Runnable { hideControls() }
         hideControlsRunnable = r
-        view?.postDelayed(r, 3000)
+        mainHandler.postDelayed(r, 3000)
     }
 
     private fun hideControls() {
@@ -441,7 +451,7 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
 
     override fun onPause() {
         super.onPause()
-        view?.removeCallbacks(advanceRunnable)
+        mainHandler.removeCallbacks(advanceRunnable)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             frontKenBurns?.pause()
             backKenBurns?.pause()
@@ -463,8 +473,8 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
         crossfadeAnim?.cancel(); crossfadeAnim = null
         frontKenBurns?.cancel(); frontKenBurns = null
         backKenBurns?.cancel(); backKenBurns = null
-        view?.removeCallbacks(advanceRunnable)
-        hideControlsRunnable?.let { view?.removeCallbacks(it) }
+        mainHandler.removeCallbacksAndMessages(null)
+        hideControlsRunnable = null
         super.onDestroyView()
     }
 
