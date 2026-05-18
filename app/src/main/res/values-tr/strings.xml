@@ -1199,6 +1199,8 @@
     <string name="search_filter_v3_sort_date_desc">En yeni</string>
     <string name="search_filter_v3_sort_date_asc">En eski</string>
     <string name="search_filter_v3_sort_popular_desc">En popüler</string>
+    <string name="search_filter_v3_sort_popular_male_desc">Popüler (erkek)</string>
+    <string name="search_filter_v3_sort_popular_female_desc">Popüler (kadın)</string>
     <string name="search_filter_v3_sort_trending">Trend</string>
 
     <string name="search_filter_v3_target_partial">Etiket kısmi eşleşme</string>

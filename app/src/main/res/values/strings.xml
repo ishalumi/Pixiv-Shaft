@@ -1719,6 +1719,8 @@
     <string name="search_filter_v3_sort_date_desc">从新到旧</string>
     <string name="search_filter_v3_sort_date_asc">从旧到新</string>
     <string name="search_filter_v3_sort_popular_desc">按热度</string>
+    <string name="search_filter_v3_sort_popular_male_desc">男性向热度</string>
+    <string name="search_filter_v3_sort_popular_female_desc">女性向热度</string>
     <string name="search_filter_v3_sort_trending">综合趋势</string>
 
     <string name="search_filter_v3_target_partial">标签部分匹配</string>

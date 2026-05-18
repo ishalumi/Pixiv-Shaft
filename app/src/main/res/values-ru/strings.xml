@@ -1201,6 +1201,8 @@
     <string name="search_filter_v3_sort_date_desc">Сначала новые</string>
     <string name="search_filter_v3_sort_date_asc">Сначала старые</string>
     <string name="search_filter_v3_sort_popular_desc">По популярности</string>
+    <string name="search_filter_v3_sort_popular_male_desc">Популярно у мужчин</string>
+    <string name="search_filter_v3_sort_popular_female_desc">Популярно у женщин</string>
     <string name="search_filter_v3_sort_trending">В тренде</string>
 
     <string name="search_filter_v3_target_partial">Частичное совпадение тегов</string>

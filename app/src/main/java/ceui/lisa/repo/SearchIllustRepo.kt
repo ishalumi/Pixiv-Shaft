@@ -72,10 +72,16 @@ class SearchIllustRepo @JvmOverloads constructor(
 
         // 路由 sort：
         //  - popular_preview 是 popular-preview endpoint 专属——/v1/search/illust 收到会 400
-        //  - popular_desc 非 premium 用户也走 popular-preview（pixiv 的旧约束）
-        //  其余值（date_desc / date_asc / popular_desc-premium）走 /v1/search/illust，sort 透传。
+        //  - popular_desc / popular_male_desc / popular_female_desc 非 premium：pixiv 旧约束，
+        //    非付费用户不能用人气系列 sort，需走 popular-preview。男女向两档（issue #575）
+        //    平时被 V3 sheet gate 住非会员看不到，这里再兜一层防御。
+        //  其余值（date_desc / date_asc / popular_*-premium）走 /v1/search/illust，sort 透传。
         val usePopularPreview = sortType == SortType.POPULAR_PREVIEW ||
-                (sortType == PixivSearchParamUtil.POPULAR_SORT_VALUE && isPremium != true)
+                (isPremium != true && (
+                    sortType == PixivSearchParamUtil.POPULAR_SORT_VALUE ||
+                    sortType == SortType.POPULAR_MALE_DESC ||
+                    sortType == SortType.POPULAR_FEMALE_DESC
+                ))
 
         // 投稿期间相对档当场算 today−N（每次 initApi 都重算,跨午夜窗口自动跟随今天）;
         // bucket 为空时回落到自定义起止日期

@@ -15,6 +15,7 @@ import ceui.lisa.databinding.CellSearchFilterRowBinding
 import ceui.lisa.databinding.DialogSearchFilterV3Binding
 import ceui.loxia.Client
 import ceui.loxia.ObjectType
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.search.SearchViewModel
 import ceui.pixiv.ui.search.SortType
 import ceui.pixiv.utils.setOnClick
@@ -82,13 +83,24 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private val binding get() = _binding!!
 
     // 静态可枚举的 picker 候选；动态的（tool/genre/lang）由 VM.searchOptions 派生。
-    private val sortList = listOf(
-        SortType.POPULAR_PREVIEW,
-        SortType.DATE_DESC,
-        SortType.DATE_ASC,
-        SortType.POPULAR_DESC,
-        SortType.TRENDING_BUILTIN,
-    )
+    //
+    // 男性向 / 女性向人气两档是 pixiv 官方插画/漫画专属 + 仅 Premium 用户可用的排序
+    // （novel endpoint 不识别；非会员选了实际服务端也不接受，issue #575）。
+    // 所以仅在 illust/manga 模式且当前账号是 Premium 时才让两档出现在 picker 里。
+    // 兜底：非会员万一拿到了带有该 sort 的 filter（比如老 SearchModel 状态种回来），
+    // [shouldUsePopularPreview] 会把它路由到 popular-preview endpoint，不会 400。
+    private val sortList: List<String>
+        get() = buildList {
+            add(SortType.POPULAR_PREVIEW)
+            add(SortType.DATE_DESC)
+            add(SortType.DATE_ASC)
+            add(SortType.POPULAR_DESC)
+            if (!isNovel && SessionManager.isPremium) {
+                add(SortType.POPULAR_MALE_DESC)
+                add(SortType.POPULAR_FEMALE_DESC)
+            }
+            add(SortType.TRENDING_BUILTIN)
+        }
     private val bookmarkList = BookmarkBucket.values().toList()
     private val keywordUsersList = KeywordUsersBucket.values().toList()
     // 长宽比候选；index 0 = "所有纵横比"（null），1.. = RatioPattern.values()[idx-1]
@@ -373,12 +385,14 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     // ──────────────────────────────────────────────────────────────────
 
     private fun sortLabel(sort: String): String = getString(when (sort) {
-        SortType.POPULAR_PREVIEW   -> R.string.search_filter_v3_sort_popular_preview
-        SortType.DATE_DESC         -> R.string.search_filter_v3_sort_date_desc
-        SortType.DATE_ASC          -> R.string.search_filter_v3_sort_date_asc
-        SortType.POPULAR_DESC      -> R.string.search_filter_v3_sort_popular_desc
-        SortType.TRENDING_BUILTIN  -> R.string.search_filter_v3_sort_trending
-        else                       -> R.string.search_filter_v3_sort_popular_preview
+        SortType.POPULAR_PREVIEW     -> R.string.search_filter_v3_sort_popular_preview
+        SortType.DATE_DESC           -> R.string.search_filter_v3_sort_date_desc
+        SortType.DATE_ASC            -> R.string.search_filter_v3_sort_date_asc
+        SortType.POPULAR_DESC        -> R.string.search_filter_v3_sort_popular_desc
+        SortType.POPULAR_MALE_DESC   -> R.string.search_filter_v3_sort_popular_male_desc
+        SortType.POPULAR_FEMALE_DESC -> R.string.search_filter_v3_sort_popular_female_desc
+        SortType.TRENDING_BUILTIN    -> R.string.search_filter_v3_sort_trending
+        else                         -> R.string.search_filter_v3_sort_popular_preview
     })
 
     private fun searchTargetLabel(target: SearchTarget): String = getString(when (target) {

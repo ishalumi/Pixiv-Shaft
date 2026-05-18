@@ -1297,6 +1297,8 @@
     <string name="search_filter_v3_sort_date_desc">Newest</string>
     <string name="search_filter_v3_sort_date_asc">Oldest</string>
     <string name="search_filter_v3_sort_popular_desc">Most popular</string>
+    <string name="search_filter_v3_sort_popular_male_desc">Popular (male)</string>
+    <string name="search_filter_v3_sort_popular_female_desc">Popular (female)</string>
     <string name="search_filter_v3_sort_trending">Trending</string>
 
     <string name="search_filter_v3_target_partial">Partial tag match</string>

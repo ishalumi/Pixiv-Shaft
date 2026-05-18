@@ -69,13 +69,19 @@ class SearchIllustMangaDataSource(
  *   - `popular_preview`：popular-preview endpoint 专属 sort 值，传给 /v1/search/illust 会 400
  *   - `trending_builtin`：Shaft 自定义，pixiv 不识别（legacy 走 PrimeIllustLoader cache + fallback
  *     到 popular-preview；V3 新路径直接走 popular-preview，不带 sort 参数）
- *   - `popular_desc` 非 premium：pixiv 旧约束——非付费用户不能直接 popular_desc，需走 popular-preview
+ *   - `popular_desc` / `popular_male_desc` / `popular_female_desc` 非 premium：pixiv 旧约束——
+ *     非付费用户不能用人气系列 sort，需走 popular-preview。男女向两档（issue #575）平时被
+ *     [SearchFilterV3BottomSheet.sortList] gate 住非会员根本看不到，这里再兜一层防御。
  *
  * `popularPreview` 接收 `sort` 参数但忽略——把 V3 的字符串值原样塞进去也不会 400。
  */
 internal fun shouldUsePopularPreview(sort: String): Boolean {
     if (sort == SortType.POPULAR_PREVIEW) return true
     if (sort == SortType.TRENDING_BUILTIN) return true
-    if (sort == SortType.POPULAR_DESC && !SessionManager.isPremium) return true
+    if (!SessionManager.isPremium && (
+            sort == SortType.POPULAR_DESC ||
+            sort == SortType.POPULAR_MALE_DESC ||
+            sort == SortType.POPULAR_FEMALE_DESC
+        )) return true
     return false
 }

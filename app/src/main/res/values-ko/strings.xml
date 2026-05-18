@@ -1208,6 +1208,8 @@
     <string name="search_filter_v3_sort_date_desc">최신 순</string>
     <string name="search_filter_v3_sort_date_asc">오래된 순</string>
     <string name="search_filter_v3_sort_popular_desc">인기 순</string>
+    <string name="search_filter_v3_sort_popular_male_desc">남성 인기 순</string>
+    <string name="search_filter_v3_sort_popular_female_desc">여성 인기 순</string>
     <string name="search_filter_v3_sort_trending">트렌딩</string>
 
     <string name="search_filter_v3_target_partial">태그 부분 일치</string>
