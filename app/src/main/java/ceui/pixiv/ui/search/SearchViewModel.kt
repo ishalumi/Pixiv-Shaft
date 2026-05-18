@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import ceui.loxia.Event
 import ceui.loxia.ObjectType
 import ceui.loxia.Tag
+import ceui.pixiv.ui.search.v3.BodyLengthUnit
 import ceui.pixiv.ui.search.v3.R18Mode
 import ceui.pixiv.ui.search.v3.SearchFilterV3
 import ceui.pixiv.ui.search.v3.SearchOptionsResponse
@@ -128,6 +129,17 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             widthMax = if (isNovel) null else filter.resolutionBucket?.widthMax,
             heightMin = if (isNovel) null else filter.resolutionBucket?.heightMin,
             heightMax = if (isNovel) null else filter.resolutionBucket?.heightMax,
+            // 正文长度 / 阅读用时仅 novel；text vs word 二选一（unit 决定哪组 query 生效）
+            textLengthMin = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Char)
+                filter.bodyLength.min else null,
+            textLengthMax = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Char)
+                filter.bodyLength.max else null,
+            wordCountMin = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Word)
+                filter.bodyLength.min else null,
+            wordCountMax = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.Word)
+                filter.bodyLength.max else null,
+            readingTimeMin = if (isNovel) filter.readingTime?.min else null,
+            readingTimeMax = if (isNovel) filter.readingTime?.max else null,
         )
     }
 }

@@ -96,7 +96,13 @@ public class FragmentSearchNovel extends NetListFragment<FragmentBaseListBinding
                 searchModel.getDuration().getValue(),
                 ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust() ? 1 : 0,
                 searchModel.getIsOriginalOnly().getValue(),
-                searchModel.getIsReplaceableOnly().getValue()
+                searchModel.getIsReplaceableOnly().getValue(),
+                searchModel.getTextLengthMin().getValue(),
+                searchModel.getTextLengthMax().getValue(),
+                searchModel.getWordCountMin().getValue(),
+                searchModel.getWordCountMax().getValue(),
+                searchModel.getReadingTimeMin().getValue(),
+                searchModel.getReadingTimeMax().getValue()
         );
     }
 

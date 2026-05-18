@@ -1768,6 +1768,42 @@
     <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px 以上</string>
     <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
     <string name="search_filter_v3_resolution_below_1000">999px × 999px 以下</string>
+    <!-- 正文长度（novel） -->
+    <string name="search_filter_v3_row_body_length">正文长度</string>
+    <string name="search_filter_v3_body_length_all">不限</string>
+    <string name="search_filter_v3_body_length_section_char">文字数</string>
+    <string name="search_filter_v3_body_length_section_word">单词数</string>
+    <string name="search_filter_v3_body_length_micro">微型小说（4,999 字以下）</string>
+    <string name="search_filter_v3_body_length_short">短篇小说（5,000 – 19,999 字）</string>
+    <string name="search_filter_v3_body_length_medium">中篇小说（20,000 – 79,999 字）</string>
+    <string name="search_filter_v3_body_length_long">长篇小说（80,000 字以上）</string>
+    <string name="search_filter_v3_word_count_below_5000">4,999 个单词以下</string>
+    <string name="search_filter_v3_word_count_5000_19999">5,000 – 19,999 个单词</string>
+    <string name="search_filter_v3_word_count_20000_79999">20,000 – 79,999 个单词</string>
+    <string name="search_filter_v3_word_count_above_80000">80,000 个单词以上</string>
+    <string name="search_filter_v3_body_length_custom_char">指定文字数</string>
+    <string name="search_filter_v3_body_length_custom_word">指定单词数</string>
+    <string name="search_filter_v3_body_length_unit_char">字</string>
+    <string name="search_filter_v3_body_length_unit_word">词</string>
+    <string name="search_filter_v3_body_length_custom_char_summary">指定文字数 %1$s</string>
+    <string name="search_filter_v3_body_length_custom_word_summary">指定单词数 %1$s</string>
+    <!-- 阅读预计用时（novel） -->
+    <string name="search_filter_v3_row_reading_time">阅读预计用时</string>
+    <string name="search_filter_v3_reading_time_all">不限</string>
+    <string name="search_filter_v3_reading_time_under_10">9 分钟以下</string>
+    <string name="search_filter_v3_reading_time_10_59">10 – 59 分钟</string>
+    <string name="search_filter_v3_reading_time_60_179">60 – 179 分钟</string>
+    <string name="search_filter_v3_reading_time_above_180">180 分钟以上</string>
+    <string name="search_filter_v3_reading_time_custom">指定阅读预计用时</string>
+    <string name="search_filter_v3_reading_time_unit">分钟</string>
+    <string name="search_filter_v3_reading_time_custom_summary">指定 %1$s 分钟</string>
+    <!-- 通用 Premium 标记 + number range input -->
+    <string name="search_filter_v3_premium_marker">(P)</string>
+    <string name="search_filter_v3_number_range_min">下限</string>
+    <string name="search_filter_v3_number_range_max">上限</string>
+    <string name="search_filter_v3_number_range_unlimited">不限</string>
+    <string name="search_filter_v3_number_range_confirm">确定</string>
+    <string name="search_filter_v3_number_range_hint">两端任一留空表示该方向不限。</string>
     <string name="search_filter_v3_row_other">其他条件</string>
     <string name="search_filter_v3_bookmark_unlimited_summary">所有点赞数</string>
     <string name="search_filter_v3_tool_all_summary">所有的制图工具</string>

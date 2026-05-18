@@ -214,6 +214,13 @@ interface API {
         @Query("end_date") end_date: String? = null,
         @Query("is_original_only") is_original_only: Boolean? = null,
         @Query("is_replaceable_only") is_replaceable_only: Boolean? = null,
+        // TODO 正文长度 / 阅读用时 —— 参数名是 mockup，真实抓包到了再替换
+        @Query("text_length_min") text_length_min: Int? = null,
+        @Query("text_length_max") text_length_max: Int? = null,
+        @Query("word_count_min") word_count_min: Int? = null,
+        @Query("word_count_max") word_count_max: Int? = null,
+        @Query("reading_time_min") reading_time_min: Int? = null,
+        @Query("reading_time_max") reading_time_max: Int? = null,
     ): NovelResponse
 
     @GET("/v1/spotlight/articles?filter=for_ios")
@@ -258,6 +265,13 @@ interface API {
         @Query("end_date") end_date: String? = null,
         @Query("is_original_only") is_original_only: Boolean? = null,
         @Query("is_replaceable_only") is_replaceable_only: Boolean? = null,
+        // TODO 正文长度 / 阅读用时 —— 参数名是 mockup，真实抓包到了再替换
+        @Query("text_length_min") text_length_min: Int? = null,
+        @Query("text_length_max") text_length_max: Int? = null,
+        @Query("word_count_min") word_count_min: Int? = null,
+        @Query("word_count_max") word_count_max: Int? = null,
+        @Query("reading_time_min") reading_time_min: Int? = null,
+        @Query("reading_time_max") reading_time_max: Int? = null,
     ): NovelResponse
 
     @GET("/v1/search/options")

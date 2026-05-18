@@ -45,6 +45,13 @@ public class SearchModel extends ViewModel {
     private final MutableLiveData<Integer> widthMax = new MutableLiveData<>();
     private final MutableLiveData<Integer> heightMin = new MutableLiveData<>();
     private final MutableLiveData<Integer> heightMax = new MutableLiveData<>();
+    // 正文长度 / 阅读用时（仅 novel）—— mockup 参数名 text_length/word_count/reading_time
+    private final MutableLiveData<Integer> textLengthMin = new MutableLiveData<>();
+    private final MutableLiveData<Integer> textLengthMax = new MutableLiveData<>();
+    private final MutableLiveData<Integer> wordCountMin = new MutableLiveData<>();
+    private final MutableLiveData<Integer> wordCountMax = new MutableLiveData<>();
+    private final MutableLiveData<Integer> readingTimeMin = new MutableLiveData<>();
+    private final MutableLiveData<Integer> readingTimeMax = new MutableLiveData<>();
 
     public MutableLiveData<String> getKeyword() {
         return keyword;
@@ -138,5 +145,29 @@ public class SearchModel extends ViewModel {
 
     public MutableLiveData<Integer> getHeightMax() {
         return heightMax;
+    }
+
+    public MutableLiveData<Integer> getTextLengthMin() {
+        return textLengthMin;
+    }
+
+    public MutableLiveData<Integer> getTextLengthMax() {
+        return textLengthMax;
+    }
+
+    public MutableLiveData<Integer> getWordCountMin() {
+        return wordCountMin;
+    }
+
+    public MutableLiveData<Integer> getWordCountMax() {
+        return wordCountMax;
+    }
+
+    public MutableLiveData<Integer> getReadingTimeMin() {
+        return readingTimeMin;
+    }
+
+    public MutableLiveData<Integer> getReadingTimeMax() {
+        return readingTimeMax;
     }
 }

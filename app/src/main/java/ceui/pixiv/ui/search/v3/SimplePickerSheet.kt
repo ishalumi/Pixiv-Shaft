@@ -1,11 +1,15 @@
 package ceui.pixiv.ui.search.v3
 
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.core.os.bundleOf
 import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import ceui.lisa.R
 import ceui.lisa.databinding.CellSearchFilterCheckRowBinding
 import ceui.lisa.databinding.DialogSearchFilterPickerBinding
@@ -53,26 +57,49 @@ class SimplePickerSheet : V3BottomSheetBase() {
 
         val labels = args.getStringArrayList(ARG_LABELS) ?: arrayListOf()
         val selected = args.getInt(ARG_SELECTED, 0)
-        renderItems(labels, selected)
+        val headerIndices = args.getIntArray(ARG_HEADER_INDICES)?.toSet().orEmpty()
+        val footer = args.getString(ARG_FOOTER_HINT).orEmpty()
+        renderItems(labels, selected, headerIndices)
+        binding.pickerFooter.isVisible = footer.isNotEmpty()
+        binding.pickerFooter.text = footer
     }
 
-    private fun renderItems(labels: List<String>, selected: Int) {
+    /**
+     * @param headerIndices 这些索引渲染成 section header（非可选、无 checkmark、不响应点击）。
+     *   父 fragment 自己保证 header 索引和 [selected] 不重叠（已选的不会是 header）。
+     */
+    private fun renderItems(labels: List<String>, selected: Int, headerIndices: Set<Int>) {
         binding.pickerCard.removeAllViews()
         val inflater = LayoutInflater.from(requireContext())
         labels.forEachIndexed { idx, label ->
             if (idx > 0) binding.pickerCard.addView(divider())
-            val itemBinding = CellSearchFilterCheckRowBinding.inflate(
-                inflater, binding.pickerCard, false,
-            )
-            itemBinding.checkLabel.text = label
-            itemBinding.checkMark.isInvisible = idx != selected
-            itemBinding.checkMark.setTextColor(palette.textAccent)
-            itemBinding.root.setOnClick {
-                parentFragmentManager.setFragmentResult(requestKey, bundleOf(KEY_IDX to idx))
-                dismissAllowingStateLoss()
+            if (idx in headerIndices) {
+                binding.pickerCard.addView(sectionHeader(label))
+            } else {
+                val itemBinding = CellSearchFilterCheckRowBinding.inflate(
+                    inflater, binding.pickerCard, false,
+                )
+                itemBinding.checkLabel.text = label
+                itemBinding.checkMark.isInvisible = idx != selected
+                itemBinding.checkMark.setTextColor(palette.textAccent)
+                itemBinding.root.setOnClick {
+                    parentFragmentManager.setFragmentResult(requestKey, bundleOf(KEY_IDX to idx))
+                    dismissAllowingStateLoss()
+                }
+                binding.pickerCard.addView(itemBinding.root)
             }
-            binding.pickerCard.addView(itemBinding.root)
         }
+    }
+
+    private fun sectionHeader(label: String): View = TextView(requireContext()).apply {
+        text = label
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+        setTextColor(resources.getColor(R.color.v3_text_3, null))
+        gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        setPadding(18.ppppx, 14.ppppx, 18.ppppx, 6.ppppx)
+        layoutParams = android.widget.LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+        )
     }
 
     private fun divider(): View = View(requireContext()).apply {
@@ -90,18 +117,24 @@ class SimplePickerSheet : V3BottomSheetBase() {
         private const val ARG_TITLE = "title"
         private const val ARG_LABELS = "labels"
         private const val ARG_SELECTED = "selected"
+        private const val ARG_HEADER_INDICES = "headerIndices"
+        private const val ARG_FOOTER_HINT = "footerHint"
 
         fun newInstance(
             requestKey: String,
             title: String,
             labels: List<String>,
             selected: Int,
+            headerIndices: IntArray? = null,
+            footerHint: String? = null,
         ): SimplePickerSheet = SimplePickerSheet().apply {
             arguments = Bundle().apply {
                 putString(ARG_REQUEST_KEY, requestKey)
                 putString(ARG_TITLE, title)
                 putStringArrayList(ARG_LABELS, ArrayList(labels))
                 putInt(ARG_SELECTED, selected)
+                if (headerIndices != null) putIntArray(ARG_HEADER_INDICES, headerIndices)
+                if (!footerHint.isNullOrEmpty()) putString(ARG_FOOTER_HINT, footerHint)
             }
         }
     }

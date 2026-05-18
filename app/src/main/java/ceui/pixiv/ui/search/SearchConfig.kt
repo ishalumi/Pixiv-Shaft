@@ -25,4 +25,11 @@ data class SearchConfig(
     val widthMax: Int? = null,
     val heightMin: Int? = null,
     val heightMax: Int? = null,
+    // 正文长度 / 阅读预计用时（仅 novel）—— mockup 参数名，待真实抓包替换
+    val textLengthMin: Int? = null,
+    val textLengthMax: Int? = null,
+    val wordCountMin: Int? = null,
+    val wordCountMax: Int? = null,
+    val readingTimeMin: Int? = null,
+    val readingTimeMax: Int? = null,
 )

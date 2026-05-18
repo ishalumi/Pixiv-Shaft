@@ -45,11 +45,29 @@
         android:paddingBottom="20dp">
 
         <LinearLayout
-            android:id="@+id/picker_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_v3_settings_card"
-            android:clipToOutline="true"
-            android:orientation="vertical" />
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/picker_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_v3_settings_card"
+                android:clipToOutline="true"
+                android:orientation="vertical" />
+
+            <!-- 可选 footer hint —— 单词数 picker 下方的「适用语言」说明用 -->
+            <TextView
+                android:id="@+id/picker_footer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="18dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="18dp"
+                android:textColor="@color/v3_text_3"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>

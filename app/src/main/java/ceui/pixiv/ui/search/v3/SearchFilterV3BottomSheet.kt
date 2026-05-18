@@ -95,6 +95,10 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private val ratioList = RatioPattern.values().toList()
     // 分辨率档位；index 0 = "全部清晰度"（null），1.. = ResolutionBucket.values()[idx-1]
     private val resolutionList = ResolutionBucket.values().toList()
+    // 正文长度 / 阅读用时（novel 专属）枚举
+    private val charLengthList = CharLengthBucket.values().toList()
+    private val wordLengthList = WordLengthBucket.values().toList()
+    private val readingTimeBucketList = ReadingTimeBucket.values().toList()
     private val targetList: List<SearchTarget>
         get() = if (isNovel) SearchTarget.forNovel() else SearchTarget.forIllust()
 
@@ -134,6 +138,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             binding.rowLang,
             binding.rowRatio,
             binding.rowResolution,
+            binding.rowBodyLength,
+            binding.rowReadingTime,
             binding.rowOther,
         ).forEach { it.rowValue.setTextColor(palette.textAccent) }
 
@@ -149,6 +155,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.rowLang.root.setOnClick { showLangPicker() }
         binding.rowRatio.root.setOnClick { showRatioPicker() }
         binding.rowResolution.root.setOnClick { showResolutionPicker() }
+        binding.rowBodyLength.root.setOnClick { showBodyLengthPicker() }
+        binding.rowReadingTime.root.setOnClick { showReadingTimePicker() }
         binding.rowOther.root.setOnClick { showOtherSheet() }
 
         // 语种行仅 novel 展示；illust/manga 不需要语种维度
@@ -159,6 +167,11 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         binding.rowRatio.root.isVisible = !isNovel
         binding.dividerResolution.isVisible = !isNovel
         binding.rowResolution.root.isVisible = !isNovel
+        // 正文长度 + 阅读用时仅 novel 展示
+        binding.dividerBodyLength.isVisible = isNovel
+        binding.rowBodyLength.root.isVisible = isNovel
+        binding.dividerReadingTime.isVisible = isNovel
+        binding.rowReadingTime.root.isVisible = isNovel
 
         // novel 专属两个开关行（illust 模式整段保持 GONE）
         if (isNovel) setupNovelSwitches()
@@ -244,6 +257,41 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
                 it.copy(resolutionBucket = if (idx == 0) null else resolutionList.getOrNull(idx - 1))
             }
         }
+        fm.setFragmentResultListener(REQUEST_BODY_LENGTH, lifecycleOwner) { _, bundle ->
+            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+            handleBodyLengthPick(idx)
+        }
+        fm.setFragmentResultListener(REQUEST_BODY_LENGTH_CUSTOM_CHAR, lifecycleOwner) { _, bundle ->
+            @Suppress("DEPRECATION")
+            val patch = bundle.getSerializable(NumberRangeInputSheet.KEY_PATCH)
+                as? NumberRangeInputSheet.Patch ?: return@setFragmentResultListener
+            updateFilter {
+                it.copy(bodyLength = if (patch.min == null && patch.max == null) null
+                    else BodyLengthSpec(BodyLengthUnit.Char, patch.min, patch.max))
+            }
+        }
+        fm.setFragmentResultListener(REQUEST_BODY_LENGTH_CUSTOM_WORD, lifecycleOwner) { _, bundle ->
+            @Suppress("DEPRECATION")
+            val patch = bundle.getSerializable(NumberRangeInputSheet.KEY_PATCH)
+                as? NumberRangeInputSheet.Patch ?: return@setFragmentResultListener
+            updateFilter {
+                it.copy(bodyLength = if (patch.min == null && patch.max == null) null
+                    else BodyLengthSpec(BodyLengthUnit.Word, patch.min, patch.max))
+            }
+        }
+        fm.setFragmentResultListener(REQUEST_READING_TIME, lifecycleOwner) { _, bundle ->
+            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+            handleReadingTimePick(idx)
+        }
+        fm.setFragmentResultListener(REQUEST_READING_TIME_CUSTOM, lifecycleOwner) { _, bundle ->
+            @Suppress("DEPRECATION")
+            val patch = bundle.getSerializable(NumberRangeInputSheet.KEY_PATCH)
+                as? NumberRangeInputSheet.Patch ?: return@setFragmentResultListener
+            updateFilter {
+                it.copy(readingTime = if (patch.min == null && patch.max == null) null
+                    else ReadingTimeSpec(patch.min, patch.max))
+            }
+        }
         fm.setFragmentResultListener(REQUEST_DURATION, lifecycleOwner) { _, bundle ->
             @Suppress("DEPRECATION")
             val patch = bundle.getSerializable(DurationPickerSheet.KEY_PATCH)
@@ -290,6 +338,10 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         bindRow(binding.rowLang, R.string.search_filter_v3_row_lang, langSummary(filter))
         bindRow(binding.rowRatio, R.string.search_filter_v3_row_ratio, ratioSummary(filter))
         bindRow(binding.rowResolution, R.string.search_filter_v3_row_resolution, resolutionSummary(filter))
+        if (isNovel) {
+            bindRow(binding.rowBodyLength, R.string.search_filter_v3_row_body_length, bodyLengthSummary(filter))
+            bindRow(binding.rowReadingTime, R.string.search_filter_v3_row_reading_time, readingTimeSummary(filter))
+        }
 
         bindRow(binding.rowOther, R.string.search_filter_v3_row_other, otherSummary(filter))
 
@@ -405,6 +457,65 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private fun resolutionSummary(filter: SearchFilterV3): String =
         resolutionLabel(filter.resolutionBucket)
 
+    // ── 正文长度 ──────────────────────────────────────────────────────────
+
+    private fun charBucketLabel(bucket: CharLengthBucket): String = getString(when (bucket) {
+        CharLengthBucket.Micro  -> R.string.search_filter_v3_body_length_micro
+        CharLengthBucket.Short  -> R.string.search_filter_v3_body_length_short
+        CharLengthBucket.Medium -> R.string.search_filter_v3_body_length_medium
+        CharLengthBucket.Long   -> R.string.search_filter_v3_body_length_long
+    })
+
+    private fun wordBucketLabel(bucket: WordLengthBucket): String = getString(when (bucket) {
+        WordLengthBucket.Below5000  -> R.string.search_filter_v3_word_count_below_5000
+        WordLengthBucket.From5000   -> R.string.search_filter_v3_word_count_5000_19999
+        WordLengthBucket.From20000  -> R.string.search_filter_v3_word_count_20000_79999
+        WordLengthBucket.Above80000 -> R.string.search_filter_v3_word_count_above_80000
+    })
+
+    /** picker 入口 summary —— 命中预设档显档名，自定义显数字区间，没设显「不限」。 */
+    private fun bodyLengthSummary(filter: SearchFilterV3): String {
+        val spec = filter.bodyLength ?: return getString(R.string.search_filter_v3_body_length_all)
+        return when (spec.unit) {
+            BodyLengthUnit.Char -> {
+                val bucket = charLengthList.firstOrNull { it.min == spec.min && it.max == spec.max }
+                bucket?.let(::charBucketLabel)
+                    ?: getString(R.string.search_filter_v3_body_length_custom_char_summary,
+                        rangeText(spec.min, spec.max))
+            }
+            BodyLengthUnit.Word -> {
+                val bucket = wordLengthList.firstOrNull { it.min == spec.min && it.max == spec.max }
+                bucket?.let(::wordBucketLabel)
+                    ?: getString(R.string.search_filter_v3_body_length_custom_word_summary,
+                        rangeText(spec.min, spec.max))
+            }
+        }
+    }
+
+    private fun rangeText(min: Int?, max: Int?): String = when {
+        min != null && max != null -> "$min–$max"
+        min != null -> "≥$min"
+        max != null -> "≤$max"
+        else -> "—"
+    }
+
+    // ── 阅读预计用时 ──────────────────────────────────────────────────────
+
+    private fun readingTimeBucketLabel(bucket: ReadingTimeBucket): String = getString(when (bucket) {
+        ReadingTimeBucket.Under10    -> R.string.search_filter_v3_reading_time_under_10
+        ReadingTimeBucket.From10To59 -> R.string.search_filter_v3_reading_time_10_59
+        ReadingTimeBucket.From60To179-> R.string.search_filter_v3_reading_time_60_179
+        ReadingTimeBucket.Above180   -> R.string.search_filter_v3_reading_time_above_180
+    })
+
+    private fun readingTimeSummary(filter: SearchFilterV3): String {
+        val spec = filter.readingTime ?: return getString(R.string.search_filter_v3_reading_time_all)
+        val bucket = readingTimeBucketList.firstOrNull { it.min == spec.min && it.max == spec.max }
+        return bucket?.let(::readingTimeBucketLabel)
+            ?: getString(R.string.search_filter_v3_reading_time_custom_summary,
+                rangeText(spec.min, spec.max))
+    }
+
     private fun otherSummary(filter: SearchFilterV3): String {
         val flags = mutableListOf<String>()
         if (filter.excludeAi) flags += getString(R.string.search_filter_v3_other_summary_no_ai)
@@ -517,6 +628,143 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         )
     }
 
+    // ── 正文长度 picker：一个 sheet 里展两组（文字数 / 单词数），分段标题 ──
+    //
+    // labels 顺序:
+    //   0 = 不限
+    //   1 = [HEADER] 文字数
+    //   2..5 = CharLengthBucket 4 档
+    //   6 = 指定文字数 (P)
+    //   7 = [HEADER] 单词数
+    //   8..11 = WordLengthBucket 4 档
+    //   12 = 指定单词数 (P)
+    private fun bodyLengthLabels(): List<String> {
+        val custom = getString(R.string.search_filter_v3_premium_marker)  // 「(P)」
+        return buildList {
+            add(getString(R.string.search_filter_v3_body_length_all))
+            add(getString(R.string.search_filter_v3_body_length_section_char))   // section header
+            addAll(charLengthList.map(::charBucketLabel))
+            add(getString(R.string.search_filter_v3_body_length_custom_char) + " " + custom)
+            add(getString(R.string.search_filter_v3_body_length_section_word))   // section header
+            addAll(wordLengthList.map(::wordBucketLabel))
+            add(getString(R.string.search_filter_v3_body_length_custom_word) + " " + custom)
+        }
+    }
+
+    private fun bodyLengthSelectedIdx(spec: BodyLengthSpec?): Int {
+        if (spec == null) return 0
+        return when (spec.unit) {
+            BodyLengthUnit.Char -> {
+                val bIdx = charLengthList.indexOfFirst { it.min == spec.min && it.max == spec.max }
+                if (bIdx >= 0) 2 + bIdx else 6   // 命中预设 → bucket idx；命中不到 → 指定文字数
+            }
+            BodyLengthUnit.Word -> {
+                val bIdx = wordLengthList.indexOfFirst { it.min == spec.min && it.max == spec.max }
+                if (bIdx >= 0) 8 + bIdx else 12
+            }
+        }
+    }
+
+    private fun showBodyLengthPicker() {
+        // 单词数适用语言提示由 /v1/search/options 的 novel.word_count_supported_languages 字段提供
+        // （服务端按 app-accept-language 已经本地化好）。没拉到就不显示，picker 仍可用。
+        val footer = searchViewModel.searchOptions.value?.novel?.wordCountSupportedLanguages.orEmpty()
+        SimplePickerSheet.newInstance(
+            REQUEST_BODY_LENGTH,
+            getString(R.string.search_filter_v3_row_body_length),
+            bodyLengthLabels(),
+            bodyLengthSelectedIdx(currentFilter().bodyLength),
+            headerIndices = intArrayOf(1, 7),
+            footerHint = footer,
+        ).show(childFragmentManager, REQUEST_BODY_LENGTH)
+    }
+
+    private fun handleBodyLengthPick(idx: Int) {
+        when (idx) {
+            0 -> updateFilter { it.copy(bodyLength = null) }
+            in 2..5 -> {
+                val bucket = charLengthList[idx - 2]
+                updateFilter { it.copy(bodyLength = BodyLengthSpec(BodyLengthUnit.Char, bucket.min, bucket.max)) }
+            }
+            6 -> showBodyLengthCustomInput(BodyLengthUnit.Char)
+            in 8..11 -> {
+                val bucket = wordLengthList[idx - 8]
+                updateFilter { it.copy(bodyLength = BodyLengthSpec(BodyLengthUnit.Word, bucket.min, bucket.max)) }
+            }
+            12 -> showBodyLengthCustomInput(BodyLengthUnit.Word)
+        }
+    }
+
+    private fun showBodyLengthCustomInput(unit: BodyLengthUnit) {
+        val cur = currentFilter().bodyLength?.takeIf { it.unit == unit }
+        val titleRes: Int
+        val unitRes: Int
+        val requestKey: String
+        if (unit == BodyLengthUnit.Char) {
+            titleRes = R.string.search_filter_v3_body_length_custom_char
+            unitRes = R.string.search_filter_v3_body_length_unit_char
+            requestKey = REQUEST_BODY_LENGTH_CUSTOM_CHAR
+        } else {
+            titleRes = R.string.search_filter_v3_body_length_custom_word
+            unitRes = R.string.search_filter_v3_body_length_unit_word
+            requestKey = REQUEST_BODY_LENGTH_CUSTOM_WORD
+        }
+        NumberRangeInputSheet.newInstance(
+            requestKey,
+            getString(titleRes),
+            getString(unitRes),
+            cur?.min,
+            cur?.max,
+        ).show(childFragmentManager, requestKey)
+    }
+
+    // ── 阅读预计用时 picker ──
+    //
+    // labels 顺序:
+    //   0 = 不限
+    //   1..4 = ReadingTimeBucket 4 档
+    //   5 = 指定 (P)
+    private fun showReadingTimePicker() {
+        val custom = getString(R.string.search_filter_v3_premium_marker)
+        val labels = buildList {
+            add(getString(R.string.search_filter_v3_reading_time_all))
+            addAll(readingTimeBucketList.map(::readingTimeBucketLabel))
+            add(getString(R.string.search_filter_v3_reading_time_custom) + " " + custom)
+        }
+        val cur = currentFilter().readingTime
+        val selected = when {
+            cur == null -> 0
+            else -> {
+                val bIdx = readingTimeBucketList.indexOfFirst { it.min == cur.min && it.max == cur.max }
+                if (bIdx >= 0) 1 + bIdx else 5
+            }
+        }
+        showSimplePicker(REQUEST_READING_TIME,
+            getString(R.string.search_filter_v3_row_reading_time), labels, selected)
+    }
+
+    private fun handleReadingTimePick(idx: Int) {
+        when (idx) {
+            0 -> updateFilter { it.copy(readingTime = null) }
+            in 1..4 -> {
+                val bucket = readingTimeBucketList[idx - 1]
+                updateFilter { it.copy(readingTime = ReadingTimeSpec(bucket.min, bucket.max)) }
+            }
+            5 -> showReadingTimeCustomInput()
+        }
+    }
+
+    private fun showReadingTimeCustomInput() {
+        val cur = currentFilter().readingTime
+        NumberRangeInputSheet.newInstance(
+            REQUEST_READING_TIME_CUSTOM,
+            getString(R.string.search_filter_v3_reading_time_custom),
+            getString(R.string.search_filter_v3_reading_time_unit),
+            cur?.min,
+            cur?.max,
+        ).show(childFragmentManager, REQUEST_READING_TIME_CUSTOM)
+    }
+
     private fun showDurationPicker() {
         DurationPickerSheet.newInstance(REQUEST_DURATION, currentFilter())
             .show(childFragmentManager, REQUEST_DURATION)
@@ -567,6 +815,11 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_LANG     = "v3_filter_lang"
         private const val REQUEST_RATIO    = "v3_filter_ratio"
         private const val REQUEST_RESOLUTION = "v3_filter_resolution"
+        private const val REQUEST_BODY_LENGTH = "v3_filter_body_length"
+        private const val REQUEST_BODY_LENGTH_CUSTOM_CHAR = "v3_filter_body_length_custom_char"
+        private const val REQUEST_BODY_LENGTH_CUSTOM_WORD = "v3_filter_body_length_custom_word"
+        private const val REQUEST_READING_TIME = "v3_filter_reading_time"
+        private const val REQUEST_READING_TIME_CUSTOM = "v3_filter_reading_time_custom"
         private const val REQUEST_DURATION = "v3_filter_duration"
         private const val REQUEST_OTHER    = "v3_filter_other"
 

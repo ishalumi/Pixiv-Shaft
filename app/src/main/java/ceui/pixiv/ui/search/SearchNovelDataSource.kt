@@ -28,6 +28,12 @@ class SearchNovelDataSource(
                 end_date = config.endDate,
                 is_original_only = config.isOriginalOnly,
                 is_replaceable_only = config.isReplaceableOnly,
+                text_length_min = config.textLengthMin,
+                text_length_max = config.textLengthMax,
+                word_count_min = config.wordCountMin,
+                word_count_max = config.wordCountMax,
+                reading_time_min = config.readingTimeMin,
+                reading_time_max = config.readingTimeMax,
             )
         } else {
             Client.appApi.searchNovel(
@@ -45,6 +51,12 @@ class SearchNovelDataSource(
                 end_date = config.endDate,
                 is_original_only = config.isOriginalOnly,
                 is_replaceable_only = config.isReplaceableOnly,
+                text_length_min = config.textLengthMin,
+                text_length_max = config.textLengthMax,
+                word_count_min = config.wordCountMin,
+                word_count_max = config.wordCountMax,
+                reading_time_min = config.readingTimeMin,
+                reading_time_max = config.readingTimeMax,
             )
         }
     },

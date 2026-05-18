@@ -145,7 +145,8 @@ public interface AppApi {
                                       @Query("end_date") String endDate,
                                       @Query("search_target") String search_target);
 
-    /** V3 filter ext for novel —— 多了 genre / is_original_only / is_replaceable_only 而非 tool。 */
+    /** V3 filter ext for novel —— 多了 genre / is_original_only / is_replaceable_only 而非 tool。
+     *  TODO 正文长度 / 阅读用时 —— 6 个参数名是 mockup，真实抓包到了再替换。 */
     @GET("v1/search/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
     Observable<ListNovel> searchNovel(@Query("word") String word,
                                       @Query("sort") String sort,
@@ -158,7 +159,13 @@ public interface AppApi {
                                       @Query("duration") String duration,
                                       @Query("search_ai_type") Integer search_ai_type,
                                       @Query("is_original_only") Boolean is_original_only,
-                                      @Query("is_replaceable_only") Boolean is_replaceable_only);
+                                      @Query("is_replaceable_only") Boolean is_replaceable_only,
+                                      @Query("text_length_min") Integer text_length_min,
+                                      @Query("text_length_max") Integer text_length_max,
+                                      @Query("word_count_min") Integer word_count_min,
+                                      @Query("word_count_max") Integer word_count_max,
+                                      @Query("reading_time_min") Integer reading_time_min,
+                                      @Query("reading_time_max") Integer reading_time_max);
 
 
     @GET("v2/illust/related?filter=for_android")
@@ -348,7 +355,8 @@ public interface AppApi {
                                           @Query("end_date") String endDate,
                                           @Query("search_target") String search_target);
 
-    /** V3 filter ext for popular novel preview。 */
+    /** V3 filter ext for popular novel preview。
+     *  TODO 正文长度 / 阅读用时 —— 6 个参数名是 mockup，真实抓包到了再替换。 */
     @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
     Observable<ListNovel> popularNovelPreview(@Query("word") String word,
                                           @Query("start_date") String startDate,
@@ -360,7 +368,13 @@ public interface AppApi {
                                           @Query("duration") String duration,
                                           @Query("search_ai_type") Integer search_ai_type,
                                           @Query("is_original_only") Boolean is_original_only,
-                                          @Query("is_replaceable_only") Boolean is_replaceable_only);
+                                          @Query("is_replaceable_only") Boolean is_replaceable_only,
+                                          @Query("text_length_min") Integer text_length_min,
+                                          @Query("text_length_max") Integer text_length_max,
+                                          @Query("word_count_min") Integer word_count_min,
+                                          @Query("word_count_max") Integer word_count_max,
+                                          @Query("reading_time_min") Integer reading_time_min,
+                                          @Query("reading_time_max") Integer reading_time_max);
 
 
     /**

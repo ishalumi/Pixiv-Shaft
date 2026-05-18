@@ -187,6 +187,33 @@
                     android:id="@+id/row_replaceable_only"
                     layout="@layout/cell_search_filter_inline_switch"
                     android:visibility="gone" />
+
+                <!-- novel 专属：正文长度 / 阅读预计用时 —— isNovel 分支统一显隐 -->
+                <View
+                    android:id="@+id/divider_body_length"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/row_body_length"
+                    layout="@layout/cell_search_filter_row"
+                    android:visibility="gone" />
+
+                <View
+                    android:id="@+id/divider_reading_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2"
+                    android:visibility="gone" />
+
+                <include
+                    android:id="@+id/row_reading_time"
+                    layout="@layout/cell_search_filter_row"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <Space

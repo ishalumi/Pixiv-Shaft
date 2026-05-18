@@ -26,6 +26,13 @@ class SearchNovelRepo @JvmOverloads constructor(
     private var searchAiType: Int? = null,
     private var isOriginalOnly: Boolean? = null,
     private var isReplaceableOnly: Boolean? = null,
+    // 正文长度 / 阅读用时 6 项 —— V3 sheet 写入；mockup 参数名待真实抓包替换
+    private var textLengthMin: Int? = null,
+    private var textLengthMax: Int? = null,
+    private var wordCountMin: Int? = null,
+    private var wordCountMax: Int? = null,
+    private var readingTimeMin: Int? = null,
+    private var readingTimeMax: Int? = null,
 ) : RemoteRepo<ListNovel>() {
 
     override fun initApi(): Observable<ListNovel> {
@@ -59,6 +66,12 @@ class SearchNovelRepo @JvmOverloads constructor(
                 searchAiType,
                 isOriginalOnly,
                 isReplaceableOnly,
+                textLengthMin,
+                textLengthMax,
+                wordCountMin,
+                wordCountMax,
+                readingTimeMin,
+                readingTimeMax,
             )
         } else {
             Retro.getAppApi().searchNovel(
@@ -74,6 +87,12 @@ class SearchNovelRepo @JvmOverloads constructor(
                 searchAiType,
                 isOriginalOnly,
                 isReplaceableOnly,
+                textLengthMin,
+                textLengthMax,
+                wordCountMin,
+                wordCountMax,
+                readingTimeMin,
+                readingTimeMax,
             )
         }
     }
@@ -99,5 +118,11 @@ class SearchNovelRepo @JvmOverloads constructor(
         // null 让 retrofit 跳过 query；只有显式 true 才传，行为对齐 iOS（关闭时不带）
         isOriginalOnly = if (searchModel.isOriginalOnly.value == true) true else null
         isReplaceableOnly = if (searchModel.isReplaceableOnly.value == true) true else null
+        textLengthMin = searchModel.textLengthMin.value
+        textLengthMax = searchModel.textLengthMax.value
+        wordCountMin = searchModel.wordCountMin.value
+        wordCountMax = searchModel.wordCountMax.value
+        readingTimeMin = searchModel.readingTimeMin.value
+        readingTimeMax = searchModel.readingTimeMax.value
     }
 }
