@@ -1,51 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   批量选择 cell —— V3 风格:
-   - 外层 FrameLayout 不做 round clip,留给 selectedBorder 描完整个 14dp 圆角
-   - 内层 thumbContainer 用 clipToOutline + bulk_select_cell_bg 做 14dp 圆角剪裁,
-     图片严丝合缝;空图位也有 v3_surface_2 + 1dp v3_border_2 描边做占位
-   - selectedBorder 作为顶层 sibling 覆盖,2.5dp v3_blue 描边,圆角对齐不被截
-   - checkBadge 顶层 sibling,28dp 实心 colorPrimary 圆形 + 白勾,1dp elevation
-     有一点 V3 浮起感
+   - thumbContainer 用 clipToOutline + 14dp 圆角 bg drawable 做剪裁
+   - thumb 图 + selectedBorder(半透 colorPrimary scrim,选中时显示)都是 thumbContainer
+     的 child,被同一份 14dp outline 一起剪 —— scrim 跟 image 圆角 PIXEL 级一致,
+     根本没有"两条圆角对不对齐"可比的东西
+   - 顶角 checkBadge / pBadge / gifBadge 同样 child(margin 6dp 离圆角足够远不会被剪)
 
-  历史:之前 CardView 把 selectedBorder 当 child 包进来,14dp round clip 把 stroke
-  的尖角截了,选中态边框看起来"贴不上"。换成 FrameLayout 外层 + 圆角 drawable
-  内层后,圆角完整,跟 thumb 严丝合缝。
+  历史:第一版用 CardView 包 + 单独一个 selectedBorder stroke View,stroke 跟 image
+  outline 算法对不上几个像素,肉眼看"贴不上"。inset 障眼法又留了 2dp 沟,用户还是
+  嫌不齐。第三版直接换成共享同一份 outline 的 scrim,从根上消掉对齐这道题。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/thumbContainer"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="140dp"
     android:layout_margin="4dp"
+    android:background="@drawable/bulk_select_cell_bg"
+    android:clipToOutline="true"
     android:foreground="?attr/selectableItemBackground">
 
-    <!-- Thumb container:14dp 圆角剪裁,Glide 加载之前用 v3_surface_2 占位 +
-         1dp v3_border_2 描边给一个轮廓 -->
-    <FrameLayout
-        android:id="@+id/thumbContainer"
+    <ImageView
+        android:id="@+id/thumb"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
-        android:background="@drawable/bulk_select_cell_bg"
-        android:clipToOutline="true">
+        android:layout_height="match_parent"
+        android:adjustViewBounds="true"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
 
-        <ImageView
-            android:id="@+id/thumb"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:adjustViewBounds="true"
-            android:contentDescription="@null"
-            android:scaleType="centerCrop" />
-    </FrameLayout>
-
-    <!-- 选中边框 —— 障眼法 inset 已经做在 bulk_select_border.xml(<inset> drawable
-         套 shape)里,这里 View 跟 thumb 同 bounds 就行,stroke 自然画在 thumb 圆角
-         里面;眼睛不再去比它跟 thumb 圆角对不对齐。 -->
+    <!-- 选中 scrim:半透 colorPrimary 覆盖整图,跟 image 共享 thumbContainer 的
+         14dp outline,被同一份 clip 剪,两层圆角天然 pixel 级对齐;不再有 stroke,
+         "圆角不齐"的对比根本不存在。变量名沿用 selectedBorder 是为了不动 Kotlin 侧。 -->
     <View
         android:id="@+id/selectedBorder"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
-        android:background="@drawable/bulk_select_border"
+        android:layout_height="match_parent"
+        android:background="@color/bulk_select_scrim"
         android:visibility="gone"
         tools:visibility="visible" />
 
@@ -69,8 +61,8 @@
         android:visibility="gone"
         tools:text="GIF" />
 
-    <!-- 选中勾标:28dp colorPrimary 实心圆 + 白勾,右上角,只在选中时显示;
-         1.5dp elevation 让勾标稍微浮起,跟 V3 fab/check 风一致 -->
+    <!-- 选中勾标:28dp colorPrimary 实心圆 + 白勾,右上角,只在选中时显示。
+         elevation 想加但 clipToOutline 父会截阴影,留 0 -->
     <ImageView
         android:id="@+id/checkBadge"
         android:layout_width="28dp"
@@ -79,7 +71,6 @@
         android:layout_margin="6dp"
         android:background="@drawable/bulk_select_check_bg"
         android:contentDescription="@null"
-        android:elevation="1.5dp"
         android:padding="4dp"
         android:src="@drawable/ic_check_24dp"
         android:visibility="gone"

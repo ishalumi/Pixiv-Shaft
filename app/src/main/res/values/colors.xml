@@ -226,6 +226,9 @@
     <color name="v3_pink">#E0246A</color>
     <color name="v3_gold">#D4A020</color>
     <color name="v3_blue">#2B6FCC</color>
+    <!-- 批量选择 cell 选中态 scrim:v3_blue 30% 透明,叠在 thumb 上方,共享 thumb 的
+         14dp clip,从根上躲掉"圆角不齐"的对比 (#4D = 30%) -->
+    <color name="bulk_select_scrim">#4D2B6FCC</color>
     <color name="v3_green">#1DA88A</color>
     <color name="v3_purple">#7C5CC8</color>
     <color name="v3_orange">#D45A30</color>
