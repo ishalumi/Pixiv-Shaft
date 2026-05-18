@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -267,11 +266,11 @@ public class Manager {
 
     public void startAll() {
         Common.showLog("[DL-RACE] startAll (用户态 resume / 冷启动残留路径，走 resurrect)");
-        if (!Common.isEmpty(content)) {
-            for (DownloadItem item : content) {
-                item.setPaused(false);
-                resurrectIfStranded(item);
-            }
+        // 用 snapshot 迭代：item.setPaused/state 是各自字段写入,跟 content 结构无关;
+        // 直接 for-each live content 跟并发的 addTasks/safeAdd/remove 抢 modCount,CME。
+        for (DownloadItem item : contentSnapshot()) {
+            item.setPaused(false);
+            resurrectIfStranded(item);
         }
         isRunning = true;
         // 之前 isRunning=true 时会 short-circuit return，假设单线程串行用 doFinally
@@ -303,8 +302,7 @@ public class Manager {
     }
 
     public void startOne(String uuid) {
-        for (int i = 0; i < content.size(); i++) {
-            DownloadItem downloadItem = content.get(i);
+        for (DownloadItem downloadItem : contentSnapshot()) {
             if (downloadItem != null && downloadItem.getUuid().equals(uuid)) {
                 downloadItem.setPaused(false);
                 resurrectIfStranded(downloadItem);
@@ -369,7 +367,7 @@ public class Manager {
     }
 
     public void stopAll() {
-        for (DownloadItem item : getContent()) {
+        for (DownloadItem item : contentSnapshot()) {
             item.setPaused(true);
         }
         isRunning = false;
@@ -383,7 +381,7 @@ public class Manager {
     }
 
     public void stopOne(String uuid){
-        for (DownloadItem item : getContent()) {
+        for (DownloadItem item : contentSnapshot()) {
             if(item.getUuid().equals(uuid)){
                 item.setPaused(true);
                 Common.showLog("已暂停 " + uuid);
@@ -400,23 +398,33 @@ public class Manager {
     public void clearAll() {
         stopAll();
         AppDatabase.getAppDatabase(mContext).downloadDao().deleteAllDownloading();
-        content.clear();
+        synchronized (this) {
+            content.clear();
+        }
         ManagerReactive.invalidate();
     }
 
     public void clearOne(String uuid) {
         stopOne(uuid);
-        Optional<DownloadItem> item = content.stream().filter(it -> it.getUuid().equals(uuid)).findFirst();
-        if (item.isPresent()) {
-            DownloadItem downloadItem = item.get();
-            DownloadingEntity entity = new DownloadingEntity();
-            entity.setFileName(downloadItem.getName());
-            entity.setUuid(downloadItem.getUuid());
-            entity.setTaskGson(Shaft.sGson.toJson(downloadItem));
-            AppDatabase.getAppDatabase(mContext).downloadDao().deleteDownloading(entity);
-            content.remove(downloadItem);
-            ManagerReactive.invalidate();
+        DownloadItem downloadItem;
+        synchronized (this) {
+            DownloadItem found = null;
+            for (DownloadItem it : content) {
+                if (it != null && uuid.equals(it.getUuid())) {
+                    found = it;
+                    break;
+                }
+            }
+            if (found == null) return;
+            content.remove(found);
+            downloadItem = found;
         }
+        DownloadingEntity entity = new DownloadingEntity();
+        entity.setFileName(downloadItem.getName());
+        entity.setUuid(downloadItem.getUuid());
+        entity.setTaskGson(Shaft.sGson.toJson(downloadItem));
+        AppDatabase.getAppDatabase(mContext).downloadDao().deleteDownloading(entity);
+        ManagerReactive.invalidate();
     }
 
     /**
@@ -530,7 +538,9 @@ public class Manager {
                 Common.showLog("[DL] skip download (already exists), illust=" + downloadItem.getIllust().getId());
                 complete(downloadItem, true);
                 AndroidSchedulers.mainThread().scheduleDirect(() -> {
-                    content.remove(downloadItem);
+                    synchronized (Manager.this) {
+                        content.remove(downloadItem);
+                    }
                     ManagerReactive.invalidate();
                     pumpAvailableSlots();
                 });
@@ -856,11 +866,17 @@ public class Manager {
             // 把 remove 排到最前面，独立 Runnable，跟后续 IO 工作解耦：哪怕后面
             // 任何步骤 throw，main thread 都已经把这条 item 从 content 取出了。
             AndroidSchedulers.mainThread().scheduleDirect(() -> {
-                int sizeBefore = content.size();
-                boolean removed = content.remove(downloadItem);
+                int sizeBefore;
+                boolean removed;
+                int sizeAfter;
+                synchronized (Manager.this) {
+                    sizeBefore = content.size();
+                    removed = content.remove(downloadItem);
+                    sizeAfter = content.size();
+                }
                 if (removed) ManagerReactive.invalidate();
                 Common.showLog("[DL-REMOVE] remove=" + removed + " sizeBefore=" + sizeBefore
-                        + " sizeAfter=" + content.size() + " name=" + downloadItem.getName());
+                        + " sizeAfter=" + sizeAfter + " name=" + downloadItem.getName());
             });
 
             if(downloadItem.getIllust().isGif()){
@@ -931,7 +947,11 @@ public class Manager {
                 Intent intent = new Intent(Params.DOWNLOAD_ING);
                 Holder holder = new Holder();
                 holder.setCode(Params.DOWNLOAD_FAILED);
-                holder.setIndex(content.indexOf(downloadItem));
+                int idx;
+                synchronized (Manager.this) {
+                    idx = content.indexOf(downloadItem);
+                }
+                holder.setIndex(idx);
                 holder.setDownloadItem(downloadItem);
                 intent.putExtra(Params.CONTENT, holder);
                 LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);

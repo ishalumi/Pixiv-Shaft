@@ -161,7 +161,9 @@ class ArtworkV3ViewModel(
         viewModelScope.launch {
             while (isPollingProgress) {
                 kotlinx.coroutines.delay(300)
-                val items = ceui.lisa.core.Manager.get().content
+                // contentSnapshot() 是带 synchronized 的浅拷贝;直接 .content 拿 live
+                // list 跟 Manager 内部的 addTasks/safeAdd/remove 并发,filter 迭代 CME。
+                val items = ceui.lisa.core.Manager.get().contentSnapshot()
                 val myItems = items.filter { it.illust?.id == illustId.toInt() }
                 if (myItems.isEmpty()) {
                     // 队列清空 = 下载完成，直接设 Done，避免经过 Idle 闪烁
@@ -196,7 +198,7 @@ class ArtworkV3ViewModel(
         if (downloadFabInitialized) return
         downloadFabInitialized = true
         // 若 Manager 正在下载本作品，启动进度轮询
-        val items = ceui.lisa.core.Manager.get().content
+        val items = ceui.lisa.core.Manager.get().contentSnapshot()
         val hasItems = items.any { it.illust?.id == illustId.toInt() }
         if (hasItems) {
             _downloadFabState.value = DownloadFab.Downloading(0)
