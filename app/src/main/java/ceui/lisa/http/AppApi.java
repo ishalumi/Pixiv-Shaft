@@ -129,6 +129,7 @@ public interface AppApi {
                                         @Query("lang") String lang,
                                         @Query("search_ai_type") Integer search_ai_type,
                                         @Query("ratio_pattern") String ratio_pattern,
+                                        @Query("content_type") String content_type,
                                         @Query("width_min") Integer width_min,
                                         @Query("width_max") Integer width_max,
                                         @Query("height_min") Integer height_min,
@@ -247,6 +248,15 @@ public interface AppApi {
     Observable<ListUser> getFollowUser(@Query("user_id") int user_id,
                                        @Query("restrict") String restrict);
 
+    /**
+     * 同上，多一个 offset 入口，给页内"跳页"用：
+     * offset==null 时退化为首屏请求（Retrofit 会自动忽略空 Query）。
+     */
+    @GET("v1/user/following?filter=for_android")
+    Observable<ListUser> getFollowUser(@Query("user_id") int user_id,
+                                       @Query("restrict") String restrict,
+                                       @Query("offset") Integer offset);
+
 
     //获取关注 这个userid 的人
     @GET("v1/user/follower?filter=for_android")
@@ -341,6 +351,7 @@ public interface AppApi {
                                           @Query("lang") String lang,
                                           @Query("search_ai_type") Integer search_ai_type,
                                           @Query("ratio_pattern") String ratio_pattern,
+                                          @Query("content_type") String content_type,
                                           @Query("width_min") Integer width_min,
                                           @Query("width_max") Integer width_max,
                                           @Query("height_min") Integer height_min,

@@ -21,6 +21,9 @@ data class SearchConfig(
     val isOriginalOnly: Boolean? = null,    // novel only
     val isReplaceableOnly: Boolean? = null, // novel only
     val ratioPattern: String? = null,       // illust/manga only: landscape | portrait | square
+    // 作品类别（仅 illust/manga）—— content_type query 参数；
+    // null = 不传（默认档「插画、漫画、动图」等价于不传）
+    val contentType: String? = null,
     // 分辨率档位（仅 illust/manga）—— 4 个独立 query 参数，null 跳过
     val widthMin: Int? = null,
     val widthMax: Int? = null,

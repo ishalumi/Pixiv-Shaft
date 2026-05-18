@@ -45,6 +45,10 @@ class SearchIllustRepo @JvmOverloads constructor(
      * 覆盖发出去，跨午夜也不会窗口停滞。null 时直接用 [startDate]/[endDate]（指定期间自定义）。
      */
     private var durationBucket: String? = null,
+    // 作品类别（仅 illust/manga）—— content_type query 参数；null = 不传(默认档等价)。
+    // 放最尾,@JvmOverloads 生成的 N-1 arg overload 自动去掉它,既有 Java caller
+    // [ceui.lisa.fragments.FragmentSearchIllust.repository] 的 positional 调用不受影响。
+    private var contentType: String? = null,
 ) : RemoteRepo<ListIllust>() {
 
     private var filterMapper: FilterMapper? = null
@@ -88,6 +92,7 @@ class SearchIllustRepo @JvmOverloads constructor(
                 lang,
                 searchAiType,
                 ratioPattern,
+                contentType,
                 widthMin,
                 widthMax,
                 heightMin,
@@ -105,6 +110,7 @@ class SearchIllustRepo @JvmOverloads constructor(
                 lang,
                 searchAiType,
                 ratioPattern,
+                contentType,
                 widthMin,
                 widthMax,
                 heightMin,
@@ -145,7 +151,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         val (effectiveStartDate, effectiveEndDate) = resolveDateRange()
         return Retro.getAppApi().popularPreview(
             keyword ?: "", effectiveStartDate, effectiveEndDate, searchType,
-            bookmarkMin, tool, lang, searchAiType, ratioPattern,
+            bookmarkMin, tool, lang, searchAiType, ratioPattern, contentType,
             widthMin, widthMax, heightMin, heightMax,
         )
     }
@@ -164,6 +170,7 @@ class SearchIllustRepo @JvmOverloads constructor(
         tool = searchModel.tool.value
         lang = searchModel.lang.value
         ratioPattern = searchModel.ratioPattern.value
+        contentType = searchModel.contentType.value
         widthMin = searchModel.widthMin.value
         widthMax = searchModel.widthMax.value
         heightMin = searchModel.heightMin.value

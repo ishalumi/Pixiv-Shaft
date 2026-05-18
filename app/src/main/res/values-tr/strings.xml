@@ -905,6 +905,8 @@
     <string name="user_jump_page_hint">Sayfa girin (1-%1$d)</string>
     <string name="user_jump_page_dialog_title">Sayfaya git</string>
     <string name="user_jump_page_dialog_message">%1$d sayfa, sayfa başına %2$d</string>
+    <string name="follow_user_jump_page_action">Sayfa</string>
+    <string name="follow_user_jump_no_users">Açık takip ediyor yok</string>
     <string name="user_jump_page_range_error">Sayfa 1 ile %1$d arasında olmalı</string>
     <string name="user_jump_locating">%1$s aranıyor…</string>
     <string name="user_jump_locate_failed">Konum bulunamadı: %1$s</string>
@@ -1250,6 +1252,13 @@
     <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px ve üzeri</string>
     <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
     <string name="search_filter_v3_resolution_below_1000">999px × 999px ve altı</string>
+    <!-- Eser kategorisi (illust/manga, content_type) -->
+    <string name="search_filter_v3_row_content_type">Eser kategorisi</string>
+    <string name="search_filter_v3_content_type_illust_and_manga_and_ugoira">İllüstrasyon, Manga, Ugoira</string>
+    <string name="search_filter_v3_content_type_illust_and_ugoira">İllüstrasyon, Ugoira</string>
+    <string name="search_filter_v3_content_type_illust">İllüstrasyon</string>
+    <string name="search_filter_v3_content_type_ugoira">Ugoira</string>
+    <string name="search_filter_v3_content_type_manga">Manga</string>
     <string name="search_filter_v3_row_body_length">Metin uzunluğu</string>
     <string name="search_filter_v3_body_length_all">Sınırsız</string>
     <string name="search_filter_v3_body_length_section_char">Karakter sayısı</string>

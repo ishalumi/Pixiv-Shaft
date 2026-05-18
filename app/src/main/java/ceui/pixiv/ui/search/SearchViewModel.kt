@@ -7,6 +7,7 @@ import ceui.loxia.Event
 import ceui.loxia.ObjectType
 import ceui.loxia.Tag
 import ceui.pixiv.ui.search.v3.BodyLengthUnit
+import ceui.pixiv.ui.search.v3.IllustContentType
 import ceui.pixiv.ui.search.v3.R18Mode
 import ceui.pixiv.ui.search.v3.SearchFilterV3
 import ceui.pixiv.ui.search.v3.SearchOptionsResponse
@@ -129,6 +130,9 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             isReplaceableOnly = if (isNovel && filter.isReplaceableOnly) true else null,
             // 长宽比仅 illust/manga 维度；novel endpoint 不识别 ratio_pattern
             ratioPattern = if (isNovel) null else filter.ratioPattern?.apiValue,
+            // 作品类别仅 illust/manga；默认档「插画、漫画、动图」等价于不传 content_type
+            contentType = if (isNovel || filter.contentType == IllustContentType.IllustAndMangaAndUgoira) null
+                else filter.contentType.apiValue,
             // 分辨率仅 illust/manga；4 个 query 参数从 bucket 派生
             widthMin = if (isNovel) null else filter.resolutionBucket?.widthMin,
             widthMax = if (isNovel) null else filter.resolutionBucket?.widthMax,

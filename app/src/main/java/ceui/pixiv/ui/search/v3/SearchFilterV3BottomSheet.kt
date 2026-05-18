@@ -95,6 +95,8 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     private val ratioList = RatioPattern.values().toList()
     // 分辨率档位；index 0 = "全部清晰度"（null），1.. = ResolutionBucket.values()[idx-1]
     private val resolutionList = ResolutionBucket.values().toList()
+    // 作品类别候选（5 档，IllustContentType.IllustAndMangaAndUgoira 为默认）
+    private val contentTypeList = IllustContentType.values().toList()
     // 正文长度 / 阅读用时（novel 专属）枚举
     private val charLengthList = CharLengthBucket.values().toList()
     private val wordLengthList = WordLengthBucket.values().toList()
@@ -131,6 +133,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         listOf(
             binding.rowTarget,
             binding.rowSort,
+            binding.rowContentType,
             binding.rowDuration,
             binding.rowBookmark,
             binding.rowKeywordBookmark,
@@ -145,6 +148,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         // 行点击路由
         binding.rowTarget.root.setOnClick { showTargetPicker() }
         binding.rowSort.root.setOnClick { showSortPicker() }
+        binding.rowContentType.root.setOnClick { showContentTypePicker() }
         binding.rowDuration.root.setOnClick { showDurationPicker() }
         binding.rowBookmark.root.setOnClick { showBookmarkPicker() }
         binding.rowKeywordBookmark.root.setOnClick { showKeywordBookmarkPicker() }
@@ -173,6 +177,9 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         // 正文长度仅 novel 展示（文字数 / 单词数 / 阅读用时 三种单位在一个 picker 里）
         binding.dividerBodyLength.isVisible = isNovel
         binding.rowBodyLength.root.isVisible = isNovel
+        // 作品类别仅 illust/manga 展示；novel 模式整行 + divider 隐藏
+        binding.dividerContentType.isVisible = !isNovel
+        binding.rowContentType.root.isVisible = !isNovel
 
         registerPickerListeners(viewLifecycleOwner)
         renderRows()
@@ -227,6 +234,13 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
             // idx 0 = "全部清晰度"（null），1.. = resolutionList[idx-1]
             updateFilter {
                 it.copy(resolutionBucket = if (idx == 0) null else resolutionList.getOrNull(idx - 1))
+            }
+        }
+        fm.setFragmentResultListener(REQUEST_CONTENT_TYPE, lifecycleOwner) { _, bundle ->
+            val idx = bundle.getInt(SimplePickerSheet.KEY_IDX)
+            // contentTypeList 直接索引到枚举值；默认档 IllustAndMangaAndUgoira 在 0 位
+            contentTypeList.getOrNull(idx)?.let { ct ->
+                updateFilter { it.copy(contentType = ct) }
             }
         }
         fm.setFragmentResultListener(REQUEST_BODY_LENGTH, lifecycleOwner) { _, bundle ->
@@ -314,6 +328,10 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         bindRow(binding.rowTarget, R.string.search_filter_v3_row_target,
             searchTargetLabel(filter.searchTarget))
         bindRow(binding.rowSort, R.string.search_filter_v3_row_sort, sortLabel(filter.sort))
+        if (!isNovel) {
+            bindRow(binding.rowContentType, R.string.search_filter_v3_row_content_type,
+                contentTypeLabel(filter.contentType))
+        }
         bindRow(binding.rowDuration, R.string.search_filter_v3_row_duration, durationSummary(filter))
         bindRow(binding.rowBookmark, R.string.search_filter_v3_row_bookmark, bookmarkLabel(filter.bookmarkBucket))
         bindRow(
@@ -430,6 +448,14 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
 
     private fun resolutionSummary(filter: SearchFilterV3): String =
         resolutionLabel(filter.resolutionBucket)
+
+    private fun contentTypeLabel(type: IllustContentType): String = getString(when (type) {
+        IllustContentType.IllustAndMangaAndUgoira -> R.string.search_filter_v3_content_type_illust_and_manga_and_ugoira
+        IllustContentType.IllustAndUgoira         -> R.string.search_filter_v3_content_type_illust_and_ugoira
+        IllustContentType.Illust                  -> R.string.search_filter_v3_content_type_illust
+        IllustContentType.Ugoira                  -> R.string.search_filter_v3_content_type_ugoira
+        IllustContentType.Manga                   -> R.string.search_filter_v3_content_type_manga
+    })
 
     // ── 正文长度 ──────────────────────────────────────────────────────────
 
@@ -582,6 +608,15 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         val cur = currentFilter().ratioPattern
         val selected = if (cur == null) 0 else ratioList.indexOf(cur).let { if (it < 0) 0 else it + 1 }
         showSimplePicker(REQUEST_RATIO, getString(R.string.search_filter_v3_row_ratio), labels, selected)
+    }
+
+    private fun showContentTypePicker() {
+        showSimplePicker(
+            REQUEST_CONTENT_TYPE,
+            getString(R.string.search_filter_v3_row_content_type),
+            contentTypeList.map(::contentTypeLabel),
+            contentTypeList.indexOf(currentFilter().contentType).coerceAtLeast(0),
+        )
     }
 
     private fun showResolutionPicker() {
@@ -770,6 +805,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
         private const val REQUEST_LANG     = "v3_filter_lang"
         private const val REQUEST_RATIO    = "v3_filter_ratio"
         private const val REQUEST_RESOLUTION = "v3_filter_resolution"
+        private const val REQUEST_CONTENT_TYPE = "v3_filter_content_type"
         private const val REQUEST_BODY_LENGTH = "v3_filter_body_length"
         private const val REQUEST_BODY_LENGTH_CUSTOM_CHAR = "v3_filter_body_length_custom_char"
         private const val REQUEST_BODY_LENGTH_CUSTOM_WORD = "v3_filter_body_length_custom_word"

@@ -53,7 +53,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- ── A 段：检索范围 / 排序 ── -->
+            <!-- ── A 段：检索范围 / 排序 / 作品类别(illust only) ── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -73,6 +73,18 @@
 
                 <include
                     android:id="@+id/row_sort"
+                    layout="@layout/cell_search_filter_row" />
+
+                <!-- 作品类别 —— 仅 illust/manga；novel 模式整行 + divider 隐藏 -->
+                <View
+                    android:id="@+id/divider_content_type"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_content_type"
                     layout="@layout/cell_search_filter_row" />
             </LinearLayout>
 

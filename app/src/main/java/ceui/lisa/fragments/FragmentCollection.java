@@ -122,6 +122,10 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
                     showMoreActionsDialog(restrict);
                     return true;
                 }
+                if (item.getItemId() == R.id.action_jump_page) {
+                    showJumpPageDialog();
+                    return true;
+                }
                 if (item.getItemId() == R.id.action_filter) {
                     Intent intent = new Intent(mContext, TemplateActivity.class);
                     intent.putExtra(TemplateActivity.EXTRA_KEYWORD, restrict);
@@ -184,6 +188,22 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
             baseBind.toolbar.inflateMenu(R.menu.illust_collection_actions);
         } else if (filterType.contains(type)) {
             baseBind.toolbar.inflateMenu(R.menu.illust_filter);
+        } else if (type == 2) {
+            baseBind.toolbar.inflateMenu(R.menu.follow_user_jump);
+        }
+    }
+
+    /**
+     * "我的关注"页 toolbar 上的跳页入口：弹窗 + offset 跳转都在 FragmentFollowUser 里，
+     * 容器只负责定位当前 viewpager 子页并把请求转过去。
+     */
+    private void showJumpPageDialog() {
+        if (mActivity == null || mActivity.isFinishing()) return;
+        int idx = baseBind.viewPager.getCurrentItem();
+        if (idx < 0 || idx >= allPages.length) return;
+        Fragment current = allPages[idx];
+        if (current instanceof FragmentFollowUser) {
+            FragmentFollowUser.showJumpPageDialog(mActivity, (FragmentFollowUser) current);
         }
     }
 

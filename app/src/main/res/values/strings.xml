@@ -1275,6 +1275,8 @@
     <string name="user_jump_page_hint">输入页码 (1-%1$d)</string>
     <string name="user_jump_page_dialog_title">跳到第几页</string>
     <string name="user_jump_page_dialog_message">共 %1$d 页，每页 %2$d 件</string>
+    <string name="follow_user_jump_page_action">跳页</string>
+    <string name="follow_user_jump_no_users">暂未公开关注任何人</string>
     <string name="user_jump_page_range_error">页码需要在 1 到 %1$d 之间</string>
     <string name="user_jump_locating">正在定位 %1$s …</string>
     <string name="user_jump_locate_failed">定位失败：%1$s</string>
@@ -1770,6 +1772,13 @@
     <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px 以上</string>
     <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
     <string name="search_filter_v3_resolution_below_1000">999px × 999px 以下</string>
+    <!-- 作品类别（仅 illust/manga，content_type query 参数） -->
+    <string name="search_filter_v3_row_content_type">作品类别</string>
+    <string name="search_filter_v3_content_type_illust_and_manga_and_ugoira">插画、漫画、动图（动态插画）</string>
+    <string name="search_filter_v3_content_type_illust_and_ugoira">插画、动图</string>
+    <string name="search_filter_v3_content_type_illust">插画</string>
+    <string name="search_filter_v3_content_type_ugoira">动图</string>
+    <string name="search_filter_v3_content_type_manga">漫画</string>
     <!-- 正文长度（novel） -->
     <string name="search_filter_v3_row_body_length">正文长度</string>
     <string name="search_filter_v3_body_length_all">不限</string>

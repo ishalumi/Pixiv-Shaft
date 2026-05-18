@@ -914,6 +914,8 @@
     <string name="user_jump_page_hint">페이지 입력 (1-%1$d)</string>
     <string name="user_jump_page_dialog_title">몇 페이지로 이동</string>
     <string name="user_jump_page_dialog_message">총 %1$d페이지, 페이지당 %2$d개</string>
+    <string name="follow_user_jump_page_action">페이지</string>
+    <string name="follow_user_jump_no_users">공개 팔로우한 사용자가 없습니다</string>
     <string name="user_jump_page_range_error">페이지는 1~%1$d 사이여야 합니다</string>
     <string name="user_jump_locating">%1$s 위치 찾는 중…</string>
     <string name="user_jump_locate_failed">위치 찾기 실패: %1$s</string>
@@ -1259,6 +1261,13 @@
     <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px 이상</string>
     <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
     <string name="search_filter_v3_resolution_below_1000">999px × 999px 이하</string>
+    <!-- 작품 종류 (illust/manga, content_type) -->
+    <string name="search_filter_v3_row_content_type">작품 종류</string>
+    <string name="search_filter_v3_content_type_illust_and_manga_and_ugoira">일러스트・만화・움짤(움직이는 일러스트)</string>
+    <string name="search_filter_v3_content_type_illust_and_ugoira">일러스트・움짤</string>
+    <string name="search_filter_v3_content_type_illust">일러스트</string>
+    <string name="search_filter_v3_content_type_ugoira">움짤</string>
+    <string name="search_filter_v3_content_type_manga">만화</string>
     <string name="search_filter_v3_row_body_length">본문 길이</string>
     <string name="search_filter_v3_body_length_all">제한 없음</string>
     <string name="search_filter_v3_body_length_section_char">글자 수</string>

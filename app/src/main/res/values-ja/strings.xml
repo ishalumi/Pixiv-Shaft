@@ -1006,6 +1006,8 @@
     <string name="user_jump_page_hint">ページを入力 (1-%1$d)</string>
     <string name="user_jump_page_dialog_title">ページ移動</string>
     <string name="user_jump_page_dialog_message">%1$dページ、%2$d件/ページ</string>
+    <string name="follow_user_jump_page_action">ページ</string>
+    <string name="follow_user_jump_no_users">公開フォローしているユーザーはいません</string>
     <string name="user_jump_page_range_error">ページは 1～%1$d の間で指定してください</string>
     <string name="user_jump_locating">%1$s を検索中…</string>
     <string name="user_jump_locate_failed">検索失敗：%1$s</string>
@@ -1351,6 +1353,13 @@
     <string name="search_filter_v3_resolution_above_3000">3,000px × 3,000px 以上</string>
     <string name="search_filter_v3_resolution_1000_2999">1000px × 1000px ~ 2999px × 2999px</string>
     <string name="search_filter_v3_resolution_below_1000">999px × 999px 以下</string>
+    <!-- 作品の種類（illust/manga, content_type） -->
+    <string name="search_filter_v3_row_content_type">作品の種類</string>
+    <string name="search_filter_v3_content_type_illust_and_manga_and_ugoira">イラスト・マンガ・うごイラ</string>
+    <string name="search_filter_v3_content_type_illust_and_ugoira">イラスト・うごイラ</string>
+    <string name="search_filter_v3_content_type_illust">イラスト</string>
+    <string name="search_filter_v3_content_type_ugoira">うごイラ</string>
+    <string name="search_filter_v3_content_type_manga">マンガ</string>
     <string name="search_filter_v3_row_body_length">本文の長さ</string>
     <string name="search_filter_v3_body_length_all">指定なし</string>
     <string name="search_filter_v3_body_length_section_char">文字数</string>

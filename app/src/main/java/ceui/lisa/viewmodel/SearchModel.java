@@ -43,6 +43,9 @@ public class SearchModel extends ViewModel {
     private final MutableLiveData<Boolean> isReplaceableOnly = new MutableLiveData<>();
     // 长宽比（仅 illust/manga）—— V3 sheet 写入，老 FragmentFilter 不暴露
     private final MutableLiveData<String> ratioPattern = new MutableLiveData<>();
+    // 作品类别（仅 illust/manga）—— content_type query 参数；
+    // null = 不传(默认档「插画、漫画、动图」等价)
+    private final MutableLiveData<String> contentType = new MutableLiveData<>();
     // 分辨率档位（仅 illust/manga）—— 4 个独立 query 参数，由 V3 sheet 写入
     private final MutableLiveData<Integer> widthMin = new MutableLiveData<>();
     private final MutableLiveData<Integer> widthMax = new MutableLiveData<>();
@@ -132,6 +135,10 @@ public class SearchModel extends ViewModel {
 
     public MutableLiveData<String> getRatioPattern() {
         return ratioPattern;
+    }
+
+    public MutableLiveData<String> getContentType() {
+        return contentType;
     }
 
     public MutableLiveData<Integer> getWidthMin() {

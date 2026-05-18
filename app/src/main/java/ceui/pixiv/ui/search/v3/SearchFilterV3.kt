@@ -28,7 +28,9 @@ import ceui.pixiv.ui.search.SortType
  *  12. ratioPattern          — 长宽比（仅 illust/manga，走官方 `ratio_pattern` query 参数）
  *  13. resolutionBucket      — 分辨率档位（仅 illust/manga，走官方 `width_min/max` + `height_min/max`）
  *  14. bodyLength            — 正文长度（仅 novel；统一维度，按 unit 三选一：文字数 / 单词数 /
- *                              阅读预计用时；每种 4 个预设档 + 指定自定义）
+ *                              阅读预计用时）
+ *  15. contentType           — 作品类别（仅 illust/manga，走官方 `content_type` query 参数）；
+ *                              默认 [IllustContentType.IllustAndMangaAndUgoira] 等价于不传
  */
 data class SearchFilterV3(
     val sort: String = SortType.DATE_DESC,
@@ -45,6 +47,10 @@ data class SearchFilterV3(
     val r18Mode: R18Mode = R18Mode.All,
     val ratioPattern: RatioPattern? = null,   // illust/manga only
     val resolutionBucket: ResolutionBucket? = null,   // illust/manga only
+    // 作品类别（仅 illust/manga）—— pixiv iOS 8.6.6 抓包确认走 `content_type` query 参数。
+    // 默认 [IllustContentType.IllustAndMangaAndUgoira] 等价于不传该参数（[buildSearchConfig]
+    // 在默认档时把 contentType 字段送 null，与既有行为对齐）。
+    val contentType: IllustContentType = IllustContentType.IllustAndMangaAndUgoira,
     val bodyLength: BodyLengthSpec? = null,           // novel only
     // novel 专属（pixiv iOS 8.6.5 「仅限原创作品」/「仅限支持单词置换的作品」开关）
     val isOriginalOnly: Boolean = false,
@@ -97,6 +103,7 @@ data class SearchFilterV3(
         if (isNovel && isReplaceableOnly) n++
         if (!isNovel && ratioPattern != null) n++
         if (!isNovel && resolutionBucket != null) n++
+        if (!isNovel && contentType != IllustContentType.IllustAndMangaAndUgoira) n++
         if (isNovel && bodyLength != null) n++
         return n
     }
@@ -201,6 +208,23 @@ enum class RatioPattern(val apiValue: String) {
     Landscape("landscape"),
     Portrait("portrait"),
     Square("square"),
+}
+
+/**
+ * 作品类别（仅 illust/manga）—— pixiv iOS 8.6.6 抓包确认走官方 `content_type` query 参数。
+ * 与 iOS「作品类别」picker 5 档对齐（小说档不在此范围——novel 走独立 endpoint）：
+ *   - IllustAndMangaAndUgoira：插画、漫画、动图（动态插画）—— 默认；buildSearchConfig 当 null 处理不传
+ *   - IllustAndUgoira：插画、动图
+ *   - Illust：插画
+ *   - Ugoira：动图
+ *   - Manga：漫画
+ */
+enum class IllustContentType(val apiValue: String) {
+    IllustAndMangaAndUgoira("illust_and_manga_and_ugoira"),
+    IllustAndUgoira("illust_and_ugoira"),
+    Illust("illust"),
+    Ugoira("ugoira"),
+    Manga("manga"),
 }
 
 /**
