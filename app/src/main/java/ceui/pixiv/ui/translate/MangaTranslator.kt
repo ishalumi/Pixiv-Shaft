@@ -48,11 +48,16 @@ object MangaTranslator {
         onProgress: (stage: Stage, detail: String) -> Unit
     ): TranslationResult? = withContext(Dispatchers.IO) {
         try {
-            // ── Stage 0: Load manga-ocr model if available ──
+            // ── Stage 0: Load detection + recognition models if available ──
             val ocrModel = MangaOcrModel.MANGA_OCR_BASE
             if (MangaOcrModelManager.isModelReady(context, ocrModel) && !MangaOcrRecognizer.isLoaded) {
                 onProgress(Stage.OCR, context.getString(R.string.translator_loading_ocr))
                 MangaOcrRecognizer.loadModel(context, ocrModel)
+            }
+            val ctdModel = ComicTextDetectorModel.CTD_BASE
+            if (ComicTextDetectorModelManager.isModelReady(context, ctdModel) && !ComicTextDetector.isLoaded) {
+                onProgress(Stage.OCR, context.getString(R.string.translator_loading_ocr))
+                ComicTextDetector.loadModel(context, ctdModel)
             }
 
             // ── Stage 1: OCR ──

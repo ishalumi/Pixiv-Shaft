@@ -1444,4 +1444,8 @@
     <string name="setting_overwrite_policy_saf_locked">Авто-копия · недоступно</string>
     <string name="setting_overwrite_policy_saf_locked_title">Почему этот пункт заблокирован</string>
     <string name="setting_overwrite_policy_saf_locked_message">В режиме SAF при совпадении имени всегда создаётся копия \"(1)\". Пропуск / Перезапись / Переименование отключены.\n\nfindFile в SAF реализован как listFiles + линейный поиск, поэтому одна проверка существования файла стоит O(N), а при каждом сохранении вызывается несколько раз — общая сложность вырождается в O(N²). Чем больше файлов в папке, тем квадратично медленнее идёт сохранение.</string>
+    <string name="string_ctd_download_title">Загрузка детектора текстовых блоков манги</string>
+    <string name="string_ctd_download_subtitle">%1$s точнее, чем универсальный OCR-детектор, находит речевые пузыри и текстовые блоки</string>
+    <string name="string_ctd_download_done">Детектор текстовых блоков загружен</string>
+    <string name="string_ctd_model_needed">Сначала нужно загрузить детектор текстовых блоков</string>
 </resources>

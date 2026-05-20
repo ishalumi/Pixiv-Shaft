@@ -1543,4 +1543,8 @@
     <string name="setting_overwrite_policy_saf_locked">自動コピー作成 · 変更不可</string>
     <string name="setting_overwrite_policy_saf_locked_title">ここを変更できない理由</string>
     <string name="setting_overwrite_policy_saf_locked_message">SAFモードでは重複時に自動的に「(1)」サフィックス付きのコピーを作成します。スキップ／上書き／リネームは無効化されています。\n\nSAFの findFile は listFiles + 線形スキャンで実装されているため、1ファイルの存在確認に O(N) のコストがかかり、保存ごとに複数回呼び出されます。結果として全体が O(N²) の時間計算量に退化します。ファイルが増えるほど二次関数的に遅くなります。</string>
+    <string name="string_ctd_download_title">マンガテキスト検出モデルをダウンロード</string>
+    <string name="string_ctd_download_subtitle">%1$s で吹き出しとテキストブロックを正確に検出します（汎用OCR検出より精度が高い）</string>
+    <string name="string_ctd_download_done">テキスト検出モデルのダウンロード完了</string>
+    <string name="string_ctd_model_needed">マンガテキスト検出モデルを先にダウンロードしてください</string>
 </resources>

@@ -1336,12 +1336,20 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
             });
         }
 
-        // OCR 模型
+        // OCR 模型 — 包含识别模型(manga-ocr) + 检测模型(comic-text-detector),两者都要才能跑 OCR
+        // 点击行先补缺哪个;长按删 manga-ocr(检测模型走单独的删除入口)
         {
             baseBind.ocrModelRela.setOnClickListener(v -> {
+                boolean ocrReady = ceui.pixiv.ui.translate.MangaOcrModelManager.INSTANCE.isModelReady(
+                        mContext, ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE);
                 Intent intent = new Intent(mContext, ceui.lisa.activities.TemplateActivity.class);
-                intent.putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载");
-                intent.putExtra("manga_ocr_model_name", ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE.name());
+                if (!ocrReady) {
+                    intent.putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载");
+                    intent.putExtra("manga_ocr_model_name", ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE.name());
+                } else {
+                    intent.putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "漫画文本框检测模型下载");
+                    intent.putExtra("ctd_model_name", ceui.pixiv.ui.translate.ComicTextDetectorModel.CTD_BASE.name());
+                }
                 startActivity(intent);
             });
             bindLongPressDeleteModel(
@@ -1613,9 +1621,16 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         if (baseBind == null) return;
         boolean ocrReady = ceui.pixiv.ui.translate.MangaOcrModelManager.INSTANCE.isModelReady(
                 mContext, ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE);
-        baseBind.ocrModelStatus.setText(ocrReady
-                ? ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE.getDisplayName()
-                : getString(R.string.string_model_not_ready, "91MB"));
+        boolean ctdReady = ceui.pixiv.ui.translate.ComicTextDetectorModelManager.INSTANCE.isModelReady(
+                mContext, ceui.pixiv.ui.translate.ComicTextDetectorModel.CTD_BASE);
+        if (ocrReady && ctdReady) {
+            baseBind.ocrModelStatus.setText(ceui.pixiv.ui.translate.MangaOcrModel.MANGA_OCR_BASE.getDisplayName());
+        } else if (!ocrReady) {
+            baseBind.ocrModelStatus.setText(getString(R.string.string_model_not_ready, "91MB"));
+        } else {
+            baseBind.ocrModelStatus.setText(getString(R.string.string_model_not_ready,
+                    ceui.pixiv.ui.translate.ComicTextDetectorModel.CTD_BASE.getSizeLabel()));
+        }
 
         boolean sakuraReady = ceui.pixiv.ui.translate.SakuraModelManager.INSTANCE.isModelReady(
                 mContext, ceui.pixiv.ui.translate.SakuraModel.SAKURA_1_5B);

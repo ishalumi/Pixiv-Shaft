@@ -19,6 +19,9 @@ import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.pixiv.ui.task.NamedUrl
 import ceui.pixiv.ui.task.TaskPool
+import ceui.pixiv.ui.translate.ComicTextDetector
+import ceui.pixiv.ui.translate.ComicTextDetectorModel
+import ceui.pixiv.ui.translate.ComicTextDetectorModelManager
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.translate.MangaOcrModelManager
 import ceui.pixiv.ui.translate.MangaOcrRecognizer
@@ -340,6 +343,16 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             return
         }
 
+        val ctdModel = ComicTextDetectorModel.CTD_BASE
+        if (!ComicTextDetectorModelManager.isModelReady(this, ctdModel)) {
+            Common.showToast(R.string.string_ctd_model_needed)
+            val intent = Intent(this, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画文本框检测模型下载")
+            intent.putExtra("ctd_model_name", ctdModel.name)
+            startActivity(intent)
+            return
+        }
+
         val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_LARGE) ?: return
 
@@ -363,13 +376,15 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
         loadTask.result.observe(this) { file ->
             if (file != null) {
                 lifecycleScope.launch {
-                    if (!MangaOcrRecognizer.isLoaded) {
+                    if (!MangaOcrRecognizer.isLoaded || !ComicTextDetector.isLoaded) {
                         runOnUiThread {
                             statusText.text = getString(R.string.string_ai_ocr_loading_model)
                         }
                         val loaded = withContext(Dispatchers.IO) {
-                            runCatching { MangaOcrRecognizer.loadModel(this@ImageDetailActivity, ocrModel) }
-                                .isSuccess
+                            runCatching {
+                                MangaOcrRecognizer.loadModel(this@ImageDetailActivity, ocrModel)
+                                ComicTextDetector.loadModel(this@ImageDetailActivity, ctdModel)
+                            }.isSuccess
                         }
                         if (!loaded) {
                             overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
@@ -421,6 +436,17 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             val intent = Intent(this, TemplateActivity::class.java)
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载")
             intent.putExtra("manga_ocr_model_name", ocrModel.name)
+            startActivity(intent)
+            return
+        }
+
+        // Check comic-text-detector model
+        val ctdModel = ComicTextDetectorModel.CTD_BASE
+        if (!ComicTextDetectorModelManager.isModelReady(this, ctdModel)) {
+            Common.showToast(R.string.string_ctd_model_needed)
+            val intent = Intent(this, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画文本框检测模型下载")
+            intent.putExtra("ctd_model_name", ctdModel.name)
             startActivity(intent)
             return
         }

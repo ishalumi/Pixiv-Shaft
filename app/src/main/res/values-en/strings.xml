@@ -1538,4 +1538,8 @@
     <string name="setting_overwrite_policy_saf_locked">Auto-suffix · locked</string>
     <string name="setting_overwrite_policy_saf_locked_title">Why this is locked</string>
     <string name="setting_overwrite_policy_saf_locked_message">Under SAF, duplicates always get a \"(1)\" sibling. Skip / Replace / Rename are disabled.\n\nSAF\'s findFile is implemented as listFiles + linear scan, so one existence check costs O(N), and each save runs it several times — the overall behaviour degrades to O(N²) time complexity. The more files in the directory, the quadratically slower it gets.</string>
+    <string name="string_ctd_download_title">Download manga text-box detector</string>
+    <string name="string_ctd_download_subtitle">%1$s locates speech bubbles and text blocks more accurately than a generic OCR detector</string>
+    <string name="string_ctd_download_done">Text-box detector downloaded</string>
+    <string name="string_ctd_model_needed">Manga text-box detector needs to be downloaded first</string>
 </resources>
