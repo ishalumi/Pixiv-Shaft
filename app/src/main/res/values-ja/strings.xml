@@ -742,6 +742,10 @@
   <string name="rate_dialog_maybe_later">あとで</string>
   <string name="rate_dialog_never">今後表示しない</string>
   <string name="string_ai_upscale">AI 高画質化 (2x)</string>
+  <string name="string_ai_ocr">漫画文字認識</string>
+  <string name="string_ai_ocr_running">文字認識中、お待ちください…</string>
+  <string name="string_ai_ocr_failed">認識に失敗しました</string>
+  <string name="string_ai_ocr_empty">テキストが見つかりません</string>
   <string name="string_ai_upscale_running">%s で処理中…</string>
   <string name="string_ai_upscale_done">高画質化完了</string>
   <string name="string_ai_upscale_failed">高画質化に失敗</string>
@@ -1039,8 +1043,6 @@
     <string name="saf_create_file">ファイル作成</string>
     <string name="saf_grant_success">権限を付与しました</string>
     <string name="saf_no_file_picker">システムのファイルマネージャーが見つかりません。SAF ディレクトリを認証できません</string>
-    <string name="setting_saf_direct_pick">SAF フォルダを設定</string>
-    <string name="setting_saf_direct_pick_hint">選択</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: シリーズ詳細のダウンロード導線 -->
@@ -1534,4 +1536,7 @@
     <string name="tab_notifications">通知</string>
     <string name="tab_info">お知らせ</string>
     <string name="notification_view_more_chip">すべて表示 · %1$s</string>
+    <string name="setting_overwrite_policy_saf_locked">自動コピー作成 · 変更不可</string>
+    <string name="setting_overwrite_policy_saf_locked_title">ここを変更できない理由</string>
+    <string name="setting_overwrite_policy_saf_locked_message">SAFモードでは重複時に自動的に「(1)」サフィックス付きのコピーを作成します。スキップ／上書き／リネームは無効化されています。\n\nSAFの findFile は listFiles + 線形スキャンで実装されているため、1ファイルの存在確認に O(N) のコストがかかり、保存ごとに複数回呼び出されます。結果として全体が O(N²) の時間計算量に退化します。ファイルが増えるほど二次関数的に遅くなります。</string>
 </resources>

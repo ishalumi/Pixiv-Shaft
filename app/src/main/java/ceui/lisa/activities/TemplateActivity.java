@@ -386,6 +386,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 case "批量下载Debug":
                     return new ceui.pixiv.ui.debug.BulkDownloadDebugFragment();
+                case "SAF写入压测":
+                    return new ceui.pixiv.ui.debug.SafPerfTestFragment();
                 case "聊天室": {
                     // peer_uid > 0 → 1v1 with that pixiv user; otherwise →
                     // conversation LIST (global + any 1v1 the user has touched

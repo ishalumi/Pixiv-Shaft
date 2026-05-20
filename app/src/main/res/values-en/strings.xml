@@ -708,6 +708,10 @@
   <string name="rate_dialog_maybe_later">Maybe Later</string>
   <string name="rate_dialog_never">Don\'t ask again</string>
   <string name="string_ai_upscale">AI Enhance (2x)</string>
+  <string name="string_ai_ocr">Manga OCR</string>
+  <string name="string_ai_ocr_running">Recognizing text…</string>
+  <string name="string_ai_ocr_failed">Recognition failed</string>
+  <string name="string_ai_ocr_empty">No text detected</string>
   <string name="string_ai_upscale_running">%s enhancing, please wait…</string>
   <string name="string_ai_upscale_done">Enhancement complete</string>
   <string name="string_ai_upscale_failed">Enhancement failed</string>
@@ -1008,8 +1012,6 @@
     <string name="saf_create_file">Create File</string>
     <string name="saf_grant_success">Permission granted</string>
     <string name="saf_no_file_picker">No system file picker found; cannot grant SAF directory</string>
-    <string name="setting_saf_direct_pick">Set SAF folder</string>
-    <string name="setting_saf_direct_pick_hint">Pick</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: Series detail download entry -->
@@ -1529,4 +1531,7 @@
     <string name="tab_notifications">Activity</string>
     <string name="tab_info">News</string>
     <string name="notification_view_more_chip">View all · %1$s</string>
+    <string name="setting_overwrite_policy_saf_locked">Auto-suffix · locked</string>
+    <string name="setting_overwrite_policy_saf_locked_title">Why this is locked</string>
+    <string name="setting_overwrite_policy_saf_locked_message">Under SAF, duplicates always get a \"(1)\" sibling. Skip / Replace / Rename are disabled.\n\nSAF\'s findFile is implemented as listFiles + linear scan, so one existence check costs O(N), and each save runs it several times — the overall behaviour degrades to O(N²) time complexity. The more files in the directory, the quadratically slower it gets.</string>
 </resources>

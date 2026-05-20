@@ -645,6 +645,10 @@
   <string name="rate_dialog_maybe_later">Позже</string>
   <string name="rate_dialog_never">Больше не спрашивать</string>
   <string name="string_ai_upscale">AI улучшение (2x)</string>
+  <string name="string_ai_ocr">OCR манги</string>
+  <string name="string_ai_ocr_running">Распознаём текст…</string>
+  <string name="string_ai_ocr_failed">Не удалось распознать</string>
+  <string name="string_ai_ocr_empty">Текст не обнаружен</string>
   <string name="string_ai_upscale_running">%s обработка…</string>
   <string name="string_ai_upscale_done">Улучшение завершено</string>
   <string name="string_ai_upscale_failed">Ошибка улучшения</string>
@@ -940,8 +944,6 @@
     <string name="saf_create_file">Создать файл</string>
     <string name="saf_grant_success">Разрешение предоставлено</string>
     <string name="saf_no_file_picker">Системный диспетчер файлов не найден; невозможно авторизовать каталог SAF</string>
-    <string name="setting_saf_direct_pick">Указать папку SAF</string>
-    <string name="setting_saf_direct_pick_hint">Выбрать</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: Вход в загрузку серии -->
@@ -1435,4 +1437,7 @@
     <string name="tab_notifications">Активность</string>
     <string name="tab_info">Новости</string>
     <string name="notification_view_more_chip">Показать все · %1$s</string>
+    <string name="setting_overwrite_policy_saf_locked">Авто-копия · недоступно</string>
+    <string name="setting_overwrite_policy_saf_locked_title">Почему этот пункт заблокирован</string>
+    <string name="setting_overwrite_policy_saf_locked_message">В режиме SAF при совпадении имени всегда создаётся копия \"(1)\". Пропуск / Перезапись / Переименование отключены.\n\nfindFile в SAF реализован как listFiles + линейный поиск, поэтому одна проверка существования файла стоит O(N), а при каждом сохранении вызывается несколько раз — общая сложность вырождается в O(N²). Чем больше файлов в папке, тем квадратично медленнее идёт сохранение.</string>
 </resources>

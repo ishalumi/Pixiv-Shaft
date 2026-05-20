@@ -756,6 +756,10 @@
   <string name="rate_dialog_maybe_later">以後再說</string>
   <string name="rate_dialog_never">不再提醒</string>
   <string name="string_ai_upscale">畫質增強 (2x)</string>
+  <string name="string_ai_ocr">漫畫文字辨識</string>
+  <string name="string_ai_ocr_running">文字辨識中，請稍候…</string>
+  <string name="string_ai_ocr_failed">辨識失敗</string>
+  <string name="string_ai_ocr_empty">未辨識到文字</string>
   <string name="string_ai_upscale_running">%s 增強中，請稍候…</string>
   <string name="string_ai_upscale_done">畫質增強完成</string>
   <string name="string_ai_upscale_failed">畫質增強失敗</string>
@@ -1053,8 +1057,6 @@
     <string name="saf_create_file">建立檔案</string>
     <string name="saf_grant_success">授權成功</string>
     <string name="saf_no_file_picker">未找到系統檔案管理器，無法授權 SAF 目錄</string>
-    <string name="setting_saf_direct_pick">設定 SAF 目錄</string>
-    <string name="setting_saf_direct_pick_hint">點擊選擇</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A 組：系列詳情頁下載入口 -->
@@ -1548,4 +1550,7 @@
     <string name="tab_notifications">通知</string>
     <string name="tab_info">公告</string>
     <string name="notification_view_more_chip">展開全部 · %1$s</string>
+    <string name="setting_overwrite_policy_saf_locked">自動產生副本 · 不可改</string>
+    <string name="setting_overwrite_policy_saf_locked_title">為什麼這裡無法修改</string>
+    <string name="setting_overwrite_policy_saf_locked_message">SAF 模式下重名時會自動產生「(1)」副本，無法選 Skip / Replace / Rename。\n\n這是因為 SAF API 的 findFile 實作是 listFiles + 線性掃描，單目錄內檢測一個檔案是否存在的成本是 O(N)，每次儲存又會呼叫多次 — 整體退化為 O(N²) 時間複雜度。檔案越多越慢，且增速是二次的。</string>
 </resources>

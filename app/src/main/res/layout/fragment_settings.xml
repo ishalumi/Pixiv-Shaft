@@ -972,28 +972,6 @@
                         <View style="@style/half_divider" />
 
                         <RelativeLayout
-                            android:id="@+id/overwrite_policy_rela"
-                            style="@style/ripple_rela">
-
-                            <TextView
-                                style="@style/setting_text_left_and_center"
-                                android:text="@string/setting_overwrite_policy" />
-
-                            <TextView
-                                android:id="@+id/overwrite_policy"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_alignParentEnd="true"
-                                android:layout_centerVertical="true"
-                                android:layout_marginEnd="@dimen/sixteen_dp"
-                                android:textColor="?attr/colorPrimary"
-                                android:textSize="14sp" />
-
-                        </RelativeLayout>
-
-                        <View style="@style/half_divider" />
-
-                        <RelativeLayout
                             android:id="@+id/storage_choice_rela"
                             style="@style/ripple_rela">
 
@@ -1016,24 +994,20 @@
                         <View style="@style/half_divider" />
 
                         <RelativeLayout
-                            android:id="@+id/saf_direct_pick_rela"
+                            android:id="@+id/overwrite_policy_rela"
                             style="@style/ripple_rela">
 
                             <TextView
                                 style="@style/setting_text_left_and_center"
-                                android:text="@string/setting_saf_direct_pick" />
+                                android:text="@string/setting_overwrite_policy" />
 
                             <TextView
-                                android:id="@+id/saf_direct_pick"
+                                android:id="@+id/overwrite_policy"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_alignParentEnd="true"
                                 android:layout_centerVertical="true"
                                 android:layout_marginEnd="@dimen/sixteen_dp"
-                                android:ellipsize="middle"
-                                android:maxWidth="220dp"
-                                android:singleLine="true"
-                                android:text="@string/setting_saf_direct_pick_hint"
                                 android:textColor="?attr/colorPrimary"
                                 android:textSize="14sp" />
 

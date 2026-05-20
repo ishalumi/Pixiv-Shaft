@@ -19,6 +19,18 @@ class SafBackend(
     private val treeUri: Uri,
 ) : StorageBackend {
 
+    // Parent doc cache — segments are stable within a download burst, so after
+    // the first hit we skip the per-save findFile chain entirely.
+    @Volatile private var dirCache: Pair<List<String>, DocumentFile>? = null
+
+    // Skip exists+delete (each = O(N) findFile listFiles IPC). SAF createFile
+    // auto-suffixes "x (1).ext" on collision, so duplicate saves produce a
+    // sibling instead of truly overwriting — required to keep save time flat
+    // when the target directory has tens of thousands of files (issue: review
+    // report "downloads slow past 30k files").
+    override fun replace(relPath: RelativePath, mime: String): StorageBackend.WriteHandle =
+        open(relPath, mime)
+
     override fun open(relPath: RelativePath, mime: String): StorageBackend.WriteHandle {
         // Facade-enforced invariant: the filename slot is guaranteed free by
         // the time we get here. We create unconditionally so the new document
@@ -85,6 +97,7 @@ class SafBackend(
     }
 
     private fun ensureDirectory(segments: List<String>): DocumentFile {
+        dirCache?.let { (segs, doc) -> if (segs == segments) return doc }
         var cur = root()
         for (seg in segments) {
             val existing = cur.findFile(seg)
@@ -95,6 +108,7 @@ class SafBackend(
                 else                   -> error("Path segment '$seg' exists but is not a directory")
             }
         }
+        dirCache = segments to cur
         return cur
     }
 

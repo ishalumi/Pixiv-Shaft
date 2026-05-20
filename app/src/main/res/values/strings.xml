@@ -1366,6 +1366,9 @@
     <string name="download_path_policy_replace">已存在则覆盖</string>
     <string name="download_path_policy_rename">已存在则重命名</string>
     <string name="setting_overwrite_policy">文件重复时</string>
+    <string name="setting_overwrite_policy_saf_locked">自动产生副本 · 不可改</string>
+    <string name="setting_overwrite_policy_saf_locked_title">为什么这里不能改</string>
+    <string name="setting_overwrite_policy_saf_locked_message">SAF 模式下重名时会自动产生「(1)」副本，无法选 Skip / Replace / Rename。\n\n这是因为 SAF API 的 findFile 实现是 listFiles + 线性扫描，单目录里检测一个文件名是否存在的成本是 O(N)，每次保存又会调用多次 — 整体退化为 O(N²) 时间复杂度。文件越多越慢，且增速是二次的。</string>
     <string name="setting_storage_choice">存储位置</string>
     <string name="setting_storage_pictures">系统相册 (Pictures)</string>
     <string name="setting_storage_downloads">下载目录 (Downloads)</string>
@@ -1457,8 +1460,6 @@
     <string name="saf_write_failed">写入失败：%1$s</string>
     <string name="saf_grant_success">授权成功</string>
     <string name="saf_no_file_picker">未找到系统文件管理器，无法授权 SAF 目录</string>
-    <string name="setting_saf_direct_pick">设置 SAF 目录</string>
-    <string name="setting_saf_direct_pick_hint">点击选择</string>
     <string name="download_settings_save_failed">下载设置保存失败：%1$s</string>
     <string name="header_preset_save_failed">信息头预设保存失败：%1$s</string>
 
@@ -1864,6 +1865,53 @@
     <string name="debug_bulk_dl_copy">复制结果</string>
     <string name="debug_bulk_dl_copied">已复制到剪贴板</string>
     <string name="debug_bulk_dl_running">正在统计…</string>
+
+    <!-- SAF perf test (用来复现「文件超过 3 万后 SAF 下载变慢」的反馈) -->
+    <string name="saf_perf_test_entry">SAF 写入压测</string>
+    <string name="saf_perf_test_tree_label">测试目录 (SAF tree URI)</string>
+    <string name="saf_perf_test_tree_none">尚未选择 — 点下方「选目录」</string>
+    <string name="saf_perf_test_pick">选目录</string>
+    <string name="saf_perf_test_pick_image">选压测图</string>
+    <string name="saf_perf_test_payload_label">压测图 (任选一张,反复写入此内容)</string>
+    <string name="saf_perf_test_payload_none">尚未选图 — 点下方「选压测图」</string>
+    <string name="saf_perf_test_payload_loaded">已加载 %1$d 字节 · %2$s</string>
+    <string name="saf_perf_test_payload_failed">读图失败: %1$s</string>
+    <string name="saf_perf_test_need_payload">请先选一张压测图</string>
+    <string name="saf_perf_test_purge">清空目录</string>
+    <string name="saf_perf_test_run_1k">写 1k</string>
+    <string name="saf_perf_test_run_5k">写 5k</string>
+    <string name="saf_perf_test_run_30k">写 30k</string>
+    <string name="saf_perf_test_cancel">中止</string>
+    <string name="saf_perf_test_pick_ok">已选目录: %1$s</string>
+    <string name="saf_perf_test_pick_failed">无法获得目录权限: %1$s</string>
+    <string name="saf_perf_test_need_pick">请先选一个测试目录</string>
+    <string name="saf_perf_test_busy">已有任务在跑,中止后再开</string>
+    <string name="saf_perf_test_start">开始压测 %1$d 次写入</string>
+    <string name="saf_perf_test_status_idle">空闲</string>
+    <string name="saf_perf_test_status_running">运行中 %1$d / %2$d</string>
+    <string name="saf_perf_test_status_purging">清理中…</string>
+    <string name="saf_perf_test_status_purging_n">清理中 %1$d / %2$d</string>
+    <string name="saf_perf_test_cancelling">中止中…</string>
+    <string name="saf_perf_test_progress">[%1$d/%2$d] 累计 %3$.2fs · 最近 %4$d 张 %5$.2fs (%6$.1f /s) · 平均 %7$.1f /s</string>
+    <string name="saf_perf_test_done">完成 %1$d 张,共 %2$.2fs,平均 %3$.1f /s</string>
+    <string name="saf_perf_test_cancelled">已中止 %1$d / %2$d (耗时 %3$.2fs)</string>
+    <string name="saf_perf_test_failed">第 %1$d / %2$d 张失败: %3$s %4$s</string>
+    <string name="saf_perf_test_purge_start">开始清空测试目录</string>
+    <string name="saf_perf_test_purge_no_tree">SAF tree 不可访问</string>
+    <string name="saf_perf_test_purge_empty">测试目录不存在,无需清理</string>
+    <string name="saf_perf_test_purge_done">删除 %1$d / %2$d 个 (列目录 %3$.2fs,总耗时 %4$.2fs)</string>
+    <string name="saf_perf_test_diag">诊断</string>
+    <string name="saf_perf_test_diag_start">诊断 SAF 单次拆解</string>
+    <string name="saf_perf_test_status_diag">诊断中…</string>
+    <string name="saf_perf_test_diag_root">[1] root.listFiles(): %1$d 个子项,耗时 %2$.1f ms</string>
+    <string name="saf_perf_test_diag_subdir">[2] ShaftPerfTest/.listFiles(): %1$d 个子项,耗时 %2$.1f ms</string>
+    <string name="saf_perf_test_diag_subdir_absent">[2] ShaftPerfTest/ 还不存在 (跳过)</string>
+    <string name="saf_perf_test_diag_replace">[3] backend.replace 全程 (delete + ensureDir + createFile + write): %1$.1f ms</string>
+    <string name="saf_perf_test_diag_replace_failed">[3] backend.replace 失败: %1$s %2$s</string>
+    <string name="saf_perf_test_diag_raw">[4] 裸 createFile (复用 parent,跳过 delete/ensureDir): %1$.1f ms</string>
+    <string name="saf_perf_test_diag_raw_no_parent">[4] 无法定位 ShaftPerfTest/ (跳过)</string>
+    <string name="saf_perf_test_diag_raw_failed">[4] 裸 createFile 失败: %1$s %2$s</string>
+    <string name="saf_perf_test_diag_conclusion">→ 单次 listFiles(root) %1$.1f ms · backend.replace %2$.1f ms · 裸 createFile %3$.1f ms。差值是 backend 链路里的 listFiles 重复成本。</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
     <string name="chat_drawer_entry">聊天室</string>

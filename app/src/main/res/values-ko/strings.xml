@@ -652,6 +652,10 @@
   <string name="rate_dialog_maybe_later">나중에</string>
   <string name="rate_dialog_never">다시 묻지 않기</string>
   <string name="string_ai_upscale">AI 화질 향상 (2x)</string>
+  <string name="string_ai_ocr">만화 OCR</string>
+  <string name="string_ai_ocr_running">텍스트 인식 중…</string>
+  <string name="string_ai_ocr_failed">인식 실패</string>
+  <string name="string_ai_ocr_empty">텍스트가 인식되지 않았습니다</string>
   <string name="string_ai_upscale_running">%s 처리 중…</string>
   <string name="string_ai_upscale_done">화질 향상 완료</string>
   <string name="string_ai_upscale_failed">화질 향상 실패</string>
@@ -947,8 +951,6 @@
     <string name="saf_create_file">파일 생성</string>
     <string name="saf_grant_success">권한이 부여되었습니다</string>
     <string name="saf_no_file_picker">시스템 파일 관리자를 찾을 수 없어 SAF 디렉터리를 인증할 수 없습니다</string>
-    <string name="setting_saf_direct_pick">SAF 폴더 설정</string>
-    <string name="setting_saf_direct_pick_hint">선택</string>
 
     <!-- Novel detail actions / series download / cross-series download (2026-04) -->
     <!-- A: 시리즈 상세 다운로드 진입 -->
@@ -1442,4 +1444,7 @@
     <string name="tab_notifications">알림</string>
     <string name="tab_info">공지</string>
     <string name="notification_view_more_chip">모두 보기 · %1$s</string>
+    <string name="setting_overwrite_policy_saf_locked">자동 사본 생성 · 변경 불가</string>
+    <string name="setting_overwrite_policy_saf_locked_title">여기를 변경할 수 없는 이유</string>
+    <string name="setting_overwrite_policy_saf_locked_message">SAF 모드에서는 중복 시 자동으로 \"(1)\" 사본을 만듭니다. 건너뛰기 / 덮어쓰기 / 이름 변경은 비활성화되어 있습니다.\n\nSAF의 findFile은 listFiles + 선형 스캔으로 구현되어 있어 파일 하나의 존재 확인에 O(N)이 들고, 한 번 저장할 때마다 여러 번 호출되기 때문에 전체적으로 O(N²) 시간 복잡도로 퇴화합니다. 파일이 많아질수록 이차적으로 느려집니다.</string>
 </resources>

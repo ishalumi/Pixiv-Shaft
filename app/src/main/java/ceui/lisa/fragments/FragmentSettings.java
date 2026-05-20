@@ -911,17 +911,26 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
             });
 
             // 文件重复时（OverwritePolicy）
+            // SAF 模式下这个 setting 被锁住,因为 SafBackend.replace 已经 override 成
+            // 不检测重复(目录 3 万+ 文件后 findFile 会退化成 O(N²)),所以 Skip/Replace/
+            // Rename 三个语义不再适用,统一显示成「自动产生副本 · 不可改」+ toast 解释。
             final String[] POLICY_NAMES = new String[]{
                     getString(R.string.download_path_policy_skip),
                     getString(R.string.download_path_policy_replace),
                     getString(R.string.download_path_policy_rename)
             };
             final OverwritePolicy[] POLICY_VALUES = OverwritePolicy.values();
-            {
-                OverwritePolicy cur = DownloadsRegistry.getStore().loadOrFallback().getDefaults().getOverwrite();
-                baseBind.overwritePolicy.setText(POLICY_NAMES[cur.ordinal()]);
-            }
+            refreshOverwritePolicyRow();
             baseBind.overwritePolicyRela.setOnClickListener(v -> {
+                if (DownloadsRegistry.isSaf()) {
+                    new QMUIDialog.MessageDialogBuilder(mActivity)
+                            .setTitle(R.string.setting_overwrite_policy_saf_locked_title)
+                            .setMessage(R.string.setting_overwrite_policy_saf_locked_message)
+                            .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                            .addAction(0, getString(R.string.button_ok), (dialog, index) -> dialog.dismiss())
+                            .show();
+                    return;
+                }
                 OverwritePolicy cur = DownloadsRegistry.getStore().loadOrFallback().getDefaults().getOverwrite();
                 new QMUIDialog.CheckableDialogBuilder(mActivity)
                         .setCheckedIndex(cur.ordinal())
@@ -941,7 +950,7 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                                             cfg.getPageIndexFrom1()
                                     )
                             );
-                            baseBind.overwritePolicy.setText(POLICY_NAMES[which]);
+                            refreshOverwritePolicyRow();
                             dialog.dismiss();
                         })
                         .show();
@@ -959,10 +968,12 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                                 DownloadsRegistry.applyGlobalStorage(
                                         new StorageChoice.MediaStore(StorageChoice.MediaStore.Collection.Images));
                                 refreshStorageLabel();
+                                refreshOverwritePolicyRow();
                             } else if (which == 1) {
                                 DownloadsRegistry.applyGlobalStorage(
                                         new StorageChoice.MediaStore(StorageChoice.MediaStore.Collection.Downloads));
                                 refreshStorageLabel();
+                                refreshOverwritePolicyRow();
                             } else {
                                 // SAF：走 BaseActivity.launchSafTreePicker。
                                 // 1) 必须 legacy Activity.startActivityForResult —— 之前用 AndroidX 的
@@ -977,15 +988,6 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                         .show();
             });
 
-            // 「设置 SAF 目录」直拉入口 —— 不经 QMUIDialog,点了立刻 startActivityForResult。
-            // 这是为 vivo OriginOS 等 ROM 留的逃生口:在那些机器上,QMUIDialog 的 dismiss 动画
-            // 会和系统 picker 的 intent 投递抢 window focus,有概率 picker 起不来或选完不回调。
-            // 这条入口完全照搬 demo 的最朴素调用,跟 storageChoiceRela 那条平行,
-            // 用户哪条能用走哪条;两条最终都汇到 BaseActivity#onActivityResult(ASK_URI) 落库。
-            refreshSafDirectPickLabel();
-            baseBind.safDirectPickRela.setOnClickListener(v -> {
-                BaseActivity.launchSafTreePicker(mActivity);
-            });
 
             // 多图页码起始（pageIndexFrom1）
             final String[] PAGE_INDEX_NAMES = new String[]{
@@ -1581,41 +1583,20 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         baseBind.storageChoice.setText(storageNames()[currentStorageIndex()]);
     }
 
-    private void refreshSafDirectPickLabel() {
+    private void refreshOverwritePolicyRow() {
         if (baseBind == null) return;
-        // 取「上一次选过的 SAF 目录」—— legacy rootPathUri 和 v3 DownloadConfig 在 BaseActivity 落库
-        // 时已经同步好,这里读 sSettings.rootPathUri 就够。空 = 没选过,显示「点击选择」hint;
-        // 有值 = 解出 human-readable 相对路径(primary:Pictures/MyPixiv → /Pictures/MyPixiv)。
-        String uriStr = Shaft.sSettings != null ? Shaft.sSettings.getRootPathUri() : null;
-        if (TextUtils.isEmpty(uriStr)) {
-            baseBind.safDirectPick.setText(R.string.setting_saf_direct_pick_hint);
-            return;
-        }
-        String hint;
-        try {
-            hint = safFolderHint(Uri.parse(uriStr));
-        } catch (Exception e) {
-            hint = "";
-        }
-        if (TextUtils.isEmpty(hint)) {
-            baseBind.safDirectPick.setText(R.string.setting_saf_direct_pick_hint);
+        if (DownloadsRegistry.isSaf()) {
+            baseBind.overwritePolicy.setText(R.string.setting_overwrite_policy_saf_locked);
+            baseBind.overwritePolicy.setAlpha(0.5f);
         } else {
-            baseBind.safDirectPick.setText(hint);
-        }
-    }
-
-    private static String safFolderHint(Uri treeUri) {
-        if (treeUri == null) return "";
-        try {
-            String docId = android.provider.DocumentsContract.getTreeDocumentId(treeUri);
-            int colon = docId.indexOf(':');
-            if (colon >= 0 && colon < docId.length() - 1) {
-                return "/" + docId.substring(colon + 1);
-            }
-            return docId;
-        } catch (Exception e) {
-            String last = treeUri.getLastPathSegment();
-            return last != null ? last : "";
+            OverwritePolicy cur = DownloadsRegistry.getStore().loadOrFallback().getDefaults().getOverwrite();
+            String[] names = new String[]{
+                    getString(R.string.download_path_policy_skip),
+                    getString(R.string.download_path_policy_replace),
+                    getString(R.string.download_path_policy_rename)
+            };
+            baseBind.overwritePolicy.setText(names[cur.ordinal()]);
+            baseBind.overwritePolicy.setAlpha(1.0f);
         }
     }
 
@@ -1623,9 +1604,9 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
     public void onResume() {
         super.onResume();
         updateModelStatus();
-        // SAF picker 在 BaseActivity#onActivityResult 落库后，回到 fragment 时把 label 和直拉行右侧拉到现态。
+        // SAF picker 在 BaseActivity#onActivityResult 落库后，回到 fragment 时把 label 拉到现态。
         refreshStorageLabel();
-        refreshSafDirectPickLabel();
+        refreshOverwritePolicyRow();
     }
 
     private void updateModelStatus() {
