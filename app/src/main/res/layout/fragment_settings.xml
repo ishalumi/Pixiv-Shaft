@@ -804,6 +804,50 @@
                         <View style="@style/full_divider" />
 
                         <RelativeLayout
+                            android:id="@+id/storage_choice_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/setting_storage_choice" />
+
+                            <TextView
+                                android:id="@+id/storage_choice"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
+                                android:layout_marginEnd="@dimen/sixteen_dp"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="14sp" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
+                            android:id="@+id/overwrite_policy_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/setting_overwrite_policy" />
+
+                            <TextView
+                                android:id="@+id/overwrite_policy"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
+                                android:layout_marginEnd="@dimen/sixteen_dp"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="14sp" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
                             android:id="@+id/r18_divide_save_rela"
                             style="@style/ripple_rela">
 
@@ -959,50 +1003,6 @@
 
                             <TextView
                                 android:id="@+id/default_image_resolution"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_alignParentEnd="true"
-                                android:layout_centerVertical="true"
-                                android:layout_marginEnd="@dimen/sixteen_dp"
-                                android:textColor="?attr/colorPrimary"
-                                android:textSize="14sp" />
-
-                        </RelativeLayout>
-
-                        <View style="@style/half_divider" />
-
-                        <RelativeLayout
-                            android:id="@+id/storage_choice_rela"
-                            style="@style/ripple_rela">
-
-                            <TextView
-                                style="@style/setting_text_left_and_center"
-                                android:text="@string/setting_storage_choice" />
-
-                            <TextView
-                                android:id="@+id/storage_choice"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_alignParentEnd="true"
-                                android:layout_centerVertical="true"
-                                android:layout_marginEnd="@dimen/sixteen_dp"
-                                android:textColor="?attr/colorPrimary"
-                                android:textSize="14sp" />
-
-                        </RelativeLayout>
-
-                        <View style="@style/half_divider" />
-
-                        <RelativeLayout
-                            android:id="@+id/overwrite_policy_rela"
-                            style="@style/ripple_rela">
-
-                            <TextView
-                                style="@style/setting_text_left_and_center"
-                                android:text="@string/setting_overwrite_policy" />
-
-                            <TextView
-                                android:id="@+id/overwrite_policy"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_alignParentEnd="true"
