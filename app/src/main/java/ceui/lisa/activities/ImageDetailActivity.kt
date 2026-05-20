@@ -25,6 +25,7 @@ import ceui.pixiv.ui.translate.MangaTranslator
 import ceui.pixiv.ui.translate.SakuraModel
 import ceui.pixiv.ui.translate.SakuraModelManager
 import ceui.pixiv.ui.upscale.BackgroundRemover
+import ceui.pixiv.ui.upscale.MangaOcr
 import ceui.pixiv.ui.upscale.ModelPickerDialog
 import ceui.pixiv.ui.upscale.RembgModelPickerDialog
 import ceui.pixiv.ui.upscale.RembgModel
@@ -111,7 +112,8 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             btnAiMenu.setOnClickListener { anchor ->
                 val titles = arrayOf<CharSequence>(
                     getString(R.string.string_ai_upscale),
-                    getString(R.string.string_ai_rembg)
+                    getString(R.string.string_ai_rembg),
+                    getString(R.string.string_ai_ocr)
                 )
                 QMUIMenuPopup.show(this, anchor, titles) { index, _ ->
                     val illust = mIllustsBean ?: return@show
@@ -123,6 +125,7 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                         1 -> RembgModelPickerDialog.pickOrUseDefault(supportFragmentManager) { model ->
                             performAiRembg(illust, pageIndex, model)
                         }
+                        2 -> performAiOcr(illust, pageIndex)
                     }
                 }
             }
@@ -319,6 +322,32 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                         startActivity(intent)
                     } else {
                         Common.showToast(R.string.string_ai_rembg_failed)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun performAiOcr(illust: IllustsBean, pageIndex: Int) {
+        val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
+            ?: IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_LARGE) ?: return
+
+        Common.showToast(R.string.string_ai_ocr_running)
+        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
+        loadTask.result.observe(this) { file ->
+            if (file != null) {
+                lifecycleScope.launch {
+                    val results = MangaOcr.recognize(this@ImageDetailActivity, file)
+                    when {
+                        results == null -> Common.showToast(R.string.string_ai_ocr_failed)
+                        results.isEmpty() -> Common.showToast(R.string.string_ai_ocr_empty)
+                        else -> {
+                            val texts = ArrayList(results.map { it.text })
+                            val intent = Intent(this@ImageDetailActivity, TemplateActivity::class.java)
+                            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "OCR结果")
+                            intent.putStringArrayListExtra("ocr_texts", texts)
+                            startActivity(intent)
+                        }
                     }
                 }
             }
