@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    android:background="@drawable/bg_upscale_glass_card"
+    android:background="@drawable/bg_cell_rounded"
     android:orientation="vertical"
     android:padding="14dp">
 
@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:lineSpacingExtra="4dp"
-        android:textColor="@android:color/white"
+        android:textColor="@color/v3_text_1"
         android:textIsSelectable="true"
         android:textSize="15sp" />
 
@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="@string/string_tap_to_copy"
-        android:textColor="@color/colorWhite30"
+        android:textColor="@color/v3_text_3"
         android:textSize="11sp" />
 
 </LinearLayout>

@@ -9,12 +9,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import androidx.appcompat.widget.Toolbar
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import ceui.lisa.R
 import ceui.lisa.utils.Common
+import com.blankj.utilcode.util.BarUtils
 
 class OcrResultFragment : Fragment() {
 
@@ -25,13 +25,10 @@ class OcrResultFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        activity?.window?.let { window ->
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            WindowInsetsControllerCompat(window, window.decorView).apply {
-                hide(WindowInsetsCompat.Type.systemBars())
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            }
-        }
+        // EdgeToEdge 模式下 toolbar 不能 fitsSystemWindows="true",改 runtime padding
+        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
+        toolbar.updatePadding(top = BarUtils.getStatusBarHeight())
+        toolbar.setNavigationOnClickListener { activity?.finish() }
 
         val content = view.findViewById<LinearLayout>(R.id.ocr_content)
         val texts = arguments?.getStringArrayList(KEY_TEXTS) ?: return
