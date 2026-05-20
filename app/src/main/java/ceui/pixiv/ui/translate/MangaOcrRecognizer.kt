@@ -12,6 +12,9 @@ import timber.log.Timber
 import java.io.File
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
+import java.text.Normalizer
+import kotlin.math.exp
+import kotlin.math.ln
 
 /**
  * manga-ocr recognizer using ONNX Runtime.
@@ -23,6 +26,15 @@ import java.nio.LongBuffer
  *   MangaOcrRecognizer.loadModel(context, MangaOcrModel.MANGA_OCR_BASE)
  *   val text = MangaOcrRecognizer.recognize(croppedBitmap)
  */
+/**
+ * manga-ocr 重识别结果。
+ *
+ * @property text 解码后的文字
+ * @property confidence 每 token softmax 最大概率的几何平均(exp(平均 logP))。
+ *   正经文本 0.6-0.95;模型在噪声 crop 上 hallucinate 通常 < 0.3
+ */
+data class OcrResult(val text: String, val confidence: Float)
+
 object MangaOcrRecognizer {
 
     private var encoderSession: OrtSession? = null
@@ -117,9 +129,9 @@ object MangaOcrRecognizer {
      * Recognize text in a cropped text region bitmap.
      *
      * @param bitmap Cropped image of a single text region
-     * @return Recognized Japanese text
+     * @return Recognized Japanese text + 模型自身置信度
      */
-    fun recognize(bitmap: Bitmap): String {
+    fun recognize(bitmap: Bitmap): OcrResult {
         val encoder = encoderSession ?: throw IllegalStateException("Model not loaded")
         val decoder = decoderSession ?: throw IllegalStateException("Model not loaded")
         val cfg = config ?: throw IllegalStateException("Model not loaded")
@@ -137,71 +149,102 @@ object MangaOcrRecognizer {
         val encoderResult = encoder.run(mapOf("pixel_values" to pixelTensor))
         val encoderHidden = encoderResult[0] as OnnxTensor
 
-        // Step 3: Autoregressive decoding
+        // Step 3: Autoregressive decoding + per-token log P 累计
         val decodedTokens = mutableListOf<Int>()
         var decoderInputIds = longArrayOf(cfg.bosTokenId.toLong())
+        // 用 Double 累加避免 float 误差堆积;eos token 不计入(它只是终止信号)
+        var totalLogProb = 0.0
+        var counted = 0
 
-        for (step in 0 until cfg.maxLength) {
-            val decInputTensor = OnnxTensor.createTensor(
-                env,
-                LongBuffer.wrap(decoderInputIds),
-                longArrayOf(1, decoderInputIds.size.toLong())
-            )
+        try {
+            for (step in 0 until cfg.maxLength) {
+                val decInputTensor = OnnxTensor.createTensor(
+                    env,
+                    LongBuffer.wrap(decoderInputIds),
+                    longArrayOf(1, decoderInputIds.size.toLong())
+                )
 
-            val decoderResult = decoder.run(mapOf(
-                "input_ids" to decInputTensor,
-                "encoder_hidden_states" to encoderHidden,
-            ))
+                val stepResult = try {
+                    val decoderResult = decoder.run(mapOf(
+                        "input_ids" to decInputTensor,
+                        "encoder_hidden_states" to encoderHidden,
+                    ))
+                    try {
+                        val logitsTensor = decoderResult[0] as OnnxTensor
+                        val logitsShape = logitsTensor.info.shape
+                        val vocabSize = logitsShape[2].toInt()
+                        val seqLen = logitsShape[1].toInt()
+                        val logitsBuffer = logitsTensor.floatBuffer
+                        val offset = (seqLen - 1) * vocabSize
 
-            val logitsTensor = decoderResult[0] as OnnxTensor
-            val logitsShape = logitsTensor.info.shape
-            val vocabSize = logitsShape[2].toInt()
-            val seqLen = logitsShape[1].toInt()
-            val logitsBuffer = logitsTensor.floatBuffer
-
-            // Argmax for last position
-            val offset = (seqLen - 1) * vocabSize
-            var maxVal = Float.NEGATIVE_INFINITY
-            var maxIdx = 0
-            for (v in 0 until vocabSize) {
-                val value = logitsBuffer.get(offset + v)
-                if (value > maxVal) {
-                    maxVal = value
-                    maxIdx = v
+                        // Argmax + numerically stable log-sum-exp
+                        var maxVal = Float.NEGATIVE_INFINITY
+                        var idx = 0
+                        for (v in 0 until vocabSize) {
+                            val value = logitsBuffer.get(offset + v)
+                            if (value > maxVal) {
+                                maxVal = value
+                                idx = v
+                            }
+                        }
+                        // log P(idx) = maxVal - log(sum exp(logits_v))
+                        //            = -log(sum exp(logits_v - maxVal))
+                        var shiftedSum = 0.0
+                        for (v in 0 until vocabSize) {
+                            shiftedSum += exp((logitsBuffer.get(offset + v) - maxVal).toDouble())
+                        }
+                        val logProb = -ln(shiftedSum)
+                        idx to logProb
+                    } finally {
+                        decoderResult.close()
+                    }
+                } finally {
+                    decInputTensor.close()
                 }
+
+                val maxIdx = stepResult.first
+                val logProb = stepResult.second
+                if (maxIdx == cfg.eosTokenId) break
+
+                decodedTokens.add(maxIdx)
+                totalLogProb += logProb
+                counted++
+                decoderInputIds = decoderInputIds + maxIdx.toLong()
             }
-
-            decoderResult.close()
-
-            if (maxIdx == cfg.eosTokenId) break
-
-            decodedTokens.add(maxIdx)
-            decoderInputIds = decoderInputIds + maxIdx.toLong()
+        } finally {
+            encoderResult.close()
+            pixelTensor.close()
         }
 
-        // Cleanup
-        encoderResult.close()
-        pixelTensor.close()
+        val confidence: Float = if (counted == 0) 0f else exp(totalLogProb / counted).toFloat()
 
-        // Step 4: Decode tokens to text, filtering out special tokens
+        // Step 4: Decode tokens to text. 兼容两种 HF tokenizer:
+        //   - WordPiece (BertTokenizer,manga-ocr 实际用的):"##" 前缀去掉,直接拼接
+        //   - SentencePiece:"▁" (U+2581) 表示词边界 — 日文里几乎不出现,出现就直接 strip
+        //   - 整段 NFKC normalize 对齐 HF post-process
         val specialTokenIds = setOf(cfg.bosTokenId, cfg.eosTokenId, cfg.padTokenId)
         val specialTokens = setOf("[CLS]", "[SEP]", "[PAD]", "[UNK]", "[MASK]")
         val sb = StringBuilder()
         for (tokenId in decodedTokens) {
             if (tokenId in specialTokenIds) continue
-            if (tokenId >= 0 && tokenId < vocabList.size) {
-                val token = vocabList[tokenId]
-                if (token !in specialTokens) {
-                    sb.append(token)
-                }
+            if (tokenId !in 0 until vocabList.size) continue
+            var token = vocabList[tokenId]
+            if (token in specialTokens) continue
+            token = when {
+                token.startsWith("##") -> token.substring(2)
+                token.startsWith("▁") -> token.substring(1)
+                else -> token
             }
+            sb.append(token)
         }
-        return sb.toString()
+        val text = Normalizer.normalize(sb, Normalizer.Form.NFKC)
+        return OcrResult(text, confidence)
     }
 
     /**
-     * Preprocess image: resize to imageSize x imageSize, normalize with ImageNet mean/std.
-     * Returns a FloatBuffer in CHW format.
+     * Preprocess image to match upstream kha-white/manga-ocr training distribution:
+     *   PIL Image.convert('L').convert('RGB')  →  BT.601 luma 复制到三通道
+     * 然后 ImageNet 风格 mean/std 归一化,CHW 排布。
      */
     private fun preprocessImage(bitmap: Bitmap, cfg: OcrConfig): FloatBuffer {
         val size = cfg.imageSize
@@ -212,22 +255,22 @@ object MangaOcrRecognizer {
         scaled.getPixels(pixels, 0, size, 0, 0, size, size)
         if (scaled != bitmap) scaled.recycle()
 
-        // CHW format, normalized
+        // BT.601 luma:Image.convert('L') 用的就是这个权重
+        val luma = FloatArray(pixels.size)
+        for (i in pixels.indices) {
+            val p = pixels[i]
+            val r = Color.red(p)
+            val g = Color.green(p)
+            val b = Color.blue(p)
+            luma[i] = (0.299f * r + 0.587f * g + 0.114f * b) / 255f
+        }
+
         val mean = cfg.imageMean
         val std = cfg.imageStd
-
-        // R channel
-        for (pixel in pixels) {
-            buffer.put((Color.red(pixel) / 255f - mean[0]) / std[0])
-        }
-        // G channel
-        for (pixel in pixels) {
-            buffer.put((Color.green(pixel) / 255f - mean[1]) / std[1])
-        }
-        // B channel
-        for (pixel in pixels) {
-            buffer.put((Color.blue(pixel) / 255f - mean[2]) / std[2])
-        }
+        // CHW:三通道相同(灰度扩展)
+        for (v in luma) buffer.put((v - mean[0]) / std[0])
+        for (v in luma) buffer.put((v - mean[1]) / std[1])
+        for (v in luma) buffer.put((v - mean[2]) / std[2])
 
         buffer.rewind()
         return buffer

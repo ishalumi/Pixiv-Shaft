@@ -17,11 +17,14 @@ import ceui.pixiv.ui.task.NamedUrl
 import ceui.pixiv.ui.task.TaskPool
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.translate.MangaOcrModelManager
+import ceui.pixiv.ui.translate.MangaOcrRecognizer
 import ceui.pixiv.ui.translate.MangaTranslator
 import ceui.pixiv.ui.translate.SakuraModel
 import ceui.pixiv.ui.translate.SakuraModelManager
 import com.google.android.material.progressindicator.CircularProgressIndicator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class IllustAiHelper(
     private val fragment: Fragment,
@@ -84,15 +87,65 @@ class IllustAiHelper(
     }
 
     fun performOcr(illust: IllustsBean) {
+        val ocrModel = MangaOcrModel.MANGA_OCR_BASE
+        if (!MangaOcrModelManager.isModelReady(context, ocrModel)) {
+            Common.showToast(R.string.string_manga_ocr_model_needed)
+            val intent = Intent(context, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载")
+            intent.putExtra("manga_ocr_model_name", ocrModel.name)
+            fragment.startActivity(intent)
+            return
+        }
+
         val imageUrl = IllustDownload.getUrl(illust, 0, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, 0, Params.IMAGE_RESOLUTION_LARGE) ?: return
 
-        Common.showToast(R.string.string_ai_ocr_running)
+        overlayRoot.visibility = View.VISIBLE
+        loadingState.visibility = View.VISIBLE
+        doneState.visibility = View.GONE
+        overlayRoot.alpha = 0f
+        overlayRoot.animate().alpha(1f).setDuration(300).start()
+        statusText.text = context.getString(R.string.string_ai_ocr_running)
+        progressRing.isIndeterminate = true
+        progressText.visibility = View.GONE
+
         val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
         loadTask.result.observe(lifecycleOwner) { file ->
             if (file != null) {
                 lifecycleOwner.lifecycleScope.launch {
-                    val results = MangaOcr.recognize(context, file)
+                    if (!MangaOcrRecognizer.isLoaded) {
+                        rootView.post {
+                            statusText.text = context.getString(R.string.string_ai_ocr_loading_model)
+                        }
+                        val loaded = withContext(Dispatchers.IO) {
+                            runCatching { MangaOcrRecognizer.loadModel(context, ocrModel) }.isSuccess
+                        }
+                        if (!loaded) {
+                            overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                                overlayRoot.visibility = View.GONE
+                            }.start()
+                            Common.showToast(R.string.string_ai_ocr_failed)
+                            return@launch
+                        }
+                    }
+                    val results = MangaOcr.recognize(context, file) { stage, fraction ->
+                        rootView.post {
+                            statusText.text = stage
+                            if (fraction.isNaN()) {
+                                progressRing.isIndeterminate = true
+                                progressText.visibility = View.GONE
+                            } else {
+                                progressRing.isIndeterminate = false
+                                progressText.visibility = View.VISIBLE
+                                val p = (fraction * 100).toInt()
+                                progressRing.setProgressCompat(p, true)
+                                progressText.text = "$p%"
+                            }
+                        }
+                    }
+                    overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                        overlayRoot.visibility = View.GONE
+                    }.start()
                     if (results != null && results.isNotEmpty()) {
                         val texts = ArrayList(results.map { it.text })
                         val intent = Intent(context, TemplateActivity::class.java)

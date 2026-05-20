@@ -710,6 +710,10 @@
   <string name="string_ai_upscale">AI Enhance (2x)</string>
   <string name="string_ai_ocr">Manga OCR</string>
   <string name="string_ai_ocr_running">Recognizing text…</string>
+  <string name="string_ai_ocr_loading_model">Loading OCR model…</string>
+  <string name="string_ai_ocr_detecting">Detecting text boxes</string>
+  <string name="string_ai_ocr_recognizing">Reading %1$d / %2$d</string>
+  <string name="string_ai_ocr_done">Recognition complete</string>
   <string name="string_ai_ocr_failed">Recognition failed</string>
   <string name="string_ai_ocr_empty">No text detected</string>
   <string name="string_ai_upscale_running">%s enhancing, please wait…</string>

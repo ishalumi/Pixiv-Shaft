@@ -744,6 +744,10 @@
   <string name="string_ai_upscale">AI 高画質化 (2x)</string>
   <string name="string_ai_ocr">漫画文字認識</string>
   <string name="string_ai_ocr_running">文字認識中、お待ちください…</string>
+  <string name="string_ai_ocr_loading_model">OCR モデルを読み込み中…</string>
+  <string name="string_ai_ocr_detecting">テキスト領域を検出中</string>
+  <string name="string_ai_ocr_recognizing">認識 %1$d / %2$d</string>
+  <string name="string_ai_ocr_done">認識完了</string>
   <string name="string_ai_ocr_failed">認識に失敗しました</string>
   <string name="string_ai_ocr_empty">テキストが見つかりません</string>
   <string name="string_ai_upscale_running">%s で処理中…</string>

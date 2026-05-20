@@ -758,6 +758,10 @@
   <string name="string_ai_upscale">畫質增強 (2x)</string>
   <string name="string_ai_ocr">漫畫文字辨識</string>
   <string name="string_ai_ocr_running">文字辨識中，請稍候…</string>
+  <string name="string_ai_ocr_loading_model">載入 OCR 模型…</string>
+  <string name="string_ai_ocr_detecting">偵測文字框</string>
+  <string name="string_ai_ocr_recognizing">辨識 %1$d / %2$d</string>
+  <string name="string_ai_ocr_done">辨識完成</string>
   <string name="string_ai_ocr_failed">辨識失敗</string>
   <string name="string_ai_ocr_empty">未辨識到文字</string>
   <string name="string_ai_upscale_running">%s 增強中，請稍候…</string>

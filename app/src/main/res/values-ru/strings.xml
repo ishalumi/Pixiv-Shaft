@@ -647,6 +647,10 @@
   <string name="string_ai_upscale">AI улучшение (2x)</string>
   <string name="string_ai_ocr">OCR манги</string>
   <string name="string_ai_ocr_running">Распознаём текст…</string>
+  <string name="string_ai_ocr_loading_model">Загружаем модель OCR…</string>
+  <string name="string_ai_ocr_detecting">Поиск текстовых областей</string>
+  <string name="string_ai_ocr_recognizing">Распознавание %1$d / %2$d</string>
+  <string name="string_ai_ocr_done">Готово</string>
   <string name="string_ai_ocr_failed">Не удалось распознать</string>
   <string name="string_ai_ocr_empty">Текст не обнаружен</string>
   <string name="string_ai_upscale_running">%s обработка…</string>

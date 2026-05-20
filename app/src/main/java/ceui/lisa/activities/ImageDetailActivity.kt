@@ -21,6 +21,7 @@ import ceui.pixiv.ui.task.NamedUrl
 import ceui.pixiv.ui.task.TaskPool
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.translate.MangaOcrModelManager
+import ceui.pixiv.ui.translate.MangaOcrRecognizer
 import ceui.pixiv.ui.translate.MangaTranslator
 import ceui.pixiv.ui.translate.SakuraModel
 import ceui.pixiv.ui.translate.SakuraModelManager
@@ -329,15 +330,73 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
     }
 
     private fun performAiOcr(illust: IllustsBean, pageIndex: Int) {
+        val ocrModel = MangaOcrModel.MANGA_OCR_BASE
+        if (!MangaOcrModelManager.isModelReady(this, ocrModel)) {
+            Common.showToast(R.string.string_manga_ocr_model_needed)
+            val intent = Intent(this, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载")
+            intent.putExtra("manga_ocr_model_name", ocrModel.name)
+            startActivity(intent)
+            return
+        }
+
         val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_LARGE) ?: return
 
-        Common.showToast(R.string.string_ai_ocr_running)
+        val overlayRoot = findViewById<View>(R.id.ai_overlay_root) ?: return
+        val loadingState = findViewById<View>(R.id.ai_loading_state)
+        val doneState = findViewById<View>(R.id.ai_done_state)
+        val statusText = findViewById<TextView>(R.id.ai_status_text)
+        val progressRing = findViewById<CircularProgressIndicator>(R.id.ai_progress_ring)
+        val progressText = findViewById<TextView>(R.id.ai_progress_text)
+
+        overlayRoot.visibility = View.VISIBLE
+        loadingState.visibility = View.VISIBLE
+        doneState.visibility = View.GONE
+        overlayRoot.alpha = 0f
+        overlayRoot.animate().alpha(1f).setDuration(300).start()
+        statusText.text = getString(R.string.string_ai_ocr_running)
+        progressRing.isIndeterminate = true
+        progressText.visibility = View.GONE
+
         val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
         loadTask.result.observe(this) { file ->
             if (file != null) {
                 lifecycleScope.launch {
-                    val results = MangaOcr.recognize(this@ImageDetailActivity, file)
+                    if (!MangaOcrRecognizer.isLoaded) {
+                        runOnUiThread {
+                            statusText.text = getString(R.string.string_ai_ocr_loading_model)
+                        }
+                        val loaded = withContext(Dispatchers.IO) {
+                            runCatching { MangaOcrRecognizer.loadModel(this@ImageDetailActivity, ocrModel) }
+                                .isSuccess
+                        }
+                        if (!loaded) {
+                            overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                                overlayRoot.visibility = View.GONE
+                            }.start()
+                            Common.showToast(R.string.string_ai_ocr_failed)
+                            return@launch
+                        }
+                    }
+                    val results = MangaOcr.recognize(this@ImageDetailActivity, file) { stage, fraction ->
+                        runOnUiThread {
+                            statusText.text = stage
+                            if (fraction.isNaN()) {
+                                progressRing.isIndeterminate = true
+                                progressText.visibility = View.GONE
+                            } else {
+                                progressRing.isIndeterminate = false
+                                progressText.visibility = View.VISIBLE
+                                val p = (fraction * 100).toInt()
+                                progressRing.setProgressCompat(p, true)
+                                progressText.text = "$p%"
+                            }
+                        }
+                    }
+                    overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                        overlayRoot.visibility = View.GONE
+                    }.start()
                     when {
                         results == null -> Common.showToast(R.string.string_ai_ocr_failed)
                         results.isEmpty() -> Common.showToast(R.string.string_ai_ocr_empty)
