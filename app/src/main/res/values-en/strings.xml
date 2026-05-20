@@ -708,7 +708,7 @@
   <string name="rate_dialog_maybe_later">Maybe Later</string>
   <string name="rate_dialog_never">Don\'t ask again</string>
   <string name="string_ai_upscale">AI Enhance (2x)</string>
-  <string name="string_ai_ocr">Manga OCR</string>
+  <string name="string_ai_manga_translate_inline">Translate Manga</string>
   <string name="string_ai_ocr_running">Recognizing text…</string>
   <string name="string_ai_ocr_loading_model">Loading OCR model…</string>
   <string name="string_ai_ocr_detecting">Detecting text boxes</string>
@@ -1542,4 +1542,7 @@
     <string name="string_ctd_download_subtitle">%1$s locates speech bubbles and text blocks more accurately than a generic OCR detector</string>
     <string name="string_ctd_download_done">Text-box detector downloaded</string>
     <string name="string_ctd_model_needed">Manga text-box detector needs to be downloaded first</string>
+    <string name="ocr_translating_progress">Translating… %1$d/%2$d</string>
+    <string name="ocr_writeback_running">Rendering…</string>
+    <string name="string_ai_translate_in_progress">A translation task is already running, please wait</string>
 </resources>

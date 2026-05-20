@@ -271,9 +271,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             intent.getStringExtra("original_path"));
                 case "AI画质提升":
                     return new ceui.pixiv.ui.upscale.FragmentAiUpscale();
-                case "OCR结果":
-                    return ceui.pixiv.ui.upscale.OcrResultFragment.newInstance(
-                            intent.getStringArrayListExtra("ocr_texts"));
                 case "主体高亮":
                     return ceui.pixiv.ui.upscale.RembgHighlightFragment.newInstance(
                             intent.getStringExtra("original_path"),

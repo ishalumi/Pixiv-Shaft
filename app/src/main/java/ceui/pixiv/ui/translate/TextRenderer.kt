@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import ceui.pixiv.ui.upscale.OcrTextRegion
+import timber.log.Timber
 import kotlin.math.min
 
 /**
@@ -17,8 +18,11 @@ import kotlin.math.min
 object TextRenderer {
 
     private const val PADDING_RATIO = 0.08f  // padding inside the bubble as fraction of dimension
-    private const val MIN_FONT_SIZE = 10f
+    /** 二分搜起点 — 上限不行时再走 [scaleDownToFit] 兜底,允许更小字号防溢出 */
+    private const val MIN_FONT_SIZE = 6f
     private const val MAX_FONT_SIZE = 80f
+    /** 极端兜底字号下限,小到这个值还塞不下就只能让它溢出/被裁(罕见) */
+    private const val ABSOLUTE_MIN_FONT_SIZE = 2f
     private const val LINE_SPACING_MULT = 1.15f
 
     /**
@@ -48,6 +52,11 @@ object TextRenderer {
             style = Paint.Style.STROKE
         }
 
+        Timber.d(
+            "TextRenderer: canvas %dx%d, %d regions, %d translations",
+            canvas.width, canvas.height, regions.size, translations.size
+        )
+        var drawn = 0
         for ((index, region) in regions.withIndex()) {
             val text = translations[index] ?: continue
             if (text.isBlank()) continue
@@ -79,6 +88,13 @@ object TextRenderer {
                 strokePaint.color = Color.WHITE
             }
 
+            Timber.d(
+                "TextRenderer: region[%d] @cx=%.0f,cy=%.0f size=%.0fx%.0f orient=%s orig=\"%s\" → \"%s\"",
+                index, region.cx, region.cy, region.width, region.height,
+                if (region.orientation == 1) "V" else "H",
+                region.text.take(40), text.take(40)
+            )
+
             if (region.orientation == 1) {
                 renderVerticalText(canvas, paint, strokePaint, text,
                     regionLeft + padX, regionTop + padY, innerWidth, innerHeight)
@@ -86,7 +102,9 @@ object TextRenderer {
                 renderHorizontalText(canvas, paint, strokePaint, text,
                     regionLeft + padX, regionTop + padY, innerWidth, innerHeight)
             }
+            drawn++
         }
+        Timber.d("TextRenderer: drew %d/%d translations", drawn, regions.size)
     }
 
     /**
@@ -96,17 +114,21 @@ object TextRenderer {
         canvas: Canvas, paint: Paint, strokePaint: Paint,
         text: String, left: Float, top: Float, width: Float, height: Float
     ) {
-        val fontSize = fitHorizontalFontSize(paint, text, width, height)
+        var fontSize = fitHorizontalFontSize(paint, text, width, height)
+        // 二分上限不达标的兜底:线性再砍小防溢出
+        fontSize = scaleDownToFit(paint, text, fontSize, width, height, vertical = false)
         paint.textSize = fontSize
         strokePaint.textSize = fontSize
         strokePaint.strokeWidth = fontSize * 0.08f
 
         val lines = wrapTextHorizontal(paint, text, width)
+        // 用 Paint.FontMetrics 取真实 ascent/descent,baseline 居中更准
+        val fm = paint.fontMetrics
+        val ascent = -fm.ascent
+        val descent = fm.descent
         val lineHeight = fontSize * LINE_SPACING_MULT
-        val totalTextHeight = lines.size * lineHeight
-
-        // Center vertically
-        var y = top + (height - totalTextHeight) / 2f + fontSize
+        val visualHeight = (lines.size - 1) * lineHeight + (ascent + descent)
+        var y = top + (height - visualHeight) / 2f + ascent
 
         for (line in lines) {
             // Center horizontally
@@ -125,11 +147,15 @@ object TextRenderer {
         canvas: Canvas, paint: Paint, strokePaint: Paint,
         text: String, left: Float, top: Float, width: Float, height: Float
     ) {
-        val fontSize = fitVerticalFontSize(text, width, height)
+        var fontSize = fitVerticalFontSize(text, width, height)
+        fontSize = scaleDownToFit(paint, text, fontSize, width, height, vertical = true)
         paint.textSize = fontSize
         strokePaint.textSize = fontSize
         strokePaint.strokeWidth = fontSize * 0.08f
 
+        val fm = paint.fontMetrics
+        val ascent = -fm.ascent
+        val descent = fm.descent
         val colSpacing = fontSize * LINE_SPACING_MULT
         val charHeight = fontSize * LINE_SPACING_MULT
         val charsPerCol = maxOf(1, (height / charHeight).toInt())
@@ -148,7 +174,8 @@ object TextRenderer {
 
         val bounds = Rect()
         for (col in columns) {
-            var y = top + (height - col.length * charHeight) / 2f + fontSize
+            val colVisualHeight = (col.length - 1) * charHeight + (ascent + descent)
+            var y = top + (height - colVisualHeight) / 2f + ascent
             for (ch in col) {
                 val s = ch.toString()
                 paint.getTextBounds(s, 0, 1, bounds)
@@ -160,6 +187,40 @@ object TextRenderer {
             }
             x -= colSpacing
         }
+    }
+
+    /**
+     * 二分得到的 [seedSize] 可能仍超出框架(初始 lo=MIN 都塞不下时,二分会原样返回 MIN)。
+     * 这里再线性砍 0.85 倍,直到真的塞下;到 [ABSOLUTE_MIN_FONT_SIZE] 还塞不下就保留。
+     */
+    private fun scaleDownToFit(
+        paint: Paint,
+        text: String,
+        seedSize: Float,
+        width: Float,
+        height: Float,
+        vertical: Boolean,
+    ): Float {
+        var size = seedSize
+        // 至多砍 20 次,size = 6 * 0.85^20 ≈ 0.23,远低于 ABSOLUTE_MIN
+        repeat(20) {
+            paint.textSize = size
+            val fits = if (vertical) {
+                val charHeight = size * LINE_SPACING_MULT
+                val colSpacing = size * LINE_SPACING_MULT
+                val charsPerCol = maxOf(1, (height / charHeight).toInt())
+                val numCols = (text.length + charsPerCol - 1) / charsPerCol
+                numCols * colSpacing <= width + 1f && charsPerCol * charHeight <= height + 1f
+            } else {
+                val lines = wrapTextHorizontal(paint, text, width)
+                lines.size * size * LINE_SPACING_MULT <= height + 1f &&
+                    lines.all { paint.measureText(it) <= width + 1f }
+            }
+            if (fits) return size
+            if (size <= ABSOLUTE_MIN_FONT_SIZE) return ABSOLUTE_MIN_FONT_SIZE
+            size = (size * 0.85f).coerceAtLeast(ABSOLUTE_MIN_FONT_SIZE)
+        }
+        return size
     }
 
     /**

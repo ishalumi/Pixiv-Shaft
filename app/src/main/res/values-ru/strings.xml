@@ -645,7 +645,7 @@
   <string name="rate_dialog_maybe_later">Позже</string>
   <string name="rate_dialog_never">Больше не спрашивать</string>
   <string name="string_ai_upscale">AI улучшение (2x)</string>
-  <string name="string_ai_ocr">OCR манги</string>
+  <string name="string_ai_manga_translate_inline">Перевод манги</string>
   <string name="string_ai_ocr_running">Распознаём текст…</string>
   <string name="string_ai_ocr_loading_model">Загружаем модель OCR…</string>
   <string name="string_ai_ocr_detecting">Поиск текстовых областей</string>
@@ -1448,4 +1448,7 @@
     <string name="string_ctd_download_subtitle">%1$s точнее, чем универсальный OCR-детектор, находит речевые пузыри и текстовые блоки</string>
     <string name="string_ctd_download_done">Детектор текстовых блоков загружен</string>
     <string name="string_ctd_model_needed">Сначала нужно загрузить детектор текстовых блоков</string>
+    <string name="ocr_translating_progress">Перевод… %1$d/%2$d</string>
+    <string name="ocr_writeback_running">Отрисовка…</string>
+    <string name="string_ai_translate_in_progress">Задача перевода уже выполняется, подождите</string>
 </resources>

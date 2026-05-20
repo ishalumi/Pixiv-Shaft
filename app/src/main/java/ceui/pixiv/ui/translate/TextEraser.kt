@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import ceui.pixiv.ui.upscale.OcrTextRegion
+import timber.log.Timber
 
 /**
  * Erases text from manga pages by filling OCR-detected text regions
@@ -33,11 +34,20 @@ object TextEraser {
             isAntiAlias = true
         }
 
-        for (region in regions) {
+        Timber.d("TextEraser: bitmap %dx%d, %d regions", original.width, original.height, regions.size)
+        for ((i, region) in regions.withIndex()) {
             val bgColor = sampleBackgroundColor(original, region)
             paint.color = bgColor
             val path = buildRegionPath(region)
             canvas.drawPath(path, paint)
+            if (i < 2) {
+                val xs = region.corners.map { it.first }
+                val ys = region.corners.map { it.second }
+                Timber.d(
+                    "TextEraser: region[%d] AABB=[%.0f,%.0f,%.0f,%.0f] bg=#%06X",
+                    i, xs.min(), ys.min(), xs.max(), ys.max(), bgColor and 0xFFFFFF
+                )
+            }
         }
         return result
     }

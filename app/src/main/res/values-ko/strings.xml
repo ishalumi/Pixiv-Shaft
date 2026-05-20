@@ -652,7 +652,7 @@
   <string name="rate_dialog_maybe_later">나중에</string>
   <string name="rate_dialog_never">다시 묻지 않기</string>
   <string name="string_ai_upscale">AI 화질 향상 (2x)</string>
-  <string name="string_ai_ocr">만화 OCR</string>
+  <string name="string_ai_manga_translate_inline">만화 번역</string>
   <string name="string_ai_ocr_running">텍스트 인식 중…</string>
   <string name="string_ai_ocr_loading_model">OCR 모델 로딩 중…</string>
   <string name="string_ai_ocr_detecting">텍스트 영역 감지 중</string>
@@ -1455,4 +1455,7 @@
     <string name="string_ctd_download_subtitle">%1$s 는 말풍선과 텍스트 블록을 정확히 찾는 데 사용됩니다 (일반 OCR 감지보다 정확)</string>
     <string name="string_ctd_download_done">텍스트 박스 감지 모델 다운로드 완료</string>
     <string name="string_ctd_model_needed">먼저 만화 텍스트 박스 감지 모델을 다운로드해야 합니다</string>
+    <string name="ocr_translating_progress">번역 중… %1$d/%2$d</string>
+    <string name="ocr_writeback_running">합성 중…</string>
+    <string name="string_ai_translate_in_progress">번역 작업이 진행 중입니다. 잠시 기다려 주세요</string>
 </resources>

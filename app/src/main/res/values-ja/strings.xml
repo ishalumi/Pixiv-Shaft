@@ -742,7 +742,7 @@
   <string name="rate_dialog_maybe_later">あとで</string>
   <string name="rate_dialog_never">今後表示しない</string>
   <string name="string_ai_upscale">AI 高画質化 (2x)</string>
-  <string name="string_ai_ocr">漫画文字認識</string>
+  <string name="string_ai_manga_translate_inline">マンガ翻訳</string>
   <string name="string_ai_ocr_running">文字認識中、お待ちください…</string>
   <string name="string_ai_ocr_loading_model">OCR モデルを読み込み中…</string>
   <string name="string_ai_ocr_detecting">テキスト領域を検出中</string>
@@ -1547,4 +1547,7 @@
     <string name="string_ctd_download_subtitle">%1$s で吹き出しとテキストブロックを正確に検出します（汎用OCR検出より精度が高い）</string>
     <string name="string_ctd_download_done">テキスト検出モデルのダウンロード完了</string>
     <string name="string_ctd_model_needed">マンガテキスト検出モデルを先にダウンロードしてください</string>
+    <string name="ocr_translating_progress">翻訳中… %1$d/%2$d</string>
+    <string name="ocr_writeback_running">焼き込み中…</string>
+    <string name="string_ai_translate_in_progress">翻訳タスクが進行中です。しばらくお待ちください</string>
 </resources>

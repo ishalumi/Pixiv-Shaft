@@ -7,8 +7,10 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import ceui.lisa.R
 import ceui.lisa.activities.ImageDetailActivity
+import ceui.lisa.activities.ImageTranslationViewModel
 import ceui.lisa.activities.Shaft
 import ceui.lisa.databinding.FragmentImageDetailBinding
+import java.io.File
 import ceui.lisa.download.IllustDownload
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
@@ -34,6 +36,7 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     private var url: String? = null
     private var saveName: String? = null
     private val viewModel by viewModels<ToggleToolnarViewModel>(ownerProducer = { requireActivity() })
+    private val translationViewModel by viewModels<ImageTranslationViewModel>(ownerProducer = { requireActivity() })
 
     // 不再放进 arguments / savedInstanceState，避免每个 Fragment 重复持久化 80KB IllustsBean
     // 导致 TransactionTooLargeException。统一向 ImageDetailActivity 取。
@@ -66,6 +69,14 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         loadImage()
+        // 监听"翻译漫画"产出:VM 里出现本页 index 的译图就直接换图
+        translationViewModel.translatedPaths.observe(viewLifecycleOwner) { map ->
+            val path = map[index] ?: return@observe
+            val f = File(path)
+            if (f.exists()) {
+                baseBind.image.loadImage(f)
+            }
+        }
     }
 
     private fun loadImage() {

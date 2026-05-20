@@ -643,7 +643,7 @@
   <string name="rate_dialog_maybe_later">Sonra</string>
   <string name="rate_dialog_never">Bir daha sorma</string>
   <string name="string_ai_upscale">AI Kalite Artırma (2x)</string>
-  <string name="string_ai_ocr">Manga OCR</string>
+  <string name="string_ai_manga_translate_inline">Manga çevirisi</string>
   <string name="string_ai_ocr_running">Metin tanınıyor…</string>
   <string name="string_ai_ocr_loading_model">OCR modeli yükleniyor…</string>
   <string name="string_ai_ocr_detecting">Metin alanları algılanıyor</string>
@@ -1446,4 +1446,7 @@
     <string name="string_ctd_download_subtitle">%1$s konuşma balonlarını ve metin bloklarını genel bir OCR algılayıcıdan daha doğru bulur</string>
     <string name="string_ctd_download_done">Metin kutusu algılayıcısı indirildi</string>
     <string name="string_ctd_model_needed">Önce manga metin kutusu algılayıcısını indirmeniz gerekiyor</string>
+    <string name="ocr_translating_progress">Çevriliyor… %1$d/%2$d</string>
+    <string name="ocr_writeback_running">Basılıyor…</string>
+    <string name="string_ai_translate_in_progress">Bir çeviri görevi zaten çalışıyor, lütfen bekleyin</string>
 </resources>

@@ -20,6 +20,11 @@ import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 
+/**
+ * OCR 文本框,**坐标系契约:统一在"原图"分辨率下**。
+ * MangaOcr/CTD 内部为防 OOM 会先 sample 降采样,但 [MangaOcr.recognize] 返回前
+ * 会把 region 坐标乘回 sample 倍,所以下游(渲染/回填)直接按原图分辨率处理就行。
+ */
 data class OcrTextRegion(
     val text: String,
     val cx: Float,
@@ -32,6 +37,18 @@ data class OcrTextRegion(
     val corners: List<Pair<Float, Float>>,
     val recogConfidence: Float = 1f, // manga-ocr 重识别置信(模型自己对识别多确定)
 )
+
+/** 把 region 所有空间字段等比缩放,用于 sample 升/降到目标坐标系。 */
+fun OcrTextRegion.scaledBy(factor: Float): OcrTextRegion {
+    if (factor == 1f) return this
+    return copy(
+        cx = cx * factor,
+        cy = cy * factor,
+        width = width * factor,
+        height = height * factor,
+        corners = corners.map { (x, y) -> (x * factor) to (y * factor) },
+    )
+}
 
 object MangaOcr {
 
@@ -173,9 +190,20 @@ object MangaOcr {
             val confident = enhanced.filter { it.recogConfidence >= MIN_RECOG_CONFIDENCE }
             Timber.d("MangaOcr: ${enhanced.size} → ${confident.size} after recog-confidence filter (>=$MIN_RECOG_CONFIDENCE)")
 
-            confident
+            // 坐标系归一:CTD/recognize 是在 sample 后 bitmap 上跑的,这里乘回 sample
+            // 把 region 转成"原图分辨率"坐标,下游(渲染/回填)统一基于原图坐标处理。
+            val finalRegions = confident
                 .filter { it.isMeaningfulJapanese() }
                 .let { mangaReadingOrder(it) }
+                .map { it.scaledBy(sample.toFloat()) }
+            if (sample > 1 && finalRegions.isNotEmpty()) {
+                val sample0 = finalRegions[0]
+                Timber.d(
+                    "MangaOcr: scaled %d regions by x%d → original coords; sample[0] cx=%.0f cy=%.0f w=%.0f h=%.0f",
+                    finalRegions.size, sample, sample0.cx, sample0.cy, sample0.width, sample0.height
+                )
+            }
+            finalRegions
         } catch (e: Exception) {
             Timber.e(e, "MangaOcr error")
             null
@@ -187,7 +215,9 @@ object MangaOcr {
     /**
      * 把 CTD 输出转成 [OcrTextRegion]。
      * - text 占位空串,manga-ocr 后续重识别覆盖
-     * - orientation 启发式:宽 > 高*1.2 → 横排;否则竖排(包括 squarish — manga 默认竖排)
+     * - orientation 启发式:明显竖长(高 > 宽*1.2)→ 竖排;否则横排
+     *   (方形 / 略竖长 一律横排 — 翻译多为中文,横排显示更自然;此前默认竖排导致
+     *    短促对白如"やった!"→"做到了!"被强排成单列细窄文字,与气泡框对不齐)
      * - corners 用 AABB 四角(TL→TR→BR→BL),供 TextRenderer / TextEraser 使用
      */
     private fun DetectionBox.toOcrTextRegion(): OcrTextRegion {
@@ -195,8 +225,8 @@ object MangaOcr {
         val top = cy - height / 2f
         val right = cx + width / 2f
         val bottom = cy + height / 2f
-        // 0=horizontal(明显横宽), 1=vertical(竖长 + squarish 默认)
-        val orient = if (width > height * 1.2f) 0 else 1
+        // 0=horizontal(默认 + 略竖长), 1=vertical(明显竖长)
+        val orient = if (height > width * 1.2f) 1 else 0
         return OcrTextRegion(
             text = "",
             cx = cx,

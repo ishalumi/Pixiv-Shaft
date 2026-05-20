@@ -1,12 +1,17 @@
 package ceui.lisa.activities
 
+import android.content.Intent
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
-import androidx.fragment.app.Fragment
 import androidx.activity.viewModels
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentPagerAdapter
+import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager.widget.ViewPager
 import ceui.lisa.R
 import ceui.lisa.databinding.ActivityImageDetailBinding
@@ -17,41 +22,34 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
+import ceui.lisa.utils.QMUIMenuPopup
 import ceui.pixiv.ui.task.NamedUrl
 import ceui.pixiv.ui.task.TaskPool
-import ceui.pixiv.ui.translate.ComicTextDetector
 import ceui.pixiv.ui.translate.ComicTextDetectorModel
 import ceui.pixiv.ui.translate.ComicTextDetectorModelManager
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.translate.MangaOcrModelManager
-import ceui.pixiv.ui.translate.MangaOcrRecognizer
-import ceui.pixiv.ui.translate.MangaTranslator
-import ceui.pixiv.ui.translate.SakuraModel
-import ceui.pixiv.ui.translate.SakuraModelManager
 import ceui.pixiv.ui.upscale.BackgroundRemover
-import ceui.pixiv.ui.upscale.MangaOcr
 import ceui.pixiv.ui.upscale.ModelPickerDialog
-import ceui.pixiv.ui.upscale.RembgModelPickerDialog
 import ceui.pixiv.ui.upscale.RembgModel
-import ceui.pixiv.ui.upscale.UpscaleStatus
-import ceui.pixiv.ui.upscale.UpscaleTaskPool
-import ceui.pixiv.ui.upscale.UpscaleTask
+import ceui.pixiv.ui.upscale.RembgModelPickerDialog
 import ceui.pixiv.ui.upscale.UpscaleModel
+import ceui.pixiv.ui.upscale.UpscaleStatus
+import ceui.pixiv.ui.upscale.UpscaleTask
+import ceui.pixiv.ui.upscale.UpscaleTaskPool
 import ceui.pixiv.ui.works.ToggleToolnarViewModel
-import com.google.android.material.progressindicator.CircularProgressIndicator
 import ceui.pixiv.utils.animateFadeInQuickly
 import ceui.pixiv.utils.animateFadeOutQuickly
-import android.content.Intent
-import android.widget.ImageView
-import androidx.core.view.ViewCompat
-import ceui.lisa.utils.QMUIMenuPopup
-import androidx.lifecycle.lifecycleScope
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.UnsupportedEncodingException
 import java.net.URLDecoder
 import java.util.Locale
+import kotlin.coroutines.resume
 
 /**
  * 图片二级详情
@@ -59,6 +57,7 @@ import java.util.Locale
 class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
     var mIllustsBean: IllustsBean? = null
         private set
+    private val translationViewModel by viewModels<ImageTranslationViewModel>()
     private var localIllust: List<String>? = ArrayList()
     private var currentPage: TextView? = null
     private var downloadSingle: TextView? = null
@@ -71,6 +70,7 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
     }
 
     override fun initView() {
+        observeTranslationStatus()
         val dataType = intent.getStringExtra("dataType")
         baseBind!!.viewPager.setPageTransformer(true, PageTransformerHelper.getCurrentTransformer())
         val windowInsetsController = WindowInsetsControllerCompat(
@@ -117,7 +117,7 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                 val titles = arrayOf<CharSequence>(
                     getString(R.string.string_ai_upscale),
                     getString(R.string.string_ai_rembg),
-                    getString(R.string.string_ai_ocr)
+                    getString(R.string.string_ai_manga_translate_inline)
                 )
                 QMUIMenuPopup.show(this, anchor, titles) { index, _ ->
                     val illust = mIllustsBean ?: return@show
@@ -129,7 +129,7 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                         1 -> RembgModelPickerDialog.pickOrUseDefault(supportFragmentManager) { model ->
                             performAiRembg(illust, pageIndex, model)
                         }
-                        2 -> performAiOcr(illust, pageIndex)
+                        2 -> performAiMangaTranslateInline(illust, pageIndex)
                     }
                 }
             }
@@ -332,179 +332,105 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
         }
     }
 
-    private fun performAiOcr(illust: IllustsBean, pageIndex: Int) {
+    /**
+     * AI 菜单「翻译漫画」入口。所有重活搬到了 [ImageTranslationViewModel],
+     * 这里只负责模型存在性检查 + 拉图 + 把 File 喂给 VM。
+     * Overlay UI 由 [observeTranslationStatus] 单独驱动。
+     */
+    private fun performAiMangaTranslateInline(illust: IllustsBean, pageIndex: Int) {
         val ocrModel = MangaOcrModel.MANGA_OCR_BASE
         if (!MangaOcrModelManager.isModelReady(this, ocrModel)) {
-            Common.showToast(R.string.string_manga_ocr_model_needed)
-            val intent = Intent(this, TemplateActivity::class.java)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载")
-            intent.putExtra("manga_ocr_model_name", ocrModel.name)
-            startActivity(intent)
+            navToDownload(R.string.string_manga_ocr_model_needed, "漫画OCR模型下载", "manga_ocr_model_name", ocrModel.name)
             return
         }
-
         val ctdModel = ComicTextDetectorModel.CTD_BASE
         if (!ComicTextDetectorModelManager.isModelReady(this, ctdModel)) {
-            Common.showToast(R.string.string_ctd_model_needed)
-            val intent = Intent(this, TemplateActivity::class.java)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画文本框检测模型下载")
-            intent.putExtra("ctd_model_name", ctdModel.name)
-            startActivity(intent)
+            navToDownload(R.string.string_ctd_model_needed, "漫画文本框检测模型下载", "ctd_model_name", ctdModel.name)
+            return
+        }
+        if (translationViewModel.running.value == true) {
+            Common.showToast(R.string.string_ai_translate_in_progress)
             return
         }
 
         val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_LARGE) ?: return
 
-        val overlayRoot = findViewById<View>(R.id.ai_overlay_root) ?: return
-        val loadingState = findViewById<View>(R.id.ai_loading_state)
-        val doneState = findViewById<View>(R.id.ai_done_state)
-        val statusText = findViewById<TextView>(R.id.ai_status_text)
-        val progressRing = findViewById<CircularProgressIndicator>(R.id.ai_progress_ring)
-        val progressText = findViewById<TextView>(R.id.ai_progress_text)
+        lifecycleScope.launch {
+            val file = awaitLoadedFile(imageUrl)
+            if (file == null) {
+                Common.showToast(R.string.string_ai_ocr_failed)
+                return@launch
+            }
+            translationViewModel.start(applicationContext, file, pageIndex, ocrModel, ctdModel)
+        }
+    }
 
-        overlayRoot.visibility = View.VISIBLE
-        loadingState.visibility = View.VISIBLE
-        doneState.visibility = View.GONE
-        overlayRoot.alpha = 0f
-        overlayRoot.animate().alpha(1f).setDuration(300).start()
-        statusText.text = getString(R.string.string_ai_ocr_running)
-        progressRing.isIndeterminate = true
-        progressText.visibility = View.GONE
+    /**
+     * VM.status 单一来源驱动 overlay:非 null 显示并刷状态/进度,null 淡出隐藏。
+     */
+    private fun observeTranslationStatus() {
+        translationViewModel.status.observe(this) { status ->
+            val overlayRoot = findViewById<View>(R.id.ai_overlay_root) ?: return@observe
+            val statusText = findViewById<TextView>(R.id.ai_status_text)
+            val progressRing = findViewById<CircularProgressIndicator>(R.id.ai_progress_ring)
+            val progressText = findViewById<TextView>(R.id.ai_progress_text)
 
-        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.observe(this) { file ->
-            if (file != null) {
-                lifecycleScope.launch {
-                    if (!MangaOcrRecognizer.isLoaded || !ComicTextDetector.isLoaded) {
-                        runOnUiThread {
-                            statusText.text = getString(R.string.string_ai_ocr_loading_model)
-                        }
-                        val loaded = withContext(Dispatchers.IO) {
-                            runCatching {
-                                MangaOcrRecognizer.loadModel(this@ImageDetailActivity, ocrModel)
-                                ComicTextDetector.loadModel(this@ImageDetailActivity, ctdModel)
-                            }.isSuccess
-                        }
-                        if (!loaded) {
-                            overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
-                                overlayRoot.visibility = View.GONE
-                            }.start()
-                            Common.showToast(R.string.string_ai_ocr_failed)
-                            return@launch
-                        }
-                    }
-                    val results = MangaOcr.recognize(this@ImageDetailActivity, file) { stage, fraction ->
-                        runOnUiThread {
-                            statusText.text = stage
-                            if (fraction.isNaN()) {
-                                progressRing.isIndeterminate = true
-                                progressText.visibility = View.GONE
-                            } else {
-                                progressRing.isIndeterminate = false
-                                progressText.visibility = View.VISIBLE
-                                val p = (fraction * 100).toInt()
-                                progressRing.setProgressCompat(p, true)
-                                progressText.text = "$p%"
-                            }
-                        }
-                    }
+            if (status == null) {
+                if (overlayRoot.visibility == View.VISIBLE) {
                     overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
                         overlayRoot.visibility = View.GONE
                     }.start()
-                    when {
-                        results == null -> Common.showToast(R.string.string_ai_ocr_failed)
-                        results.isEmpty() -> Common.showToast(R.string.string_ai_ocr_empty)
-                        else -> {
-                            val texts = ArrayList(results.map { it.text })
-                            val intent = Intent(this@ImageDetailActivity, TemplateActivity::class.java)
-                            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "OCR结果")
-                            intent.putStringArrayListExtra("ocr_texts", texts)
-                            startActivity(intent)
-                        }
-                    }
                 }
+                return@observe
+            }
+
+            if (overlayRoot.visibility != View.VISIBLE) {
+                findViewById<View>(R.id.ai_loading_state).visibility = View.VISIBLE
+                findViewById<View>(R.id.ai_done_state).visibility = View.GONE
+                overlayRoot.alpha = 0f
+                overlayRoot.visibility = View.VISIBLE
+                overlayRoot.animate().alpha(1f).setDuration(300).start()
+            }
+            statusText.text = status.text
+            val pct = status.progressPercent
+            if (pct != null) {
+                progressRing.isIndeterminate = false
+                progressRing.setProgressCompat(pct, true)
+                progressText.visibility = View.VISIBLE
+                progressText.text = "$pct%"
+            } else {
+                progressRing.isIndeterminate = true
+                progressText.visibility = View.GONE
             }
         }
     }
 
-    private fun performAiMangaTranslation(illust: IllustsBean, pageIndex: Int) {
-        // Check manga-ocr model
-        val ocrModel = MangaOcrModel.MANGA_OCR_BASE
-        if (!MangaOcrModelManager.isModelReady(this, ocrModel)) {
-            Common.showToast(R.string.string_manga_ocr_model_needed)
-            val intent = Intent(this, TemplateActivity::class.java)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画OCR模型下载")
-            intent.putExtra("manga_ocr_model_name", ocrModel.name)
-            startActivity(intent)
-            return
-        }
-
-        // Check comic-text-detector model
-        val ctdModel = ComicTextDetectorModel.CTD_BASE
-        if (!ComicTextDetectorModelManager.isModelReady(this, ctdModel)) {
-            Common.showToast(R.string.string_ctd_model_needed)
-            val intent = Intent(this, TemplateActivity::class.java)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画文本框检测模型下载")
-            intent.putExtra("ctd_model_name", ctdModel.name)
-            startActivity(intent)
-            return
-        }
-
-        // Check Sakura translation model
-        val sakuraModel = SakuraModel.SAKURA_1_5B
-        if (!SakuraModelManager.isModelReady(this, sakuraModel)) {
-            Common.showToast(R.string.string_sakura_model_needed)
-            val intent = Intent(this, TemplateActivity::class.java)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "Sakura翻译模型下载")
-            intent.putExtra("sakura_model_name", sakuraModel.name)
-            startActivity(intent)
-            return
-        }
-
-        val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
-            ?: IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_LARGE) ?: return
-
-        val overlayRoot = findViewById<View>(R.id.ai_overlay_root) ?: return
-        val loadingState = findViewById<View>(R.id.ai_loading_state)
-        val doneState = findViewById<View>(R.id.ai_done_state)
-        val statusText = findViewById<TextView>(R.id.ai_status_text)
-        val progressRing = findViewById<CircularProgressIndicator>(R.id.ai_progress_ring)
-        val progressText = findViewById<TextView>(R.id.ai_progress_text)
-
-        overlayRoot.visibility = View.VISIBLE
-        loadingState.visibility = View.VISIBLE
-        doneState.visibility = View.GONE
-        overlayRoot.alpha = 0f
-        overlayRoot.animate().alpha(1f).setDuration(300).start()
-        statusText.text = getString(R.string.string_ai_manga_translating)
-        progressRing.isIndeterminate = true
-        progressText.visibility = View.GONE
-
+    /**
+     * 等图片下载/缓存就绪。命中缓存直接返回,否则 observeForever 等首发 File 并自卸载。
+     */
+    private suspend fun awaitLoadedFile(imageUrl: String): File? {
         val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.observe(this) { file ->
-            if (file != null) {
-                lifecycleScope.launch {
-                    val result = MangaTranslator.translate(this@ImageDetailActivity, file) { stage, detail ->
-                        runOnUiThread {
-                            statusText.text = detail
-                        }
-                    }
-                    overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
-                        overlayRoot.visibility = View.GONE
-                    }.start()
-                    if (result != null) {
-                        val intent = Intent(this@ImageDetailActivity, TemplateActivity::class.java)
-                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画翻译")
-                        intent.putExtra("translated_path", result.outputFile.absolutePath)
-                        intent.putExtra("original_path", file.absolutePath)
-                        startActivity(intent)
-                    } else {
-                        Common.showToast(R.string.string_ai_manga_translate_failed)
-                    }
+        loadTask.result.value?.let { return it }
+        return suspendCancellableCoroutine { cont ->
+            val obs = object : Observer<File?> {
+                override fun onChanged(value: File?) {
+                    if (value == null) return
+                    loadTask.result.removeObserver(this)
+                    if (cont.isActive) cont.resume(value)
                 }
             }
+            loadTask.result.observeForever(obs)
+            cont.invokeOnCancellation { loadTask.result.removeObserver(obs) }
         }
+    }
+
+    private fun navToDownload(toastResId: Int, routeKey: String, extraKey: String, extraValue: String) {
+        Common.showToast(toastResId)
+        val intent = Intent(this, TemplateActivity::class.java)
+        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, routeKey)
+        intent.putExtra(extraKey, extraValue)
+        startActivity(intent)
     }
 
     private fun performAiUpscale(illust: IllustsBean, pageIndex: Int, model: UpscaleModel) {

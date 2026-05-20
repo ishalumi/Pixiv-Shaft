@@ -720,7 +720,7 @@
     <string name="string_translate_failed">翻译失败</string>
     <string name="string_translate_model_loading">正在加载翻译模型…</string>
     <string name="string_translation_model_needed">需要先下载翻译模型</string>
-    <string name="string_ai_ocr">漫画文字识别</string>
+    <string name="string_ai_manga_translate_inline">翻译漫画</string>
     <string name="string_ai_ocr_running">文字识别中，请稍候…</string>
     <string name="string_ai_ocr_loading_model">加载 OCR 模型…</string>
     <string name="string_ai_ocr_detecting">检测文本框</string>
@@ -728,8 +728,9 @@
     <string name="string_ai_ocr_done">识别完成</string>
     <string name="string_ai_ocr_failed">识别失败</string>
     <string name="string_ai_ocr_empty">未识别到文字</string>
-    <string name="string_ocr_result">OCR 识别结果</string>
-    <string name="string_tap_to_copy">点击复制</string>
+    <string name="ocr_translating_progress">翻译中… %1$d/%2$d</string>
+    <string name="ocr_writeback_running">回填中…</string>
+    <string name="string_ai_translate_in_progress">翻译任务正在进行中,请稍候</string>
     <string name="string_ai_manga_translate">漫画翻译</string>
     <string name="string_ai_manga_translating">漫画翻译中…</string>
     <string name="string_ai_manga_translate_failed">漫画翻译失败</string>
