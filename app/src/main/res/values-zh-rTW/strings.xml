@@ -441,6 +441,7 @@
   <string name="string_253">確認刪除全部記錄嗎</string>
   <string name="string_254">沒有可以刪除的紀錄</string>
   <string name="string_255">這將會刪除所有的本地瀏覽歷史</string>
+  <string name="clear_browse_history_message">這將清空 插畫/漫畫、小說、使用者 三個分頁下全部本地瀏覽歷史</string>
   <string name="string_256">暫不支持查看小說系列</string>
   <string name="string_257">小說系列</string>
   <string name="string_258">你還沒有做任何改變</string>

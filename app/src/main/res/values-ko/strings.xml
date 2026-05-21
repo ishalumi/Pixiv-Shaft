@@ -436,8 +436,9 @@
   <string name="string_252">이 기록 을 삭제 하 시 겠 습 니까</string>  
   <string name="string_253">전체 기록 을 삭제 하 시 겠 습 니까</string>  
   <string name="string_254">삭제 할 기록 이 없습니다.</string>  
-  <string name="string_255">모든 로 컬 브 라 우 징 기록 을 삭제 합 니 다.</string>  
-  <string name="string_256">소설 시 리 즈 를 보 는 것 은 잠시 지원 되 지 않 는 다.</string>  
+  <string name="string_255">모든 로 컬 브 라 우 징 기록 을 삭제 합 니 다.</string>
+  <string name="clear_browse_history_message">삽화/만화, 소설, 사용자 탭의 모든 로컬 브라우징 기록이 삭제됩니다.</string>
+  <string name="string_256">소설 시 리 즈 를 보 는 것 은 잠시 지원 되 지 않 는 다.</string>
   <string name="string_257">소설 시리즈</string>  
   <string name="string_258">너 는 아직 어떤 변화 도 하지 않 았 다.</string>  
   <string name="string_259">사진 은 5M 이상 이면 안 되 고 본 사진 의 크기:</string>  

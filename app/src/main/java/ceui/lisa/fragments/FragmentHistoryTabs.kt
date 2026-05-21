@@ -151,7 +151,7 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
         val act = activity ?: return
         QMUIDialog.MessageDialogBuilder(act)
             .setTitle(R.string.string_143)
-            .setMessage(R.string.string_255)
+            .setMessage(R.string.clear_browse_history_message)
             .setSkinManager(QMUISkinManager.defaultInstance(act))
             .addAction(R.string.string_142) { d, _ -> d.dismiss() }
             .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->

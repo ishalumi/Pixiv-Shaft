@@ -429,8 +429,9 @@
   <string name="string_252">Bu kaydı silmek istiyor musun?</string>  
   <string name="string_253">Hepsini silmek istiyor musun?</string>  
   <string name="string_254">Silinecek kayıt yok</string>  
-  <string name="string_255">Yerel geçmişi tamamen silecek, emin misin?</string>  
-  <string name="string_256">Roman serilerini görme henüz desteklenmiyor</string>  
+  <string name="string_255">Yerel geçmişi tamamen silecek, emin misin?</string>
+  <string name="clear_browse_history_message">Resim/Manga, Roman ve Kullanıcı sekmelerindeki tüm yerel tarama geçmişi silinecek.</string>
+  <string name="string_256">Roman serilerini görme henüz desteklenmiyor</string>
   <string name="string_257">Roman Serisi</string>  
   <string name="string_258">Değişiklik yok</string>  
   <string name="string_259">Resim 5MB\'dan büyük olamaz. Resmin boyutu:</string>  

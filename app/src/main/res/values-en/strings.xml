@@ -437,7 +437,8 @@
   <string name="string_252">Delete this record?</string>  
   <string name="string_253">Delete all records?</string>  
   <string name="string_254">There are no records to be deleted</string>  
-  <string name="string_255">This will delete all the local browsing history</string>  
+  <string name="string_255">This will delete all the local browsing history</string>
+  <string name="clear_browse_history_message">This will clear all local browsing history under Illustrations/Manga, Novels, and Users.</string>
   <string name="string_256">Does not support View novels series</string>  
   <string name="string_257">Novel Series</string>  
   <string name="string_258">No changes are made</string>  

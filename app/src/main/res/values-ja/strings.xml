@@ -438,7 +438,8 @@
   <string name="string_253">すべての履歴を削除しますか？</string>
   <string name="string_254">削除可能な履歴はありません。</string>
   <string name="string_255">閲覧履歴をすべて削除します。</string>
-  <string name="string_256">シリーズ小説の閲覧はまだサポートされていません。</string>  
+  <string name="clear_browse_history_message">イラスト/マンガ・小説・ユーザーのローカル閲覧履歴をすべて削除します。</string>
+  <string name="string_256">シリーズ小説の閲覧はまだサポートされていません。</string>
   <string name="string_257">シリーズ小説</string>  
   <string name="string_258">変更なし</string>
   <string name="string_259">5MBより大きな画像は使用できません。この画像のサイズ：</string>  
