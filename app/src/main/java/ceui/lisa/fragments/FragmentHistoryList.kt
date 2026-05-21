@@ -69,6 +69,12 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
         }
     }
 
+    /** host 一键清空全部历史 (#886) 后调一下，让本 tab 重新拉 DAO。 */
+    fun reloadFromDao() {
+        if (view == null) return
+        viewModel.loadFirst()
+    }
+
     private fun confirmDelete(entity: IllustHistoryEntity) {
         val act = activity ?: return
         QMUIDialog.MessageDialogBuilder(act)

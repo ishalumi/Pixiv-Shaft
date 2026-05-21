@@ -30,6 +30,10 @@ interface GeneralDao {
     @Query("DELETE FROM general_table WHERE recordType = :recordType AND id = :id")
     fun deleteByRecordTypeAndId(recordType: Int, id: Long)
 
+    // 整段清空某个 recordType 的记录,用于浏览历史一键清空 (#886)。
+    @Query("DELETE FROM general_table WHERE recordType = :recordType")
+    fun deleteAllByRecordType(recordType: Int)
+
     // ✅ 根据 entityType 和 id 查询对象是否被屏蔽，返回 LiveData<Boolean>
     @Query("SELECT COUNT(*) > 0 FROM general_table WHERE recordType = :recordType AND id = :id")
     fun isObjectBlocked(recordType: Int, id: Long): LiveData<Boolean>
