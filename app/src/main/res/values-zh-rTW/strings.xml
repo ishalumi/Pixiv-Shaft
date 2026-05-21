@@ -758,6 +758,20 @@
   <string name="rate_dialog_never">不再提醒</string>
   <string name="string_ai_upscale">畫質增強 (2x)</string>
   <string name="string_ai_manga_translate_inline">翻譯漫畫</string>
+  <string name="manga_translate_prep_title">翻譯漫畫 · 首次準備</string>
+  <string name="manga_translate_prep_subtitle">需要下載約 %1$s 的離線模型，之後即點即翻</string>
+  <string name="manga_translate_prep_cta">下載並翻譯</string>
+  <string name="manga_translate_prep_cta_running">正在下載…</string>
+  <string name="manga_translate_prep_cta_ready">開始翻譯</string>
+  <string name="manga_translate_prep_cta_retry">重試</string>
+  <string name="manga_translate_prep_model_ctd">氣泡偵測模型</string>
+  <string name="manga_translate_prep_model_ctd_desc">偵測漫畫氣泡 / 文字框</string>
+  <string name="manga_translate_prep_model_ocr">漫畫 OCR 識別模型</string>
+  <string name="manga_translate_prep_model_ocr_desc">把偵測到的氣泡內日文識別成文字</string>
+  <string name="manga_translate_prep_status_pending">待下載 · %1$s</string>
+  <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+  <string name="manga_translate_prep_status_ready">已就緒</string>
+  <string name="manga_translate_prep_status_failed">下載失敗，點擊重試</string>
   <string name="string_ai_ocr_running">文字辨識中，請稍候…</string>
   <string name="string_ai_ocr_loading_model">載入 OCR 模型…</string>
   <string name="string_ai_ocr_detecting">偵測文字框</string>
@@ -776,6 +790,7 @@
   <string name="string_ai_upscale_pick_hint">從相簿選擇一張圖片\n體驗畫質提升</string>
   <string name="string_ai_upscale_ready">圖片已就緒，點擊開始增強</string>
   <string name="string_default_upscale_model">超分辨率模型</string>
+  <string name="string_bubble_detector_model">氣泡偵測模型</string>
   <string name="string_not_set">未設定</string>
   <string name="string_model_picker_title">選擇模型</string>
   <string name="string_model_picker_subtitle">不同模型擅長不同風格，選一個試試吧</string>
@@ -1040,15 +1055,6 @@
     <string name="task_status_downloading">下載中 - %1$d%%</string>
     <string name="task_status_done">完成了</string>
     <string name="task_status_error">出錯了</string>
-
-    <string name="translator_loading_ocr">正在載入 OCR 模型…</string>
-    <string name="translator_recognizing">正在識別文字…</string>
-    <string name="translator_no_text">未偵測到文字</string>
-    <string name="translator_translating">正在翻譯…</string>
-    <string name="translator_progress">翻譯中 (%1$d/%2$d)</string>
-    <string name="translator_erasing">正在擦除原文…</string>
-    <string name="translator_rendering">正在渲染譯文…</string>
-    <string name="translator_done">翻譯完成</string>
 
     <string name="series_bookmarked_feature">已收藏到精華</string>
     <string name="title_popular_live">人氣直播</string>
@@ -1561,7 +1567,6 @@
     <string name="string_ctd_download_title">下載漫畫文字框偵測模型</string>
     <string name="string_ctd_download_subtitle">%1$s 用於精確定位漫畫氣泡和文字塊，比通用 OCR 偵測更準</string>
     <string name="string_ctd_download_done">文字框偵測模型下載完成</string>
-    <string name="string_ctd_model_needed">需要先下載漫畫文字框偵測模型</string>
     <string name="ocr_translating">翻譯中…</string>
     <string name="ocr_writeback_running">回填中…</string>
     <string name="translate_proxy_required_title">翻譯失敗</string>

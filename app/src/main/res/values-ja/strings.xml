@@ -744,6 +744,20 @@
   <string name="rate_dialog_never">今後表示しない</string>
   <string name="string_ai_upscale">AI 高画質化 (2x)</string>
   <string name="string_ai_manga_translate_inline">マンガ翻訳</string>
+  <string name="manga_translate_prep_title">マンガ翻訳 · 初回準備</string>
+  <string name="manga_translate_prep_subtitle">約 %1$s のオフラインモデルをダウンロード、以降はワンタップで翻訳</string>
+  <string name="manga_translate_prep_cta">ダウンロードして翻訳</string>
+  <string name="manga_translate_prep_cta_running">ダウンロード中…</string>
+  <string name="manga_translate_prep_cta_ready">翻訳開始</string>
+  <string name="manga_translate_prep_cta_retry">再試行</string>
+  <string name="manga_translate_prep_model_ctd">吹き出し検出モデル</string>
+  <string name="manga_translate_prep_model_ctd_desc">吹き出し / テキスト枠を検出</string>
+  <string name="manga_translate_prep_model_ocr">マンガ OCR モデル</string>
+  <string name="manga_translate_prep_model_ocr_desc">吹き出し内の日本語を認識</string>
+  <string name="manga_translate_prep_status_pending">未ダウンロード · %1$s</string>
+  <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+  <string name="manga_translate_prep_status_ready">準備完了</string>
+  <string name="manga_translate_prep_status_failed">ダウンロード失敗、タップで再試行</string>
   <string name="string_ai_ocr_running">文字認識中、お待ちください…</string>
   <string name="string_ai_ocr_loading_model">OCR モデルを読み込み中…</string>
   <string name="string_ai_ocr_detecting">テキスト領域を検出中</string>
@@ -762,6 +776,7 @@
   <string name="string_ai_upscale_pick_hint">ギャラリーから画像を選んで\nAI 高画質化を体験</string>
   <string name="string_ai_upscale_ready">準備完了、タップして開始</string>
   <string name="string_default_upscale_model">デフォルト AI モデル</string>
+  <string name="string_bubble_detector_model">吹き出し検出モデル</string>
   <string name="string_not_set">未設定</string>
   <string name="string_model_picker_title">AI モデルを選択</string>
   <string name="string_model_picker_subtitle">モデルごとに得意なスタイルが異なります</string>
@@ -1026,15 +1041,6 @@
     <string name="task_status_downloading">ダウンロード中 - %1$d%%</string>
     <string name="task_status_done">完了</string>
     <string name="task_status_error">エラー</string>
-
-    <string name="translator_loading_ocr">OCR モデルを読み込み中…</string>
-    <string name="translator_recognizing">文字認識中…</string>
-    <string name="translator_no_text">文字が検出されません</string>
-    <string name="translator_translating">翻訳中…</string>
-    <string name="translator_progress">翻訳中 (%1$d/%2$d)</string>
-    <string name="translator_erasing">元テキストを消去中…</string>
-    <string name="translator_rendering">翻訳を描画中…</string>
-    <string name="translator_done">翻訳完了</string>
 
     <string name="series_bookmarked_feature">ハイライトにブックマークしました</string>
     <string name="title_popular_live">人気の配信</string>
@@ -1547,7 +1553,6 @@
     <string name="string_ctd_download_title">マンガテキスト検出モデルをダウンロード</string>
     <string name="string_ctd_download_subtitle">%1$s で吹き出しとテキストブロックを正確に検出します（汎用OCR検出より精度が高い）</string>
     <string name="string_ctd_download_done">テキスト検出モデルのダウンロード完了</string>
-    <string name="string_ctd_model_needed">マンガテキスト検出モデルを先にダウンロードしてください</string>
     <string name="ocr_translating">翻訳中…</string>
     <string name="ocr_writeback_running">焼き込み中…</string>
     <string name="translate_proxy_required_title">翻訳に失敗しました</string>

@@ -710,6 +710,20 @@
   <string name="rate_dialog_never">Don\'t ask again</string>
   <string name="string_ai_upscale">AI Enhance (2x)</string>
   <string name="string_ai_manga_translate_inline">Translate Manga</string>
+  <string name="manga_translate_prep_title">Translate Manga · First-Time Setup</string>
+  <string name="manga_translate_prep_subtitle">~%1$s of offline models, downloaded once for instant translation</string>
+  <string name="manga_translate_prep_cta">Download &amp; Translate</string>
+  <string name="manga_translate_prep_cta_running">Downloading…</string>
+  <string name="manga_translate_prep_cta_ready">Start Translation</string>
+  <string name="manga_translate_prep_cta_retry">Retry</string>
+  <string name="manga_translate_prep_model_ctd">Bubble Detector</string>
+  <string name="manga_translate_prep_model_ctd_desc">Detects speech bubbles &amp; text boxes</string>
+  <string name="manga_translate_prep_model_ocr">Manga OCR</string>
+  <string name="manga_translate_prep_model_ocr_desc">Recognizes Japanese text inside bubbles</string>
+  <string name="manga_translate_prep_status_pending">Pending · %1$s</string>
+  <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+  <string name="manga_translate_prep_status_ready">Ready</string>
+  <string name="manga_translate_prep_status_failed">Download failed, tap to retry</string>
   <string name="string_ai_ocr_running">Recognizing text…</string>
   <string name="string_ai_ocr_loading_model">Loading OCR model…</string>
   <string name="string_ai_ocr_detecting">Detecting text boxes</string>
@@ -728,6 +742,7 @@
   <string name="string_ai_upscale_pick_hint">Pick an image from gallery\nto experience AI enhancement</string>
   <string name="string_ai_upscale_ready">Image ready, tap to start</string>
   <string name="string_default_upscale_model">Default AI Model</string>
+  <string name="string_bubble_detector_model">Bubble Detector Model</string>
   <string name="string_not_set">Not set</string>
   <string name="string_model_picker_title">Choose AI Model</string>
   <string name="string_model_picker_subtitle">Different models excel at different styles</string>
@@ -995,15 +1010,6 @@
     <string name="task_status_downloading">Downloading - %1$d%%</string>
     <string name="task_status_done">Done</string>
     <string name="task_status_error">Error</string>
-
-    <string name="translator_loading_ocr">Loading OCR model…</string>
-    <string name="translator_recognizing">Recognizing text…</string>
-    <string name="translator_no_text">No text detected</string>
-    <string name="translator_translating">Translating…</string>
-    <string name="translator_progress">Translating (%1$d/%2$d)</string>
-    <string name="translator_erasing">Erasing original text…</string>
-    <string name="translator_rendering">Rendering translation…</string>
-    <string name="translator_done">Translation complete</string>
 
     <string name="series_bookmarked_feature">Bookmarked to features</string>
     <string name="title_popular_live">Popular Live</string>
@@ -1542,7 +1548,6 @@
     <string name="string_ctd_download_title">Download manga text-box detector</string>
     <string name="string_ctd_download_subtitle">%1$s locates speech bubbles and text blocks more accurately than a generic OCR detector</string>
     <string name="string_ctd_download_done">Text-box detector downloaded</string>
-    <string name="string_ctd_model_needed">Manga text-box detector needs to be downloaded first</string>
     <string name="ocr_translating">Translating…</string>
     <string name="ocr_writeback_running">Rendering…</string>
     <string name="translate_proxy_required_title">Translation failed</string>

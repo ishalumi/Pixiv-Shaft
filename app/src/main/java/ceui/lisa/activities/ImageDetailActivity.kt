@@ -29,6 +29,7 @@ import ceui.pixiv.ui.translate.ComicTextDetectorModel
 import ceui.pixiv.ui.translate.ComicTextDetectorModelManager
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.translate.MangaOcrModelManager
+import ceui.pixiv.ui.translate.MangaTranslatePrepSheet
 import ceui.pixiv.ui.upscale.BackgroundRemover
 import ceui.pixiv.ui.upscale.ModelPickerDialog
 import ceui.pixiv.ui.upscale.RembgModel
@@ -339,13 +340,16 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
      */
     private fun performAiMangaTranslateInline(illust: IllustsBean, pageIndex: Int) {
         val ocrModel = MangaOcrModel.MANGA_OCR_BASE
-        if (!MangaOcrModelManager.isModelReady(this, ocrModel)) {
-            navToDownload(R.string.string_manga_ocr_model_needed, "漫画OCR模型下载", "manga_ocr_model_name", ocrModel.name)
-            return
-        }
         val ctdModel = ComicTextDetectorModel.CTD_BASE
-        if (!ComicTextDetectorModelManager.isModelReady(this, ctdModel)) {
-            navToDownload(R.string.string_ctd_model_needed, "漫画文本框检测模型下载", "ctd_model_name", ctdModel.name)
+        val ocrReady = MangaOcrModelManager.isModelReady(this, ocrModel)
+        val ctdReady = ComicTextDetectorModelManager.isModelReady(this, ctdModel)
+        if (!ocrReady || !ctdReady) {
+            // 首次准备 sheet 把两次下载顺序串起来,完成后回调里直接重入翻译流水线 ——
+            // 用户全程不离开 ImageDetailActivity,零跳转。
+            if (supportFragmentManager.findFragmentByTag(MangaTranslatePrepSheet.TAG) != null) return
+            val sheet = MangaTranslatePrepSheet()
+            sheet.setOnReady { performAiMangaTranslateInline(illust, pageIndex) }
+            sheet.show(supportFragmentManager, MangaTranslatePrepSheet.TAG)
             return
         }
         if (translationViewModel.running.value == true) {
@@ -423,14 +427,6 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             loadTask.result.observeForever(obs)
             cont.invokeOnCancellation { loadTask.result.removeObserver(obs) }
         }
-    }
-
-    private fun navToDownload(toastResId: Int, routeKey: String, extraKey: String, extraValue: String) {
-        Common.showToast(toastResId)
-        val intent = Intent(this, TemplateActivity::class.java)
-        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, routeKey)
-        intent.putExtra(extraKey, extraValue)
-        startActivity(intent)
     }
 
     private fun performAiUpscale(illust: IllustsBean, pageIndex: Int, model: UpscaleModel) {

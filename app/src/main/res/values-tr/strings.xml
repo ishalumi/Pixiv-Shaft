@@ -645,6 +645,20 @@
   <string name="rate_dialog_never">Bir daha sorma</string>
   <string name="string_ai_upscale">AI Kalite Artırma (2x)</string>
   <string name="string_ai_manga_translate_inline">Manga çevirisi</string>
+  <string name="manga_translate_prep_title">Manga Çevirisi · İlk Kurulum</string>
+  <string name="manga_translate_prep_subtitle">Yaklaşık %1$s çevrimdışı model bir kez indirilir, sonrası tek dokunuş</string>
+  <string name="manga_translate_prep_cta">İndir ve Çevir</string>
+  <string name="manga_translate_prep_cta_running">İndiriliyor…</string>
+  <string name="manga_translate_prep_cta_ready">Çeviriyi Başlat</string>
+  <string name="manga_translate_prep_cta_retry">Tekrar Dene</string>
+  <string name="manga_translate_prep_model_ctd">Balon Algılama Modeli</string>
+  <string name="manga_translate_prep_model_ctd_desc">Konuşma balonu / metin kutusu algılar</string>
+  <string name="manga_translate_prep_model_ocr">Manga OCR Modeli</string>
+  <string name="manga_translate_prep_model_ocr_desc">Balon içindeki Japonca metni tanır</string>
+  <string name="manga_translate_prep_status_pending">Bekliyor · %1$s</string>
+  <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+  <string name="manga_translate_prep_status_ready">Hazır</string>
+  <string name="manga_translate_prep_status_failed">İndirme başarısız, yeniden denemek için dokun</string>
   <string name="string_ai_ocr_running">Metin tanınıyor…</string>
   <string name="string_ai_ocr_loading_model">OCR modeli yükleniyor…</string>
   <string name="string_ai_ocr_detecting">Metin alanları algılanıyor</string>
@@ -663,6 +677,7 @@
   <string name="string_ai_upscale_pick_hint">Galeriden bir resim seçip\nAI kalitesini deneyebilirsin</string>
   <string name="string_ai_upscale_ready">Resim hazır, başlatmak için dokun</string>
   <string name="string_default_upscale_model">Varsayılan AI modeli</string>
+  <string name="string_bubble_detector_model">Balon Algılama Modeli</string>
   <string name="string_not_set">Ayarlanmadı</string>
   <string name="string_model_picker_title">AI modeli seç</string>
   <string name="string_model_picker_subtitle">Her model farklı tarzlarda daha iyidir</string>
@@ -925,15 +940,6 @@
     <string name="task_status_downloading">İndiriliyor - %1$d%%</string>
     <string name="task_status_done">Tamamlandı</string>
     <string name="task_status_error">Hata</string>
-
-    <string name="translator_loading_ocr">OCR modeli yükleniyor…</string>
-    <string name="translator_recognizing">Metin tanınıyor…</string>
-    <string name="translator_no_text">Metin bulunamadı</string>
-    <string name="translator_translating">Çevriliyor…</string>
-    <string name="translator_progress">Çevriliyor (%1$d/%2$d)</string>
-    <string name="translator_erasing">Orijinal metin siliniyor…</string>
-    <string name="translator_rendering">Çeviri oluşturuluyor…</string>
-    <string name="translator_done">Çeviri tamamlandı</string>
 
     <string name="series_bookmarked_feature">Öne çıkanlara eklendi</string>
     <string name="title_popular_live">Popüler Canlı Yayın</string>
@@ -1446,7 +1452,6 @@
     <string name="string_ctd_download_title">Manga metin kutusu algılayıcısını indir</string>
     <string name="string_ctd_download_subtitle">%1$s konuşma balonlarını ve metin bloklarını genel bir OCR algılayıcıdan daha doğru bulur</string>
     <string name="string_ctd_download_done">Metin kutusu algılayıcısı indirildi</string>
-    <string name="string_ctd_model_needed">Önce manga metin kutusu algılayıcısını indirmeniz gerekiyor</string>
     <string name="ocr_translating">Çevriliyor…</string>
     <string name="ocr_writeback_running">Basılıyor…</string>
     <string name="translate_proxy_required_title">Çeviri başarısız</string>

@@ -90,7 +90,6 @@ ShareIllust.java               ClipBoardUtils.java
 FragmentIllust.kt:364          FragmentWebView.java:416-418
 PixivFragment.kt:502 / :524    ArtworkV3Fragment.kt:548
 DoneListV3Fragment.kt:191-194  NovelReaderV3Fragment.kt:553/871/882
-SakuraTranslateDemoFragment.kt:58
 OcrResultFragment.kt:74
 ```
 

@@ -228,7 +228,6 @@ class MeFragment : Fragment(R.layout.fragment_me) {
             title = R.string.the_others,
             entries = listOf(
                 Entry(R.drawable.baseline_auto_awesome_24, R.string.string_ai_upscale_standalone, R.id.nav_ai_upscale),
-                Entry(R.drawable.ic_baseline_translate_24, R.string.sakura_demo_entry, R.id.nav_sakura_translate),
                 Entry(R.drawable.ic_collections_black_24dp, R.string.search_image_origin, R.id.nav_reverse),
                 Entry(R.drawable.ic_fiber_new_black_24dp, R.string.latest_work, R.id.nav_new_work),
                 Entry(R.drawable.ic_error_black_24dp, R.string.about_app, R.id.nav_share),

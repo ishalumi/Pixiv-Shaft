@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 翻译漫画 · 首次准备 sheet。
+     两条模型 row 各自承载 OCR / CTD 的状态(待下载 → 下载中 → 已就绪),
+     底部 primary CTA 「下载并翻译」串起两次顺序下载、完成后由父 Activity 接着跑翻译。-->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_v3_sheet_top"
+    android:clipToPadding="false"
+    android:fillViewport="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="22dp"
+        android:paddingBottom="24dp">
+
+        <!-- 顶部小抓手 —— V3 sheet 视觉锚点 -->
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_v3_pill"
+            android:importantForAccessibility="no" />
+
+        <!-- Hero icon -->
+        <ImageView
+            android:id="@+id/prep_hero_icon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="18dp"
+            android:src="@drawable/baseline_auto_awesome_24"
+            android:tint="?attr/colorPrimary"
+            android:importantForAccessibility="no" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/prep_title"
+            style="@style/textMontserratBold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:text="@string/manga_translate_prep_title"
+            android:textColor="@color/v3_text_1"
+            android:textSize="20sp" />
+
+        <!-- Subtitle — 实际内容(含合计 MB)在 onViewCreated 里 format 填入,XML 留空避免占位符外露 -->
+        <TextView
+            android:id="@+id/prep_subtitle"
+            style="@style/textMontserratMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/v3_text_2"
+            android:textSize="13sp"
+            tools:text="需要下载约 148MB 的离线模型，之后即点即翻" />
+
+        <!-- ── 行 1: 气泡检测模型 (CTD) ── -->
+        <LinearLayout
+            android:id="@+id/row_ctd"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:background="@drawable/bg_v3_settings_card"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_baseline_bubble_chart_24"
+                    android:tint="?attr/colorPrimary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/ctd_name"
+                            style="@style/textMontserratSemiBold"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="14sp"
+                            tools:text="气泡检测模型" />
+
+                        <TextView
+                            android:id="@+id/ctd_size_badge"
+                            style="@style/textMontserratMedium"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_v3_chip"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:textColor="@color/v3_text_2"
+                            android:textSize="10sp"
+                            tools:text="57MB" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/ctd_status"
+                        style="@style/textMontserratRegular"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/v3_text_3"
+                        android:textSize="11sp"
+                        tools:text="待下载 · 气泡 / 文本框检测" />
+                </LinearLayout>
+
+                <!-- 状态指示器:待下载留空 + 下载中转圈 + 完成对勾 + 失败感叹号。
+                     默认 GONE/GONE,完全由 renderRowState 控制可见性,避免「点这一个下载」误读。 -->
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <ImageView
+                        android:id="@+id/ctd_status_icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center"
+                        android:visibility="gone"
+                        android:importantForAccessibility="no"
+                        tools:src="@drawable/ic_file_download_done_24dp" />
+
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/ctd_status_spinner"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        app:indicatorColor="?attr/colorPrimary"
+                        app:indicatorSize="22dp"
+                        app:trackThickness="2dp" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- 线性进度条仅下载中可见 -->
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/ctd_progress"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:indicatorColor="?attr/colorPrimary"
+                app:trackColor="@color/v3_border_2"
+                app:trackCornerRadius="2dp"
+                app:trackThickness="4dp" />
+
+        </LinearLayout>
+
+        <!-- ── 行 2: OCR 识别模型 ── -->
+        <LinearLayout
+            android:id="@+id/row_ocr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_v3_settings_card"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_baseline_translate_24"
+                    android:tint="?attr/colorPrimary"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/ocr_name"
+                            style="@style/textMontserratSemiBold"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="14sp"
+                            tools:text="漫画 OCR 识别模型" />
+
+                        <TextView
+                            android:id="@+id/ocr_size_badge"
+                            style="@style/textMontserratMedium"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_v3_chip"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:textColor="@color/v3_text_2"
+                            android:textSize="10sp"
+                            tools:text="91MB" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/ocr_status"
+                        style="@style/textMontserratRegular"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/v3_text_3"
+                        android:textSize="11sp"
+                        tools:text="待下载 · 日文识别" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp">
+
+                    <ImageView
+                        android:id="@+id/ocr_status_icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center"
+                        android:visibility="gone"
+                        android:importantForAccessibility="no"
+                        tools:src="@drawable/ic_file_download_done_24dp" />
+
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/ocr_status_spinner"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        app:indicatorColor="?attr/colorPrimary"
+                        app:indicatorSize="22dp"
+                        app:trackThickness="2dp" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/ocr_progress"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:indicatorColor="?attr/colorPrimary"
+                app:trackColor="@color/v3_border_2"
+                app:trackCornerRadius="2dp"
+                app:trackThickness="4dp" />
+
+        </LinearLayout>
+
+        <!-- Primary CTA -->
+        <TextView
+            android:id="@+id/btn_primary"
+            style="@style/textMontserratBold"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="22dp"
+            android:background="@drawable/bg_v3_button_primary"
+            android:gravity="center"
+            android:stateListAnimator="@animator/button_press_alpha"
+            android:text="@string/manga_translate_prep_cta"
+            android:textColor="@color/always_white"
+            android:textSize="15sp" />
+
+        <!-- Secondary cancel -->
+        <TextView
+            android:id="@+id/btn_secondary"
+            style="@style/textMontserratMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:padding="10dp"
+            android:stateListAnimator="@animator/button_press_alpha"
+            android:text="@string/string_cancel"
+            android:textColor="@color/v3_text_2"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>

@@ -654,6 +654,20 @@
   <string name="rate_dialog_never">다시 묻지 않기</string>
   <string name="string_ai_upscale">AI 화질 향상 (2x)</string>
   <string name="string_ai_manga_translate_inline">만화 번역</string>
+  <string name="manga_translate_prep_title">만화 번역 · 첫 설정</string>
+  <string name="manga_translate_prep_subtitle">약 %1$s 의 오프라인 모델 다운로드, 이후엔 한 번에 번역</string>
+  <string name="manga_translate_prep_cta">다운로드 후 번역</string>
+  <string name="manga_translate_prep_cta_running">다운로드 중…</string>
+  <string name="manga_translate_prep_cta_ready">번역 시작</string>
+  <string name="manga_translate_prep_cta_retry">다시 시도</string>
+  <string name="manga_translate_prep_model_ctd">말풍선 검출 모델</string>
+  <string name="manga_translate_prep_model_ctd_desc">말풍선 / 텍스트 박스 검출</string>
+  <string name="manga_translate_prep_model_ocr">만화 OCR 모델</string>
+  <string name="manga_translate_prep_model_ocr_desc">말풍선 안 일본어를 인식</string>
+  <string name="manga_translate_prep_status_pending">대기 중 · %1$s</string>
+  <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+  <string name="manga_translate_prep_status_ready">준비 완료</string>
+  <string name="manga_translate_prep_status_failed">다운로드 실패, 탭하여 재시도</string>
   <string name="string_ai_ocr_running">텍스트 인식 중…</string>
   <string name="string_ai_ocr_loading_model">OCR 모델 로딩 중…</string>
   <string name="string_ai_ocr_detecting">텍스트 영역 감지 중</string>
@@ -672,6 +686,7 @@
   <string name="string_ai_upscale_pick_hint">갤러리에서 이미지를 선택하여\nAI 화질 향상을 체험하세요</string>
   <string name="string_ai_upscale_ready">이미지 준비 완료, 탭하여 시작</string>
   <string name="string_default_upscale_model">기본 AI 모델</string>
+  <string name="string_bubble_detector_model">말풍선 검출 모델</string>
   <string name="string_not_set">미설정</string>
   <string name="string_model_picker_title">AI 모델 선택</string>
   <string name="string_model_picker_subtitle">모델마다 잘하는 스타일이 다릅니다</string>
@@ -934,15 +949,6 @@
     <string name="task_status_downloading">다운로드 중 - %1$d%%</string>
     <string name="task_status_done">완료</string>
     <string name="task_status_error">오류</string>
-
-    <string name="translator_loading_ocr">OCR 모델 로딩 중…</string>
-    <string name="translator_recognizing">텍스트 인식 중…</string>
-    <string name="translator_no_text">텍스트가 감지되지 않음</string>
-    <string name="translator_translating">번역 중…</string>
-    <string name="translator_progress">번역 중 (%1$d/%2$d)</string>
-    <string name="translator_erasing">원문 지우는 중…</string>
-    <string name="translator_rendering">번역 렌더링 중…</string>
-    <string name="translator_done">번역 완료</string>
 
     <string name="series_bookmarked_feature">하이라이트에 북마크됨</string>
     <string name="title_popular_live">인기 라이브</string>
@@ -1455,7 +1461,6 @@
     <string name="string_ctd_download_title">만화 텍스트 박스 감지 모델 다운로드</string>
     <string name="string_ctd_download_subtitle">%1$s 는 말풍선과 텍스트 블록을 정확히 찾는 데 사용됩니다 (일반 OCR 감지보다 정확)</string>
     <string name="string_ctd_download_done">텍스트 박스 감지 모델 다운로드 완료</string>
-    <string name="string_ctd_model_needed">먼저 만화 텍스트 박스 감지 모델을 다운로드해야 합니다</string>
     <string name="ocr_translating">번역 중…</string>
     <string name="ocr_writeback_running">합성 중…</string>
     <string name="translate_proxy_required_title">번역 실패</string>

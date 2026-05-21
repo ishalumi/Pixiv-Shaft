@@ -666,7 +666,7 @@
     <string name="string_default_upscale_model">超分辨率模型</string>
     <string name="string_default_rembg_model">抠图模型</string>
     <string name="string_ocr_model">OCR 模型</string>
-    <string name="string_translation_model">翻译模型</string>
+    <string name="string_bubble_detector_model">气泡检测模型</string>
     <string name="string_model_ready">已下载</string>
     <string name="string_model_not_ready">未下载 (%s)</string>
     <string name="string_not_set">未设置</string>
@@ -720,8 +720,21 @@
     <string name="string_translating">翻译中…</string>
     <string name="string_translate_failed">翻译失败</string>
     <string name="string_translate_model_loading">正在加载翻译模型…</string>
-    <string name="string_translation_model_needed">需要先下载翻译模型</string>
     <string name="string_ai_manga_translate_inline">翻译漫画</string>
+    <string name="manga_translate_prep_title">翻译漫画 · 首次准备</string>
+    <string name="manga_translate_prep_subtitle">需要下载约 %1$s 的离线模型，之后即点即翻</string>
+    <string name="manga_translate_prep_cta">下载并翻译</string>
+    <string name="manga_translate_prep_cta_running">正在下载…</string>
+    <string name="manga_translate_prep_cta_ready">开始翻译</string>
+    <string name="manga_translate_prep_cta_retry">重试</string>
+    <string name="manga_translate_prep_model_ctd">气泡检测模型</string>
+    <string name="manga_translate_prep_model_ctd_desc">检测漫画气泡 / 文本框</string>
+    <string name="manga_translate_prep_model_ocr">漫画 OCR 识别模型</string>
+    <string name="manga_translate_prep_model_ocr_desc">把检出气泡里的日文识别成文本</string>
+    <string name="manga_translate_prep_status_pending">待下载 · %1$s</string>
+    <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+    <string name="manga_translate_prep_status_ready">已就绪</string>
+    <string name="manga_translate_prep_status_failed">下载失败，点击重试</string>
     <string name="string_ai_ocr_running">文字识别中，请稍候…</string>
     <string name="string_ai_ocr_loading_model">加载 OCR 模型…</string>
     <string name="string_ai_ocr_detecting">检测文本框</string>
@@ -744,38 +757,13 @@
     <string name="string_manga_ocr_download_title">下载漫画 OCR 模型</string>
     <string name="string_manga_ocr_download_subtitle">%1$s 需要额外下载以提升文字识别精度</string>
     <string name="string_manga_ocr_download_done">OCR 模型下载完成</string>
-    <string name="string_manga_ocr_model_needed">需要先下载漫画 OCR 模型</string>
     <string name="string_ctd_download_title">下载漫画文本框检测模型</string>
     <string name="string_ctd_download_subtitle">%1$s 用于精确定位漫画气泡和文本块，替代通用 OCR 检测</string>
     <string name="string_ctd_download_done">文本框检测模型下载完成</string>
-    <string name="string_ctd_model_needed">需要先下载漫画文本框检测模型</string>
     <string name="string_nllb_download_title">下载翻译模型</string>
     <string name="string_nllb_download_subtitle">%1$s 需要额外下载以提供高质量漫画翻译</string>
     <string name="string_nllb_download_done">翻译模型下载完成</string>
     <string name="string_nllb_model_needed">需要先下载翻译模型</string>
-    <string name="string_sakura_download_title">下载翻译模型</string>
-    <string name="string_sakura_download_subtitle">%1$s ACG 专用翻译模型，需要额外下载</string>
-    <string name="string_sakura_download_done">翻译模型下载完成</string>
-    <string name="string_sakura_model_needed">需要先下载 Sakura 翻译模型</string>
-    <string name="sakura_demo_entry">Sakura 翻译 (日→中)</string>
-    <string name="sakura_demo_entry_desc">粘贴日文文本，用 Sakura 模型翻成中文</string>
-    <string name="sakura_demo_hero_title">Sakura-1.5B 离线翻译</string>
-    <string name="sakura_demo_hero_subtitle">专为轻小说 / 漫画 / Galgame 调教的 ACG 日中翻译模型</string>
-    <string name="sakura_demo_optional">可选</string>
-    <string name="sakura_demo_line_count_fmt">%1$d 行</string>
-    <string name="sakura_demo_input_label">日文原文</string>
-    <string name="sakura_demo_input_hint">一行一句，支持多行</string>
-    <string name="sakura_demo_glossary_label">术语表 (可选)</string>
-    <string name="sakura_demo_glossary_hint">每行一个，如：ウマ娘→赛马娘</string>
-    <string name="sakura_demo_translate">翻译</string>
-    <string name="sakura_demo_output_label">中文翻译</string>
-    <string name="sakura_demo_copy">复制</string>
-    <string name="sakura_demo_copied">已复制到剪贴板</string>
-    <string name="sakura_demo_import_txt">选择txt</string>
-    <string name="sakura_demo_empty_input">请输入要翻译的日文</string>
-    <string name="sakura_demo_progress_loading">正在加载模型…</string>
-    <string name="sakura_demo_progress_fmt">翻译中 %1$d / %2$d</string>
-    <string name="sakura_demo_meta_fmt">共 %1$d 行，失败 %2$d 行，用时 %3$.1f 秒</string>
     <string name="string_433">按热度排序去哪儿了？</string>
     <string name="string_434">热度排序现在位于右边滑动栏的搜索选项/排序方式中，你可以通过右上角的设置键进行设置，设置完毕后请保存。</string>
     <string name="string_435">搜索选项仅对插画/小说有效</string>
@@ -1298,16 +1286,6 @@
     <string name="task_status_downloading">下载中 - %1$d%%</string>
     <string name="task_status_done">完成了</string>
     <string name="task_status_error">出错了</string>
-
-    <!-- 漫画翻译流水线进度 -->
-    <string name="translator_loading_ocr">正在加载 OCR 模型…</string>
-    <string name="translator_recognizing">正在识别文字…</string>
-    <string name="translator_no_text">未检测到文字</string>
-    <string name="translator_translating">正在翻译…</string>
-    <string name="translator_progress">翻译中 (%1$d/%2$d)</string>
-    <string name="translator_erasing">正在擦除原文…</string>
-    <string name="translator_rendering">正在渲染译文…</string>
-    <string name="translator_done">翻译完成</string>
 
     <!-- 杂项 -->
     <string name="series_bookmarked_feature">已收藏到精华</string>

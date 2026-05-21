@@ -647,6 +647,20 @@
   <string name="rate_dialog_never">Больше не спрашивать</string>
   <string name="string_ai_upscale">AI улучшение (2x)</string>
   <string name="string_ai_manga_translate_inline">Перевод манги</string>
+  <string name="manga_translate_prep_title">Перевод манги · Первая настройка</string>
+  <string name="manga_translate_prep_subtitle">Около %1$s офлайн-моделей, загружается один раз для мгновенного перевода</string>
+  <string name="manga_translate_prep_cta">Загрузить и перевести</string>
+  <string name="manga_translate_prep_cta_running">Загрузка…</string>
+  <string name="manga_translate_prep_cta_ready">Начать перевод</string>
+  <string name="manga_translate_prep_cta_retry">Повторить</string>
+  <string name="manga_translate_prep_model_ctd">Модель обнаружения облачков</string>
+  <string name="manga_translate_prep_model_ctd_desc">Обнаружение облачков и текстовых рамок</string>
+  <string name="manga_translate_prep_model_ocr">Модель OCR манги</string>
+  <string name="manga_translate_prep_model_ocr_desc">Распознавание японского текста в облачках</string>
+  <string name="manga_translate_prep_status_pending">Ожидает · %1$s</string>
+  <string name="manga_translate_prep_status_downloading">%1$s / %2$s · %3$s</string>
+  <string name="manga_translate_prep_status_ready">Готово</string>
+  <string name="manga_translate_prep_status_failed">Сбой загрузки, нажмите для повтора</string>
   <string name="string_ai_ocr_running">Распознаём текст…</string>
   <string name="string_ai_ocr_loading_model">Загружаем модель OCR…</string>
   <string name="string_ai_ocr_detecting">Поиск текстовых областей</string>
@@ -665,6 +679,7 @@
   <string name="string_ai_upscale_pick_hint">Выберите изображение из галереи\nдля AI улучшения</string>
   <string name="string_ai_upscale_ready">Изображение готово, нажмите для начала</string>
   <string name="string_default_upscale_model">Модель AI по умолчанию</string>
+  <string name="string_bubble_detector_model">Модель обнаружения облачков</string>
   <string name="string_not_set">Не задано</string>
   <string name="string_model_picker_title">Выбор AI модели</string>
   <string name="string_model_picker_subtitle">Разные модели подходят для разных стилей</string>
@@ -927,15 +942,6 @@
     <string name="task_status_downloading">Загрузка - %1$d%%</string>
     <string name="task_status_done">Готово</string>
     <string name="task_status_error">Ошибка</string>
-
-    <string name="translator_loading_ocr">Загрузка модели OCR…</string>
-    <string name="translator_recognizing">Распознавание текста…</string>
-    <string name="translator_no_text">Текст не обнаружен</string>
-    <string name="translator_translating">Перевод…</string>
-    <string name="translator_progress">Перевод (%1$d/%2$d)</string>
-    <string name="translator_erasing">Удаление исходного текста…</string>
-    <string name="translator_rendering">Рендеринг перевода…</string>
-    <string name="translator_done">Перевод завершён</string>
 
     <string name="series_bookmarked_feature">Добавлено в избранное</string>
     <string name="title_popular_live">Популярные трансляции</string>
@@ -1448,7 +1454,6 @@
     <string name="string_ctd_download_title">Загрузка детектора текстовых блоков манги</string>
     <string name="string_ctd_download_subtitle">%1$s точнее, чем универсальный OCR-детектор, находит речевые пузыри и текстовые блоки</string>
     <string name="string_ctd_download_done">Детектор текстовых блоков загружен</string>
-    <string name="string_ctd_model_needed">Сначала нужно загрузить детектор текстовых блоков</string>
     <string name="ocr_translating">Перевод…</string>
     <string name="ocr_writeback_running">Отрисовка…</string>
     <string name="translate_proxy_required_title">Ошибка перевода</string>
