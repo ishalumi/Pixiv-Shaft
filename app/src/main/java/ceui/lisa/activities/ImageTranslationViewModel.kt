@@ -11,13 +11,16 @@ import androidx.lifecycle.viewModelScope
 import ceui.lisa.R
 import ceui.lisa.utils.Common
 import ceui.loxia.asLiveData
+import ceui.pixiv.ui.translate.BubbleAreaFinder
 import ceui.pixiv.ui.translate.ComicTextDetector
 import ceui.pixiv.ui.translate.ComicTextDetectorModel
 import ceui.pixiv.ui.translate.GoogleWebTranslator
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.translate.MangaOcrRecognizer
 import ceui.pixiv.ui.translate.TextEraser
+import ceui.pixiv.ui.translate.TextMask
 import ceui.pixiv.ui.translate.TextRenderer
+import ceui.pixiv.ui.translate.promptProxyNeededIfPossible
 import ceui.pixiv.ui.upscale.MangaOcr
 import ceui.pixiv.ui.upscale.OcrTextRegion
 import ceui.pixiv.ui.upscale.scaledBy
@@ -106,39 +109,38 @@ class ImageTranslationViewModel : ViewModel() {
         }
 
         // 2. OCR
-        val regions = MangaOcr.recognize(app, imageFile) { stage, fraction ->
+        val ocrResult = MangaOcr.recognize(app, imageFile) { stage, fraction ->
             val pct = if (fraction.isNaN()) null else (fraction * 100).toInt().coerceIn(0, 100)
             _status.postValue(Status(stage, pct))
         }
+        val regions = ocrResult?.regions
         if (regions.isNullOrEmpty()) {
             Common.showToast(
-                if (regions == null) R.string.string_ai_ocr_failed
+                if (ocrResult == null) R.string.string_ai_ocr_failed
                 else R.string.string_ai_ocr_empty
             )
             return
         }
 
-        // 3. Google batch 翻译
+        // 3. Google batch 翻译 — 一次 POST 打包全部 region,中途没有有意义的进度,
+        //    所以只 post 一个 indeterminate 状态盖住几秒 HTTP 等待,不再每 chunk 闪 N/N
+        _status.postValue(Status(app.getString(R.string.ocr_translating)))
         val translations = mutableMapOf<Int, String>()
         try {
             GoogleWebTranslator.translateBatch(
                 inputs = regions.map { it.text },
                 outputLang = "zh-CN",
                 onItem = { i, zh -> translations[i] = zh },
-                onProgress = { done, total ->
-                    val pct = if (total > 0) (done * 100 / total).coerceIn(0, 100) else null
-                    _status.postValue(
-                        Status(app.getString(R.string.ocr_translating_progress, done, total), pct)
-                    )
-                },
             )
         } catch (e: Exception) {
+            // Google Translate 在国内被墙,大概率是代理没开;给个明确提示别让用户当 app bug
             Timber.e(e, "GoogleWebTranslator.translateBatch failed")
-            Common.showToast(R.string.string_ai_manga_translate_failed)
+            promptProxyNeededIfPossible()
             return
         }
         if (translations.isEmpty()) {
-            Common.showToast(R.string.string_ai_manga_translate_failed)
+            // batch 走完了但一条没回 — 多半也是代理半通不通(per-item fallback 全失败)
+            promptProxyNeededIfPossible()
             return
         }
 
@@ -146,7 +148,7 @@ class ImageTranslationViewModel : ViewModel() {
         _status.postValue(Status(app.getString(R.string.ocr_writeback_running)))
         val outFile = withContext(Dispatchers.IO) {
             runCatching {
-                renderTranslated(app, imageFile, pageIndex, regions, translations)
+                renderTranslated(app, imageFile, pageIndex, regions, translations, ocrResult.textMask, ocrResult.ocrSample)
             }.onFailure { Timber.e(it, "renderTranslated failed") }.getOrNull()
         }
         if (outFile == null) {
@@ -164,6 +166,10 @@ class ImageTranslationViewModel : ViewModel() {
      *
      * 入参 [regions] 必须是"原图坐标系"的(契约见 [OcrTextRegion]),所以这里把它们除以
      * 本次 decode 用的 sample 即可对齐到 bitmap 像素。
+     *
+     * [textMask] 是 OCR 阶段拿到的像素级文本 mask,坐标系按 [ocrSample] 解出的 bitmap。
+     * 如果 ocrSample 跟我们这里算的 renderSample 一致(常态:两边阈值同为 2400),
+     * 直接传给 TextEraser;否则 mask 对不齐 → 丢掉走 fallback,不强行 resample。
      */
     private fun renderTranslated(
         app: Context,
@@ -171,6 +177,8 @@ class ImageTranslationViewModel : ViewModel() {
         pageIndex: Int,
         regions: List<OcrTextRegion>,
         translations: Map<Int, String>,
+        textMask: TextMask?,
+        ocrSample: Int,
     ): File {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(imageFile.absolutePath, bounds)
@@ -213,10 +221,36 @@ class ImageTranslationViewModel : ViewModel() {
             }
             // 只擦"有译文"的 region,失败项保留日文原貌
             val toErase = scaledRegions.filterIndexed { i, _ -> !translations[i].isNullOrBlank() }
-            val erased = TextEraser.eraseText(original, toErase)
+            // mask 跟 OCR bitmap 一致;只有 ocrSample==renderSample 且 dim 也对得上才喂给 eraser
+            val maskForEraser = textMask?.takeIf {
+                ocrSample == sample && it.width == original.width && it.height == original.height
+            }
+            if (textMask != null && maskForEraser == null) {
+                Timber.w(
+                    "WriteBack: mask drop — ocrSample=%d renderSample=%d, maskDim=%dx%d bitmap=%dx%d",
+                    ocrSample, sample, textMask.width, textMask.height, original.width, original.height
+                )
+            }
+            val erased = TextEraser.eraseText(original, toErase, maskForEraser)
             try {
                 val canvas = Canvas(erased)
-                TextRenderer.renderTranslations(canvas, scaledRegions, translations)
+                // 把每个有译文 region 的 corners 扩到气泡内部可写区域 —
+                // OCR 框紧贴日文字符,远小于气泡,中文塞回去字号被压成蚂蚁;
+                // 扩到气泡边界(BG 连通区域)后中文能用满整个气泡。
+                val regionsForRender = scaledRegions.mapIndexed { i, region ->
+                    if (translations[i].isNullOrBlank()) return@mapIndexed region
+                    val bgColor = TextEraser.sampleBackgroundColor(erased, region)
+                    val b = BubbleAreaFinder.expand(erased, region, bgColor)
+                    region.copy(
+                        corners = listOf(
+                            b[0].toFloat() to b[1].toFloat(),
+                            b[2].toFloat() to b[1].toFloat(),
+                            b[2].toFloat() to b[3].toFloat(),
+                            b[0].toFloat() to b[3].toFloat(),
+                        )
+                    )
+                }
+                TextRenderer.renderTranslations(canvas, regionsForRender, translations)
                 val out = File(
                     app.cacheDir,
                     "manga_translated_p${pageIndex}_${System.currentTimeMillis()}.png"

@@ -1542,7 +1542,9 @@
     <string name="string_ctd_download_subtitle">%1$s locates speech bubbles and text blocks more accurately than a generic OCR detector</string>
     <string name="string_ctd_download_done">Text-box detector downloaded</string>
     <string name="string_ctd_model_needed">Manga text-box detector needs to be downloaded first</string>
-    <string name="ocr_translating_progress">Translating… %1$d/%2$d</string>
+    <string name="ocr_translating">Translating…</string>
     <string name="ocr_writeback_running">Rendering…</string>
+    <string name="translate_proxy_required_title">Translation failed</string>
+    <string name="translate_proxy_required_message">Translation uses Google Translate, which requires a proxy/VPN in some regions. Check your network and retry.</string>
     <string name="string_ai_translate_in_progress">A translation task is already running, please wait</string>
 </resources>

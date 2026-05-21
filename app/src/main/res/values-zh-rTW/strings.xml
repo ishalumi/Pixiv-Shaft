@@ -1561,7 +1561,9 @@
     <string name="string_ctd_download_subtitle">%1$s 用於精確定位漫畫氣泡和文字塊，比通用 OCR 偵測更準</string>
     <string name="string_ctd_download_done">文字框偵測模型下載完成</string>
     <string name="string_ctd_model_needed">需要先下載漫畫文字框偵測模型</string>
-    <string name="ocr_translating_progress">翻譯中… %1$d/%2$d</string>
+    <string name="ocr_translating">翻譯中…</string>
     <string name="ocr_writeback_running">回填中…</string>
+    <string name="translate_proxy_required_title">翻譯失敗</string>
+    <string name="translate_proxy_required_message">譯文走 Google Translate,部分地區需要自備代理。請確認代理可用後重試。</string>
     <string name="string_ai_translate_in_progress">翻譯任務正在進行中,請稍候</string>
 </resources>

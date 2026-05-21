@@ -3,11 +3,9 @@ package ceui.pixiv.ui.translate
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.Typeface
 import ceui.pixiv.ui.upscale.OcrTextRegion
 import timber.log.Timber
-import kotlin.math.min
 
 /**
  * Renders translated text into manga speech bubbles.
@@ -89,19 +87,16 @@ object TextRenderer {
             }
 
             Timber.d(
-                "TextRenderer: region[%d] @cx=%.0f,cy=%.0f size=%.0fx%.0f orient=%s orig=\"%s\" → \"%s\"",
+                "TextRenderer: region[%d] @cx=%.0f,cy=%.0f size=%.0fx%.0f origOrient=%s orig=\"%s\" → \"%s\"",
                 index, region.cx, region.cy, region.width, region.height,
                 if (region.orientation == 1) "V" else "H",
                 region.text.take(40), text.take(40)
             )
 
-            if (region.orientation == 1) {
-                renderVerticalText(canvas, paint, strokePaint, text,
-                    regionLeft + padX, regionTop + padY, innerWidth, innerHeight)
-            } else {
-                renderHorizontalText(canvas, paint, strokePaint, text,
-                    regionLeft + padX, regionTop + padY, innerWidth, innerHeight)
-            }
+            // 中文译文一律横排:日文竖排气泡翻译成中文后,中文竖排极不自然,
+            // 业界翻译工具(manga-image-translator / BallonsTranslator)默认行为也是如此。
+            renderHorizontalText(canvas, paint, strokePaint, text,
+                regionLeft + padX, regionTop + padY, innerWidth, innerHeight)
             drawn++
         }
         Timber.d("TextRenderer: drew %d/%d translations", drawn, regions.size)
@@ -116,7 +111,7 @@ object TextRenderer {
     ) {
         var fontSize = fitHorizontalFontSize(paint, text, width, height)
         // 二分上限不达标的兜底:线性再砍小防溢出
-        fontSize = scaleDownToFit(paint, text, fontSize, width, height, vertical = false)
+        fontSize = scaleDownToFit(paint, text, fontSize, width, height)
         paint.textSize = fontSize
         strokePaint.textSize = fontSize
         strokePaint.strokeWidth = fontSize * 0.08f
@@ -141,55 +136,6 @@ object TextRenderer {
     }
 
     /**
-     * Render text vertically (top-to-bottom per column, columns right-to-left).
-     */
-    private fun renderVerticalText(
-        canvas: Canvas, paint: Paint, strokePaint: Paint,
-        text: String, left: Float, top: Float, width: Float, height: Float
-    ) {
-        var fontSize = fitVerticalFontSize(text, width, height)
-        fontSize = scaleDownToFit(paint, text, fontSize, width, height, vertical = true)
-        paint.textSize = fontSize
-        strokePaint.textSize = fontSize
-        strokePaint.strokeWidth = fontSize * 0.08f
-
-        val fm = paint.fontMetrics
-        val ascent = -fm.ascent
-        val descent = fm.descent
-        val colSpacing = fontSize * LINE_SPACING_MULT
-        val charHeight = fontSize * LINE_SPACING_MULT
-        val charsPerCol = maxOf(1, (height / charHeight).toInt())
-
-        val columns = mutableListOf<String>()
-        var i = 0
-        while (i < text.length) {
-            val end = min(i + charsPerCol, text.length)
-            columns.add(text.substring(i, end))
-            i = end
-        }
-
-        val totalWidth = columns.size * colSpacing
-        // Start from right side (traditional vertical reading: right-to-left columns)
-        var x = left + width - (width - totalWidth) / 2f - colSpacing / 2f
-
-        val bounds = Rect()
-        for (col in columns) {
-            val colVisualHeight = (col.length - 1) * charHeight + (ascent + descent)
-            var y = top + (height - colVisualHeight) / 2f + ascent
-            for (ch in col) {
-                val s = ch.toString()
-                paint.getTextBounds(s, 0, 1, bounds)
-                val charWidth = paint.measureText(s)
-                val cx = x - charWidth / 2f
-                canvas.drawText(s, cx, y, strokePaint)
-                canvas.drawText(s, cx, y, paint)
-                y += charHeight
-            }
-            x -= colSpacing
-        }
-    }
-
-    /**
      * 二分得到的 [seedSize] 可能仍超出框架(初始 lo=MIN 都塞不下时,二分会原样返回 MIN)。
      * 这里再线性砍 0.85 倍,直到真的塞下;到 [ABSOLUTE_MIN_FONT_SIZE] 还塞不下就保留。
      */
@@ -199,23 +145,14 @@ object TextRenderer {
         seedSize: Float,
         width: Float,
         height: Float,
-        vertical: Boolean,
     ): Float {
         var size = seedSize
         // 至多砍 20 次,size = 6 * 0.85^20 ≈ 0.23,远低于 ABSOLUTE_MIN
         repeat(20) {
             paint.textSize = size
-            val fits = if (vertical) {
-                val charHeight = size * LINE_SPACING_MULT
-                val colSpacing = size * LINE_SPACING_MULT
-                val charsPerCol = maxOf(1, (height / charHeight).toInt())
-                val numCols = (text.length + charsPerCol - 1) / charsPerCol
-                numCols * colSpacing <= width + 1f && charsPerCol * charHeight <= height + 1f
-            } else {
-                val lines = wrapTextHorizontal(paint, text, width)
-                lines.size * size * LINE_SPACING_MULT <= height + 1f &&
-                    lines.all { paint.measureText(it) <= width + 1f }
-            }
+            val lines = wrapTextHorizontal(paint, text, width)
+            val fits = lines.size * size * LINE_SPACING_MULT <= height + 1f &&
+                lines.all { paint.measureText(it) <= width + 1f }
             if (fits) return size
             if (size <= ABSOLUTE_MIN_FONT_SIZE) return ABSOLUTE_MIN_FONT_SIZE
             size = (size * 0.85f).coerceAtLeast(ABSOLUTE_MIN_FONT_SIZE)
@@ -247,32 +184,23 @@ object TextRenderer {
     }
 
     /**
-     * Find the largest font size that fits the text vertically.
+     * 中日韩排版「避头尾」/「禁则处理」:这些字符不允许出现在行首,
+     * 行首是它们就把它拖回上一行行尾。覆盖中/英常见标点。
+     *
+     * 没列在里面的容易遗漏:破折号 — / 全角 / 半角左括号【「《([{《(不允许出现在「行尾」,
+     * 这部分本实现暂不处理 — 双向禁则代码量翻倍,效果增量小。
      */
-    private fun fitVerticalFontSize(text: String, width: Float, height: Float): Float {
-        var lo = MIN_FONT_SIZE
-        var hi = MAX_FONT_SIZE
-        var best = lo
-
-        while (hi - lo > 0.5f) {
-            val mid = (lo + hi) / 2f
-            val charHeight = mid * LINE_SPACING_MULT
-            val colSpacing = mid * LINE_SPACING_MULT
-            val charsPerCol = maxOf(1, (height / charHeight).toInt())
-            val numCols = (text.length + charsPerCol - 1) / charsPerCol
-            val totalWidth = numCols * colSpacing
-            if (totalWidth <= width && charsPerCol * charHeight <= height + 1f) {
-                best = mid
-                lo = mid
-            } else {
-                hi = mid
-            }
-        }
-        return best
-    }
+    private val NO_LINE_START = setOf(
+        '、', '。', '，', ',', '．', '.', '！', '!', '？', '?', '：', ':', '；', ';',
+        ')', '）', ']', '］', '】', '」', '』', '〉', '》', '〕',
+        '"', '”', '’', '\'',
+        '…', '‥', '·', '・', '—', '~', '〜',
+        '°', '%', '％',
+    )
 
     /**
      * Wrap text into lines that fit within the given width.
+     * 贪心断行 + 避头尾 post-process。
      */
     private fun wrapTextHorizontal(paint: Paint, text: String, maxWidth: Float): List<String> {
         val lines = mutableListOf<String>()
@@ -297,6 +225,25 @@ object TextRenderer {
             lines.add(sb.toString())
         }
 
+        // 避头尾:从 line[1] 开始,若行首字符是禁则字符,把它「拖回」上一行行尾。
+        // 拖回后上一行宽度会轻微溢出(<= 1 字符宽),典型 manga 气泡能接受;
+        // 真不接受的话需要回退到「上一行换行点前再加一字符给禁则字符腾位」,代价大。
+        var i = 1
+        while (i < lines.size) {
+            val cur = lines[i]
+            if (cur.isNotEmpty() && cur[0] in NO_LINE_START) {
+                lines[i - 1] = lines[i - 1] + cur[0]
+                if (cur.length == 1) {
+                    lines.removeAt(i)
+                    // 不 i++,下一行可能也以禁则字符开头,再来一轮
+                } else {
+                    lines[i] = cur.substring(1)
+                    // 同行第二个字符若也是禁则字符,再下一轮把它也拖回
+                }
+            } else {
+                i++
+            }
+        }
         return lines
     }
 

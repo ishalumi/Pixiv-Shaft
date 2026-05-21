@@ -1547,7 +1547,9 @@
     <string name="string_ctd_download_subtitle">%1$s で吹き出しとテキストブロックを正確に検出します（汎用OCR検出より精度が高い）</string>
     <string name="string_ctd_download_done">テキスト検出モデルのダウンロード完了</string>
     <string name="string_ctd_model_needed">マンガテキスト検出モデルを先にダウンロードしてください</string>
-    <string name="ocr_translating_progress">翻訳中… %1$d/%2$d</string>
+    <string name="ocr_translating">翻訳中…</string>
     <string name="ocr_writeback_running">焼き込み中…</string>
+    <string name="translate_proxy_required_title">翻訳に失敗しました</string>
+    <string name="translate_proxy_required_message">翻訳は Google Translate を利用しています。地域によってはプロキシ/VPN が必要です。ネットワーク環境をご確認のうえ再試行してください。</string>
     <string name="string_ai_translate_in_progress">翻訳タスクが進行中です。しばらくお待ちください</string>
 </resources>

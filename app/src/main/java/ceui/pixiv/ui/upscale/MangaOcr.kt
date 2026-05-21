@@ -14,6 +14,7 @@ import ceui.lisa.R
 import ceui.pixiv.ui.translate.ComicTextDetector
 import ceui.pixiv.ui.translate.DetectionBox
 import ceui.pixiv.ui.translate.MangaOcrRecognizer
+import ceui.pixiv.ui.translate.TextMask
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -49,6 +50,21 @@ fun OcrTextRegion.scaledBy(factor: Float): OcrTextRegion {
         corners = corners.map { (x, y) -> (x * factor) to (y * factor) },
     )
 }
+
+/**
+ * [MangaOcr.recognize] 的返回值。
+ *
+ * @property regions 文本 region 列表,坐标系是「原图」(已乘 sample 还原)
+ * @property textMask 像素级文本 mask,坐标系是「OCR-sampled bitmap」(即 原图 / [ocrSample])。
+ *  调用方按相同 sample 解码自己的 bitmap → mask 自然对齐;dim 不匹配时调用方应该回退到无 mask 路径。
+ *  null = 模型未提供 mask 输出。
+ * @property ocrSample OCR 时用的 inSampleSize,调用方用相同值解 bitmap 才能跟 mask 对齐
+ */
+data class MangaOcrResult(
+    val regions: List<OcrTextRegion>,
+    val textMask: TextMask?,
+    val ocrSample: Int,
+)
 
 object MangaOcr {
 
@@ -109,7 +125,7 @@ object MangaOcr {
         context: Context,
         inputFile: File,
         onProgress: ((stage: String, fraction: Float) -> Unit)? = null
-    ): List<OcrTextRegion>? = withContext(Dispatchers.IO) {
+    ): MangaOcrResult? = withContext(Dispatchers.IO) {
         if (!MangaOcrRecognizer.isLoaded) {
             Timber.e("MangaOcr: manga-ocr model not loaded")
             return@withContext null
@@ -141,9 +157,9 @@ object MangaOcr {
             // 检测阶段没有可靠百分比 → 用 NaN 通知 caller 切 indeterminate ring
             onProgress?.invoke(context.getString(R.string.string_ai_ocr_detecting), Float.NaN)
 
-            val detections = ComicTextDetector.detect(bitmap!!)
-            val rawRegions = detections.map { it.toOcrTextRegion() }
-            Timber.d("MangaOcr: CTD returned ${rawRegions.size} regions")
+            val detResult = ComicTextDetector.detect(bitmap!!)
+            val rawRegions = detResult.boxes.map { it.toOcrTextRegion() }
+            Timber.d("MangaOcr: CTD returned ${rawRegions.size} regions, mask=${detResult.textMask?.let { "${it.width}x${it.height}" } ?: "null"}")
 
             // debug 图只在 debug build 走相册落盘 — release 不能给用户相册塞调试 PNG
             if (BuildConfig.DEBUG) {
@@ -203,7 +219,7 @@ object MangaOcr {
                     finalRegions.size, sample, sample0.cx, sample0.cy, sample0.width, sample0.height
                 )
             }
-            finalRegions
+            MangaOcrResult(regions = finalRegions, textMask = detResult.textMask, ocrSample = sample)
         } catch (e: Exception) {
             Timber.e(e, "MangaOcr error")
             null

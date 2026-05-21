@@ -728,8 +728,10 @@
     <string name="string_ai_ocr_done">识别完成</string>
     <string name="string_ai_ocr_failed">识别失败</string>
     <string name="string_ai_ocr_empty">未识别到文字</string>
-    <string name="ocr_translating_progress">翻译中… %1$d/%2$d</string>
+    <string name="ocr_translating">翻译中…</string>
     <string name="ocr_writeback_running">回填中…</string>
+    <string name="translate_proxy_required_title">翻译失败</string>
+    <string name="translate_proxy_required_message">译文走 Google Translate,国内需要自备代理。请确认代理可用后重试。</string>
     <string name="string_ai_translate_in_progress">翻译任务正在进行中,请稍候</string>
     <string name="string_ai_manga_translate">漫画翻译</string>
     <string name="string_ai_manga_translating">漫画翻译中…</string>

@@ -62,7 +62,8 @@ object MangaTranslator {
 
             // ── Stage 1: OCR ──
             onProgress(Stage.OCR, context.getString(R.string.translator_recognizing))
-            val regions = MangaOcr.recognize(context, inputFile)
+            val ocrResult = MangaOcr.recognize(context, inputFile)
+            val regions = ocrResult?.regions
             if (regions.isNullOrEmpty()) {
                 Timber.d("MangaTranslator: no text regions found")
                 onProgress(Stage.DONE, context.getString(R.string.translator_no_text))

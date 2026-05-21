@@ -20,7 +20,8 @@ import java.nio.FloatBuffer
  * - 模型:YOLOv5-base + DBNet,2 类(text=0, balloon=1)
  * - 输入:[1, 3, 1024, 1024] float32, RGB / 255,letterbox 居中
  * - 输出:`blk` (1, N, K) raw YOLO anchors,K = 5 + num_classes(text + balloon = 7)
- *   还有 `mask` / `lines_map` 输出,本实现忽略 — 只用 blk 拿气泡级 AABB
+ *   还有 4D 输出(text segmentation `mask` + 方向 `lines_map`)— 现在只用 mask:
+ *   单通道 sigmoid'd in [0,1] @ 1024x1024,做 inpaint 时用作精确文字像素 mask。
  *
  * 上游精度比 paddle 通用 detection 高一档,且天然按气泡分组 — 不再需要 MangaTextlineMerge。
  */
@@ -33,6 +34,34 @@ data class DetectionBox(
     val confidence: Float,
     val classId: Int, // 0=text(free), 1=balloon(bubble)
 )
+
+/**
+ * Detect 一次的结果。
+ *
+ * @property boxes 文本/气泡 box 列表,原图坐标系
+ * @property textMask 文本像素 mask,**坐标系跟传入 bitmap 一致**(同 width/height);
+ *  null = 模型没暴露可识别的 mask 输出 / 解码失败,调用方应回退到 fallback 路径
+ */
+data class DetectionResult(
+    val boxes: List<DetectionBox>,
+    val textMask: TextMask?,
+)
+
+/**
+ * 1-bit-per-pixel 文本 mask,packed 成 byte 数组:row-major,每字节 0 或 1。
+ * 用 ByteArray 不用 BooleanArray 因为 JVM `BooleanArray` 也是 1 byte/element 没省,
+ * ByteArray 显式表意 + 跟 [Bitmap.getPixels] 等 API 互操作更顺。
+ */
+data class TextMask(
+    val width: Int,
+    val height: Int,
+    /** length = width * height,每个元素 0 或 1。 */
+    val data: ByteArray,
+) {
+    override fun equals(other: Any?): Boolean =
+        other is TextMask && other.width == width && other.height == height && other.data.contentEquals(data)
+    override fun hashCode(): Int = (width * 31 + height) * 31 + data.contentHashCode()
+}
 
 object ComicTextDetector {
 
@@ -59,11 +88,17 @@ object ComicTextDetector {
      */
     private const val LETTERBOX_FILL_COLOR = 0xFF000000.toInt()
 
+    /** mask 二值化阈值。CTD seg head 是 sigmoid'd in [0,1],dmMaze 默认 0.3 走文本框聚类,
+     *  我们要的是「这个像素是不是字」更严格一些,0.5 比较安全。 */
+    private const val MASK_THRESHOLD = 0.5f
+
     private var session: OrtSession? = null
     private var ortEnv: OrtEnvironment? = null
     private var inputName: String = "images"
     /** 0/1/2 哪个 output 是 blk;首次跑后按形状识别 */
     private var blkOutputIndex: Int = 0
+    /** 哪个 output 是 text seg mask(4D, 1-channel)。-1 = 不可用,detect 时退化为只返回 boxes。 */
+    private var maskOutputIndex: Int = -1
 
     val isLoaded: Boolean get() = session != null
 
@@ -81,24 +116,36 @@ object ComicTextDetector {
         session = env.createSession(modelFile.absolutePath, opts)
         // 抓真实 input 名 — 不同导出版本可能是 "images" / "input" / "input.1"
         inputName = session!!.inputNames.firstOrNull() ?: "images"
-        // 推 blk 在哪个 output:遍历找形状 (1, N, K) 且 K in [5..16] 的那个
-        // 其他 output 是 mask (1, C, H, W) 显然不是。fail-fast — 找不到直接抛,
-        // 让 load 时就暴露问题,而不是 detect 时拿错 tensor 跑 crash。
         val outputInfos = session!!.outputInfo.entries.toList()
-        var blkIdx = -1
-        for ((idx, e) in outputInfos.withIndex()) {
-            val info = (e.value.info as? ai.onnxruntime.TensorInfo) ?: continue
-            val s = info.shape
-            if (s.size == 3 && s[2] in 5..16) { blkIdx = idx; break }
+        // 把每个 output 的 (name, shape) 摘出来一遍,后面挑 blk / mask 都用
+        val shaped = outputInfos.mapIndexedNotNull { idx, e ->
+            val s = (e.value.info as? ai.onnxruntime.TensorInfo)?.shape ?: return@mapIndexedNotNull null
+            Triple(idx, e.key, s)
         }
-        if (blkIdx < 0) {
-            val shapes = outputInfos.map { it.key to ((it.value.info as? ai.onnxruntime.TensorInfo)?.shape?.toList() ?: "?") }
-            session?.close()
-            session = null
-            throw IllegalStateException("CTD: no 3-D blk output found among $shapes")
+        Timber.d("CTD: input=$inputName, outputs=${shaped.map { "${it.second}${it.third.toList()}" }}")
+
+        // 1) blk: 3D 且 K in [5..16](YOLOv5 raw anchors)— 找不到 fail-fast
+        blkOutputIndex = shaped.firstOrNull { it.third.size == 3 && it.third[2] in 5..16 }?.first
+            ?: run {
+                session?.close(); session = null
+                throw IllegalStateException("CTD: no 3-D blk output found among ${shaped.map { it.second to it.third.toList() }}")
+            }
+
+        // 2) mask: 4D 单通道(text seg head sigmoid'd)— 找不到不阻断 load,只是后面不出 mask
+        //    导出版本里通常有两路 4D:`mask` (C=1) 跟 `lines_map` (C=2/3)。挑 C==1 那个。
+        //    若有多个 C==1,挑空间分辨率最大的(细节最足)。
+        val maskCandidate = shaped
+            .filter { it.third.size == 4 && it.third[1] == 1L }
+            .maxByOrNull { it.third[2] * it.third[3] }
+        if (maskCandidate != null) {
+            maskOutputIndex = maskCandidate.first
+            Timber.d(
+                "CTD: mask output index=$maskOutputIndex name=${maskCandidate.second} shape=${maskCandidate.third[2]}x${maskCandidate.third[3]}"
+            )
+        } else {
+            maskOutputIndex = -1
+            Timber.w("CTD: no single-channel 4-D mask output identified; mask disabled, fallback to threshold")
         }
-        blkOutputIndex = blkIdx
-        Timber.d("CTD: input=$inputName, blk output index=$blkOutputIndex, outputs=${outputInfos.map { it.key }}")
     }
 
     @Synchronized
@@ -109,16 +156,16 @@ object ComicTextDetector {
     }
 
     /**
-     * 检测一张漫画页的所有文本/气泡 region。
+     * 检测一张漫画页的所有文本/气泡 region + 文本像素 mask。
      *
      * @param bitmap 原图(任意尺寸),内部会 letterbox 到 1024x1024
-     * @return 原图坐标系下的 box 列表,按 confidence 降序
+     * @return [DetectionResult],boxes 在原图坐标系;textMask 跟原图同尺寸(没拿到则为 null)
      */
     fun detect(
         bitmap: Bitmap,
         confThreshold: Float = DEFAULT_CONF_THRESHOLD,
         iouThreshold: Float = DEFAULT_IOU_THRESHOLD,
-    ): List<DetectionBox> {
+    ): DetectionResult {
         val sess = session ?: throw IllegalStateException("CTD model not loaded")
         val env = ortEnv ?: throw IllegalStateException("CTD model not loaded")
 
@@ -133,6 +180,7 @@ object ComicTextDetector {
             env, inputBuf, longArrayOf(1, 3, INPUT_SIZE.toLong(), INPUT_SIZE.toLong())
         )
         val candidates = mutableListOf<DetectionBox>()
+        var textMask: TextMask? = null
         try {
             val outputs = sess.run(mapOf(inputName to inputTensor))
             try {
@@ -140,7 +188,7 @@ object ComicTextDetector {
                 val shape = blkTensor.info.shape
                 if (shape.size != 3) {
                     Timber.e("CTD: unexpected blk shape ${shape.toList()}, abort")
-                    return emptyList()
+                    return DetectionResult(emptyList(), null)
                 }
                 val n = shape[1].toInt()
                 val k = shape[2].toInt()
@@ -172,6 +220,14 @@ object ComicTextDetector {
                         )
                     )
                 }
+
+                // mask:解 4D output → 反 letterbox → 二值化 → 跟原图等大 ByteArray
+                if (maskOutputIndex >= 0) {
+                    textMask = runCatching {
+                        val maskTensor = outputs[maskOutputIndex] as OnnxTensor
+                        decodeMaskToBitmapCoords(maskTensor, bitmap.width, bitmap.height, scale, padX, padY)
+                    }.onFailure { Timber.w(it, "CTD: mask decode failed, fallback to no-mask") }.getOrNull()
+                }
             } finally {
                 outputs.close()
             }
@@ -181,10 +237,13 @@ object ComicTextDetector {
 
         // class-agnostic NMS:text/balloon 互相覆盖时取高分
         val kept = nms(candidates, iouThreshold)
-        Timber.d("CTD: ${candidates.size} candidates → ${kept.size} after NMS (conf>=$confThreshold, iou<=$iouThreshold)")
+        Timber.d(
+            "CTD: ${candidates.size} candidates → ${kept.size} after NMS (conf>=$confThreshold, iou<=$iouThreshold)" +
+                if (textMask != null) ", mask=${textMask.width}x${textMask.height}" else ", mask=null"
+        )
 
         // 反 letterbox 到原图坐标
-        return kept.map { b ->
+        val finalBoxes = kept.map { b ->
             DetectionBox(
                 cx = (b.cx - padX) / scale,
                 cy = (b.cy - padY) / scale,
@@ -194,6 +253,50 @@ object ComicTextDetector {
                 classId = b.classId,
             )
         }
+        return DetectionResult(finalBoxes, textMask)
+    }
+
+    /**
+     * 把 CTD 4D mask tensor (1, 1, maskH, maskW) 解到「原图坐标系」的 1-byte mask:
+     *  1. mask tensor 是 letterbox 坐标系 — letterbox 尺寸 INPUT_SIZE,padding 全在右下(padX=padY=0)
+     *  2. mask 可能比 INPUT_SIZE 低分辨率(常见 1024 但有些导出会下采样)→ 用比例反推
+     *  3. 对原图每个像素 (bx, by) → letterbox 坐标 (bx*scale, by*scale) → mask 坐标 nearest sample
+     *  4. 阈值 [MASK_THRESHOLD] 二值化(CTD seg head 是 sigmoid'd in [0,1])
+     */
+    private fun decodeMaskToBitmapCoords(
+        maskTensor: OnnxTensor,
+        bmpW: Int, bmpH: Int,
+        scale: Float, padX: Float, padY: Float,
+    ): TextMask {
+        val s = maskTensor.info.shape
+        require(s.size == 4 && s[0] == 1L && s[1] == 1L) { "mask shape ${s.toList()} not (1,1,H,W)" }
+        val mh = s[2].toInt()
+        val mw = s[3].toInt()
+        val src = maskTensor.floatBuffer
+
+        // letterbox 坐标 → mask 坐标 比例。CTD 一般 mask 跟 INPUT_SIZE 同分辨率,这里通用化
+        val mScaleX = mw.toFloat() / INPUT_SIZE
+        val mScaleY = mh.toFloat() / INPUT_SIZE
+
+        val out = ByteArray(bmpW * bmpH)
+        var painted = 0
+        for (by in 0 until bmpH) {
+            // letterboxY = by * scale + padY,本项目 padY=0 所以化简
+            val lbY = by * scale + padY
+            val my = (lbY * mScaleY).toInt().coerceIn(0, mh - 1)
+            val myRow = my * mw
+            val rowOff = by * bmpW
+            for (bx in 0 until bmpW) {
+                val lbX = bx * scale + padX
+                val mx = (lbX * mScaleX).toInt().coerceIn(0, mw - 1)
+                if (src.get(myRow + mx) > MASK_THRESHOLD) {
+                    out[rowOff + bx] = 1
+                    painted++
+                }
+            }
+        }
+        Timber.d("CTD: mask decoded → ${bmpW}x${bmpH}, $painted ink px (${"%.2f".format(painted * 100f / (bmpW * bmpH))}%)")
+        return TextMask(bmpW, bmpH, out)
     }
 
     /**
