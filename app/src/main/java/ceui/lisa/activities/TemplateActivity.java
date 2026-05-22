@@ -293,8 +293,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "NLLB翻译模型下载":
                     return ceui.pixiv.ui.translate.NllbDownloadFragment.newInstance(
                             intent.getStringExtra("nllb_model_name"));
-                case "API调试":
-                    return new ceui.pixiv.ui.apidemo.ApiDemoFragment();
                 case "绑定邮箱":
                     return new FragmentEditAccount();
                 case "编辑个人资料":

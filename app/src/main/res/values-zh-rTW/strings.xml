@@ -1436,14 +1436,6 @@
     <string name="search_filter_v3_row_original_only">僅限原創作品</string>
     <string name="search_filter_v3_row_replaceable_only">僅限支援單字置換的作品</string>
 
-    <!-- API debug demo (shaft-api-v2) -->
-    <string name="api_demo_entry">API 偵錯</string>
-    <string name="api_demo_btn_health">正常請求 /health (200)</string>
-    <string name="api_demo_btn_404">觸發 404 /does-not-exist</string>
-    <string name="api_demo_btn_parse_fail">解析失敗 /ping (200 plain)</string>
-    <string name="api_demo_btn_clear">清空</string>
-    <string name="api_demo_base_url_label">Base URL</string>
-    <string name="api_demo_output_label">輸出</string>
 
     <string name="slideshow_play">幻燈片播放</string>
     <string name="slideshow_empty">沒有可播放的圖片</string>

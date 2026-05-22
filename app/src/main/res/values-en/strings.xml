@@ -1419,14 +1419,6 @@
     <string name="search_filter_v3_row_original_only">Original works only</string>
     <string name="search_filter_v3_row_replaceable_only">Word-replaceable only</string>
 
-    <!-- API debug demo (shaft-api-v2) -->
-    <string name="api_demo_entry">API Debug</string>
-    <string name="api_demo_btn_health">Normal /health (200)</string>
-    <string name="api_demo_btn_404">Trigger 404 /does-not-exist</string>
-    <string name="api_demo_btn_parse_fail">Parse fail /ping (200 plain)</string>
-    <string name="api_demo_btn_clear">Clear</string>
-    <string name="api_demo_base_url_label">Base URL</string>
-    <string name="api_demo_output_label">Output</string>
 
     <string name="slideshow_play">Play slideshow</string>
     <string name="slideshow_empty">No images to play</string>

@@ -1422,14 +1422,6 @@
     <string name="search_filter_v3_row_original_only">オリジナル作品のみ</string>
     <string name="search_filter_v3_row_replaceable_only">単語置換対応作品のみ</string>
 
-    <!-- API debug demo (shaft-api-v2) -->
-    <string name="api_demo_entry">API デバッグ</string>
-    <string name="api_demo_btn_health">正常 /health (200)</string>
-    <string name="api_demo_btn_404">404 を発生 /does-not-exist</string>
-    <string name="api_demo_btn_parse_fail">解析失敗 /ping (200 plain)</string>
-    <string name="api_demo_btn_clear">クリア</string>
-    <string name="api_demo_base_url_label">Base URL</string>
-    <string name="api_demo_output_label">出力</string>
 
     <string name="slideshow_play">スライドショー再生</string>
     <string name="slideshow_empty">再生できる画像がありません</string>

@@ -254,7 +254,6 @@ class MeFragment : Fragment(R.layout.fragment_me) {
             }
             if (BuildConfig.DEBUG) {
                 experimentalEntries += listOf(
-                    Entry(R.drawable.ic_error_black_24dp, R.string.api_demo_entry, R.id.nav_api_demo),
                     Entry(R.drawable.ic_chat_black_24dp, R.string.chat_drawer_entry, R.id.nav_chat_room),
                     Entry(R.drawable.ic_plaza_forum_24, R.string.plaza_drawer_entry, R.id.nav_plaza),
                 )

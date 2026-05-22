@@ -101,7 +101,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         if (isGoogleChannel && !isDebugBuild) {
             baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(false);
         } else {
-            baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
             // 当前最热 / 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
             baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isGoogleChannel);
@@ -407,9 +406,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         } else if (id == R.id.nav_feature) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "精华列");
-        } else if (id == R.id.nav_api_demo) {
-            intent = new Intent(mContext, TemplateActivity.class);
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "API调试");
         } else if (id == R.id.nav_fans) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "粉丝");
