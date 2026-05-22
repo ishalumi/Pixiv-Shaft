@@ -5,6 +5,7 @@ import ceui.loxia.HistoryReportBody
 import ceui.loxia.HistoryReportItem
 import ceui.pixiv.session.SessionManager
 import com.google.gson.JsonElement
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,14 +27,21 @@ object HistoryReporter {
 
     private const val FLUSH_DELAY_MS = 2_000L
     private const val MAX_BATCH = 50 // server cap is 100; stay well under
+    private const val MAX_QUEUE = 500 // bound memory if the backend is down for a while
 
     private val queue = ConcurrentLinkedQueue<HistoryReportItem>()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Swallow any stray throwable so a background report can never crash the app.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO +
+            CoroutineExceptionHandler { _, e -> Timber.e(e, "HistoryReporter coroutine error (swallowed)") },
+    )
     private val flushMutex = Mutex()
     private var flushJob: Job? = null
 
     fun enqueue(targetType: String, targetId: Long, payload: JsonElement?) {
         if (SessionManager.loggedInUid <= 0L) return // history is per-viewer
+        // drop oldest if the backend has been unreachable and the queue piled up
+        while (queue.size >= MAX_QUEUE) queue.poll()
         queue.add(HistoryReportItem(targetType, targetId, payload))
         if (queue.size >= MAX_BATCH) {
             scope.launch { flush() }

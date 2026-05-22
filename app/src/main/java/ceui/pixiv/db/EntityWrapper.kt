@@ -101,7 +101,8 @@ class EntityWrapper(
         val json = Shaft.sGson.toJson(user)
         // user tab reads general_table (ceui.loxia.User) — same model, so report here.
         visit(context, user.id, json, EntityType.USER, RecordType.VIEW_USER_HISTORY)
-        HistoryReporter.enqueue("user", user.id, Shaft.sGson.toJsonTree(user))
+        // isolated: a report failure must never affect visiting a user page.
+        runCatching { HistoryReporter.enqueue("user", user.id, Shaft.sGson.toJsonTree(user)) }
     }
 
     // 调用 `block` 方法

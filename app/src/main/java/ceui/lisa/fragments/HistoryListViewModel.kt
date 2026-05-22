@@ -47,6 +47,9 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
     /** 远端 keyset 翻页游标；null = 没有更多。 */
     private var nextCursor: String? = null
 
+    /** 远端这次会话已失败过 → 本会话后续翻页直接走本地,避免远端/本地混页。 */
+    private var forcedLocal = false
+
     /** 当前搜索 query；null/空串 = 走默认 paginated 列表，非空 = 走搜索结果。 */
     private var searchQuery: String? = null
 
@@ -68,22 +71,23 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
     }
 
     private suspend fun fetchPage(reset: Boolean): List<IllustHistoryEntity> = withContext(Dispatchers.IO) {
-        if (useRemote()) {
+        if (reset) forcedLocal = false
+        if (useRemote() && !forcedLocal) {
             try {
                 val cursor = if (reset) null else nextCursor
                 val resp = Client.pixshaft.listHistory(
                     SessionManager.loggedInUid, serverType, null, cursor, PAGE_SIZE,
                 )
                 nextCursor = resp.nextCursor
-                resp.items.mapNotNull { remoteToEntity(it) }
+                return@withContext resp.items.mapNotNull { remoteToEntity(it) }
             } catch (ex: Exception) {
-                Timber.e(ex, "remote history list failed")
-                emptyList()
+                // 远端挂了/超时 → 本会话退回本地 DAO,行为等同上个版本(本地一直在双写)。
+                Timber.w(ex, "remote history unavailable, falling back to local DB")
+                forcedLocal = true
             }
-        } else {
-            val offset = if (reset) 0 else rawItems.size
-            dao.getViewHistoryByType(historyType, PAGE_SIZE, offset)
         }
+        val offset = if (reset) 0 else rawItems.size
+        dao.getViewHistoryByType(historyType, PAGE_SIZE, offset)
     }
 
     fun loadFirst(onDone: () -> Unit = {}) {
@@ -135,8 +139,9 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
                             SessionManager.loggedInUid, serverType, normalized, null, SEARCH_LIMIT,
                         ).items.mapNotNull { remoteToEntity(it) }
                     } catch (ex: Exception) {
-                        Timber.e(ex, "remote history search failed")
-                        emptyList()
+                        // 远端搜索挂了 → 退回本地 LIKE 搜索(同上个版本)。
+                        Timber.w(ex, "remote history search unavailable, falling back to local")
+                        dao.searchViewHistoryByType(normalized, historyType)
                     }
                 } else {
                     dao.searchViewHistoryByType(normalized, historyType)
@@ -152,22 +157,22 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
 
     fun delete(entity: IllustHistoryEntity) {
         viewModelScope.launch {
-            if (useRemote()) {
-                val tt = if (historyType == 1) {
-                    "novel"
-                } else {
-                    val ib = runCatching {
-                        Shaft.sGson.fromJson(entity.illustJson, IllustsBean::class.java)
-                    }.getOrNull()
-                    if (ib?.type == "manga") "manga" else "illust"
-                }
-                withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
+                // 永远删本地(双写的副本),server 挂时回退本地才不会"复活"。
+                dao.delete(entity)
+                if (useRemote()) {
+                    val tt = if (historyType == 1) {
+                        "novel"
+                    } else {
+                        val ib = runCatching {
+                            Shaft.sGson.fromJson(entity.illustJson, IllustsBean::class.java)
+                        }.getOrNull()
+                        if (ib?.type == "manga") "manga" else "illust"
+                    }
                     runCatching {
                         Client.pixshaft.deleteHistory(SessionManager.loggedInUid, tt, entity.illustID.toLong())
-                    }.onFailure { Timber.e(it, "remote history delete failed") }
+                    }.onFailure { Timber.w(it, "remote history delete failed (local deleted)") }
                 }
-            } else {
-                withContext(Dispatchers.IO) { dao.delete(entity) }
             }
             rawItems.removeAll { it.illustID == entity.illustID && it.type == entity.type }
             if (entity.type == 0) allIllusts.removeAll { it.id == entity.illustID }

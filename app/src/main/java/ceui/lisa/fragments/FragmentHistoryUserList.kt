@@ -46,7 +46,9 @@ class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list) {
         }
 
         if (viewModel.holders.value.isNullOrEmpty()) {
-            viewModel.loadFirst()
+            // 远端:初次加载用居中 ProgressBar 当加载态(避免下拉头压到 toolbar)。
+            binding.loadingBar.isVisible = true
+            viewModel.loadFirst { binding.loadingBar.isVisible = false }
         }
     }
 

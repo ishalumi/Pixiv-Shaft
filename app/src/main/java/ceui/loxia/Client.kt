@@ -131,9 +131,12 @@ class ClientManager {
 
     fun <T> createPixshaftService(service: Class<T>): T {
         val httpBuilder = OkHttpClient.Builder()
-            .connectTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
-            .writeTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
-            .readTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            // Fail fast when the history backend is down/overloaded so the UI can
+            // fall back to the local DB quickly instead of hanging ~10s.
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .addInterceptor(HttpLoggingInterceptor().apply {
                 // BASIC, not BODY: history payloads are large, keep logs sane.

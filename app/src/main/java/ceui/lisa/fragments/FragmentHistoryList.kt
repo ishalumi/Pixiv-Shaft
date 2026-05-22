@@ -56,7 +56,10 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
         }
 
         if (viewModel.holders.value.isNullOrEmpty()) {
-            viewModel.loadFirst()
+            // 远端有网络延迟:初次加载用居中 ProgressBar 当加载态(下拉头在 appbar
+            // 协同布局里落点会压到 toolbar,所以这里不用 autoRefresh)。
+            binding.loadingBar.isVisible = true
+            viewModel.loadFirst { binding.loadingBar.isVisible = false }
         }
 
         // host toolbar 上 SearchView 的输入通过 activity-scope SharedVM 下发到这里，

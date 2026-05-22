@@ -37,6 +37,7 @@ class HistoryUserViewModel : ViewModel() {
     private var onDeleteCallback: ((GeneralEntity) -> Unit)? = null
 
     private var nextCursor: String? = null
+    private var forcedLocal = false
 
     private fun useRemote(): Boolean = SessionManager.loggedInUid > 0L
 
@@ -56,22 +57,23 @@ class HistoryUserViewModel : ViewModel() {
     }
 
     private suspend fun fetchPage(reset: Boolean): List<GeneralEntity> = withContext(Dispatchers.IO) {
-        if (useRemote()) {
+        if (reset) forcedLocal = false
+        if (useRemote() && !forcedLocal) {
             try {
                 val cursor = if (reset) null else nextCursor
                 val resp = Client.pixshaft.listHistory(
                     SessionManager.loggedInUid, "user", null, cursor, PAGE_SIZE,
                 )
                 nextCursor = resp.nextCursor
-                resp.items.mapNotNull { remoteToEntity(it) }
+                return@withContext resp.items.mapNotNull { remoteToEntity(it) }
             } catch (ex: Exception) {
-                Timber.e(ex, "remote user-history list failed")
-                emptyList()
+                // 远端挂了 → 退回本地 general_table(同上个版本)。
+                Timber.w(ex, "remote user-history unavailable, falling back to local DB")
+                forcedLocal = true
             }
-        } else {
-            val offset = if (reset) 0 else rawItems.size
-            dao.getByRecordType(RecordType.VIEW_USER_HISTORY, offset, PAGE_SIZE)
         }
+        val offset = if (reset) 0 else rawItems.size
+        dao.getByRecordType(RecordType.VIEW_USER_HISTORY, offset, PAGE_SIZE)
     }
 
     fun loadFirst(onDone: () -> Unit = {}) {
@@ -102,15 +104,13 @@ class HistoryUserViewModel : ViewModel() {
 
     fun delete(entity: GeneralEntity) {
         viewModelScope.launch {
-            if (useRemote()) {
-                withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
+                // 永远删本地,server 挂时回退本地不会"复活"。
+                dao.deleteByRecordTypeAndId(RecordType.VIEW_USER_HISTORY, entity.id)
+                if (useRemote()) {
                     runCatching {
                         Client.pixshaft.deleteHistory(SessionManager.loggedInUid, "user", entity.id)
-                    }.onFailure { Timber.e(it, "remote user-history delete failed") }
-                }
-            } else {
-                withContext(Dispatchers.IO) {
-                    dao.deleteByRecordTypeAndId(RecordType.VIEW_USER_HISTORY, entity.id)
+                    }.onFailure { Timber.w(it, "remote user-history delete failed (local deleted)") }
                 }
             }
             rawItems.removeAll { it.id == entity.id }
