@@ -1,11 +1,14 @@
 package ceui.loxia
 
+import ceui.lisa.BuildConfig
 import ceui.lisa.activities.Shaft
 import ceui.lisa.http.CronetInterceptor
+import ceui.pixiv.shaftapi.ShaftHmac
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.logging.HttpLoggingInterceptor
+import okio.Buffer
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.net.InetAddress
@@ -138,6 +141,21 @@ class ClientManager {
             .readTimeout(8, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+            // Sign ONLY the /v1/account/* endpoints (email-bound backup/restore)
+            // with X-Shaft-Sign = HMAC-SHA256(body, SHAFT_EVENTS_HMAC). History is
+            // intentionally unsigned. Empty secret (fork builds) → no header.
+            .addInterceptor { chain ->
+                val req = chain.request()
+                val body = req.body
+                val secret = BuildConfig.SHAFT_EVENTS_HMAC
+                if (body == null || secret.isEmpty() || !req.url.encodedPath.contains("/v1/account/")) {
+                    chain.proceed(req)
+                } else {
+                    val buf = Buffer().also { body.writeTo(it) }
+                    val sig = ShaftHmac.signHex(buf.readUtf8(), secret)
+                    chain.proceed(req.newBuilder().header("X-Shaft-Sign", sig).build())
+                }
+            }
             .addInterceptor(HttpLoggingInterceptor().apply {
                 // BASIC, not BODY: history payloads are large, keep logs sane.
                 setLevel(HttpLoggingInterceptor.Level.BASIC)
