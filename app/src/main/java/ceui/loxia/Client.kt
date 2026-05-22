@@ -41,6 +41,12 @@ object Client {
     val moonAPI: MoonAPI by lazy {
         clientManager.createMoonAPIService(MoonAPI::class.java)
     }
+
+    // pixshaft-api (browse history). Real public domain + Let's Encrypt cert,
+    // so plain system DNS/TLS — no custom Dns like moonAPI needs.
+    val pixshaft: PixshaftApi by lazy {
+        clientManager.createPixshaftService(PixshaftApi::class.java)
+    }
 }
 
 class ClientManager {
@@ -56,6 +62,9 @@ class ClientManager {
         const val MOON_API_HOST = "https://shaft.api:8443/"
         const val MOON_BACKEND_HOSTNAME = "shaft.api"
         const val MOON_BACKEND_IP = "111.229.197.181"
+
+        // pixshaft-api: browse-history backend, real public domain.
+        const val PIXSHAFT_API_HOST = "https://pixshaft.com/"
 
         /**
          * 所有 Web API 请求和 WebView 统一使用的 User-Agent。
@@ -114,6 +123,25 @@ class ClientManager {
         })
         return Retrofit.Builder()
             .baseUrl(WEB_API_HOST)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(httpBuilder.build())
+            .build()
+            .create(service)
+    }
+
+    fun <T> createPixshaftService(service: Class<T>): T {
+        val httpBuilder = OkHttpClient.Builder()
+            .connectTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            .writeTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            .readTimeout(REQUIEST_TIME, TimeUnit.SECONDS)
+            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                // BASIC, not BODY: history payloads are large, keep logs sane.
+                setLevel(HttpLoggingInterceptor.Level.BASIC)
+            })
+        applyDirectConnect(httpBuilder)
+        return Retrofit.Builder()
+            .baseUrl(PIXSHAFT_API_HOST)
             .addConverterFactory(GsonConverterFactory.create())
             .client(httpBuilder.build())
             .build()

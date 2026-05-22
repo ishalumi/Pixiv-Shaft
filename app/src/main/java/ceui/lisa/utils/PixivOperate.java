@@ -611,6 +611,10 @@ public class PixivOperate {
                 illustHistoryEntity.setTime(System.currentTimeMillis());
                 Common.showLog("插入了 " + illustHistoryEntity.getIllustID() + " time " + illustHistoryEntity.getTime());
                 AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(illustHistoryEntity);
+                // dual-write: report to pixshaft-api (same IllustsBean payload the
+                // history list deserializes). illust tab covers illust + manga.
+                String reportType = "manga".equals(illust.getType()) ? "manga" : "illust";
+                ceui.pixiv.db.HistoryReporter.INSTANCE.enqueue(reportType, (long) illust.getId(), Shaft.sGson.toJsonTree(illust));
             });
         }
     }
@@ -629,6 +633,7 @@ public class PixivOperate {
                 illustHistoryEntity.setTime(System.currentTimeMillis());
                 Common.showLog("插入了 " + illustHistoryEntity.getIllustID() + " time " + illustHistoryEntity.getTime());
                 AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(illustHistoryEntity);
+                ceui.pixiv.db.HistoryReporter.INSTANCE.enqueue("novel", (long) novelBean.getId(), Shaft.sGson.toJsonTree(novelBean));
             });
         }
     }

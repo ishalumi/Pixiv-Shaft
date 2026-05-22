@@ -16,8 +16,11 @@ import ceui.lisa.R
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding
 import ceui.lisa.utils.Common
+import ceui.loxia.Client
 import ceui.pixiv.db.RecordType
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.viewBinding
+import timber.log.Timber
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
@@ -160,6 +163,12 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                         val db = AppDatabase.getAppDatabase(act)
                         db.downloadDao().deleteAllHistory()
                         db.generalDao().deleteAllByRecordType(RecordType.VIEW_USER_HISTORY)
+                        // 历史列表已读远端,清空也要清远端(全部类型)。
+                        val uid = SessionManager.loggedInUid
+                        if (uid > 0L) {
+                            runCatching { Client.pixshaft.clearHistory(uid, null) }
+                                .onFailure { Timber.e(it, "remote history clear failed") }
+                        }
                     }
                     childFragmentManager.fragments.forEach { child ->
                         when (child) {

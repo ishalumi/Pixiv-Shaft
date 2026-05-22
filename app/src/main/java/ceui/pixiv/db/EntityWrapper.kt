@@ -86,6 +86,9 @@ class EntityWrapper(
     // 调用 `visit` 方法
     fun visitIllust(context: Context, illust: Illust) {
         val json = Shaft.sGson.toJson(illust)
+        // local-only: the FragmentHistoryTabs illust/novel tabs read illust_table
+        // (legacy IllustsBean), reported separately from PixivOperate. Reporting
+        // ceui.loxia.Illust here would pollute the remote with the wrong model.
         visit(context, illust.id, json, EntityType.ILLUST, RecordType.VIEW_ILLUST_HISTORY)
     }
 
@@ -96,7 +99,9 @@ class EntityWrapper(
 
     fun visitUser(context: Context, user: User) {
         val json = Shaft.sGson.toJson(user)
+        // user tab reads general_table (ceui.loxia.User) — same model, so report here.
         visit(context, user.id, json, EntityType.USER, RecordType.VIEW_USER_HISTORY)
+        HistoryReporter.enqueue("user", user.id, Shaft.sGson.toJsonTree(user))
     }
 
     // 调用 `block` 方法
