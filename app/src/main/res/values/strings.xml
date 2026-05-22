@@ -1833,7 +1833,7 @@
     <string name="site_recommend">本月收藏</string>
     <string name="current_hot">当前最热</string>
     <string name="sensitive_gate_title">敏感内容提示</string>
-    <string name="sensitive_gate_message">这里的内容来自其他用户的收藏与操作记录,可能包含 R-18 等敏感作品。是否继续查看?</string>
+    <string name="sensitive_gate_message">可能包含 R-18 等敏感内容,是否继续查看?</string>
     <string name="sensitive_gate_cancel">取消查看</string>
     <string name="sensitive_gate_proceed">坚持查看</string>
     <string name="event_history">操作记录</string>

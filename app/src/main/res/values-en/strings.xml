@@ -1436,7 +1436,7 @@
     <string name="site_recommend">This Month\'s Bookmarks</string>
     <string name="current_hot">Trending Now</string>
     <string name="sensitive_gate_title">Sensitive content</string>
-    <string name="sensitive_gate_message">This section aggregates other users\' bookmarks and activity, which may include R-18 content. View anyway?</string>
+    <string name="sensitive_gate_message">May contain R-18 content. View anyway?</string>
     <string name="sensitive_gate_cancel">Cancel</string>
     <string name="sensitive_gate_proceed">View anyway</string>
     <string name="event_history">Activity log</string>

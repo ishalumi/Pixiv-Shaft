@@ -1455,7 +1455,7 @@
     <string name="site_recommend">本月收藏</string>
     <string name="current_hot">當前最熱</string>
     <string name="sensitive_gate_title">敏感內容提示</string>
-    <string name="sensitive_gate_message">這裡的內容來自其他使用者的收藏與操作記錄,可能包含 R-18 等敏感作品。是否繼續查看?</string>
+    <string name="sensitive_gate_message">可能包含 R-18 等敏感內容,是否繼續查看?</string>
     <string name="sensitive_gate_cancel">取消查看</string>
     <string name="sensitive_gate_proceed">堅持查看</string>
     <string name="event_history">操作記錄</string>

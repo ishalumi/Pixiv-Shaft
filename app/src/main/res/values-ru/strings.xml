@@ -1342,7 +1342,7 @@
     <string name="site_recommend">Закладки за месяц</string>
     <string name="current_hot">Сейчас в тренде</string>
     <string name="sensitive_gate_title">Чувствительный контент</string>
-    <string name="sensitive_gate_message">Здесь собраны закладки и действия других пользователей, может встречаться контент R-18. Всё равно открыть?</string>
+    <string name="sensitive_gate_message">Может содержать контент R-18. Всё равно открыть?</string>
     <string name="sensitive_gate_cancel">Отмена</string>
     <string name="sensitive_gate_proceed">Всё равно открыть</string>
     <string name="event_history">Журнал действий</string>
