@@ -238,16 +238,18 @@ class MeFragment : Fragment(R.layout.fragment_me) {
 
         // 试验性分区:
         //   github 渠道 release 保留 批量下载 Debug + 操作记录 + 站长推荐(对齐 MainActivity drawer 可见性);其它仅 debug。
-        //   google play 渠道为合规起见整段不出现,且任何 google build 都不展示站长推荐。
+        //   google play 渠道为合规起见整段不出现,且服务端依赖入口(站长推荐 / 操作记录)在任何 google build 都不展示。
         val isGoogleChannel = BuildConfig.UPDATE_CHANNEL == "google"
         if (!(isGoogleChannel && !BuildConfig.DEBUG)) {
             val experimentalEntries = mutableListOf(
                 Entry(R.drawable.ic_baseline_settings_24, R.string.debug_bulk_dl_entry, R.id.nav_debug_bulk_dl),
-                Entry(R.drawable.ic_history_black_24dp, R.string.event_history, R.id.nav_event_history),
             )
-            // 站长推荐:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
+            // 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
             if (!isGoogleChannel) {
-                experimentalEntries += Entry(R.drawable.ic_baseline_star_24, R.string.site_recommend, R.id.nav_site_recommend)
+                experimentalEntries += listOf(
+                    Entry(R.drawable.ic_history_black_24dp, R.string.event_history, R.id.nav_event_history),
+                    Entry(R.drawable.ic_baseline_star_24, R.string.site_recommend, R.id.nav_site_recommend),
+                )
             }
             if (BuildConfig.DEBUG) {
                 experimentalEntries += listOf(

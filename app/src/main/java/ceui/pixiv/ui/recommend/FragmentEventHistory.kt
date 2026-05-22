@@ -6,12 +6,9 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import ceui.lisa.BuildConfig
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentEventHistoryBinding
 import ceui.lisa.network.ShaftApiV2Client
-import ceui.lisa.utils.ClipBoardUtils
-import ceui.lisa.utils.Common
 import ceui.pixiv.events.EventReporter
 import ceui.pixiv.ui.common.CommonAdapter
 import ceui.pixiv.ui.common.ListItemHolder
@@ -43,26 +40,6 @@ class FragmentEventHistory : Fragment(R.layout.fragment_event_history) {
         binding.toolbar.title = " "
         binding.toolbarTitle.text = getString(R.string.event_history)
         binding.toolbar.setNavigationOnClickListener { activity?.finish() }
-
-        // Debug 包右上角放一个复制 client_id 的入口 (release 不挂菜单,资源也不浪费)
-        if (BuildConfig.IS_DEBUG_MODE) {
-            binding.toolbar.inflateMenu(R.menu.event_history_menu)
-            binding.toolbar.setOnMenuItemClickListener { item ->
-                if (item.itemId == R.id.action_copy_client_id) {
-                    val cid = EventReporter.currentClientId()
-                    if (cid.isEmpty()) {
-                        Common.showToast(getString(R.string.event_history_client_id_not_ready))
-                    } else {
-                        ClipBoardUtils.putTextIntoClipboard(requireContext(), cid, false)
-                        // 完整 64 字符 hex 当 toast 太长,只回显前 12 位让用户确认是哪个 client
-                        Common.showToast(getString(
-                            R.string.event_history_client_id_copied, cid.take(12)
-                        ))
-                    }
-                    true
-                } else false
-            }
-        }
 
         val adapter = CommonAdapter(viewLifecycleOwner)
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
