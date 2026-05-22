@@ -1347,7 +1347,7 @@
     <string name="string_rembg_model_long_press_to_delete">Долгое нажатие удаляет загруженную модель</string>
 
     <string name="experimental_section">Экспериментально</string>
-    <string name="site_recommend">Рекомендации Pixiv</string>
+    <string name="site_recommend">Закладки за месяц</string>
     <string name="event_history">Журнал действий</string>
     <string name="event_history_empty">Пока нет действий</string>
     <string name="event_history_copy_client_id">Скопировать отпечаток устройства</string>

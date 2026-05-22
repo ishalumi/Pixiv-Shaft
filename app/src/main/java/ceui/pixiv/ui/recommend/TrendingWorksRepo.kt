@@ -65,6 +65,9 @@ class TrendingWorksRepo(
                         // 读这个字段决定是否露出左上角的 score pill。transient 保证不
                         // 串进 Gson 序列化 / Java Serializable 的输出。
                         trendingScore = item.score.toFloat()
+                        // payload 里的 is_bookmarked 是「上报榜单的那个客户端」当时的收藏态,
+                        // 跟当前用户无关。一律清成 false,让用户能以自己名义点收藏。
+                        setIs_bookmarked(false)
                     }
                 }
                 catch (e: Throwable) {
@@ -126,6 +129,8 @@ class TrendingNovelsRepo(
                     gson.fromJson(json, NovelBean::class.java).apply {
                         // 同上,把 trending score 装饰到 NovelBean,NAdapter 渲染时读。
                         trendingScore = item.score.toFloat()
+                        // 同上,清掉上报者的收藏态,让用户能以自己名义点收藏。
+                        setIs_bookmarked(false)
                     }
                 }
                 catch (e: Throwable) {

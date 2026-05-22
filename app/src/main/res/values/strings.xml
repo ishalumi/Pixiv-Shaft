@@ -1838,7 +1838,7 @@
     <string name="v3_tag_menu_mute">屏蔽此 tag</string>
 
     <string name="experimental_section">试验性</string>
-    <string name="site_recommend">站长推荐</string>
+    <string name="site_recommend">本月收藏</string>
     <string name="event_history">操作记录</string>
     <string name="event_history_empty">还没有操作记录</string>
     <string name="event_history_copy_client_id">复制本机指纹</string>

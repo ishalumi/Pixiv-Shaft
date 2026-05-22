@@ -1446,7 +1446,7 @@
     <string name="string_rembg_model_long_press_to_delete">長押しでダウンロード済みモデルを削除できます</string>
 
     <string name="experimental_section">実験的</string>
-    <string name="site_recommend">ピクシブのおすすめ</string>
+    <string name="site_recommend">今月のブックマーク</string>
     <string name="event_history">操作履歴</string>
     <string name="event_history_empty">まだ操作履歴はありません</string>
     <string name="event_history_copy_client_id">端末指紋をコピー</string>

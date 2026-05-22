@@ -1354,7 +1354,7 @@
     <string name="string_rembg_model_long_press_to_delete">길게 눌러 다운로드한 모델을 삭제할 수 있습니다</string>
 
     <string name="experimental_section">실험적</string>
-    <string name="site_recommend">픽시브 추천</string>
+    <string name="site_recommend">이번 달 북마크</string>
     <string name="event_history">활동 기록</string>
     <string name="event_history_empty">아직 활동 기록이 없습니다</string>
     <string name="event_history_copy_client_id">기기 지문 복사</string>

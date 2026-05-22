@@ -237,18 +237,21 @@ class MeFragment : Fragment(R.layout.fragment_me) {
         val out = mutableListOf(mine, quickAccess, others)
 
         // 试验性分区:
-        //   github 渠道 release 保留 批量下载 Debug + 操作记录(对齐 MainActivity drawer 可见性);其它仅 debug。
-        //   google play 渠道为合规起见整段不出现。
+        //   github 渠道 release 保留 批量下载 Debug + 操作记录 + 站长推荐(对齐 MainActivity drawer 可见性);其它仅 debug。
+        //   google play 渠道为合规起见整段不出现,且任何 google build 都不展示站长推荐。
         val isGoogleChannel = BuildConfig.UPDATE_CHANNEL == "google"
         if (!(isGoogleChannel && !BuildConfig.DEBUG)) {
             val experimentalEntries = mutableListOf(
                 Entry(R.drawable.ic_baseline_settings_24, R.string.debug_bulk_dl_entry, R.id.nav_debug_bulk_dl),
                 Entry(R.drawable.ic_history_black_24dp, R.string.event_history, R.id.nav_event_history),
             )
+            // 站长推荐:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
+            if (!isGoogleChannel) {
+                experimentalEntries += Entry(R.drawable.ic_baseline_star_24, R.string.site_recommend, R.id.nav_site_recommend)
+            }
             if (BuildConfig.DEBUG) {
                 experimentalEntries += listOf(
                     Entry(R.drawable.ic_error_black_24dp, R.string.api_demo_entry, R.id.nav_api_demo),
-                    Entry(R.drawable.ic_baseline_star_24, R.string.site_recommend, R.id.nav_site_recommend),
                     Entry(R.drawable.ic_chat_black_24dp, R.string.chat_drawer_entry, R.id.nav_chat_room),
                     Entry(R.drawable.ic_plaza_forum_24, R.string.plaza_drawer_entry, R.id.nav_plaza),
                 )

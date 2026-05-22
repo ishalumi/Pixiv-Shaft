@@ -1345,7 +1345,7 @@
     <string name="string_rembg_model_long_press_to_delete">İndirilen modeli silmek için uzun basın</string>
 
     <string name="experimental_section">Deneysel</string>
-    <string name="site_recommend">Pixiv Önerileri</string>
+    <string name="site_recommend">Bu Ayın Yer İmleri</string>
     <string name="event_history">Etkinlik geçmişi</string>
     <string name="event_history_empty">Henüz etkinlik yok</string>
     <string name="event_history_copy_client_id">Cihaz parmak izini kopyala</string>
