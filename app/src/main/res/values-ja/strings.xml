@@ -1440,6 +1440,10 @@
     <string name="experimental_section">実験的</string>
     <string name="site_recommend">今月のブックマーク</string>
     <string name="current_hot">急上昇</string>
+    <string name="sensitive_gate_title">センシティブな内容</string>
+    <string name="sensitive_gate_message">ここには他のユーザーのブックマークや操作履歴が含まれ、R-18 などのセンシティブな作品が表示される場合があります。続けて表示しますか?</string>
+    <string name="sensitive_gate_cancel">表示しない</string>
+    <string name="sensitive_gate_proceed">表示する</string>
     <string name="event_history">操作履歴</string>
     <string name="event_history_empty">まだ操作履歴はありません</string>
     <string name="event_history_copy_client_id">端末指紋をコピー</string>

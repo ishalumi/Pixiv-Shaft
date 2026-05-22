@@ -1339,6 +1339,10 @@
     <string name="experimental_section">Deneysel</string>
     <string name="site_recommend">Bu Ayın Yer İmleri</string>
     <string name="current_hot">Şu An Popüler</string>
+    <string name="sensitive_gate_title">Hassas içerik</string>
+    <string name="sensitive_gate_message">Burada diğer kullanıcıların yer imleri ve etkinlikleri toplanır, R-18 içerik bulunabilir. Yine de görüntülensin mi?</string>
+    <string name="sensitive_gate_cancel">İptal</string>
+    <string name="sensitive_gate_proceed">Yine de gör</string>
     <string name="event_history">Etkinlik geçmişi</string>
     <string name="event_history_empty">Henüz etkinlik yok</string>
     <string name="event_history_copy_client_id">Cihaz parmak izini kopyala</string>

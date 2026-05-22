@@ -458,7 +458,14 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "广场");
         }
         if (intent != null) {
-            startActivity(intent);
+            // 当前最热 / 本月收藏 / 操作记录:服务端聚合内容可能含 R-18,进去前过一次警示框
+            // (「坚持查看」点一次后全局不再弹)。其它入口照常直接进。
+            if (id == R.id.nav_current_hot || id == R.id.nav_site_recommend || id == R.id.nav_event_history) {
+                final Intent gated = intent;
+                ceui.pixiv.ui.recommend.SensitiveContentGate.gateOrProceed(this, () -> startActivity(gated));
+            } else {
+                startActivity(intent);
+            }
         }
     }
 
