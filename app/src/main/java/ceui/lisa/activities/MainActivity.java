@@ -102,7 +102,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(false);
         } else {
             baseBind.navView.getMenu().findItem(R.id.nav_api_demo).setVisible(isDebugBuild);
-            // 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
+            // 当前最热 / 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
+            baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
@@ -438,6 +439,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             intent.putExtra(Params.URL, "https://www.pixiv.net/upload.php");
             intent.putExtra(Params.TITLE, getString(R.string.string_444));
             intent.putExtra(Params.PREFER_PRESERVE, true);
+        } else if (id == R.id.nav_current_hot) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "当前最热");
         } else if (id == R.id.nav_site_recommend) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "站长推荐");

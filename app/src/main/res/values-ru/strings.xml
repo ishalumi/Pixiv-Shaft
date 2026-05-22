@@ -1348,6 +1348,7 @@
 
     <string name="experimental_section">Экспериментально</string>
     <string name="site_recommend">Закладки за месяц</string>
+    <string name="current_hot">Сейчас в тренде</string>
     <string name="event_history">Журнал действий</string>
     <string name="event_history_empty">Пока нет действий</string>
     <string name="event_history_copy_client_id">Скопировать отпечаток устройства</string>

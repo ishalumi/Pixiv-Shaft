@@ -82,6 +82,36 @@ interface ShaftApiV2 {
     )
 
     /**
+     * 当前最热 — 「现在正在被人收藏的作品」。按最近一次 bookmark 事件倒序、server 端
+     * 已按作品去重(每个作品只出一次)的实时流;只看 bookmark 事件,不是加权榜。
+     * item.bean 同 trending 一样带完整 payload,直接渲染。
+     * 翻页同 trending:首屏 offset=0,后续走 [recentWorksByUrl] 喂 server 的 next_url。
+     */
+    @GET("api/v1/recent/works")
+    suspend fun recentWorks(
+        @Query("type") type: String,
+        @Query("limit") limit: Int = 60,
+        @Query("offset") offset: Int = 0,
+    ): RecentWorksResponse
+
+    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL)。 */
+    @GET
+    suspend fun recentWorksByUrl(@Url url: String): RecentWorksResponse
+
+    /**
+     * 复用 [TrendingWorkItem] 的 item 形状(只读 target_id / bookmark_count / bean)。
+     * 当前最热不是加权榜,server 端 score 恒为 0,客户端 score pill 自动隐藏。
+     */
+    data class RecentWorksResponse(
+        val type: String,
+        val limit: Int,
+        val items: List<TrendingWorkItem>,
+        val offset: Int? = null,
+        val total: Int? = null,
+        val next_url: String? = null,
+    )
+
+    /**
      * 当前客户端自己的操作日志。client_id 是本地生成的 sha256(UUID)，只能查到自己的事件。
      * - eventType: null=全部；bookmark / unbookmark / download / follow / unfollow
      * - before: 上一页最后一条的 id（服务端按 id DESC 排），首页传 null

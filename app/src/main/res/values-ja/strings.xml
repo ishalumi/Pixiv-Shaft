@@ -1447,6 +1447,7 @@
 
     <string name="experimental_section">実験的</string>
     <string name="site_recommend">今月のブックマーク</string>
+    <string name="current_hot">急上昇</string>
     <string name="event_history">操作履歴</string>
     <string name="event_history_empty">まだ操作履歴はありません</string>
     <string name="event_history_copy_client_id">端末指紋をコピー</string>

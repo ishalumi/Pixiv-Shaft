@@ -248,6 +248,7 @@ class MeFragment : Fragment(R.layout.fragment_me) {
             if (!isGoogleChannel) {
                 experimentalEntries += listOf(
                     Entry(R.drawable.ic_history_black_24dp, R.string.event_history, R.id.nav_event_history),
+                    Entry(R.drawable.outline_whatshot_24, R.string.current_hot, R.id.nav_current_hot),
                     Entry(R.drawable.ic_baseline_star_24, R.string.site_recommend, R.id.nav_site_recommend),
                 )
             }

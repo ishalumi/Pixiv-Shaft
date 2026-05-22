@@ -1442,6 +1442,7 @@
 
     <string name="experimental_section">Experimental</string>
     <string name="site_recommend">This Month\'s Bookmarks</string>
+    <string name="current_hot">Trending Now</string>
     <string name="event_history">Activity log</string>
     <string name="event_history_empty">No activity yet</string>
     <string name="event_history_copy_client_id">Copy device fingerprint</string>

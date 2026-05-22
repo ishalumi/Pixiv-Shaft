@@ -1461,6 +1461,7 @@
 
     <string name="experimental_section">試驗性</string>
     <string name="site_recommend">本月收藏</string>
+    <string name="current_hot">當前最熱</string>
     <string name="event_history">操作記錄</string>
     <string name="event_history_empty">尚無操作記錄</string>
     <string name="event_history_copy_client_id">複製本機指紋</string>
