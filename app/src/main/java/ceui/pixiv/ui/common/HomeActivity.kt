@@ -8,7 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import ceui.lisa.databinding.ActivityHomeBinding
-import ceui.loxia.CloudHistoryConsent
 import ceui.loxia.observeEvent
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.utils.ppppx
@@ -33,11 +32,9 @@ class HomeActivity : AppCompatActivity() {
         }
 
         // Show rate dialog after a short delay to avoid disrupting app startup.
-        // 浏览记录云同步的首次同意框优先;弹了就不再叠加评分弹窗(见 issue #889)。
+        // 浏览记录云同步同意框不在首页弹,改到用户点进浏览历史页时再问(见 FragmentHistoryTabs / issue #889)。
         binding.root.postDelayed({
-            if (!CloudHistoryConsent.maybeShowConsent(this)) {
-                RateAppDialog.showIfNeeded(supportFragmentManager)
-            }
+            RateAppDialog.showIfNeeded(supportFragmentManager)
         }, 2000)
     }
 

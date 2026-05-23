@@ -39,8 +39,17 @@ object HistoryReporter {
     private val flushMutex = Mutex()
     private var flushJob: Job? = null
 
+    /**
+     * Cloud sync is opt-out, but the consent dialog now only appears once the user
+     * opens the history page ([CloudHistoryConsent] / FragmentHistoryTabs). Until
+     * they've actually been asked, nothing leaves the device — otherwise moving the
+     * dialog off the home screen would mean uploading before consent was ever shown.
+     */
+    private fun cloudSyncAllowed(): Boolean =
+        Shaft.sSettings.isCloudHistorySync && Shaft.sSettings.isCloudHistoryConsentShown
+
     fun enqueue(targetType: String, targetId: Long, payload: JsonElement?) {
-        if (!Shaft.sSettings.isCloudHistorySync()) return // user opted out of cloud sync
+        if (!cloudSyncAllowed()) return // opted out, or not yet asked for consent
         if (SessionManager.loggedInUid <= 0L) return // history is per-viewer
         // drop oldest if the backend has been unreachable and the queue piled up
         while (queue.size >= MAX_QUEUE) queue.poll()
@@ -69,7 +78,7 @@ object HistoryReporter {
     /** Drains the queue to the server in MAX_BATCH chunks. Safe to call anytime. */
     suspend fun flush() {
         flushMutex.withLock {
-            if (!Shaft.sSettings.isCloudHistorySync()) {
+            if (!cloudSyncAllowed()) {
                 queue.clear()
                 return
             }

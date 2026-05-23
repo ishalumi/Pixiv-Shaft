@@ -288,11 +288,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         Manager.get().restore();
 
         // Show rate dialog after a short delay to avoid disrupting app startup.
-        // 浏览记录云同步的首次同意框优先;弹了就不再叠加评分弹窗(见 issue #889)。
+        // 浏览记录云同步同意框不在首页弹,改到用户点进浏览历史页时再问(见 FragmentHistoryTabs / issue #889)。
         baseBind.viewPager.postDelayed(() -> {
-            if (!ceui.loxia.CloudHistoryConsent.maybeShowConsent(mActivity)) {
-                ceui.pixiv.widgets.RateAppDialog.Companion.showIfNeeded(getSupportFragmentManager());
-            }
+            ceui.pixiv.widgets.RateAppDialog.Companion.showIfNeeded(getSupportFragmentManager());
         }, 2000);
     }
 

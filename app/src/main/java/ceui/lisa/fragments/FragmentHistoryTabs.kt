@@ -17,6 +17,7 @@ import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding
 import ceui.lisa.utils.Common
 import ceui.loxia.Client
+import ceui.loxia.CloudHistoryConsent
 import ceui.pixiv.db.RecordType
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.viewBinding
@@ -78,6 +79,10 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
         binding.tabLayout.setupWithViewPager(binding.viewPager)
 
         setupSearchMenu()
+
+        // 云同步同意框挪到这里:用户点进浏览历史页才问一次「是否把记录存到云端」,
+        // 而不是一进首页就弹(见 issue #889)。已弹过/未登录则什么都不做。
+        view.post { activity?.let { CloudHistoryConsent.maybeShowConsent(it) } }
     }
 
     /**
