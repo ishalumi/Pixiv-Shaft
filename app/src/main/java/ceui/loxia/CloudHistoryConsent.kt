@@ -31,10 +31,10 @@ object CloudHistoryConsent {
         if (!enabled) HistoryReporter.clearPending()
     }
 
-    /** 设置页开关直接调用:仅改开关,不动同意状态(同意框已弹过)。 */
+    /** 设置页开关直接调用:用户手动拨开关本身就是一次明确选择,顺手标记同意框无需再弹。 */
     @JvmStatic
     fun setEnabled(enabled: Boolean) {
-        persist(enabled, Shaft.sSettings.isCloudHistoryConsentShown)
+        persist(enabled, consentShown = true)
     }
 
     /**
@@ -65,6 +65,8 @@ object CloudHistoryConsent {
             }
             .create()
             .show()
+        // 「弹一次」:一旦展示就记下,即使用户点返回不选也不再纠缠(保持默认开启的选择)。
+        persist(Shaft.sSettings.isCloudHistorySync, consentShown = true)
         return true
     }
 

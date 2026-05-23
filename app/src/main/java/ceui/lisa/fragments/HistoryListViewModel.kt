@@ -53,7 +53,9 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
     /** 当前搜索 query；null/空串 = 走默认 paginated 列表，非空 = 走搜索结果。 */
     private var searchQuery: String? = null
 
-    private fun useRemote(): Boolean = SessionManager.loggedInUid > 0L
+    // 关掉云同步时连读取也走本地:不再把 uid 发给 pixshaft,且能显示本地/导入的历史 (issue #889)
+    private fun useRemote(): Boolean =
+        SessionManager.loggedInUid > 0L && Shaft.sSettings.isCloudHistorySync
 
     fun setDeleteCallback(cb: (IllustHistoryEntity) -> Unit) {
         onDeleteCallback = cb
