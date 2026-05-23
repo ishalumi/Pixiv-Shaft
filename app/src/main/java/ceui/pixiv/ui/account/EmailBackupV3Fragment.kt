@@ -13,6 +13,9 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.view.updatePadding
 import com.blankj.utilcode.util.BarUtils
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -23,7 +26,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import ceui.lisa.R
 import ceui.lisa.utils.Common
 import ceui.loxia.hideKeyboard
-import ceui.pixiv.widgets.alertYesOrCancel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -104,13 +106,7 @@ class EmailBackupV3Fragment : Fragment() {
         codeInput.addTextChangedListener(afterChanged { if (!syncing) viewModel.onCodeChanged(it) })
         btnRequestCode.setOnClickListener { viewModel.requestCode() }
         btnSubmit.setOnClickListener { viewModel.submit() }
-        btnUnbind.setOnClickListener {
-            viewLifecycleOwner.lifecycleScope.launch {
-                if (alertYesOrCancel(getString(R.string.email_backup_unbind_confirm))) {
-                    viewModel.unbind()
-                }
-            }
-        }
+        btnUnbind.setOnClickListener { showUnbindConfirm() }
 
         viewModel.state.observe(viewLifecycleOwner) { render(it) }
         viewLifecycleOwner.lifecycleScope.launch {
@@ -180,6 +176,21 @@ class EmailBackupV3Fragment : Fragment() {
                 Common.restart()
             }
         }
+    }
+
+    /** 解绑二次确认：QMUIDialog，「解绑」按钮红色 (ACTION_PROP_NEGATIVE)。 */
+    private fun showUnbindConfirm() {
+        val act = activity ?: return
+        QMUIDialog.MessageDialogBuilder(act)
+            .setTitle(R.string.email_backup_unbind)
+            .setMessage(R.string.email_backup_unbind_confirm)
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addAction(R.string.string_142) { d, _ -> d.dismiss() }
+            .addAction(0, R.string.email_backup_unbind, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                viewModel.unbind()
+            }
+            .show()
     }
 
     private fun styleSegment(tv: TextView, selected: Boolean) {
