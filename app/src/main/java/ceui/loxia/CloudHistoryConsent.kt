@@ -38,11 +38,14 @@ object CloudHistoryConsent {
     }
 
     /**
-     * 首次启动(已登录)时弹一次同意框。已弹过 / 未登录则什么都不做。
-     * @return 是否真的弹了对话框(调用方可据此避免与其它启动弹窗叠加)。
+     * 首次进浏览历史页(已登录)时弹一次同意框。已弹过 / 未登录则什么都不做。
+     * @param onResolved 用户选了 KEEP/STOP 后回调,调用方可据此刷新列表(选 KEEP 后
+     *                   读取会切到云端,列表需要重新加载才能反映出来)。
+     * @return 是否真的弹了对话框。
      */
     @JvmStatic
-    fun maybeShowConsent(activity: FragmentActivity): Boolean {
+    @JvmOverloads
+    fun maybeShowConsent(activity: FragmentActivity, onResolved: (() -> Unit)? = null): Boolean {
         if (Shaft.sSettings.isCloudHistoryConsentShown) return false
         if (SessionManager.loggedInUid <= 0L) return false // 未登录不上传,不必打扰
         if (activity.isFinishing || activity.isDestroyed) return false
@@ -56,12 +59,14 @@ object CloudHistoryConsent {
                 Timber.tag(TAG).i("[consent] user chose STOP")
                 persist(enabled = false, consentShown = true)
                 d.dismiss()
+                onResolved?.invoke()
             }
             .addAction(0, activity.getString(R.string.cloud_history_consent_keep),
                 QMUIDialogAction.ACTION_PROP_POSITIVE) { d, _ ->
                 Timber.tag(TAG).i("[consent] user chose KEEP")
                 persist(enabled = true, consentShown = true)
                 d.dismiss()
+                onResolved?.invoke()
             }
             .create()
             .show()

@@ -69,7 +69,14 @@ class HistoryUserViewModel : ViewModel() {
                     SessionManager.loggedInUid, "user", null, cursor, PAGE_SIZE,
                 )
                 nextCursor = resp.nextCursor
-                return@withContext resp.items.mapNotNull { remoteToEntity(it) }
+                val mapped = resp.items.mapNotNull { remoteToEntity(it) }
+                // 刚同意云同步时云端可能还是空的(同意前的浏览没上传过)→ 回退本地,
+                // 否则列表会从本地历史突然刷成空白。
+                if (reset && mapped.isEmpty()) {
+                    forcedLocal = true
+                } else {
+                    return@withContext mapped
+                }
             } catch (ex: Exception) {
                 // 远端挂了 → 退回本地 general_table(同上个版本)。
                 Timber.w(ex, "remote user-history unavailable, falling back to local DB")
@@ -93,7 +100,8 @@ class HistoryUserViewModel : ViewModel() {
 
     fun loadMore(onDone: () -> Unit = {}) {
         viewModelScope.launch {
-            if (useRemote() && nextCursor == null) {
+            // forcedLocal 时说明已回退本地分页,不能被这条挡掉。
+            if (useRemote() && !forcedLocal && nextCursor == null) {
                 onDone()
                 return@launch
             }

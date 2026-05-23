@@ -82,7 +82,18 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
 
         // 云同步同意框挪到这里:用户点进浏览历史页才问一次「是否把记录存到云端」,
         // 而不是一进首页就弹(见 issue #889)。已弹过/未登录则什么都不做。
-        view.post { activity?.let { CloudHistoryConsent.maybeShowConsent(it) } }
+        // 选 KEEP 后读取会切到云端,所以选完要重刷一下子 tab。
+        view.post { activity?.let { CloudHistoryConsent.maybeShowConsent(it) { reloadAllTabs() } } }
+    }
+
+    /** 让现存的子 tab 各自重走 VM.loadFirst(),按当前 useRemote() 重读数据源。 */
+    private fun reloadAllTabs() {
+        childFragmentManager.fragments.forEach { child ->
+            when (child) {
+                is FragmentHistoryList -> child.reloadFromDao()
+                is FragmentHistoryUserList -> child.reloadFromDao()
+            }
+        }
     }
 
     /**
@@ -175,12 +186,7 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                                 .onFailure { Timber.e(it, "remote history clear failed") }
                         }
                     }
-                    childFragmentManager.fragments.forEach { child ->
-                        when (child) {
-                            is FragmentHistoryList -> child.reloadFromDao()
-                            is FragmentHistoryUserList -> child.reloadFromDao()
-                        }
-                    }
+                    reloadAllTabs()
                     Common.showToast(getString(R.string.string_220))
                     d.dismiss()
                 }

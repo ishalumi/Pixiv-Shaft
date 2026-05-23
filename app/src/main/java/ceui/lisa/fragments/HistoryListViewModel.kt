@@ -83,7 +83,14 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
                     SessionManager.loggedInUid, serverType, null, cursor, PAGE_SIZE,
                 )
                 nextCursor = resp.nextCursor
-                return@withContext resp.items.mapNotNull { remoteToEntity(it) }
+                val mapped = resp.items.mapNotNull { remoteToEntity(it) }
+                // 刚同意云同步时云端可能还是空的(同意前的浏览没上传过)→ 回退本地,
+                // 否则列表会从本地历史突然刷成空白。
+                if (reset && mapped.isEmpty()) {
+                    forcedLocal = true
+                } else {
+                    return@withContext mapped
+                }
             } catch (ex: Exception) {
                 // 远端挂了/超时 → 本会话退回本地 DAO,行为等同上个版本(本地一直在双写)。
                 Timber.w(ex, "remote history unavailable, falling back to local DB")
@@ -109,7 +116,8 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
     fun loadMore(onDone: () -> Unit = {}) {
         viewModelScope.launch {
             // 远端：没有游标就别再请求（否则 before=null 会把第一页重复拉回来）。
-            if (useRemote() && nextCursor == null) {
+            // forcedLocal 时说明已回退本地分页,不能被这条挡掉。
+            if (useRemote() && !forcedLocal && nextCursor == null) {
                 onDone()
                 return@launch
             }
