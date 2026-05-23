@@ -1456,4 +1456,15 @@
     <string name="translate_proxy_required_title">Ошибка перевода</string>
     <string name="translate_proxy_required_message">Перевод использует Google Translate; в некоторых регионах нужен прокси/VPN. Проверьте сеть и повторите.</string>
     <string name="string_ai_translate_in_progress">Задача перевода уже выполняется, подождите</string>
+    <!-- Облачная синхронизация истории просмотров (issue #889) -->
+    <string name="cloud_history_sync">Синхронизировать историю просмотров с облаком</string>
+    <string name="clear_cloud_history">Очистить историю просмотров в облаке</string>
+    <string name="cloud_history_consent_title">Синхронизация истории просмотров</string>
+    <string name="cloud_history_consent_message">Shaft синхронизирует просмотренные вами работы, новеллы и пользователей с облаком (видно только вам), чтобы вы могли просматривать историю на разных устройствах. Это можно отключить в настройках в любое время. Продолжить?</string>
+    <string name="cloud_history_consent_keep">Продолжить синхронизацию</string>
+    <string name="cloud_history_consent_stop">Отключить</string>
+    <string name="clear_cloud_history_confirm_title">Очистить историю в облаке</string>
+    <string name="clear_cloud_history_confirm_message">Будет удалена вся история просмотров, синхронизированная с облаком. Локальная история не затрагивается. Продолжить?</string>
+    <string name="clear_cloud_history_success">История просмотров в облаке очищена</string>
+    <string name="clear_cloud_history_failed">Не удалось очистить, попробуйте позже</string>
 </resources>

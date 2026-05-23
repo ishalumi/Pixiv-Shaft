@@ -59,6 +59,7 @@ import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivSearchParamUtil;
 import ceui.lisa.utils.Settings;
 import ceui.loxia.Client;
+import ceui.loxia.CloudHistoryConsent;
 import ceui.loxia.MoonSync;
 import ceui.pixiv.download.DownloadsRegistry;
 import ceui.pixiv.download.config.OverwritePolicy;
@@ -309,6 +310,28 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 @Override
                 public void onClick(View v) {
                     baseBind.saveHistory.performClick();
+                }
+            });
+
+            // 浏览记录云同步开关 + 清除云端记录 (issue #889)
+            baseBind.cloudHistorySync.setChecked(Shaft.sSettings.isCloudHistorySync());
+            baseBind.cloudHistorySync.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    CloudHistoryConsent.setEnabled(isChecked);
+                    Common.showToast(getString(R.string.string_428), 2);
+                }
+            });
+            baseBind.cloudHistorySyncRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.cloudHistorySync.performClick();
+                }
+            });
+            baseBind.clearCloudHistoryRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    CloudHistoryConsent.clearCloudHistory(mActivity, SessionManager.INSTANCE.getLoggedInUid());
                 }
             });
 

@@ -1550,4 +1550,15 @@
     <string name="translate_proxy_required_title">Translation failed</string>
     <string name="translate_proxy_required_message">Translation uses Google Translate, which requires a proxy/VPN in some regions. Check your network and retry.</string>
     <string name="string_ai_translate_in_progress">A translation task is already running, please wait</string>
+    <!-- Cloud browsing-history sync (issue #889) -->
+    <string name="cloud_history_sync">Sync browsing history to cloud</string>
+    <string name="clear_cloud_history">Clear cloud browsing history</string>
+    <string name="cloud_history_consent_title">Sync browsing history to cloud</string>
+    <string name="cloud_history_consent_message">Shaft syncs the works, novels and users you view to the cloud (visible only to you) so you can see your browsing history across devices. You can turn this off anytime in Settings. Continue?</string>
+    <string name="cloud_history_consent_keep">Keep syncing</string>
+    <string name="cloud_history_consent_stop">Turn off</string>
+    <string name="clear_cloud_history_confirm_title">Clear cloud browsing history</string>
+    <string name="clear_cloud_history_confirm_message">This deletes all browsing history synced to the cloud. Your local history is not affected. Continue?</string>
+    <string name="clear_cloud_history_success">Cloud browsing history cleared</string>
+    <string name="clear_cloud_history_failed">Failed to clear, please try again later</string>
 </resources>

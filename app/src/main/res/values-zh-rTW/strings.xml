@@ -1569,4 +1569,15 @@
     <string name="translate_proxy_required_title">翻譯失敗</string>
     <string name="translate_proxy_required_message">譯文走 Google Translate,部分地區需要自備代理。請確認代理可用後重試。</string>
     <string name="string_ai_translate_in_progress">翻譯任務正在進行中,請稍候</string>
+    <!-- 瀏覽記錄雲端同步 (issue #889) -->
+    <string name="cloud_history_sync">瀏覽記錄雲端同步</string>
+    <string name="clear_cloud_history">清除雲端瀏覽記錄</string>
+    <string name="cloud_history_consent_title">瀏覽記錄雲端同步</string>
+    <string name="cloud_history_consent_message">Shaft 會把你瀏覽過的作品、小說、使用者同步到雲端(僅你本人可見),用於跨裝置查看瀏覽記錄。可隨時在「設定」裡關閉。是否繼續?</string>
+    <string name="cloud_history_consent_keep">繼續同步</string>
+    <string name="cloud_history_consent_stop">關閉</string>
+    <string name="clear_cloud_history_confirm_title">清除雲端瀏覽記錄</string>
+    <string name="clear_cloud_history_confirm_message">將刪除已同步到雲端的全部瀏覽記錄,本機記錄不受影響。確定?</string>
+    <string name="clear_cloud_history_success">已清除雲端瀏覽記錄</string>
+    <string name="clear_cloud_history_failed">清除失敗,請稍後再試</string>
 </resources>

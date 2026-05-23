@@ -1463,4 +1463,15 @@
     <string name="translate_proxy_required_title">번역 실패</string>
     <string name="translate_proxy_required_message">번역은 Google Translate를 사용합니다. 일부 지역에서는 프록시/VPN가 필요할 수 있습니다. 네트워크를 확인 후 다시 시도하세요.</string>
     <string name="string_ai_translate_in_progress">번역 작업이 진행 중입니다. 잠시 기다려 주세요</string>
+    <!-- 열람 기록 클라우드 동기화 (issue #889) -->
+    <string name="cloud_history_sync">열람 기록 클라우드 동기화</string>
+    <string name="clear_cloud_history">클라우드 열람 기록 삭제</string>
+    <string name="cloud_history_consent_title">열람 기록 클라우드 동기화</string>
+    <string name="cloud_history_consent_message">Shaft는 회원님이 본 작품, 소설, 사용자를 클라우드에 동기화하여(본인만 볼 수 있음) 여러 기기에서 열람 기록을 확인할 수 있게 합니다. 설정에서 언제든지 끌 수 있습니다. 계속하시겠습니까?</string>
+    <string name="cloud_history_consent_keep">동기화 유지</string>
+    <string name="cloud_history_consent_stop">끄기</string>
+    <string name="clear_cloud_history_confirm_title">클라우드 열람 기록 삭제</string>
+    <string name="clear_cloud_history_confirm_message">클라우드에 동기화된 모든 열람 기록을 삭제합니다. 로컬 기록은 영향을 받지 않습니다. 계속하시겠습니까?</string>
+    <string name="clear_cloud_history_success">클라우드 열람 기록을 삭제했습니다</string>
+    <string name="clear_cloud_history_failed">삭제에 실패했습니다. 나중에 다시 시도하세요</string>
 </resources>

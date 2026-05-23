@@ -1555,4 +1555,15 @@
     <string name="translate_proxy_required_title">翻訳に失敗しました</string>
     <string name="translate_proxy_required_message">翻訳は Google Translate を利用しています。地域によってはプロキシ/VPN が必要です。ネットワーク環境をご確認のうえ再試行してください。</string>
     <string name="string_ai_translate_in_progress">翻訳タスクが進行中です。しばらくお待ちください</string>
+    <!-- 閲覧履歴のクラウド同期 (issue #889) -->
+    <string name="cloud_history_sync">閲覧履歴をクラウドに同期</string>
+    <string name="clear_cloud_history">クラウドの閲覧履歴を削除</string>
+    <string name="cloud_history_consent_title">閲覧履歴をクラウドに同期</string>
+    <string name="cloud_history_consent_message">Shaft は閲覧した作品・小説・ユーザーをクラウドに同期し(本人のみ閲覧可能)、デバイス間で閲覧履歴を確認できるようにします。設定でいつでもオフにできます。続けますか？</string>
+    <string name="cloud_history_consent_keep">同期を続ける</string>
+    <string name="cloud_history_consent_stop">オフにする</string>
+    <string name="clear_cloud_history_confirm_title">クラウドの閲覧履歴を削除</string>
+    <string name="clear_cloud_history_confirm_message">クラウドに同期された閲覧履歴をすべて削除します。ローカルの履歴には影響しません。よろしいですか？</string>
+    <string name="clear_cloud_history_success">クラウドの閲覧履歴を削除しました</string>
+    <string name="clear_cloud_history_failed">削除に失敗しました。後でもう一度お試しください</string>
 </resources>

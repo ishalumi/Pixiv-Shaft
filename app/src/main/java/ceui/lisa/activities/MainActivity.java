@@ -287,11 +287,13 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         baseBind.viewPager.setCurrentItem(getNavigationInitPosition());
         Manager.get().restore();
 
-        // Show rate dialog after a short delay to avoid disrupting app startup
-        baseBind.viewPager.postDelayed(() ->
-                ceui.pixiv.widgets.RateAppDialog.Companion.showIfNeeded(getSupportFragmentManager()),
-                2000
-        );
+        // Show rate dialog after a short delay to avoid disrupting app startup.
+        // 浏览记录云同步的首次同意框优先;弹了就不再叠加评分弹窗(见 issue #889)。
+        baseBind.viewPager.postDelayed(() -> {
+            if (!ceui.loxia.CloudHistoryConsent.maybeShowConsent(mActivity)) {
+                ceui.pixiv.widgets.RateAppDialog.Companion.showIfNeeded(getSupportFragmentManager());
+            }
+        }, 2000);
     }
 
     @Override

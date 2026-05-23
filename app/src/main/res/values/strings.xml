@@ -2001,4 +2001,15 @@
     <string name="email_backup_do_restore">恢复并登录</string>
     <string name="email_backup_settings_entry">账号备份到邮箱</string>
     <string name="email_backup_login_entry">已备份过？从邮箱恢复登录</string>
+    <!-- 浏览记录云同步 (issue #889) -->
+    <string name="cloud_history_sync">浏览记录云同步</string>
+    <string name="clear_cloud_history">清除云端浏览记录</string>
+    <string name="cloud_history_consent_title">浏览记录云同步</string>
+    <string name="cloud_history_consent_message">Shaft 会把你浏览过的作品、小说、用户同步到云端(仅你本人可见),用于跨设备查看浏览记录。可随时在「设置」里关闭。是否继续?</string>
+    <string name="cloud_history_consent_keep">继续同步</string>
+    <string name="cloud_history_consent_stop">关闭</string>
+    <string name="clear_cloud_history_confirm_title">清除云端浏览记录</string>
+    <string name="clear_cloud_history_confirm_message">将删除已同步到云端的全部浏览记录,本地记录不受影响。确定?</string>
+    <string name="clear_cloud_history_success">已清除云端浏览记录</string>
+    <string name="clear_cloud_history_failed">清除失败,请稍后再试</string>
 </resources>

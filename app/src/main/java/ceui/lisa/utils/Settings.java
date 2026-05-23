@@ -154,6 +154,11 @@ public class Settings {
 
     private boolean saveViewHistory = true;
 
+    // 浏览记录云同步(pixshaft-api)。默认开启,但首次会弹一次同意框让用户选择是否关闭。
+    private boolean cloudHistorySync = true;
+    // 同意框是否已经弹过(每台设备一次)。
+    private boolean cloudHistoryConsentShown = false;
+
     private boolean r18DivideSave = false;
 
     //AI作品下载至单独的目录
@@ -376,6 +381,22 @@ public class Settings {
 
     public void setSaveViewHistory(boolean saveViewHistory) {
         this.saveViewHistory = saveViewHistory;
+    }
+
+    public boolean isCloudHistorySync() {
+        return cloudHistorySync;
+    }
+
+    public void setCloudHistorySync(boolean cloudHistorySync) {
+        this.cloudHistorySync = cloudHistorySync;
+    }
+
+    public boolean isCloudHistoryConsentShown() {
+        return cloudHistoryConsentShown;
+    }
+
+    public void setCloudHistoryConsentShown(boolean cloudHistoryConsentShown) {
+        this.cloudHistoryConsentShown = cloudHistoryConsentShown;
     }
 
     public String getSearchFilter() {

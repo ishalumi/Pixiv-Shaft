@@ -1,5 +1,6 @@
 package ceui.pixiv.db
 
+import ceui.lisa.activities.Shaft
 import ceui.loxia.Client
 import ceui.loxia.HistoryReportBody
 import ceui.loxia.HistoryReportItem
@@ -39,6 +40,7 @@ object HistoryReporter {
     private var flushJob: Job? = null
 
     fun enqueue(targetType: String, targetId: Long, payload: JsonElement?) {
+        if (!Shaft.sSettings.isCloudHistorySync()) return // user opted out of cloud sync
         if (SessionManager.loggedInUid <= 0L) return // history is per-viewer
         // drop oldest if the backend has been unreachable and the queue piled up
         while (queue.size >= MAX_QUEUE) queue.poll()
@@ -58,9 +60,19 @@ object HistoryReporter {
         }
     }
 
+    /** Drops anything buffered but not yet sent (called when the user turns sync off). */
+    fun clearPending() {
+        queue.clear()
+        flushJob?.cancel()
+    }
+
     /** Drains the queue to the server in MAX_BATCH chunks. Safe to call anytime. */
     suspend fun flush() {
         flushMutex.withLock {
+            if (!Shaft.sSettings.isCloudHistorySync()) {
+                queue.clear()
+                return
+            }
             val uid = SessionManager.loggedInUid
             if (uid <= 0L) {
                 queue.clear()

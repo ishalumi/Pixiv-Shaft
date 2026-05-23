@@ -1454,4 +1454,15 @@
     <string name="translate_proxy_required_title">Çeviri başarısız</string>
     <string name="translate_proxy_required_message">Çeviri Google Translate kullanır; bazı bölgelerde proxy/VPN gerekir. Ağınızı kontrol edip tekrar deneyin.</string>
     <string name="string_ai_translate_in_progress">Bir çeviri görevi zaten çalışıyor, lütfen bekleyin</string>
+    <!-- Tarama geçmişi bulut eşitlemesi (issue #889) -->
+    <string name="cloud_history_sync">Tarama geçmişini buluta eşitle</string>
+    <string name="clear_cloud_history">Bulut tarama geçmişini temizle</string>
+    <string name="cloud_history_consent_title">Tarama geçmişini buluta eşitle</string>
+    <string name="cloud_history_consent_message">Shaft, görüntülediğiniz eserleri, romanları ve kullanıcıları buluta eşitler (yalnızca siz görebilirsiniz), böylece tarama geçmişinizi cihazlar arasında görebilirsiniz. İstediğiniz zaman Ayarlar\'dan kapatabilirsiniz. Devam edilsin mi?</string>
+    <string name="cloud_history_consent_keep">Eşitlemeye devam et</string>
+    <string name="cloud_history_consent_stop">Kapat</string>
+    <string name="clear_cloud_history_confirm_title">Bulut tarama geçmişini temizle</string>
+    <string name="clear_cloud_history_confirm_message">Buluta eşitlenen tüm tarama geçmişi silinir. Yerel geçmiş etkilenmez. Devam edilsin mi?</string>
+    <string name="clear_cloud_history_success">Bulut tarama geçmişi temizlendi</string>
+    <string name="clear_cloud_history_failed">Temizlenemedi, lütfen daha sonra tekrar deneyin</string>
 </resources>
