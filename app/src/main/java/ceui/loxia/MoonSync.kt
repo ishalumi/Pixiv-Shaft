@@ -331,6 +331,13 @@ object MoonSync {
     ): Boolean = withContext(Dispatchers.IO) {
         Timber.tag(TAG).d("[apply] start: cloud v%d", cloud.version)
         val payloadObj = cloud.payload
+        // 「浏览记录同意框是否已弹过」是按设备的隐私状态(见 Settings.cloudHistoryConsentShown
+        // 注释:每台设备一次)。从云端 payload 里剔掉,否则应用别的设备上传的配置会把
+        // consentShown=true 带过来,新设备进浏览历史就再也不弹同意框了。
+        val settingsEl = payloadObj.get("settings")
+        if (settingsEl != null && settingsEl.isJsonObject) {
+            settingsEl.asJsonObject.remove("cloudHistoryConsentShown")
+        }
         val payloadJson = payloadObj.toString()
 
         val ok = BackupUtils.restoreBackups(activity, payloadJson)
