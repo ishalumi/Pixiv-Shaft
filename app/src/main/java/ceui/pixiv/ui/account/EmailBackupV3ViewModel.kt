@@ -71,7 +71,8 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     sealed class Effect {
         data class Toast(val msg: String) : Effect()
         object Finish : Effect()        // backup done → close the page
-        object RestartApp : Effect()    // restore done → relaunch as logged-in
+        // restore done → pull cloud settings (ask to apply) like the web login, then relaunch
+        data class RestoreLoggedIn(val uid: Long) : Effect()
         object HideKeyboard : Effect()  // any failure → drop the IME so the red error is visible
     }
 
@@ -221,8 +222,10 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
         }
         withContext(Dispatchers.IO) { persistLogin(account) }
         showInfo("恢复成功")
-        emit(Effect.Toast("恢复成功，正在重新登录"))
-        emit(Effect.RestartApp)
+        // Hand off to the same cloud-settings sync the OAuth login uses; it (or its
+        // onComplete) drives the relaunch. No "正在重新登录" toast here — a settings
+        // prompt may appear first.
+        emit(Effect.RestoreLoggedIn(account.user?.id ?: 0L))
     }
 
     /**

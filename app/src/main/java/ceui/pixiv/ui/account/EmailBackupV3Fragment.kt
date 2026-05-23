@@ -25,6 +25,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import ceui.lisa.R
 import ceui.lisa.utils.Common
+import ceui.loxia.MoonSync
 import ceui.loxia.hideKeyboard
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -171,9 +172,14 @@ class EmailBackupV3Fragment : Fragment() {
             is EmailBackupV3ViewModel.Effect.Toast -> Common.showToast(e.msg)
             EmailBackupV3ViewModel.Effect.HideKeyboard -> hideKeyboard()
             EmailBackupV3ViewModel.Effect.Finish -> requireActivity().finish()
-            EmailBackupV3ViewModel.Effect.RestartApp -> {
-                requireActivity().finish()
-                Common.restart()
+            is EmailBackupV3ViewModel.Effect.RestoreLoggedIn -> {
+                // 和官网浏览器登录一致:恢复登录后也拉一次云端设置,问用户要不要应用。
+                // 用户点「应用」则 MoonSync 自行重启;否则 onComplete 收尾重启进已登录态。
+                val act = requireActivity()
+                MoonSync.syncFromCloudOnLogin(act, e.uid) {
+                    act.finish()
+                    Common.restart()
+                }
             }
         }
     }
