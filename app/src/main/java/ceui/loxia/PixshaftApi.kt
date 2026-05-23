@@ -42,7 +42,58 @@ interface PixshaftApi {
         @Path("uid") uid: Long,
         @Query("type") type: String?,
     ): HistoryDeleteAck
+
+    // ── email-bound account backup ──
+    // All four are signed with X-Shaft-Sign by the OkHttp interceptor in
+    // ClientManager (the `/v1/account/` path match). Server: src/account.js.
+
+    /** Backup (logged-in): mail a 6-digit code to verify ownership of [email]. */
+    @POST("v1/account/bind/request")
+    suspend fun bindRequest(@Body body: EmailReq): EmailAck
+
+    /** Backup: with a valid code, store the encrypted [BindConfirmReq.account]. */
+    @POST("v1/account/bind/confirm")
+    suspend fun bindConfirm(@Body body: BindConfirmReq): BindConfirmAck
+
+    /** Restore (login page): mail a code IF [email] has a backup ([RestoreRequestAck.found]). */
+    @POST("v1/account/restore/request")
+    suspend fun restoreRequest(@Body body: EmailReq): RestoreRequestAck
+
+    /** Restore: with a valid code, hand back the stored account JSON. */
+    @POST("v1/account/restore/confirm")
+    suspend fun restoreConfirm(@Body body: RestoreConfirmReq): RestoreConfirmResp
 }
+
+data class EmailReq(val email: String)
+
+data class EmailAck(val ok: Boolean = false)
+
+data class BindConfirmReq(
+    val email: String,
+    val code: String,
+    val account: AccountResponse,
+)
+
+data class BindConfirmAck(
+    val ok: Boolean = false,
+    val uid: Long? = null,
+)
+
+data class RestoreRequestAck(
+    val ok: Boolean = false,
+    val found: Boolean = false,
+)
+
+data class RestoreConfirmReq(
+    val email: String,
+    val code: String,
+)
+
+data class RestoreConfirmResp(
+    val uid: Long? = null,
+    val account: AccountResponse? = null,
+    val updatedAt: Long = 0L,
+)
 
 data class HistoryReportBody(
     val items: List<HistoryReportItem>,

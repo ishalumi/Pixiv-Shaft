@@ -295,6 +295,22 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             intent.getStringExtra("nllb_model_name"));
                 case "绑定邮箱":
                     return new FragmentEditAccount();
+                case "邮箱备份": {
+                    // V3 账号备份/恢复页（pixshaft-api /v1/account/*）。与上面
+                    // Pixiv 原生「绑定邮箱」(改 pixiv-id/邮箱/密码) 是两回事。
+                    // mode = "backup"(设置入口) | "restore"(登录页入口)。
+                    ceui.pixiv.ui.account.EmailBackupV3Fragment backupFragment =
+                            new ceui.pixiv.ui.account.EmailBackupV3Fragment();
+                    String mode = intent.getStringExtra(
+                            ceui.pixiv.ui.account.EmailBackupV3Fragment.ARG_MODE);
+                    if (mode != null) {
+                        android.os.Bundle args = new android.os.Bundle();
+                        args.putString(
+                                ceui.pixiv.ui.account.EmailBackupV3Fragment.ARG_MODE, mode);
+                        backupFragment.setArguments(args);
+                    }
+                    return backupFragment;
+                }
                 case "编辑个人资料":
                     return new FragmentEditFile();
                 case "热门直播":

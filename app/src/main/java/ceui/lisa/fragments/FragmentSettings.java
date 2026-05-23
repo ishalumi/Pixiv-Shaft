@@ -123,6 +123,16 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            baseBind.accountBackup.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(mContext, TemplateActivity.class);
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "邮箱备份");
+                    intent.putExtra("mode", "backup");
+                    startActivity(intent);
+                }
+            });
+
             baseBind.editFile.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {

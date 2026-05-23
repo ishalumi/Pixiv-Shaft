@@ -1984,4 +1984,21 @@
     <string name="tab_notifications">通知</string>
     <string name="tab_info">公告</string>
     <string name="notification_view_more_chip">展开全部 · %1$s</string>
+
+    <!-- email-bound account backup / restore (V3) -->
+    <string name="email_backup_title">账号备份</string>
+    <string name="email_backup_seg_backup">备份当前账号</string>
+    <string name="email_backup_seg_restore">从邮箱恢复</string>
+    <string name="email_backup_desc_backup">将当前登录的 Pixiv 账号加密备份到你的邮箱。换设备或重装后，凭邮箱验证码即可一键恢复登录，无需再次走 Pixiv 授权。</string>
+    <string name="email_backup_desc_restore">输入此前备份过的邮箱，通过邮箱验证码恢复登录状态。</string>
+    <string name="email_backup_email_label">邮箱地址</string>
+    <string name="email_backup_email_hint">you@example.com</string>
+    <string name="email_backup_code_hint">6 位邮箱验证码</string>
+    <string name="email_backup_get_code">获取验证码</string>
+    <string name="email_backup_resend">重新发送验证码</string>
+    <string name="email_backup_resend_in">%1$d 秒后可重新发送</string>
+    <string name="email_backup_do_backup">备份到此邮箱</string>
+    <string name="email_backup_do_restore">恢复并登录</string>
+    <string name="email_backup_settings_entry">账号备份到邮箱</string>
+    <string name="email_backup_login_entry">已备份过？从邮箱恢复登录</string>
 </resources>

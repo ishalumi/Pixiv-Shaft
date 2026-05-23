@@ -91,6 +91,20 @@
                         <View style="@style/half_divider" />
 
                         <RelativeLayout
+                            android:id="@+id/account_backup"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/email_backup_settings_entry" />
+
+                            <TextView style="@style/setting_right_arrow" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
                             android:id="@+id/edit_file"
                             style="@style/ripple_rela">
 

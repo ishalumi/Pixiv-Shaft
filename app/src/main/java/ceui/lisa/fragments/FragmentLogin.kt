@@ -305,6 +305,13 @@ class FragmentLogin : BaseFragment<ActivityLoginBinding>() {
             }
         }
 
+        page.restoreFromEmail.setOnClickListener {
+            startActivity(Intent(mContext, TemplateActivity::class.java).apply {
+                putExtra(TemplateActivity.EXTRA_FRAGMENT, "邮箱备份")
+                putExtra("mode", "restore")
+            })
+        }
+
         setupTermsText(page.firstText)
 
         viewModel.isChecked.observe(viewLifecycleOwner) { page.checkboxOne.isSelected = it }
