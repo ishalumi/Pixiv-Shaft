@@ -1561,4 +1561,25 @@
     <string name="clear_cloud_history_confirm_message">This deletes all browsing history synced to the cloud. Your local history is not affected. Continue?</string>
     <string name="clear_cloud_history_success">Cloud browsing history cleared</string>
     <string name="clear_cloud_history_failed">Failed to clear, please try again later</string>
+    <!-- email-bound account backup -->
+    <string name="email_backup_title">Account Backup</string>
+    <string name="email_backup_seg_backup">Back up current account</string>
+    <string name="email_backup_seg_restore">Restore from email</string>
+    <string name="email_backup_desc_backup">Encrypt and back up the currently logged-in Pixiv account to your email. After switching devices or reinstalling, just enter the email verification code to restore your login in one tap — no need to go through Pixiv authorization again.</string>
+    <string name="email_backup_desc_restore">Enter an email you previously backed up to, and restore your login with the email verification code.</string>
+    <string name="email_backup_email_label">Email address</string>
+    <string name="email_backup_email_hint">you@example.com</string>
+    <string name="email_backup_code_hint">6-digit email code</string>
+    <string name="email_backup_get_code">Get code</string>
+    <string name="email_backup_resend">Resend code</string>
+    <string name="email_backup_resend_in">Resend in %1$d s</string>
+    <string name="email_backup_do_backup">Back up to this email</string>
+    <string name="email_backup_do_restore">Restore and sign in</string>
+    <string name="email_backup_settings_entry">Back up account to email</string>
+    <string name="email_backup_login_entry">Already backed up? Restore from email</string>
+    <string name="email_backup_bound_title">Backed up</string>
+    <string name="email_backup_bound_email">Encrypted backup to %1$s</string>
+    <string name="email_backup_bound_time">Backed up on %1$s</string>
+    <string name="email_backup_unbind">Unbind</string>
+    <string name="email_backup_unbind_confirm">Unbinding deletes the cloud backup; you won\'t be able to restore with this email anymore. Your current login on this device is unaffected. Unbind?</string>
 </resources>

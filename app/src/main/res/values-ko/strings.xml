@@ -1474,4 +1474,25 @@
     <string name="clear_cloud_history_confirm_message">클라우드에 동기화된 모든 열람 기록을 삭제합니다. 로컬 기록은 영향을 받지 않습니다. 계속하시겠습니까?</string>
     <string name="clear_cloud_history_success">클라우드 열람 기록을 삭제했습니다</string>
     <string name="clear_cloud_history_failed">삭제에 실패했습니다. 나중에 다시 시도하세요</string>
+    <!-- email-bound account backup -->
+    <string name="email_backup_title">계정 백업</string>
+    <string name="email_backup_seg_backup">현재 계정 백업</string>
+    <string name="email_backup_seg_restore">이메일에서 복원</string>
+    <string name="email_backup_desc_backup">현재 로그인된 Pixiv 계정을 암호화하여 이메일에 백업합니다. 기기 변경이나 재설치 후에도 이메일 인증 코드만 입력하면 한 번에 로그인을 복원할 수 있으며, Pixiv 인증을 다시 거칠 필요가 없습니다.</string>
+    <string name="email_backup_desc_restore">이전에 백업한 이메일을 입력하고 이메일 인증 코드로 로그인 상태를 복원합니다.</string>
+    <string name="email_backup_email_label">이메일 주소</string>
+    <string name="email_backup_email_hint">you@example.com</string>
+    <string name="email_backup_code_hint">6자리 이메일 인증 코드</string>
+    <string name="email_backup_get_code">코드 받기</string>
+    <string name="email_backup_resend">코드 재전송</string>
+    <string name="email_backup_resend_in">%1$d초 후 재전송 가능</string>
+    <string name="email_backup_do_backup">이 이메일로 백업</string>
+    <string name="email_backup_do_restore">복원하고 로그인</string>
+    <string name="email_backup_settings_entry">계정을 이메일에 백업</string>
+    <string name="email_backup_login_entry">이미 백업했나요? 이메일에서 복원</string>
+    <string name="email_backup_bound_title">백업됨</string>
+    <string name="email_backup_bound_email">%1$s(으)로 암호화 백업됨</string>
+    <string name="email_backup_bound_time">백업 시간 %1$s</string>
+    <string name="email_backup_unbind">연결 해제</string>
+    <string name="email_backup_unbind_confirm">연결을 해제하면 클라우드 백업이 삭제되어 이 이메일로 복원할 수 없습니다. 이 기기의 현재 로그인에는 영향을 주지 않습니다. 해제할까요?</string>
 </resources>

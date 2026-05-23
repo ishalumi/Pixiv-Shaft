@@ -103,6 +103,7 @@
     <color name="v3_text_1">#F4F4F8</color>
     <color name="v3_text_2">#9EF4F4F8</color>
     <color name="v3_text_3">#5CF4F4F8</color>
+    <color name="v3_danger">#FF6369</color>
     <color name="v3_pink">#FF2D78</color>
     <color name="v3_gold">#FFC233</color>
     <color name="v3_blue">#3D8BFD</color>

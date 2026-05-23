@@ -11,6 +11,8 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.core.view.updatePadding
+import com.blankj.utilcode.util.BarUtils
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -20,7 +22,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import ceui.lisa.R
 import ceui.lisa.utils.Common
+import ceui.loxia.hideKeyboard
+import ceui.pixiv.widgets.alertYesOrCancel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * V3 账号备份 / 恢复页。承载在 [ceui.lisa.activities.TemplateActivity]（"邮箱备份"）。
@@ -52,6 +59,11 @@ class EmailBackupV3Fragment : Fragment() {
     private lateinit var btnSubmit: TextView
     private lateinit var statusText: TextView
     private lateinit var progress: ProgressBar
+    private lateinit var formContainer: View
+    private lateinit var boundCard: View
+    private lateinit var boundEmail: TextView
+    private lateinit var boundTime: TextView
+    private lateinit var btnUnbind: TextView
 
     /** Guards the text watchers while we push VM state back into the fields. */
     private var syncing = false
@@ -65,8 +77,11 @@ class EmailBackupV3Fragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<Toolbar>(R.id.toolbar)
-            .setNavigationOnClickListener { requireActivity().finish() }
+        view.findViewById<Toolbar>(R.id.toolbar).apply {
+            // EdgeToEdge host: pad the status bar at runtime instead of fitsSystemWindows.
+            updatePadding(top = BarUtils.getStatusBarHeight())
+            setNavigationOnClickListener { requireActivity().finish() }
+        }
 
         segBackup = view.findViewById(R.id.seg_backup)
         segRestore = view.findViewById(R.id.seg_restore)
@@ -77,6 +92,11 @@ class EmailBackupV3Fragment : Fragment() {
         btnSubmit = view.findViewById(R.id.btn_submit)
         statusText = view.findViewById(R.id.status_text)
         progress = view.findViewById(R.id.progress)
+        formContainer = view.findViewById(R.id.form_container)
+        boundCard = view.findViewById(R.id.bound_card)
+        boundEmail = view.findViewById(R.id.bound_email)
+        boundTime = view.findViewById(R.id.bound_time)
+        btnUnbind = view.findViewById(R.id.btn_unbind)
 
         segBackup.setOnClickListener { viewModel.setMode(EmailBackupV3ViewModel.Mode.BACKUP) }
         segRestore.setOnClickListener { viewModel.setMode(EmailBackupV3ViewModel.Mode.RESTORE) }
@@ -84,6 +104,13 @@ class EmailBackupV3Fragment : Fragment() {
         codeInput.addTextChangedListener(afterChanged { if (!syncing) viewModel.onCodeChanged(it) })
         btnRequestCode.setOnClickListener { viewModel.requestCode() }
         btnSubmit.setOnClickListener { viewModel.submit() }
+        btnUnbind.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                if (alertYesOrCancel(getString(R.string.email_backup_unbind_confirm))) {
+                    viewModel.unbind()
+                }
+            }
+        }
 
         viewModel.state.observe(viewLifecycleOwner) { render(it) }
         viewLifecycleOwner.lifecycleScope.launch {
@@ -94,6 +121,15 @@ class EmailBackupV3Fragment : Fragment() {
     }
 
     private fun render(st: EmailBackupV3ViewModel.UiState) {
+        // Already-backed-up account: show the "已备份" card and hide the whole form.
+        boundCard.visibility = if (st.bound) View.VISIBLE else View.GONE
+        formContainer.visibility = if (!st.bound && !st.checkingStatus) View.VISIBLE else View.GONE
+        if (st.bound) {
+            boundEmail.text = getString(R.string.email_backup_bound_email, st.boundEmail.orEmpty())
+            boundTime.visibility = if (st.boundAt > 0L) View.VISIBLE else View.GONE
+            boundTime.text = getString(R.string.email_backup_bound_time, formatBackupTime(st.boundAt))
+        }
+
         val isBackup = st.mode == EmailBackupV3ViewModel.Mode.BACKUP
         styleSegment(segBackup, isBackup)
         styleSegment(segRestore, !isBackup)
@@ -122,12 +158,22 @@ class EmailBackupV3Fragment : Fragment() {
 
         statusText.visibility = if (st.status.isNullOrEmpty()) View.GONE else View.VISIBLE
         statusText.text = st.status.orEmpty()
-        progress.visibility = if (st.loading) View.VISIBLE else View.GONE
+        statusText.setTextColor(
+            ContextCompat.getColor(
+                requireContext(),
+                if (st.statusIsError) R.color.v3_danger else R.color.v3_text_3
+            )
+        )
+        progress.visibility = if (st.loading || st.checkingStatus) View.VISIBLE else View.GONE
     }
+
+    private fun formatBackupTime(epochMs: Long): String =
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(epochMs))
 
     private fun onEffect(e: EmailBackupV3ViewModel.Effect) {
         when (e) {
             is EmailBackupV3ViewModel.Effect.Toast -> Common.showToast(e.msg)
+            EmailBackupV3ViewModel.Effect.HideKeyboard -> hideKeyboard()
             EmailBackupV3ViewModel.Effect.Finish -> requireActivity().finish()
             EmailBackupV3ViewModel.Effect.RestartApp -> {
                 requireActivity().finish()

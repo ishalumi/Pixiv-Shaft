@@ -14,6 +14,7 @@ import ceui.loxia.BindConfirmReq
 import ceui.loxia.Client
 import ceui.loxia.EmailReq
 import ceui.loxia.RestoreConfirmReq
+import ceui.loxia.UidReq
 import ceui.pixiv.session.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,15 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
         val resendCountdown: Int = 0,
         val loading: Boolean = false,
         val status: String? = null,
+        /** True when [status] describes a failure (rendered in red), false for info/success. */
+        val statusIsError: Boolean = false,
+        // BACKUP-only: the logged-in account already has a cloud backup. While
+        // [checkingStatus] is true we're probing the server; once [bound] is true
+        // the UI shows the "已备份" card instead of the backup/restore form.
+        val checkingStatus: Boolean = false,
+        val bound: Boolean = false,
+        val boundEmail: String? = null, // masked, e.g. f***s@gmail.com
+        val boundAt: Long = 0L,
     ) {
         val canRequestCode: Boolean
             get() = !loading && resendCountdown == 0 && isValidEmail(email)
@@ -60,8 +70,9 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
 
     sealed class Effect {
         data class Toast(val msg: String) : Effect()
-        object Finish : Effect()       // backup done → close the page
-        object RestartApp : Effect()   // restore done → relaunch as logged-in
+        object Finish : Effect()        // backup done → close the page
+        object RestartApp : Effect()    // restore done → relaunch as logged-in
+        object HideKeyboard : Effect()  // any failure → drop the IME so the red error is visible
     }
 
     private val gson = Gson()
@@ -74,15 +85,74 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
 
     private var countdownJob: Job? = null
 
+    init {
+        if (initialMode == Mode.BACKUP) checkBoundStatus()
+    }
+
     private fun cur() = _state.value!!
     private fun update(block: (UiState) -> UiState) {
         _state.value = block(cur())
     }
 
+    /** Clears the spinner, shows [msg] as a failure (red), and drops the keyboard. */
+    private fun showError(msg: String) {
+        update { it.copy(loading = false, status = msg, statusIsError = true) }
+        emit(Effect.HideKeyboard)
+    }
+
+    /** Clears the spinner and shows [msg] as neutral info/success. */
+    private fun showInfo(msg: String) =
+        update { it.copy(loading = false, status = msg, statusIsError = false) }
+
     fun setMode(mode: Mode) {
         if (cur().mode == mode) return
         countdownJob?.cancel()
         _state.value = UiState(mode = mode) // mode switch resets the whole flow
+        if (mode == Mode.BACKUP) checkBoundStatus()
+    }
+
+    /** BACKUP only: ask the server whether this logged-in account is already backed up. */
+    private fun checkBoundStatus() {
+        val uid = SessionManager.loggedInUid
+        if (uid <= 0L) return // not logged in → leave the empty form as-is
+        update { it.copy(checkingStatus = true) }
+        viewModelScope.launch {
+            try {
+                val st = Client.pixshaft.bindStatus(UidReq(uid))
+                if (cur().mode != Mode.BACKUP) return@launch // mode switched mid-probe
+                update {
+                    it.copy(
+                        checkingStatus = false,
+                        bound = st.bound,
+                        boundEmail = st.emailMasked,
+                        boundAt = st.updatedAt,
+                    )
+                }
+            } catch (e: Exception) {
+                // Background probe; on failure fall back to the form silently.
+                Timber.w(e, "bind status check failed")
+                if (cur().mode != Mode.BACKUP) return@launch
+                update { it.copy(checkingStatus = false, bound = false) }
+            }
+        }
+    }
+
+    /** Unbind: delete this account's cloud backup, then fall back to the empty form. */
+    fun unbind() {
+        val uid = SessionManager.loggedInUid
+        if (uid <= 0L || cur().loading) return
+        update { it.copy(loading = true, status = null, statusIsError = false) }
+        viewModelScope.launch {
+            try {
+                Client.pixshaft.bindDelete(UidReq(uid))
+                update { it.copy(loading = false, bound = false, boundEmail = null, boundAt = 0L) }
+                emit(Effect.Toast("已解绑，云端备份已删除"))
+            } catch (e: Exception) {
+                // The bound card has no inline status row → surface failures as a toast.
+                update { it.copy(loading = false) }
+                emit(Effect.Toast(errorText(e)))
+            }
+        }
     }
 
     fun onEmailChanged(value: String) = update { it.copy(email = value.trim()) }
@@ -95,7 +165,7 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
             emit(Effect.Toast("请先登录 Pixiv 账号后再备份"))
             return
         }
-        update { it.copy(loading = true, status = null) }
+        update { it.copy(loading = true, status = null, statusIsError = false) }
         viewModelScope.launch {
             try {
                 if (st.mode == Mode.BACKUP) {
@@ -106,11 +176,11 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
                     if (ack.found) {
                         onCodeSent(st.email)
                     } else {
-                        update { it.copy(loading = false, status = "该邮箱还没有账号备份") }
+                        showError("该邮箱还没有账号备份")
                     }
                 }
             } catch (e: Exception) {
-                update { it.copy(loading = false, status = errorText(e)) }
+                showError(errorText(e))
             }
         }
     }
@@ -118,12 +188,12 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     fun submit() {
         val st = cur()
         if (!st.canSubmit) return
-        update { it.copy(loading = true, status = null) }
+        update { it.copy(loading = true, status = null, statusIsError = false) }
         viewModelScope.launch {
             try {
                 if (st.mode == Mode.BACKUP) doBackup(st) else doRestore(st)
             } catch (e: Exception) {
-                update { it.copy(loading = false, status = errorText(e)) }
+                showError(errorText(e))
             }
         }
     }
@@ -131,13 +201,13 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     private suspend fun doBackup(st: UiState) {
         val account = SessionManager.loggedInAccount.value
         if (account?.access_token == null) {
-            update { it.copy(loading = false, status = "登录状态已失效，请重新登录") }
+            showError("登录状态已失效，请重新登录")
             return
         }
         Client.pixshaft.bindConfirm(BindConfirmReq(st.email, st.code, account))
         // Clear loading before the one-shot effects so the UI never stays stuck
         // on the spinner if the page was backgrounded and missed Finish.
-        update { it.copy(loading = false, status = null) }
+        update { it.copy(loading = false, status = null, statusIsError = false) }
         emit(Effect.Toast("已备份到 ${st.email}"))
         emit(Effect.Finish)
     }
@@ -146,11 +216,11 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
         val resp = Client.pixshaft.restoreConfirm(RestoreConfirmReq(st.email, st.code))
         val account = resp.account
         if (account?.access_token == null) {
-            update { it.copy(loading = false, status = "备份数据异常，无法恢复") }
+            showError("备份数据异常，无法恢复")
             return
         }
         withContext(Dispatchers.IO) { persistLogin(account) }
-        update { it.copy(loading = false, status = "恢复成功") }
+        showInfo("恢复成功")
         emit(Effect.Toast("恢复成功，正在重新登录"))
         emit(Effect.RestartApp)
     }
@@ -178,7 +248,7 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     }
 
     private fun onCodeSent(email: String) {
-        update { it.copy(loading = false, codeSent = true, status = "验证码已发送至 $email") }
+        update { it.copy(loading = false, codeSent = true, status = "验证码已发送至 $email", statusIsError = false) }
         startCountdown()
     }
 

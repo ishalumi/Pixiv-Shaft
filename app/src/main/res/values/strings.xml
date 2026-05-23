@@ -2001,6 +2001,11 @@
     <string name="email_backup_do_restore">恢复并登录</string>
     <string name="email_backup_settings_entry">账号备份到邮箱</string>
     <string name="email_backup_login_entry">已备份过？从邮箱恢复登录</string>
+    <string name="email_backup_bound_title">已备份</string>
+    <string name="email_backup_bound_email">已加密备份到 %1$s</string>
+    <string name="email_backup_bound_time">备份时间 %1$s</string>
+    <string name="email_backup_unbind">解绑</string>
+    <string name="email_backup_unbind_confirm">解绑后将删除云端备份，无法再用此邮箱恢复登录；本机当前登录不受影响。确定解绑？</string>
     <!-- 浏览记录云同步 (issue #889) -->
     <string name="cloud_history_sync">浏览记录云同步</string>
     <string name="clear_cloud_history">清除云端浏览记录</string>

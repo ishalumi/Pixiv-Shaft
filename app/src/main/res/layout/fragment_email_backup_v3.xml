@@ -10,26 +10,28 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/v3_bg"
-    android:fitsSystemWindows="true"
     android:orientation="vertical">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <!-- Toolbar 与设置页 (fragment_settings.xml) 同款：colorPrimary 底 + 白色居中标题 + 返回箭头。
+         状态栏 inset 不用 fitsSystemWindows（BaseActivity 开了 EdgeToEdge 会双重 inset），
+         改 runtime updatePadding(top=BarUtils.getStatusBarHeight())。 -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/v3_bg"
-        app:elevation="0dp">
+        android:background="?attr/colorPrimary"
+        android:elevation="@dimen/six_dp"
+        app:navigationIcon="@drawable/baseline_arrow_back_24">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/v3_bg"
-            app:contentInsetStartWithNavigation="0dp"
-            app:navigationIcon="?attr/homeAsUpIndicator"
-            app:title="@string/email_backup_title"
-            app:titleTextAppearance="@style/TextAppearance.AppCompat.Title"
-            app:titleTextColor="@color/v3_text_1" />
-    </com.google.android.material.appbar.AppBarLayout>
+        <TextView
+            android:id="@+id/toolbar_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/email_backup_title"
+            android:textColor="@color/white"
+            android:textSize="18sp" />
+    </androidx.appcompat.widget.Toolbar>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -45,6 +47,76 @@
             android:paddingHorizontal="20dp"
             android:paddingTop="8dp"
             android:paddingBottom="28dp">
+
+            <!-- 已备份态：大绿勾 + 备份信息 + 解绑。已绑定时显示，替换掉下面的表单。 -->
+            <LinearLayout
+                android:id="@+id/bound_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:background="@drawable/v3_glass_surface"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="32dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ImageView
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:contentDescription="@string/email_backup_bound_title"
+                    android:src="@drawable/ic_verified_check" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/email_backup_bound_title"
+                    android:textColor="@color/v3_green"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/bound_email"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:textColor="@color/v3_text_2"
+                    android:textSize="13sp"
+                    tools:text="已加密备份到 f***s@gmail.com" />
+
+                <TextView
+                    android:id="@+id/bound_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="@color/v3_text_3"
+                    android:textSize="12sp"
+                    tools:text="备份时间 2026-05-23 18:41" />
+
+                <TextView
+                    android:id="@+id/btn_unbind"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="28dp"
+                    android:background="@drawable/bg_v3_surface"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/email_backup_unbind"
+                    android:textColor="@color/v3_danger"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 备份/恢复表单：未绑定（或恢复模式）时显示 -->
+            <LinearLayout
+                android:id="@+id/form_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
             <!-- 分段控件：选中段套 bg_v3_pill_primary，由 fragment 切换 -->
             <LinearLayout
@@ -177,6 +249,7 @@
                 android:visibility="gone"
                 tools:text="验证码已发送至 you@example.com"
                 tools:visibility="visible" />
+            </LinearLayout>
 
             <ProgressBar
                 android:id="@+id/progress"

@@ -62,6 +62,14 @@ interface PixshaftApi {
     /** Restore: with a valid code, hand back the stored account JSON. */
     @POST("v1/account/restore/confirm")
     suspend fun restoreConfirm(@Body body: RestoreConfirmReq): RestoreConfirmResp
+
+    /** Backup: does this logged-in [UidReq.uid] already have a cloud backup? */
+    @POST("v1/account/bind/status")
+    suspend fun bindStatus(@Body body: UidReq): BindStatusResp
+
+    /** Backup: unbind — delete this account's cloud backup. */
+    @POST("v1/account/bind/delete")
+    suspend fun bindDelete(@Body body: UidReq): BindDeleteAck
 }
 
 data class EmailReq(val email: String)
@@ -93,6 +101,19 @@ data class RestoreConfirmResp(
     val uid: Long? = null,
     val account: AccountResponse? = null,
     val updatedAt: Long = 0L,
+)
+
+data class UidReq(val uid: Long)
+
+data class BindStatusResp(
+    val bound: Boolean = false,
+    val emailMasked: String? = null,
+    val updatedAt: Long = 0L,
+)
+
+data class BindDeleteAck(
+    val ok: Boolean = false,
+    val deleted: Int = 0,
 )
 
 data class HistoryReportBody(

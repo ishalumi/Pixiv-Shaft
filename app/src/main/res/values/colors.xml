@@ -223,6 +223,7 @@
     <color name="v3_text_1">#1A1A2E</color>
     <color name="v3_text_2">#991A1A2E</color>
     <color name="v3_text_3">#551A1A2E</color>
+    <color name="v3_danger">#E5484D</color>
     <color name="v3_pink">#E0246A</color>
     <color name="v3_gold">#D4A020</color>
     <color name="v3_blue">#2B6FCC</color>

@@ -1467,4 +1467,25 @@
     <string name="clear_cloud_history_confirm_message">Будет удалена вся история просмотров, синхронизированная с облаком. Локальная история не затрагивается. Продолжить?</string>
     <string name="clear_cloud_history_success">История просмотров в облаке очищена</string>
     <string name="clear_cloud_history_failed">Не удалось очистить, попробуйте позже</string>
+    <!-- email-bound account backup -->
+    <string name="email_backup_title">Резервная копия аккаунта</string>
+    <string name="email_backup_seg_backup">Сохранить текущий аккаунт</string>
+    <string name="email_backup_seg_restore">Восстановить из почты</string>
+    <string name="email_backup_desc_backup">Зашифрованная резервная копия текущего аккаунта Pixiv в вашей почте. После смены устройства или переустановки достаточно ввести код из письма, чтобы восстановить вход в одно касание — без повторной авторизации Pixiv.</string>
+    <string name="email_backup_desc_restore">Введите почту, в которую вы ранее сохраняли копию, и восстановите вход с помощью кода из письма.</string>
+    <string name="email_backup_email_label">Адрес эл. почты</string>
+    <string name="email_backup_email_hint">you@example.com</string>
+    <string name="email_backup_code_hint">6-значный код из письма</string>
+    <string name="email_backup_get_code">Получить код</string>
+    <string name="email_backup_resend">Отправить код повторно</string>
+    <string name="email_backup_resend_in">Повтор через %1$d с</string>
+    <string name="email_backup_do_backup">Сохранить на эту почту</string>
+    <string name="email_backup_do_restore">Восстановить и войти</string>
+    <string name="email_backup_settings_entry">Резервная копия аккаунта в почту</string>
+    <string name="email_backup_login_entry">Уже есть копия? Восстановить из почты</string>
+    <string name="email_backup_bound_title">Сохранено</string>
+    <string name="email_backup_bound_email">Зашифрованная копия в %1$s</string>
+    <string name="email_backup_bound_time">Дата копии: %1$s</string>
+    <string name="email_backup_unbind">Отвязать</string>
+    <string name="email_backup_unbind_confirm">Отвязка удалит резервную копию в облаке; восстановить через эту почту будет нельзя. Текущий вход на этом устройстве не затрагивается. Отвязать?</string>
 </resources>

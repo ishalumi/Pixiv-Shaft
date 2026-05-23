@@ -1580,4 +1580,25 @@
     <string name="clear_cloud_history_confirm_message">將刪除已同步到雲端的全部瀏覽記錄,本機記錄不受影響。確定?</string>
     <string name="clear_cloud_history_success">已清除雲端瀏覽記錄</string>
     <string name="clear_cloud_history_failed">清除失敗,請稍後再試</string>
+    <!-- email-bound account backup -->
+    <string name="email_backup_title">帳號備份</string>
+    <string name="email_backup_seg_backup">備份目前帳號</string>
+    <string name="email_backup_seg_restore">從電子郵件還原</string>
+    <string name="email_backup_desc_backup">將目前登入的 Pixiv 帳號加密備份到你的電子郵件。換裝置或重新安裝後，憑電子郵件驗證碼即可一鍵還原登入，無需再次進行 Pixiv 授權。</string>
+    <string name="email_backup_desc_restore">輸入先前備份過的電子郵件，透過電子郵件驗證碼還原登入狀態。</string>
+    <string name="email_backup_email_label">電子郵件地址</string>
+    <string name="email_backup_email_hint">you@example.com</string>
+    <string name="email_backup_code_hint">6 位數電子郵件驗證碼</string>
+    <string name="email_backup_get_code">取得驗證碼</string>
+    <string name="email_backup_resend">重新傳送驗證碼</string>
+    <string name="email_backup_resend_in">%1$d 秒後可重新傳送</string>
+    <string name="email_backup_do_backup">備份到此電子郵件</string>
+    <string name="email_backup_do_restore">還原並登入</string>
+    <string name="email_backup_settings_entry">帳號備份到電子郵件</string>
+    <string name="email_backup_login_entry">已備份過？從電子郵件還原登入</string>
+    <string name="email_backup_bound_title">已備份</string>
+    <string name="email_backup_bound_email">已加密備份到 %1$s</string>
+    <string name="email_backup_bound_time">備份時間 %1$s</string>
+    <string name="email_backup_unbind">解除綁定</string>
+    <string name="email_backup_unbind_confirm">解除綁定後將刪除雲端備份，無法再用此電子郵件還原登入；本機目前登入不受影響。確定解除綁定？</string>
 </resources>

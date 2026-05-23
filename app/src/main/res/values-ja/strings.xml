@@ -1566,4 +1566,25 @@
     <string name="clear_cloud_history_confirm_message">クラウドに同期された閲覧履歴をすべて削除します。ローカルの履歴には影響しません。よろしいですか？</string>
     <string name="clear_cloud_history_success">クラウドの閲覧履歴を削除しました</string>
     <string name="clear_cloud_history_failed">削除に失敗しました。後でもう一度お試しください</string>
+    <!-- email-bound account backup -->
+    <string name="email_backup_title">アカウントバックアップ</string>
+    <string name="email_backup_seg_backup">現在のアカウントをバックアップ</string>
+    <string name="email_backup_seg_restore">メールから復元</string>
+    <string name="email_backup_desc_backup">現在ログイン中の Pixiv アカウントを暗号化してメールにバックアップします。端末の変更や再インストール後も、メール認証コードを入力するだけでワンタップでログインを復元でき、Pixiv 認証をやり直す必要はありません。</string>
+    <string name="email_backup_desc_restore">以前バックアップしたメールアドレスを入力し、メール認証コードでログイン状態を復元します。</string>
+    <string name="email_backup_email_label">メールアドレス</string>
+    <string name="email_backup_email_hint">you@example.com</string>
+    <string name="email_backup_code_hint">6 桁のメール認証コード</string>
+    <string name="email_backup_get_code">コードを取得</string>
+    <string name="email_backup_resend">コードを再送信</string>
+    <string name="email_backup_resend_in">%1$d 秒後に再送信できます</string>
+    <string name="email_backup_do_backup">このメールにバックアップ</string>
+    <string name="email_backup_do_restore">復元してログイン</string>
+    <string name="email_backup_settings_entry">アカウントをメールにバックアップ</string>
+    <string name="email_backup_login_entry">バックアップ済み？メールから復元</string>
+    <string name="email_backup_bound_title">バックアップ済み</string>
+    <string name="email_backup_bound_email">%1$s に暗号化バックアップ済み</string>
+    <string name="email_backup_bound_time">バックアップ日時 %1$s</string>
+    <string name="email_backup_unbind">解除</string>
+    <string name="email_backup_unbind_confirm">解除するとクラウドのバックアップが削除され、このメールで復元できなくなります。この端末の現在のログインには影響しません。解除しますか？</string>
 </resources>
