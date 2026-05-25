@@ -1,320 +1,285 @@
 package ceui.pixiv.ui.debug
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import ceui.lisa.R
-import kotlinx.coroutines.*
-import okhttp3.Dns
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okio.IOException
-import java.net.InetAddress
-import java.net.Inet4Address
-import java.net.Inet6Address
-import java.net.UnknownHostException
-import java.net.InetSocketAddress
-import java.net.Socket
-import java.net.SocketTimeoutException
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLHandshakeException
-import javax.net.ssl.SSLPeerUnverifiedException
-import kotlin.math.ln
+import ceui.lisa.utils.Common
+import ceui.loxia.hideKeyboard
+import com.blankj.utilcode.util.BarUtils
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import kotlinx.coroutines.launch
 
 /**
- * 网络测试页。暂时只有DNS污染检测、TCP ping、https握手测试。
- * 测试逻辑：
- * 1. 检测DNS污染（如有污染跳过2和3）
- * 2. 检测443端口可达性（TCP Ping）
- * 3. HTTPS握手测试
- * 后续可以考虑增加：
- * 1. 动态CIDR列表
- * 2. 联动设置页的安全DNS（DoH），使用DoH解析
- * 3. UI实时滚动的日志，和白天黑夜主题适应
- * 4. 实时https握手延迟显示（持续测试5秒）（目前仅单次）
- * 5. 联动设置开启直连额外的ping(ICMP)测试（代理下测ping无意义，ICMP会透过代理）
- * 6. PixshaftApi的相关测试（PixshaftApi.kt）
- * 6. 可填入插画/漫画ID，测试单个插画/漫画的API响应时、响应体内容（如是否有简介）、图片数量、图片分辨率、图片格式、图片质量等。
- * @author wangwang-code & deepseek & gemini
+ * 网络测试页 —— 纯渲染 + 转发点击，所有测试逻辑与状态在 [NetworkTestViewModel]。
+ * 见 [fragment_network_perf_test] 布局；目标卡 / 步骤行用 item_network_test_target /
+ * item_network_test_step 动态 inflate。颜色全部取自 v3_* 资源（带 values-night），
+ * 状态 pill / 圆点用 [pillBackground] 按状态染色，白天黑夜自动适配。
  */
 class NetworkTestFragment : Fragment(R.layout.fragment_network_perf_test) {
 
-    private lateinit var textView: TextView
-    private lateinit var button: Button
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val viewModel by viewModels<NetworkTestViewModel>()
 
-    // 预设的CIDR列表
-    private val pixivCIDRs = listOf(
-        "173.245.48.0/20",
-        "103.21.244.0/22",
-        "103.22.200.0/22",
-        "103.31.4.0/22",
-        "141.101.64.0/18",
-        "108.162.192.0/18",
-        "190.93.240.0/20",
-        "188.114.96.0/20",
-        "197.234.240.0/22",
-        "198.41.128.0/17",
-        "162.158.0.0/15",
-        "104.16.0.0/13",
-        "104.24.0.0/14",
-        "172.64.0.0/13",
-        "131.0.72.0/22"
-    )
+    private lateinit var chipDoh: TextView
+    private lateinit var chipDirect: TextView
+    private lateinit var summaryCard: View
+    private lateinit var summaryPill: TextView
+    private lateinit var summarySub: TextView
+    private lateinit var emptyState: View
+    private lateinit var resultsSection: View
+    private lateinit var resultsContainer: LinearLayout
+    private lateinit var illustInput: EditText
+    private lateinit var btnIllustTest: TextView
+    private lateinit var illustResultContainer: LinearLayout
+    private lateinit var rawLogText: TextView
+    private lateinit var btnRawLogToggle: TextView
+    private lateinit var btnRun: TextView
+    private lateinit var btnCopy: TextView
 
-    private val pximgCIDRs = listOf(
-        "210.140.92.0/24",
-        "210.140.131.0/24",
-        "210.140.139.0/24",
-        "210.140.140.0/24",
-        "210.140.141.0/24",
-        "210.140.142.0/24",
-        "210.140.143.0/24",
-        "210.140.144.0/24",
-        "210.140.145.0/24",
-        "210.140.146.0/24",
-        "210.140.147.0/24",
-        "210.140.148.0/24",
-        "210.140.149.0/24",
-        "210.140.150.0/24"
-    )
+    private var rawLogShown = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        view.findViewById<Toolbar>(R.id.toolbar)
-            .setNavigationOnClickListener { activity?.finish() }
-        textView = view.findViewById(R.id.outputText)
-        button = view.findViewById(R.id.button)
 
-        button.setOnClickListener {
-            button.isEnabled = false
-            textView.text = "正在测试..."
-            startNetworkTest()
+        view.findViewById<Toolbar>(R.id.toolbar).apply {
+            // EdgeToEdge host: pad the status bar at runtime instead of fitsSystemWindows.
+            updatePadding(top = BarUtils.getStatusBarHeight())
+            setNavigationOnClickListener { activity?.finish() }
         }
-    }
 
-    private fun startNetworkTest() {
-        scope.launch {
-            val result = StringBuilder()
-
-            // 测试 www.pixiv.net
-            result.append("========== www.pixiv.net 测试 ==========\n")
-            testDomain("www.pixiv.net", pixivCIDRs, result)
-
-            result.append("\n\n")
-
-            // 测试 i.pximg.net
-            result.append("========== i.pximg.net 测试 ==========\n")
-            testDomain("i.pximg.net", pximgCIDRs, result)
-
-            // 更新UI
-            withContext(Dispatchers.Main) {
-                textView.text = result.toString()
-                button.isEnabled = true
-            }
+        // 固定底栏垫上导航栏 inset，避免主按钮被系统栏遮住（12dp 基线 + 导航栏高度）。
+        val bottomBar = view.findViewById<View>(R.id.bottom_bar)
+        val basePaddingBottom = bottomBar.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(bottomBar) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(bottom = basePaddingBottom + bars.bottom)
+            insets
         }
-    }
+        ViewCompat.requestApplyInsets(bottomBar)
 
+        chipDoh = view.findViewById(R.id.chip_doh)
+        chipDirect = view.findViewById(R.id.chip_direct)
+        summaryCard = view.findViewById(R.id.summary_card)
+        summaryPill = view.findViewById(R.id.summary_pill)
+        summarySub = view.findViewById(R.id.summary_sub)
+        emptyState = view.findViewById(R.id.empty_state)
+        resultsSection = view.findViewById(R.id.results_section)
+        resultsContainer = view.findViewById(R.id.results_container)
+        illustInput = view.findViewById(R.id.illust_id_input)
+        btnIllustTest = view.findViewById(R.id.btn_illust_test)
+        illustResultContainer = view.findViewById(R.id.illust_result_container)
+        rawLogText = view.findViewById(R.id.raw_log_text)
+        btnRawLogToggle = view.findViewById(R.id.btn_rawlog_toggle)
+        btnRun = view.findViewById(R.id.btn_run)
+        btnCopy = view.findViewById(R.id.btn_copy)
 
+        renderEnvChips()
 
-    private fun testDomain(domain: String, cidrList: List<String>, result: StringBuilder) {
-        try {
-            // 获取所有IP地址
-            val addresses = InetAddress.getAllByName(domain)
-            result.append("DNS解析结果：\n")
-
-            var isDnsPolluted = false
-            var firstValidIp: InetAddress? = null
-
-            addresses.forEachIndexed { index, address ->
-                result.append("  IP ${index + 1}: ${address.hostAddress}\n")
-                //result.append("  类型: ${if (address is Inet4Address) "IPv4" else "IPv6"}\n")
-
-                // 只对IPv4进行CIDR检查
-                if (address is Inet4Address) {
-                    val ip = address.hostAddress ?: ""
-                    var inCIDR = false
-
-                    for (cidr in cidrList) {
-                        if (isIpInCIDR(ip, cidr)) {
-                            result.append("  ✓ 在预设CIDR范围内: $cidr\n")
-                            inCIDR = true
-                            break
-                        }
-                    }
-
-                    if (!inCIDR) {
-                        result.append("  ✗ 不在任何预设CIDR范围内\n 存在DNS污染\n")
-                        isDnsPolluted = true
-                    }
-                } else {
-                    result.append("  - IPv6地址，未适配做跳过\n")
-                    return
-                }
-
-                // 如果没有ip被判定为污染，才进行连通性测试，并记录第一个可用的有效 IP
-                if (!isDnsPolluted) {
-                    testConnectivity(address.hostAddress ?: "", 443, result)
-                    if (firstValidIp == null) {
-                        firstValidIp = address
-                    }
-                }
-
-                if (index < addresses.size - 1) {
-                    result.append("\n")
-                }
-            }
-
-            if (addresses.isEmpty()) {
-                result.append("  未解析到任何IP地址\n")
-                return
-            }
-
-            // 根据是否有干净的 IP 决定是否进行 HTTPS 握手
-            if (firstValidIp != null) {
-                result.append("\n开始测试 HTTPS 握手 (强制使用第一个干净的IP: ${firstValidIp!!.hostAddress})...\n")
-                testHttpsHandshakeWithOkHttp(domain, firstValidIp!!, result)
+        btnRun.setOnClickListener {
+            hideKeyboard()
+            viewModel.runTests()
+        }
+        btnIllustTest.setOnClickListener {
+            hideKeyboard()
+            val id = illustInput.text?.toString()?.trim()?.toLongOrNull()
+            if (id == null || id <= 0) {
+                Common.showToast(getString(R.string.network_test_illust_invalid_id))
             } else {
-                result.append("\n! 无有效IP，跳过HTTPS握手测试。\n")
-            }
-
-        } catch (e: UnknownHostException) {
-            result.append("✗ DNS解析失败: ${e.message}\n")
-        } catch (e: Exception) {
-            result.append("✗ 测试异常: ${e.message}\n")
-        }
-    }
-
-
-    /**
-     * 使用 OkHttp 测试 HTTPS 握手并统计耗时
-     */
-    private fun testHttpsHandshakeWithOkHttp(domain: String, targetIp: InetAddress, result: StringBuilder) {
-        // 1. 自定义 DNS 拦截器，强制 OkHttp 只返回指定的第一个 IP
-        val singleIpDns = object : Dns {
-            override fun lookup(hostname: String): List<InetAddress> {
-                return if (hostname.equals(domain, ignoreCase = true)) {
-                    listOf(targetIp)
-                } else {
-                    Dns.SYSTEM.lookup(hostname)
-                }
+                viewModel.probeIllust(id)
             }
         }
+        btnCopy.setOnClickListener { copyLog() }
+        btnRawLogToggle.setOnClickListener {
+            rawLogShown = !rawLogShown
+            rawLogText.visibility = if (rawLogShown) View.VISIBLE else View.GONE
+            btnRawLogToggle.setText(
+                if (rawLogShown) R.string.network_test_rawlog_hide else R.string.network_test_rawlog_show,
+            )
+        }
 
-        // 2. 构造 Client 并设置超时（5秒）
-        val timeoutMs = 5000L
-        val client = OkHttpClient.Builder()
-            .dns(singleIpDns)
-            .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-            .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-            .writeTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-            .build()
+        observeViewModel()
+    }
 
-        // 3. 构造请求
-        val request = Request.Builder()
-            .url("https://$domain/")
-            .head() // 使用 HEAD 请求减少流量
-            .build()
-
-        // 记录开始时间
-        val startTime = System.currentTimeMillis()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                // 计算总耗时（包含 TCP 建连 + TLS 握手）
-                val handshakeTime = System.currentTimeMillis() - startTime
-                val handshake = response.handshake
-
-                result.append("  ✓ HTTPS 握手成功 (${handshakeTime}ms)\n")
-                if (handshake != null) {
-                    result.append("    协议: ${handshake.tlsVersion}\n")
-                    result.append("    加密套件: ${handshake.cipherSuite}\n")
-                }
+    private fun observeViewModel() {
+        viewModel.running.observe(viewLifecycleOwner) { isRunning ->
+            btnRun.isEnabled = !isRunning
+            btnRun.alpha = if (isRunning) 0.6f else 1f
+            btnRun.setText(if (isRunning) R.string.network_test_running else R.string.network_test_run)
+            if (isRunning) {
+                emptyState.visibility = View.GONE
+                resultsSection.visibility = View.VISIBLE
+                renderEnvChips()
             }
-        } catch (e: SocketTimeoutException) {
-            val totalTime = System.currentTimeMillis() - startTime
-            result.append("  ✗ HTTPS 握手或连接超时 (超过 ${timeoutMs}ms，实际耗时: ${totalTime}ms)\n")
-        } catch (e: SSLHandshakeException) {
-            result.append("  ✗ HTTPS 握手失败: ${e.localizedMessage}\n")
-            result.append("    (常见原因: 证书过期、根证书不被信任、TLS版本不匹配)\n")
-        } catch (e: SSLPeerUnverifiedException) {
-            result.append("  ✗ HTTPS 证书校验失败: ${e.localizedMessage}\n")
-            result.append("    (常见原因: 证书中的域名与当前访问的域名 $domain 不匹配)\n")
-        } catch (e: IOException) {
-            result.append("  ✗ HTTPS 网络连接错误: ${e.message}\n")
-        } catch (e: Exception) {
-            result.append("  ✗ HTTPS 未知异常: ${e.message}\n")
         }
-    }
-
-
-
-    private fun testConnectivity(ip: String, port: Int, result: StringBuilder) {
-        try {
-            val startTime = System.currentTimeMillis()
-            val socket = Socket()
-            socket.connect(InetSocketAddress(ip, port), 3000)
-            val latency = System.currentTimeMillis() - startTime
-            socket.close()
-            if (latency <= 10) {
-                result.append("  连通性: 延迟: ${latency}ms) 过低不具备参考性\n应看HTTPS握手耗时\n")
-            } else result.append("  连通性: ✓ 可达 (延迟: ${latency}ms)\n")
-        } catch (e: Exception) {
-            result.append("  连通性: ✗ 不可达 (${e.message})\n")
-        }
-    }
-
-    private fun isIpInCIDR(ip: String, cidr: String): Boolean {
-        try {
-            val parts = cidr.split("/")
-            if (parts.size != 2) return false
-
-            val networkAddress = parts[0]
-            val prefixLength = parts[1].toIntOrNull() ?: return false
-
-            val ipBytes = ipToBytes(ip) ?: return false
-            val networkBytes = ipToBytes(networkAddress) ?: return false
-
-            // 计算子网掩码
-            val mask = if (prefixLength == 0) 0 else (-1 shl (32 - prefixLength))
-
-            val ipInt = bytesToInt(ipBytes)
-            val networkInt = bytesToInt(networkBytes)
-
-            return (ipInt and mask) == (networkInt and mask)
-        } catch (e: Exception) {
-            return false
-        }
-    }
-
-    private fun ipToBytes(ip: String): ByteArray? {
-        try {
-            val octets = ip.split(".")
-            if (octets.size != 4) return null
-
-            return ByteArray(4) { i ->
-                val octet = octets[i].toIntOrNull()
-                if (octet == null || octet !in 0..255) return null
-                octet.toByte()
+        viewModel.targets.observe(viewLifecycleOwner) { list ->
+            if (list.isEmpty()) {
+                resultsContainer.removeAllViews()
+                return@observe
             }
-        } catch (e: Exception) {
-            return null
+            resultsSection.visibility = View.VISIBLE
+            emptyState.visibility = View.GONE
+            resultsContainer.removeAllViews()
+            list.forEach { resultsContainer.addView(buildTargetCard(it, resultsContainer)) }
+        }
+        viewModel.overall.observe(viewLifecycleOwner) { renderSummary(it) }
+        viewModel.rawLog.observe(viewLifecycleOwner) { rawLogText.text = it }
+        viewModel.illustRunning.observe(viewLifecycleOwner) { isRunning ->
+            btnIllustTest.isEnabled = !isRunning
+            btnIllustTest.alpha = if (isRunning) 0.6f else 1f
+        }
+        viewModel.illustReport.observe(viewLifecycleOwner) { report ->
+            illustResultContainer.removeAllViews()
+            if (report != null) {
+                illustResultContainer.addView(buildTargetCard(report, illustResultContainer))
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.pollutionAlert.collect { showPollutionDialog(it) }
+            }
         }
     }
 
-    private fun bytesToInt(bytes: ByteArray): Int {
-        var result = 0
-        for (byte in bytes) {
-            result = (result shl 8) or (byte.toInt() and 0xFF)
+    private fun renderEnvChips() {
+        if (viewModel.dohEnabled) {
+            applyPill(chipDoh, getString(R.string.network_test_env_doh_on), R.color.v3_green)
+        } else {
+            applyPill(chipDoh, getString(R.string.network_test_env_doh_off), R.color.v3_text_3)
         }
-        return result
+        if (viewModel.directConnect) {
+            applyPill(chipDirect, getString(R.string.network_test_env_direct_on), R.color.v3_green)
+        } else {
+            applyPill(chipDirect, getString(R.string.network_test_env_direct_off), R.color.v3_text_3)
+        }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        scope.cancel()
+    private fun renderSummary(overall: OverallStatus?) {
+        if (overall == null) {
+            summaryCard.visibility = View.GONE
+            return
+        }
+        summaryCard.visibility = View.VISIBLE
+        val (labelRes, subRes, colorRes) = when (overall) {
+            OverallStatus.CLEAN -> Triple(
+                R.string.network_test_overall_clean,
+                R.string.network_test_overall_clean_sub,
+                R.color.v3_green,
+            )
+            OverallStatus.DEGRADED -> Triple(
+                R.string.network_test_overall_degraded,
+                R.string.network_test_overall_degraded_sub,
+                R.color.v3_orange,
+            )
+            OverallStatus.POLLUTED -> Triple(
+                R.string.network_test_overall_polluted,
+                R.string.network_test_overall_polluted_sub,
+                R.color.v3_danger,
+            )
+        }
+        applyPill(summaryPill, "● " + getString(labelRes), colorRes)
+        summarySub.setText(subRes)
+    }
+
+    private fun buildTargetCard(report: TargetReport, parent: ViewGroup): View {
+        val card = layoutInflater.inflate(R.layout.item_network_test_target, parent, false)
+        card.findViewById<TextView>(R.id.target_title).text = report.title
+        card.findViewById<TextView>(R.id.target_subtitle).text = report.subtitle
+
+        val (label, colorRes) = targetStatusStyle(report.status)
+        applyPill(card.findViewById(R.id.target_status_pill), label, colorRes)
+
+        val steps = card.findViewById<LinearLayout>(R.id.steps_container)
+        steps.removeAllViews()
+        report.steps.forEach { steps.addView(buildStepRow(it, steps)) }
+        return card
+    }
+
+    private fun buildStepRow(step: TestStep, parent: ViewGroup): View {
+        val row = layoutInflater.inflate(R.layout.item_network_test_step, parent, false)
+        val icon = row.findViewById<TextView>(R.id.step_icon)
+        icon.text = stepIcon(step.status)
+        icon.setTextColor(ContextCompat.getColor(requireContext(), stepColorRes(step.status)))
+
+        row.findViewById<TextView>(R.id.step_label).text = step.label
+        val detail = row.findViewById<TextView>(R.id.step_detail)
+        if (step.detail.isNullOrBlank()) {
+            detail.visibility = View.GONE
+        } else {
+            detail.visibility = View.VISIBLE
+            detail.text = step.detail
+        }
+        return row
+    }
+
+    private fun targetStatusStyle(status: TargetStatus): Pair<String, Int> = when (status) {
+        TargetStatus.RUNNING -> "测试中" to R.color.v3_blue
+        TargetStatus.OK -> "通畅" to R.color.v3_green
+        TargetStatus.DEGRADED -> "部分异常" to R.color.v3_orange
+        TargetStatus.POLLUTED -> "DNS 污染" to R.color.v3_danger
+        TargetStatus.FAILED -> "失败" to R.color.v3_danger
+    }
+
+    private fun stepIcon(status: StepStatus): String = when (status) {
+        StepStatus.OK -> "✓"
+        StepStatus.WARN -> "⚠"
+        StepStatus.FAIL -> "✗"
+        StepStatus.RUNNING -> "…"
+        StepStatus.INFO -> "•"
+    }
+
+    private fun stepColorRes(status: StepStatus): Int = when (status) {
+        StepStatus.OK -> R.color.v3_green
+        StepStatus.WARN -> R.color.v3_orange
+        StepStatus.FAIL -> R.color.v3_danger
+        StepStatus.RUNNING -> R.color.v3_blue
+        StepStatus.INFO -> R.color.v3_text_3
+    }
+
+    /** 圆角 pill：同色 20% 填充 + 同色文字，over v3 玻璃卡，明暗模式都清晰。 */
+    private fun applyPill(view: TextView, text: String, colorRes: Int) {
+        val color = ContextCompat.getColor(requireContext(), colorRes)
+        view.text = text
+        view.setTextColor(color)
+        view.background = GradientDrawable().apply {
+            cornerRadius = 40f * resources.displayMetrics.density
+            setColor(ColorUtils.setAlphaComponent(color, 0x33))
+        }
+    }
+
+    private fun copyLog() {
+        val text = viewModel.rawLog.value.orEmpty()
+        if (text.isBlank()) return
+        val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+        cm.setPrimaryClip(ClipData.newPlainText("network-test", text))
+        Common.showToast(getString(R.string.network_test_log_copied))
+    }
+
+    private fun showPollutionDialog(message: String) {
+        val act = activity ?: return
+        QMUIDialog.MessageDialogBuilder(act)
+            .setTitle(R.string.network_test_pollution_dialog_title)
+            .setMessage(message)
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addAction(R.string.network_test_pollution_dialog_action) { d, _ -> d.dismiss() }
+            .show()
     }
 }

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  网络测试 — 单条步骤行。左侧状态点(✓/✗/⚠/•，颜色在代码里按状态染)，
+  右侧 label + 可选的等宽 detail。由 NetworkTestFragment 动态 inflate 进卡片的
+  steps_container。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="top"
+    android:orientation="horizontal"
+    android:paddingVertical="5dp">
+
+    <TextView
+        android:id="@+id/step_icon"
+        android:layout_width="20dp"
+        android:layout_height="wrap_content"
+        android:gravity="start"
+        android:text="•"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        tools:ignore="HardcodedText"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/step_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/v3_text_2"
+            android:textSize="13sp"
+            tools:text="HTTPS 握手"
+            xmlns:tools="http://schemas.android.com/tools" />
+
+        <TextView
+            android:id="@+id/step_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:fontFamily="monospace"
+            android:textColor="@color/v3_text_3"
+            android:textIsSelectable="true"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="min 120ms · avg 138ms · max 190ms"
+            tools:visibility="visible"
+            xmlns:tools="http://schemas.android.com/tools" />
+    </LinearLayout>
+</LinearLayout>

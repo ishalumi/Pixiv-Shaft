@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  网络测试 — 单个目标(域名)卡片。顶部 title + subtitle，右侧状态 pill(背景在
+  代码里按状态染色)，下面 steps_container 动态填 item_network_test_step。
+  V3 玻璃卡：v3_glass_surface + 16dp 内距。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="12dp"
+    android:background="@drawable/v3_glass_surface"
+    android:orientation="vertical"
+    android:paddingHorizontal="18dp"
+    android:paddingVertical="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/target_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="@color/v3_text_1"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="www.pixiv.net" />
+
+            <TextView
+                android:id="@+id/target_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:letterSpacing="0.02"
+                android:textColor="@color/v3_text_3"
+                android:textSize="11sp"
+                tools:text="网页 / API · Cloudflare CDN" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/target_status_pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="5dp"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            tools:text="通畅" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/steps_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical" />
+</LinearLayout>

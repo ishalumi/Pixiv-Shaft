@@ -1901,6 +1901,32 @@
 
     <!-- 网络测试-->
     <string name="nav_network_test_entry">网络测试</string>
+    <string name="network_test_subtitle">连通性 · DNS 污染 · TLS 握手诊断</string>
+    <string name="network_test_run">开始测试</string>
+    <string name="network_test_running">测试中…</string>
+    <string name="network_test_copy_log">复制日志</string>
+    <string name="network_test_env_doh_on">安全 DNS 开</string>
+    <string name="network_test_env_doh_off">安全 DNS 关</string>
+    <string name="network_test_env_direct_on">直连开</string>
+    <string name="network_test_env_direct_off">直连关</string>
+    <string name="network_test_empty_hint">点击下方「开始测试」运行网络诊断</string>
+    <string name="network_test_section_targets">连通性诊断</string>
+    <string name="network_test_section_illust">作品 API 探测</string>
+    <string name="network_test_section_rawlog">原始日志</string>
+    <string name="network_test_rawlog_show">展开</string>
+    <string name="network_test_rawlog_hide">收起</string>
+    <string name="network_test_illust_hint">输入插画 / 漫画 ID</string>
+    <string name="network_test_illust_run">测试作品 API</string>
+    <string name="network_test_illust_invalid_id">请输入有效的作品 ID</string>
+    <string name="network_test_overall_clean">网络通畅</string>
+    <string name="network_test_overall_clean_sub">未检测到 DNS 污染，握手正常</string>
+    <string name="network_test_overall_degraded">部分异常</string>
+    <string name="network_test_overall_degraded_sub">连通性或握手存在问题，详见下方</string>
+    <string name="network_test_overall_polluted">检测到 DNS 污染</string>
+    <string name="network_test_overall_polluted_sub">本机 DNS 解析结果不可信</string>
+    <string name="network_test_pollution_dialog_title">⚠ 检测到 DNS 污染</string>
+    <string name="network_test_pollution_dialog_action">我知道了</string>
+    <string name="network_test_log_copied">日志已复制</string>
 
     <!-- Chat subsystem (borrowed from Peanut; see ceui.pixiv.chat.*) -->
     <string name="chat_drawer_entry">聊天室</string>
