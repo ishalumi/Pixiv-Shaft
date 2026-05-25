@@ -1925,6 +1925,7 @@
     <string name="network_test_overall_polluted">检测到 DNS 污染</string>
     <string name="network_test_overall_polluted_sub">本机 DNS 解析结果不可信</string>
     <string name="network_test_pollution_dialog_title">⚠ 检测到 DNS 污染</string>
+    <string name="network_test_fakeip_dialog_title">⚠️ 检测到假 IP</string>
     <string name="network_test_pollution_dialog_action">我知道了</string>
     <string name="network_test_log_copied">日志已复制</string>
 

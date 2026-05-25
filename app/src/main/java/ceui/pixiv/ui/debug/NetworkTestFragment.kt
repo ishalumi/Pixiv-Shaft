@@ -275,9 +275,21 @@ class NetworkTestFragment : Fragment(R.layout.fragment_network_perf_test) {
 
     private fun showPollutionDialog(message: String) {
         val act = activity ?: return
+        val titleRes = if (message.startsWith(NetworkTestViewModel.FAKE_IP_PREFIX)) {
+            // 假 IP 场景：去掉前缀后显示消息，并更换标题
+            R.string.network_test_fakeip_dialog_title
+        } else {
+            R.string.network_test_pollution_dialog_title
+        }
+        // 如果加了前缀，需要去掉后再显示
+        val displayMessage = if (message.startsWith(NetworkTestViewModel.FAKE_IP_PREFIX)) {
+            message.substring(NetworkTestViewModel.FAKE_IP_PREFIX.length).trimStart()
+        } else {
+            message
+        }
         QMUIDialog.MessageDialogBuilder(act)
-            .setTitle(R.string.network_test_pollution_dialog_title)
-            .setMessage(message)
+            .setTitle(titleRes)
+            .setMessage(displayMessage)
             .setSkinManager(QMUISkinManager.defaultInstance(act))
             .addAction(R.string.network_test_pollution_dialog_action) { d, _ -> d.dismiss() }
             .show()
