@@ -449,6 +449,11 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@setOnClick
             viewModel.triggerDownload()
             if (Shaft.sSettings.isAutoPostLikeWhenDownload && !illust.isIs_bookmarked) {
+                // 下载触发的自动收藏也要立刻点亮收藏 FAB,否则要退出重进才显示已收藏
+                // (V3 页无 LIKED_ILLUST 接收器,FAB 仅靠 ObjectPool 重发刷新)。同用户主动收藏路径。
+                baseBind.fabBookmark.imageTintList = android.content.res.ColorStateList.valueOf(
+                    mContext.getColor(R.color.has_bookmarked)
+                )
                 PixivOperate.postLikeDefaultStarType(illust)
             }
         }
