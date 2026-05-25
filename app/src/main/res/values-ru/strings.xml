@@ -1488,4 +1488,12 @@
     <string name="email_backup_bound_time">Дата копии: %1$s</string>
     <string name="email_backup_unbind">Отвязать</string>
     <string name="email_backup_unbind_confirm">Отвязка удалит резервную копию в облаке; восстановить через эту почту будет нельзя. Текущий вход на этом устройстве не затрагивается. Отвязать?</string>
+    <string name="view_history_export">Экспорт истории просмотров</string>
+    <string name="view_history_import">Импорт истории просмотров</string>
+    <string name="view_history_export_empty">Нет истории просмотров для экспорта</string>
+    <string name="view_history_export_success">История просмотров экспортирована (записей: %1$d)</string>
+    <string name="view_history_import_no_file">Сбой импорта: файл не выбран</string>
+    <string name="view_history_import_invalid">Сбой импорта: файл пуст или имеет неверный формат</string>
+    <string name="view_history_import_success">Импортировано записей: %1$d</string>
+    <string name="view_history_import_failed">Сбой импорта: %1$s</string>
 </resources>

@@ -1587,4 +1587,12 @@
     <string name="email_backup_bound_time">バックアップ日時 %1$s</string>
     <string name="email_backup_unbind">解除</string>
     <string name="email_backup_unbind_confirm">解除するとクラウドのバックアップが削除され、このメールで復元できなくなります。この端末の現在のログインには影響しません。解除しますか？</string>
+    <string name="view_history_export">閲覧履歴をエクスポート</string>
+    <string name="view_history_import">閲覧履歴をインポート</string>
+    <string name="view_history_export_empty">エクスポートできる閲覧履歴がありません</string>
+    <string name="view_history_export_success">閲覧履歴をエクスポートしました（%1$d 件）</string>
+    <string name="view_history_import_no_file">インポート失敗：ファイルが選択されていません</string>
+    <string name="view_history_import_invalid">インポート失敗：ファイルが空か形式が正しくありません</string>
+    <string name="view_history_import_success">%1$d 件をインポートしました</string>
+    <string name="view_history_import_failed">インポート失敗：%1$s</string>
 </resources>

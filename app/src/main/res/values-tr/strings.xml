@@ -1486,4 +1486,12 @@
     <string name="email_backup_bound_time">Yedek tarihi %1$s</string>
     <string name="email_backup_unbind">Bağlantıyı kaldır</string>
     <string name="email_backup_unbind_confirm">Bağlantıyı kaldırmak buluttaki yedeği siler; bu e-postayla artık geri yükleyemezsin. Bu cihazdaki mevcut girişin etkilenmez. Kaldırılsın mı?</string>
+    <string name="view_history_export">Tarama geçmişini dışa aktar</string>
+    <string name="view_history_import">Tarama geçmişini içe aktar</string>
+    <string name="view_history_export_empty">Dışa aktarılacak tarama geçmişi yok</string>
+    <string name="view_history_export_success">Tarama geçmişi dışa aktarıldı (%1$d kayıt)</string>
+    <string name="view_history_import_no_file">İçe aktarma başarısız: dosya seçilmedi</string>
+    <string name="view_history_import_invalid">İçe aktarma başarısız: dosya boş veya bozuk</string>
+    <string name="view_history_import_success">%1$d kayıt içe aktarıldı</string>
+    <string name="view_history_import_failed">İçe aktarma başarısız: %1$s</string>
 </resources>

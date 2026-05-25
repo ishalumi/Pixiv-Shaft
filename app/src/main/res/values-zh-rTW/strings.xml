@@ -1601,4 +1601,12 @@
     <string name="email_backup_bound_time">備份時間 %1$s</string>
     <string name="email_backup_unbind">解除綁定</string>
     <string name="email_backup_unbind_confirm">解除綁定後將刪除雲端備份，無法再用此電子郵件還原登入；本機目前登入不受影響。確定解除綁定？</string>
+    <string name="view_history_export">匯出瀏覽記錄</string>
+    <string name="view_history_import">匯入瀏覽記錄</string>
+    <string name="view_history_export_empty">沒有可匯出的瀏覽記錄</string>
+    <string name="view_history_export_success">瀏覽記錄已匯出，共 %1$d 筆</string>
+    <string name="view_history_import_no_file">匯入失敗：未選擇檔案</string>
+    <string name="view_history_import_invalid">匯入失敗：檔案為空或格式不正確</string>
+    <string name="view_history_import_success">匯入成功，共 %1$d 筆記錄</string>
+    <string name="view_history_import_failed">匯入失敗：%1$s</string>
 </resources>

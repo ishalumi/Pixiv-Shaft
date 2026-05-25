@@ -1495,4 +1495,12 @@
     <string name="email_backup_bound_time">백업 시간 %1$s</string>
     <string name="email_backup_unbind">연결 해제</string>
     <string name="email_backup_unbind_confirm">연결을 해제하면 클라우드 백업이 삭제되어 이 이메일로 복원할 수 없습니다. 이 기기의 현재 로그인에는 영향을 주지 않습니다. 해제할까요?</string>
+    <string name="view_history_export">열람 기록 내보내기</string>
+    <string name="view_history_import">열람 기록 가져오기</string>
+    <string name="view_history_export_empty">내보낼 열람 기록이 없습니다</string>
+    <string name="view_history_export_success">열람 기록을 내보냈습니다 (%1$d개)</string>
+    <string name="view_history_import_no_file">가져오기 실패: 파일이 선택되지 않았습니다</string>
+    <string name="view_history_import_invalid">가져오기 실패: 파일이 비어 있거나 형식이 올바르지 않습니다</string>
+    <string name="view_history_import_success">%1$d개 기록을 가져왔습니다</string>
+    <string name="view_history_import_failed">가져오기 실패: %1$s</string>
 </resources>

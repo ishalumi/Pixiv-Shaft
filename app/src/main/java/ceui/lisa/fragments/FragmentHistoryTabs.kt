@@ -1,7 +1,12 @@
 package ceui.lisa.fragments
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.DocumentsContract
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
@@ -13,14 +18,18 @@ import androidx.fragment.app.FragmentPagerAdapter
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import ceui.lisa.R
+import ceui.lisa.activities.BaseActivity
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding
+import ceui.lisa.download.IllustDownload
+import ceui.lisa.interfaces.Callback
 import ceui.lisa.utils.Common
 import ceui.loxia.Client
 import ceui.loxia.CloudHistoryConsent
 import ceui.pixiv.db.RecordType
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.ui.history.BrowseHistoryBackup
 import timber.log.Timber
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -103,10 +112,12 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
     private fun setupSearchMenu() {
         binding.toolbar.inflateMenu(R.menu.history_v3)
         binding.toolbar.setOnMenuItemClickListener { item ->
-            if (item.itemId == R.id.action_delete) {
-                showClearAllDialog()
-                true
-            } else false
+            when (item.itemId) {
+                R.id.action_delete -> { showClearAllDialog(); true }
+                R.id.action_export_history -> { exportHistory(); true }
+                R.id.action_import_history -> { pickImportFile(); true }
+                else -> false
+            }
         }
         val searchItem: MenuItem = binding.toolbar.menu.findItem(R.id.action_search) ?: return
         val searchView = MenuItemCompat.getActionView(searchItem) as? SearchView ?: return
@@ -192,5 +203,81 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                 }
             }
             .show()
+    }
+
+    /**
+     * 导出全部本地浏览历史(插画/漫画/小说/用户)到 Download/ShaftBackups/Shaft-BrowseHistory.json。
+     * 读库在 IO,落盘复用 [IllustDownload.downloadBackupFile](走 MediaStore + 分享同设置页备份)。
+     */
+    private fun exportHistory() {
+        val act = activity as? BaseActivity<*> ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val (json, count) = withContext(Dispatchers.IO) {
+                BrowseHistoryBackup.exportToJson(act)
+            }
+            if (count == 0) {
+                Common.showToast(getString(R.string.view_history_export_empty))
+                return@launch
+            }
+            IllustDownload.downloadBackupFile(
+                act, BROWSE_HISTORY_FILE_NAME, json,
+                Callback<Uri> {
+                    Common.showToast(getString(R.string.view_history_export_success, count))
+                },
+            )
+        }
+    }
+
+    /** 选一个备份文件导入。对齐屏蔽记录(FragmentViewPager)的 SAF OpenDocument 姿势。 */
+    private fun pickImportFile() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val initialUri = Uri.parse(
+                    "content://com.android.externalstorage.documents/document/primary:" +
+                        "Download%2fShaftBackups%2f" + BROWSE_HISTORY_FILE_NAME,
+                )
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
+            }
+        }
+        startActivityForResult(intent, REQUEST_CODE_IMPORT_HISTORY)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_CODE_IMPORT_HISTORY || resultCode != Activity.RESULT_OK) return
+        val uri = data?.data
+        if (uri == null) {
+            Common.showToast(getString(R.string.view_history_import_no_file))
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    requireContext().contentResolver.openInputStream(uri)
+                        ?.use { it.readBytes().toString(Charsets.UTF_8) }
+                }
+                if (json.isNullOrBlank()) {
+                    Common.showToast(getString(R.string.view_history_import_invalid))
+                    return@launch
+                }
+                val imported = BrowseHistoryBackup.importFromJson(requireContext(), json)
+                if (imported == 0) {
+                    Common.showToast(getString(R.string.view_history_import_invalid))
+                    return@launch
+                }
+                reloadAllTabs()
+                Common.showToast(getString(R.string.view_history_import_success, imported))
+            } catch (e: Exception) {
+                Timber.e(e, "browse history import failed")
+                Common.showToast(getString(R.string.view_history_import_failed, e.message ?: ""))
+            }
+        }
+    }
+
+    companion object {
+        private const val BROWSE_HISTORY_FILE_NAME = "Shaft-BrowseHistory.json"
+        private const val REQUEST_CODE_IMPORT_HISTORY = 20083
     }
 }
