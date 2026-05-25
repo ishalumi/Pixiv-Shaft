@@ -10,6 +10,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ceui.lisa.activities.Shaft
+import ceui.lisa.core.Mapper
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
@@ -375,6 +376,10 @@ class ArtworkV3ViewModel(
                         val resp = ceui.lisa.http.Retro.getAppApi()
                             .getUserSubmitIllust(userId, "illust")
                             .awaitFirst()
+                        // 作者其他作品同属页面内列表，应用与全局一致的屏蔽过滤
+                        if (resp.illusts != null) {
+                            Mapper<ListIllust>().apply(resp)
+                        }
                         resp.list?.filter { it.id != illustId.toInt() }?.take(10) ?: emptyList()
                     }.getOrElse { Timber.e(it); emptyList() }
                 }
@@ -394,7 +399,13 @@ class ArtworkV3ViewModel(
                         val body = Client.appApi.generalGet(
                             "https://app-api.pixiv.net/v2/illust/related?illust_id=$illustId"
                         )
-                        gson.fromJson(body.string(), ListIllust::class.java)
+                        val parsed = gson.fromJson(body.string(), ListIllust::class.java)
+                        // 相关作品此前直接 addAll 原始返回，绕过了全局屏蔽，是本次修复的 bug。
+                        // 走与所有列表相同的 Mapper：屏蔽 tag / 作者 / 作品 + R18 + AI 设置（就地过滤）。
+                        if (parsed?.illusts != null) {
+                            Mapper<ListIllust>().apply(parsed)
+                        }
+                        parsed
                     }.getOrElse { Timber.e(it); null }
                 }
                 resp?.let { r ->
@@ -424,7 +435,12 @@ class ArtworkV3ViewModel(
             try {
                 val resp = withContext(Dispatchers.IO) {
                     val body = Client.appApi.generalGet(url)
-                    gson.fromJson(body.string(), ListIllust::class.java)
+                    val parsed = gson.fromJson(body.string(), ListIllust::class.java)
+                    // 分页同样应用全局屏蔽过滤，保持与首屏 loadRelated 一致
+                    if (parsed?.illusts != null) {
+                        Mapper<ListIllust>().apply(parsed)
+                    }
+                    parsed
                 }
                 relatedNextUrl = resp.next_url
                 resp.list?.let { newItems ->
