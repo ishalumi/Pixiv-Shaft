@@ -39,7 +39,7 @@
                 <!--
                   站长推荐 score pill。只在 trending repo 注入 trendingScore 时显示,
                   其他 fragment 复用同一 holder 时保持 gone。放在 LinearLayout 第一位
-                  是为了在 ▲ 旁边可能并排出现 5P / GIF / AI / NEW 时占左端最显眼位置。
+                  是为了在 ▲ 旁边可能并排出现 R-18 / 5P / GIF / AI / NEW 时占左端最显眼位置。
                 -->
                 <TextView
                     android:id="@+id/trending_score"
@@ -47,6 +47,24 @@
                     android:layout_marginEnd="@dimen/six_dp"
                     tools:text="▲ 1.2k"
                     tools:visibility="visible"/>
+
+                <!-- R-18 角标:文字颜色/字号沿用 GIF 标签,放在 trending 之后让其在普通列表里占最左最显眼位 -->
+                <TextView
+                    android:id="@+id/r18_badge"
+                    android:visibility="gone"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/tag_stroke"
+                    android:paddingStart="@dimen/four_dp"
+                    android:paddingTop="@dimen/two_dp"
+                    android:text="R-18"
+                    style="@style/textBlack"
+                    android:includeFontPadding="false"
+                    android:layout_marginEnd="@dimen/six_dp"
+                    android:paddingEnd="@dimen/four_dp"
+                    android:paddingBottom="2dp"
+                    android:textColor="@color/always_white"
+                    android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/p_size"

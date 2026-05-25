@@ -153,6 +153,7 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
             bindView.baseBind.pSize.setText(String.format(Locale.getDefault(), "%dP", target.getPage_count()));
         }
         bindView.baseBind.pGif.setVisibility(target.isGif() ? View.VISIBLE : View.GONE);
+        bindView.baseBind.r18Badge.setVisibility(target.isR18File() ? View.VISIBLE : View.GONE);
         // 站长推荐场景:trending repo 把 score 注入 bean。其他 fragment 复用此
         // adapter 时 trendingScore=null,bindTrendingScore 内部走 GONE,无副作用。
         TrendingScoreFormatKt.bindTrendingScore(bindView.baseBind.trendingScore, target.getTrendingScore());
