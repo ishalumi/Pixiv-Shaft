@@ -236,6 +236,7 @@ class NetworkTestFragment : Fragment(R.layout.fragment_network_perf_test) {
         TargetStatus.DEGRADED -> "部分异常" to R.color.v3_orange
         TargetStatus.POLLUTED -> "DNS 污染" to R.color.v3_danger
         TargetStatus.FAILED -> "失败" to R.color.v3_danger
+        TargetStatus.SKIPPED -> "已取消" to R.color.v3_text_3
     }
 
     private fun stepIcon(status: StepStatus): String = when (status) {
@@ -273,23 +274,11 @@ class NetworkTestFragment : Fragment(R.layout.fragment_network_perf_test) {
         Common.showToast(getString(R.string.network_test_log_copied))
     }
 
-    private fun showPollutionDialog(message: String) {
+    private fun showPollutionDialog(alert: NetworkAlert) {
         val act = activity ?: return
-        val titleRes = if (message.startsWith(NetworkTestViewModel.FAKE_IP_PREFIX)) {
-            // 假 IP 场景：去掉前缀后显示消息，并更换标题
-            R.string.network_test_fakeip_dialog_title
-        } else {
-            R.string.network_test_pollution_dialog_title
-        }
-        // 如果加了前缀，需要去掉后再显示
-        val displayMessage = if (message.startsWith(NetworkTestViewModel.FAKE_IP_PREFIX)) {
-            message.substring(NetworkTestViewModel.FAKE_IP_PREFIX.length).trimStart()
-        } else {
-            message
-        }
         QMUIDialog.MessageDialogBuilder(act)
-            .setTitle(titleRes)
-            .setMessage(displayMessage)
+            .setTitle(alert.titleRes)
+            .setMessage(alert.message)
             .setSkinManager(QMUISkinManager.defaultInstance(act))
             .addAction(R.string.network_test_pollution_dialog_action) { d, _ -> d.dismiss() }
             .show()

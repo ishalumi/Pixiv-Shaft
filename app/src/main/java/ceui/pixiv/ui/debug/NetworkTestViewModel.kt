@@ -3,6 +3,7 @@ package ceui.pixiv.ui.debug
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.http.CronetInterceptor
 import ceui.lisa.http.HttpDns
@@ -19,7 +20,6 @@ import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
-import okhttp3.logging.HttpLoggingInterceptor
 import timber.log.Timber
 import java.net.Inet4Address
 import java.net.InetAddress
@@ -27,7 +27,6 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLSession
 
 /** 单条步骤的语义状态，决定圆点 / pill 的颜色（在 Fragment 里按状态染 v3 颜色）。 */
 enum class StepStatus { INFO, OK, WARN, FAIL, RUNNING }
@@ -39,8 +38,11 @@ data class TestStep(
     val status: StepStatus = StepStatus.INFO,
 )
 
-/** 单个目标（域名）的整体判定，决定卡片右上角 pill。 */
-enum class TargetStatus { RUNNING, OK, DEGRADED, POLLUTED, FAILED }
+/**
+ * 单个目标（域名）的整体判定，决定卡片右上角 pill。
+ * SKIPPED：测试被取消（如代理 fake-ip 下解析结果不可路由，测了无意义），不算失败/污染。
+ */
+enum class TargetStatus { RUNNING, OK, DEGRADED, POLLUTED, FAILED, SKIPPED }
 
 data class TargetReport(
     val title: String,
@@ -52,41 +54,30 @@ data class TargetReport(
 /** 全局总览判定，决定顶部总览卡。 */
 enum class OverallStatus { CLEAN, DEGRADED, POLLUTED }
 
+/** 一次性弹窗事件的载荷：标题资源 + 已组好的正文（污染 / fake-ip 共用一条通道）。 */
+data class NetworkAlert(val titleRes: Int, val message: String)
+
 /**
  * 网络测试页的全部状态与测试逻辑（按项目约定，网络/异步状态归 ViewModel，
  * Fragment 只渲染）。承载 [NetworkTestFragment]。
  *
- * 单次诊断对 www.pixiv.net / i.pximg.net / pixshaft.com 依次做：
- *   1. 系统 DNS 解析 + CIDR 比对（检测本机 DNS 污染；如有 [pollutionAlert] 弹窗提醒）
- *   2. DoH / 直连开启时，额外展示应用内 [HttpDns] 实际解析路径（污染时改走此路）
+ * 该页用于「无代理环境下」诊断 Pixiv 连通性；代理（尤其 fake-ip 模式）下测试无参考价值，
+ * 检测到 fake-ip 即取消该目标并提示用户改 DNS 模式。
+ *
+ * 单次诊断对 app-api.pixiv.net / i.pximg.net / pixshaft.com 依次做：
+ *   1. 系统 DNS 解析 + CIDR 比对（检测本机 DNS 污染 / fake-ip；命中弹 [pollutionAlert]）
+ *   2. DoH / 直连开启时，额外展示并校验应用内 [HttpDns] 实际解析路径（污染时改走此路）
  *   3. TCP 443 连通性（延迟过低标注无参考性）
  *   4. 直连开启时额外做 ICMP/echo 可达性（代理下无意义，故仅直连）
- *   5. HTTPS 握手：持续 5s 多次采样，给 min/avg/max/抖动 + TLS 版本/加密套件
+ *   5. HTTPS 握手：持续 5s 多次采样，给 min/avg/max/抖动 + TLS/协议信息
+ *
+ * 关键约定（来自 PR #895 的方向）：第 5 步**按目标各自复刻线上真实连接路径**，否则测出来的
+ * 「通/不通」对用户没有参考价值——见 [buildHandshakeClient]：
+ *   · app-api / pixshaft：H2+H1；直连开启时经 [CronetInterceptor]（QUIC，绕 SNI 阻断）
+ *   · i.pximg.net：直连开启时无 SNI + 信任所有证书 + 强制 HTTP/1.1（图片服务器按 IP 路由）
  *
  * 另含独立的「作品 API 探测」：填插画/漫画 ID，测 /v1/illust/detail 响应时间与内容。
- *
- * 原作者 TODO（见 git 历史 PR #894）已落地：动态化结构、DoH 联动、实时滚动日志、
- * 5s 握手采样、直连 ICMP、PixshaftApi 连通、作品 API 探测。
  */
-
-/*
-* wangwang-code再度修改：
-* 主要修改内容：
-* www.pixiv.net -> app-api.pixiv.net。
-* 参照Client.kt，对HTTPS握手相关代码修改。
-* 对于i.pximg.net，需要像Shaft.kt中那样，无 SNI 的 TLS 和 忽略主机名校验的TLS握手，强制 HTTP/1.1，注意不要被Cronet拦截。
-* 添加fakeip检测。
-* 修改了一些提示，逻辑为：
-* 1. 出现DNS污染且直连模式和「安全 DNS（DoH）」未开启，提醒用户同时启用直连模式和「安全 DNS（DoH）」。
-* 2. 出现DNS污染且直连模式开启，但「安全 DNS（DoH）」未开启，提醒用户启用「安全 DNS（DoH）」。
-* 3. 出现DNS解析结果为fakeip，提醒用户修改DNS模式。
-* 待完善：
-* 分离3者（app-api.pixiv.net、i.pximg.net、pixshaft.com）的测试逻辑，而不是共用一个测试逻辑。
-* 拆开后可以分别复刻各自的HTTPS握手逻辑（如Client.kt里的createAPPAPI()），共用一套就如现在般棘手。
-* 相关UI需要进行完善适配（如 假ip 不应该是“失败”，而是“取消”）。
-*
-* wangwang-code：网络测试旨在无代理的环境下，测试Pixiv的网络连接情况，并不推荐在代理下进行测试，但用户非要测也是可以的。
-* */
 class NetworkTestViewModel : ViewModel() {
 
     val running = MutableLiveData(false)
@@ -99,14 +90,22 @@ class NetworkTestViewModel : ViewModel() {
     val dohEnabled: Boolean get() = Shaft.sSettings?.isUseSecureDns == true
     val directConnect: Boolean get() = Shaft.sSettings?.isDirectConnect == true
 
-    /** 一次性事件：检测到 DNS 污染时弹窗提醒（PR #894 的核心诉求）。 */
-    private val _pollutionAlert = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    /** 一次性事件：检测到 DNS 污染 / fake-ip 时弹窗提醒（PR #894 的核心诉求）。 */
+    private val _pollutionAlert = MutableSharedFlow<NetworkAlert>(extraBufferCapacity = 1)
     val pollutionAlert = _pollutionAlert.asSharedFlow()
 
     private val work = mutableListOf<TargetReport>()
     private val rawBuilder = StringBuilder()
 
-    private data class TargetConfig(val host: String, val subtitle: String, val cidrs: List<String>?)
+    /** 决定 [buildHandshakeClient] 用哪套客户端复刻线上连接。 */
+    private enum class TargetKind { APP_API, IMAGE, PIXSHAFT }
+
+    private data class TargetConfig(
+        val host: String,
+        val subtitle: String,
+        val cidrs: List<String>?,
+        val kind: TargetKind,
+    )
 
     fun runTests() {
         if (running.value == true) return
@@ -125,9 +124,9 @@ class NetworkTestViewModel : ViewModel() {
             log("")
 
             val configs = listOf(
-                TargetConfig("app-api.pixiv.net", "pixiv API · Cloudflare CDN", PIXIV_CIDRS),
-                TargetConfig("i.pximg.net", "图片服务器 · Pixiv Japan", PXIMG_CIDRS),
-                TargetConfig("pixshaft.com", "Shaft 云服务 · 浏览记录同步", null),
+                TargetConfig("app-api.pixiv.net", "pixiv API · Cloudflare CDN", PIXIV_CIDRS, TargetKind.APP_API),
+                TargetConfig("i.pximg.net", "图片服务器 · Pixiv Japan", PXIMG_CIDRS, TargetKind.IMAGE),
+                TargetConfig("pixshaft.com", "Shaft 云服务 · 浏览记录同步", null, TargetKind.PIXSHAFT),
             )
             val polluted = mutableListOf<String>()
             for (cfg in configs) {
@@ -137,27 +136,28 @@ class NetworkTestViewModel : ViewModel() {
 
             val anyFailed = work.any { it.status == TargetStatus.FAILED }
             val anyDegraded = work.any { it.status == TargetStatus.DEGRADED }
+            // SKIPPED（fake-ip 取消）也算「没测全」，别给出「网络通畅」的假象。
+            val anySkipped = work.any { it.status == TargetStatus.SKIPPED }
             val ov = when {
                 polluted.isNotEmpty() -> OverallStatus.POLLUTED
-                anyFailed || anyDegraded -> OverallStatus.DEGRADED
+                anyFailed || anyDegraded || anySkipped -> OverallStatus.DEGRADED
                 else -> OverallStatus.CLEAN
             }
             overall.postValue(ov)
             if (polluted.isNotEmpty()) {
-                _pollutionAlert.emit(buildPollutionMessage(polluted, doh, direct))
+                _pollutionAlert.emit(
+                    NetworkAlert(R.string.network_test_pollution_dialog_title, buildPollutionMessage(polluted, doh, direct)),
+                )
             }
             running.postValue(false)
         }
     }
 
-    private val FAKE_IP_PREFIX = "[FAKE_IP]"
+    private fun buildFakeIpMessage(host: String, fakeIps: List<String>): String =
+        "域名 $host 返回了保留地址（${fakeIps.joinToString()}），无法路由到真实服务器，可能原因：\n" +
+            "• 当前网络启用了 VPN / 代理，且 DNS 处于 fake-ip 模式\n" +
+            "• 请将代理工具的 DNS 模式改为 redir-host 或 normal，否则该测试无意义"
 
-    private fun buildFakeIpMessage(host: String, fakeIps: List<String>): String {
-
-        return "$FAKE_IP_PREFIX 域名 $host 返回了假 IP（${fakeIps.joinToString()}），可能原因：\n" +
-                "• 当前网络启用了 VPN / 代理，且 DNS 模式处于 fakeip\n" +
-                "• 建议将代理工具的 DNS 模式改为 redirHost 或 normal，否则该测试无意义"
-    }
     /** @return 该目标本机 DNS 是否被判定为污染。 */
     private fun testTarget(idx: Int, cfg: TargetConfig, doh: Boolean, direct: Boolean): Boolean {
         log("========== ${cfg.host} ==========")
@@ -171,15 +171,14 @@ class NetworkTestViewModel : ViewModel() {
             return false
         }
         val ipv4 = sysAddrs.filterIsInstance<Inet4Address>()
-        // 新增：假 IP 检测（代理下无意义）
-        val fakeIpDetected = ipv4.any { isFakeIp(it.hostAddress ?: "") }
-        if (fakeIpDetected) {
-            val fakeIps = ipv4.mapNotNull { it.hostAddress }.filter { isFakeIp(it) }
-            addStep(idx, TestStep("系统 DNS 解析", "返回假 IP: ${fakeIps.joinToString()}", StepStatus.FAIL))
-            log("检测到假 IP，测试取消: ${fakeIps.joinToString()}")
-            setStatus(idx, TargetStatus.FAILED)
+        // fake-ip 检测：代理接管 DNS 时返回的保留地址不可路由，测了无意义 —— 取消该目标（非失败）。
+        val fakeIps = ipv4.mapNotNull { it.hostAddress }.filter { isFakeIp(it) }
+        if (fakeIps.isNotEmpty()) {
+            addStep(idx, TestStep("系统 DNS 解析", "返回保留地址（疑似代理 fake-ip）: ${fakeIps.joinToString()}", StepStatus.WARN))
+            log("检测到 fake-ip，取消该目标: ${fakeIps.joinToString()}")
+            setStatus(idx, TargetStatus.SKIPPED)
             viewModelScope.launch {
-                _pollutionAlert.emit(buildFakeIpMessage(cfg.host, fakeIps))
+                _pollutionAlert.emit(NetworkAlert(R.string.network_test_fakeip_dialog_title, buildFakeIpMessage(cfg.host, fakeIps)))
             }
             return false
         }
@@ -302,7 +301,7 @@ class NetworkTestViewModel : ViewModel() {
 
         tcpPing(idx, targetIp.hostAddress ?: "", 443)
         if (direct) icmpPing(idx, targetIp)
-        val hsOk = httpsHandshakeSampled(idx, cfg.host, targetIp)
+        val hsOk = httpsHandshakeSampled(idx, cfg, targetIp, direct)
 
         val status = when {
             polluted -> TargetStatus.POLLUTED
@@ -353,85 +352,104 @@ class NetworkTestViewModel : ViewModel() {
     }
 
     /**
-     * HTTPS 握手：强制走指定 IP，持续 5s 反复建连（连接池 0 空闲，每次都重新 TLS 握手），
-     * 实时刷新 min/avg/max/抖动。
+     * 为目标构建与线上同源的 OkHttpClient —— 测什么路径就用 app 真实连这个域名时的那套
+     * （见 [Client] 的 createAPPAPI / createPixshaftService 与 Shaft 图片 client）：
+     *   · APP_API / PIXSHAFT：H2+H1；直连开启时挂 [CronetInterceptor]（请求转 QUIC，绕 SNI 阻断）。
+     *   · IMAGE：直连开启时无 SNI（[RubySSLSocketFactory]）+ 信任所有证书 + 关主机名校验 + 强制 HTTP/1.1。
+     * 连接池 0 空闲 → 每次调用都重新握手；[pinnedDns] 把域名钉到本次选定的 IP（Cronet 路径除外，
+     * 其走自身 host-resolver 规则，固定到 Cloudflare IP）。
      */
-    private fun httpsHandshakeSampled(idx: Int, domain: String, ip: InetAddress): Boolean {
+    private fun buildHandshakeClient(cfg: TargetConfig, ip: InetAddress, direct: Boolean): OkHttpClient {
         val pinnedDns = object : Dns {
-            override fun lookup(hostname: String): List<InetAddress> {
-                log("DNS 强制解析: $hostname -> ${ip.hostAddress}")
-                return listOf(ip)
-            }}
-        /*val client = OkHttpClient.Builder()
-            .dns(pinnedDns)
-            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.SECONDS)
-            .writeTimeout(5, TimeUnit.SECONDS)
-            .build()*/
-        val okhttpClientBuilder = OkHttpClient.Builder()
-            .dns(pinnedDns)
-            .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.SECONDS)
-            .writeTimeout(5, TimeUnit.SECONDS)
-            .protocols(
-                if (domain != "i.pximg.net")
-                    listOf(Protocol.HTTP_2, Protocol.HTTP_1_1)
-                else
-                    listOf(Protocol.HTTP_1_1)
-            )
-
-        if (domain == "i.pximg.net") {
-            try {
-                val trustManager = TrustAllCertManager()
-                okhttpClientBuilder.sslSocketFactory(RubySSLSocketFactory(), trustManager)
-                okhttpClientBuilder.hostnameVerifier({ hostname: String?, session: SSLSession? -> true })
-            } catch (e: Exception) {
-                Timber.e(e, "Direct-connect SSL init error")
-            }
-            okhttpClientBuilder.hostnameVerifier { _, _ -> true }
-            //上面的TrustAllCertManager 或 RubySSLSocketFactory 没有正确工作，待解决
+            override fun lookup(hostname: String): List<InetAddress> = listOf(ip)
         }
+        val builder = OkHttpClient.Builder()
+            .dns(pinnedDns)
+            .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.SECONDS)
+        when (cfg.kind) {
+            TargetKind.APP_API -> {
+                builder.protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                builder.addInterceptor(HeaderInterceptor())
+                if (direct) addCronet(builder)
+            }
+            TargetKind.IMAGE -> {
+                if (direct) {
+                    try {
+                        builder.sslSocketFactory(RubySSLSocketFactory(), TrustAllCertManager())
+                        builder.hostnameVerifier { _, _ -> true }
+                    } catch (e: Exception) {
+                        Timber.e(e, "image no-SNI SSL init error")
+                    }
+                    builder.protocols(listOf(Protocol.HTTP_1_1))
+                } else {
+                    builder.protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                }
+            }
+            TargetKind.PIXSHAFT -> {
+                builder.protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                if (direct) addCronet(builder)
+            }
+        }
+        return builder.build()
+    }
 
-        okhttpClientBuilder.addInterceptor(HeaderInterceptor())
-        //okhttpClientBuilder.addInterceptor(TokenFetcherInterceptor())
-        okhttpClientBuilder.addInterceptor(HttpLoggingInterceptor().apply {
-            setLevel(HttpLoggingInterceptor.Level.BODY)
-        })
-        //上面这两是否要加待讨论
-        if (domain != "i.pximg.net") applyDirectConnect(okhttpClientBuilder) //需要讨论真的需要请求拦截并转发给 Cronet，但在Client.kt是进行了拦截，对于i.pximg.net需要禁用证书和SNI绕过，否则会不听okhttp
+    private fun addCronet(builder: OkHttpClient.Builder) {
+        builder.addInterceptor(CronetInterceptor(CronetInterceptor.getEngine(Shaft.getContext())))
+    }
 
-        val request = Request.Builder().url("https://${if (domain == "i.pximg.net") ip else domain}/").header("Host", domain).head().build()
+    /** 该目标本次握手实际走的路径，标在步骤 label 上让用户看清测的是哪条链路。 */
+    private fun handshakePathDesc(cfg: TargetConfig, direct: Boolean): String = when (cfg.kind) {
+        TargetKind.IMAGE -> if (direct) "无 SNI · HTTP/1.1" else "标准 TLS"
+        else -> if (direct) "直连 Cronet/QUIC" else "标准 TLS"
+    }
+
+    /**
+     * HTTPS 握手：用 [buildHandshakeClient] 复刻该目标的真实连接，持续 5s 反复建连
+     * （连接池 0 空闲，每次都重新握手），实时刷新 min/avg/max/抖动。
+     */
+    private fun httpsHandshakeSampled(idx: Int, cfg: TargetConfig, ip: InetAddress, direct: Boolean): Boolean {
+        val client = buildHandshakeClient(cfg, ip, direct)
+        // SNI 由 socket 工厂控制，与 URL 无关；统一用域名即可（无 SNI 路径仍会被 RubySSLSocketFactory 抹掉）。
+        val request = Request.Builder().url("https://${cfg.host}/").head().build()
 
         val samples = mutableListOf<Long>()
         var fail = 0
         var tls: String? = null
         var cipher: String? = null
+        var proto: String? = null
         var firstErr: String? = null
 
+        val pathDesc = handshakePathDesc(cfg, direct)
         val stepIdx = work[idx].steps.size
-        addStep(idx, TestStep("HTTPS 握手 · 持续 5s 采样", "采样中…", StepStatus.RUNNING))
+        addStep(idx, TestStep("HTTPS 握手 · 持续 5s 采样 · $pathDesc", "采样中…", StepStatus.RUNNING))
 
-        val deadline = System.currentTimeMillis() + 5000
-        var n = 0
-        while (System.currentTimeMillis() < deadline && n < 15) {
-            n++
-            val t0 = System.currentTimeMillis()
-            try {
-                okhttpClientBuilder.build().newCall(request).execute().use { resp ->
-                    samples.add(System.currentTimeMillis() - t0)
-                    resp.handshake?.let {
-                        tls = it.tlsVersion.javaName
-                        cipher = it.cipherSuite.javaName
+        try {
+            val deadline = System.currentTimeMillis() + 5000
+            var n = 0
+            while (System.currentTimeMillis() < deadline && n < 15) {
+                n++
+                val t0 = System.currentTimeMillis()
+                try {
+                    client.newCall(request).execute().use { resp ->
+                        samples.add(System.currentTimeMillis() - t0)
+                        proto = resp.protocol.toString()
+                        resp.handshake?.let {
+                            tls = it.tlsVersion.javaName
+                            cipher = it.cipherSuite.javaName
+                        }
                     }
+                } catch (e: Exception) {
+                    fail++
+                    if (firstErr == null) firstErr = e.javaClass.simpleName + (e.message?.let { ": $it" } ?: "")
                 }
-            } catch (e: Exception) {
-                fail++
-                if (firstErr == null) firstErr = e.javaClass.simpleName + (e.message?.let { ": $it" } ?: "")
+                updateStep(idx, stepIdx, handshakeDetail(samples, fail, tls, cipher, proto, firstErr), StepStatus.RUNNING)
             }
-            updateStep(idx, stepIdx, handshakeDetail(samples, fail, tls, cipher, firstErr), StepStatus.RUNNING)
+        } finally {
+            client.connectionPool.evictAll()
+            client.dispatcher.executorService.shutdown()
         }
 
         val ok = samples.isNotEmpty()
@@ -440,17 +458,13 @@ class NetworkTestViewModel : ViewModel() {
             fail > 0 -> StepStatus.WARN
             else -> StepStatus.OK
         }
-        updateStep(idx, stepIdx, handshakeDetail(samples, fail, tls, cipher, firstErr), st)
+        updateStep(idx, stepIdx, handshakeDetail(samples, fail, tls, cipher, proto, firstErr), st)
         log(
-            "HTTPS: 成功 ${samples.size} / 失败 $fail" +
-                if (ok) " · min ${samples.min()} avg ${samples.average().toInt()} max ${samples.max()} ms · $tls · $cipher"
+            "HTTPS($pathDesc): 成功 ${samples.size} / 失败 $fail" +
+                if (ok) " · min ${samples.min()} avg ${samples.average().toInt()} max ${samples.max()} ms · ${tls ?: proto}"
                 else " · ${firstErr ?: ""}",
         )
         return ok
-    }
-
-    private fun applyDirectConnect(builder: OkHttpClient.Builder) {
-        builder.addInterceptor(CronetInterceptor(CronetInterceptor.getEngine(Shaft.getContext())))
     }
 
     private fun handshakeDetail(
@@ -458,6 +472,7 @@ class NetworkTestViewModel : ViewModel() {
         fail: Int,
         tls: String?,
         cipher: String?,
+        proto: String?,
         firstErr: String?,
     ): String {
         val sb = StringBuilder()
@@ -468,8 +483,13 @@ class NetworkTestViewModel : ViewModel() {
             sb.append("成功 ${samples.size}")
             if (fail > 0) sb.append(" · 失败 $fail")
             sb.append("\nmin ${min}ms · avg ${avg}ms · max ${max}ms · 抖动 ${max - min}ms")
-            tls?.let { sb.append("\n$it") }
-            cipher?.let { sb.append(" · $it") }
+            if (tls != null) {
+                sb.append("\n$tls")
+                cipher?.let { sb.append(" · $it") }
+            } else {
+                // Cronet/QUIC 路径短路了 OkHttp 的 TLS 层，没有握手对象，只能报协商出的协议。
+                proto?.let { sb.append("\n协议 $it（经直连，无 TLS 握手详情）") }
+            }
         } else {
             sb.append("全部失败（$fail 次）")
             firstErr?.let { sb.append("\n$it") }
@@ -600,19 +620,17 @@ class NetworkTestViewModel : ViewModel() {
     }
 
     companion object {
-        private fun isFakeIp(ip: String): Boolean {
-            return when {
-                ip.startsWith("192.0.2.") -> true     // TEST-NET-1
-                ip.startsWith("198.51.100.") -> true   // TEST-NET-2
-                ip.startsWith("198.18.") -> true   // TEST-NET-2
-                ip.startsWith("203.0.113.") -> true    // TEST-NET-3
-                ip.startsWith("127.95.") -> true    // TEST-NET-4
-                else -> false
-            }
-        }
+        // 代理 fake-ip 模式返回的占位段：不可路由，命中即说明 DNS 被代理接管，测连通无意义。
+        private val FAKE_IP_CIDRS = listOf(
+            "198.18.0.0/15",   // RFC 2544 基准测试段（Clash / Surge / sing-box 默认 fake-ip 段）
+            "192.0.2.0/24",    // RFC 5737 TEST-NET-1
+            "198.51.100.0/24", // RFC 5737 TEST-NET-2
+            "203.0.113.0/24",  // RFC 5737 TEST-NET-3
+        )
 
-        const val FAKE_IP_PREFIX = "[FAKE_IP]"
-        // www.pixiv.net 在 Cloudflare CDN 后，这批是 Cloudflare 公布的 IPv4 段。
+        private fun isFakeIp(ip: String): Boolean = FAKE_IP_CIDRS.any { isIpInCidr(ip, it) }
+
+        // app-api.pixiv.net 在 Cloudflare CDN 后，这批是 Cloudflare 公布的 IPv4 段。
         private val PIXIV_CIDRS = listOf(
             "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22",
             "141.101.64.0/18", "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20",
