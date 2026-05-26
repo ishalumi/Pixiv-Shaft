@@ -47,8 +47,8 @@ sealed interface ChatFrame {
     ) : ChatFrame
 
     /**
-     * `{ "kind": "err", "code", "client_msg_id"? }` — protocol / rate-limit
-     * / validation error. Connection stays open.
+     * `{ "kind": "err", "code", "client_msg_id"?, "message"? }` — protocol /
+     * rate-limit / validation / policy error. Connection stays open.
      *
      * When the offending inbound frame carried a `client_msg_id`, server
      * echoes it on the err so the client can anchor the failure to that
@@ -56,8 +56,18 @@ sealed interface ChatFrame {
      * happen BEFORE per-msg parsing (`bad_json`, `bad_envelope`,
      * `frame_too_large` of unparseable bytes, …) leave [clientMsgId]
      * `null` — callers fall back to "most recent Sending" heuristic.
+     *
+     * [message] is an optional server-supplied, user-displayable string (e.g.
+     * `global_send_disabled` carries "公共聊天室当前已关闭发言"). When present,
+     * prefer it for the toast over a client-side code→text map — it lets the
+     * server reword without a client release. Most codes omit it; the UI keeps
+     * its own friendly mapping as the fallback (never show the raw code).
      */
-    data class Err(val code: String, val clientMsgId: String?) : ChatFrame
+    data class Err(
+        val code: String,
+        val clientMsgId: String?,
+        val message: String? = null,
+    ) : ChatFrame
 
     /** `{ "kind": "pong", "server_ts" }` — reply to client app-level `ping`. */
     data class Pong(val serverTs: Long) : ChatFrame
@@ -144,6 +154,7 @@ object ChatFrameDecoder {
             "err" -> ChatFrame.Err(
                 code = obj.get("code")?.asStringOrNull() ?: "unknown",
                 clientMsgId = obj.get("client_msg_id")?.asStringOrNull(),
+                message = obj.get("message")?.asStringOrNull(),
             )
             "pong" -> ChatFrame.Pong(serverTs = obj.get("server_ts")?.asLongOrNull() ?: 0L)
             "typing" -> {

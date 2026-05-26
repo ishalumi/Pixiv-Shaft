@@ -230,6 +230,7 @@ private fun deriveWsBase(httpBase: String): String =
 - 服务端发完 **不掉线**,**也不进半死状态** —— 下一帧仍按正常流程处理
 - **当入站帧带 `client_msg_id` 时,err 一定回显回去**(包括 cmid 本身格式错的 `bad_client_msg_id` 也照原样回显)。客户端用它把这条 err 精准锚定到 optimistic UI 里那条"发送中"的消息,把它标"失败"。多条消息在飞时不会错把别条标失败
 - 灵感:weaver `ChatServerAckMessage.SeqId` 永远 copy 客户端原值 — "失败也得指明是哪条"
+- **可选 `message` 字段**:策略类错误(目前 `global_send_disabled`)会附带一段可直接展示的中文文案,例如 `{"kind":"err","code":"global_send_disabled","client_msg_id":"abc-123","message":"公共聊天室当前已关闭发言"}`。客户端 toast **优先用 `message`**,缺省再走本地 code→文案兜底映射 —— **永远不要把机器码直接 toast 给用户**。`message` 让服务端改文案不必发客户端版本。
 
 完整 err code 表:
 
@@ -249,6 +250,7 @@ private fun deriveWsBase(httpBase: String): String =
 | `room_forbidden` | 直接传了 numeric room id(不允许,防偷听他人 1v1) | 改用 `to_uid` |
 | `self_chat_not_allowed` | to_uid === self_uid | 不让用户给自己发(MVP 限制) |
 | `rate_limited` | 每连接 5 条/5s 令牌桶溢出 | 1s 内 disable 发送按钮 |
+| `global_send_disabled` | 管理员后台关闭了公共聊天室发言(只拦 `room:"global"`,1v1 不受影响) | toast `message` 字段文案;读历史仍可用,只是发不出去 |
 
 #### `pong` — 响应客户端应用层 `ping`
 

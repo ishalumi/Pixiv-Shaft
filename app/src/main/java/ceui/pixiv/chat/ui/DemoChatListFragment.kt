@@ -27,6 +27,7 @@ import ceui.lisa.utils.GlideUrlChild
 import ceui.lisa.utils.Params
 import ceui.loxia.Client
 import ceui.pixiv.chat.api.ChatConversationsRepository
+import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatThreadId
 import ceui.pixiv.chat.api.HttpChatHistorySource
 import ceui.pixiv.chat.api.ShaftChatGateway
@@ -479,8 +480,31 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
                 rateLimitCoolDown = false
                 refreshSendEnabled()
             } else {
-                Toast.makeText(requireContext(), "发送失败: ${err.code}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), friendlyChatErrorMessage(err), Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    /**
+     * 把服务端 err 帧转成用户能看懂的中文提示,绝不把机器码(如
+     * `global_send_disabled`)直接甩给用户。优先级:
+     *   1. 服务端下发的 [ChatFrame.Err.message](策略类错误会带,服务端可改词
+     *      而不用发版);
+     *   2. 客户端按 code 的兜底映射;
+     *   3. 通用文案。
+     */
+    private fun friendlyChatErrorMessage(err: ChatFrame.Err): String {
+        err.message?.takeIf { it.isNotBlank() }?.let { return it }
+        return when (err.code) {
+            "global_send_disabled"  -> "聊天室已关闭发言"
+            "room_forbidden"        -> "无法发送到该聊天"
+            "self_chat_not_allowed" -> "不能给自己发消息"
+            "bad_text_length"       -> "消息为空或过长"
+            "bad_text"              -> "消息内容无效"
+            "bad_illust_id"         -> "插画 ID 无效"
+            "bad_client_msg_id"     -> "消息标识无效"
+            "frame_too_large"       -> "消息过大"
+            else                    -> "发送失败,请稍后重试"
         }
     }
 
