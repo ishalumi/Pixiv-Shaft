@@ -1483,6 +1483,7 @@
     <string name="email_backup_email_label">이메일 주소</string>
     <string name="email_backup_email_hint">you@example.com</string>
     <string name="email_backup_code_hint">6자리 이메일 인증 코드</string>
+    <string name="email_backup_not_received">인증 코드가 오지 않으면 스팸함을 확인하거나 잠시 기다려 주세요.</string>
     <string name="email_backup_get_code">코드 받기</string>
     <string name="email_backup_resend">코드 재전송</string>
     <string name="email_backup_resend_in">%1$d초 후 재전송 가능</string>

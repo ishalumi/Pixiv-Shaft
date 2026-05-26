@@ -1570,6 +1570,7 @@
     <string name="email_backup_email_label">Email address</string>
     <string name="email_backup_email_hint">you@example.com</string>
     <string name="email_backup_code_hint">6-digit email code</string>
+    <string name="email_backup_not_received">Didn\'t receive the code? Check your spam/junk folder, or wait a moment and try again.</string>
     <string name="email_backup_get_code">Get code</string>
     <string name="email_backup_resend">Resend code</string>
     <string name="email_backup_resend_in">Resend in %1$d s</string>

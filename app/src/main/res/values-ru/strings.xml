@@ -1476,6 +1476,7 @@
     <string name="email_backup_email_label">Адрес эл. почты</string>
     <string name="email_backup_email_hint">you@example.com</string>
     <string name="email_backup_code_hint">6-значный код из письма</string>
+    <string name="email_backup_not_received">Не получили код? Проверьте папку «Спам» или подождите немного.</string>
     <string name="email_backup_get_code">Получить код</string>
     <string name="email_backup_resend">Отправить код повторно</string>
     <string name="email_backup_resend_in">Повтор через %1$d с</string>

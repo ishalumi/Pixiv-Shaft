@@ -1474,6 +1474,7 @@
     <string name="email_backup_email_label">E-posta adresi</string>
     <string name="email_backup_email_hint">you@example.com</string>
     <string name="email_backup_code_hint">6 haneli e-posta kodu</string>
+    <string name="email_backup_not_received">Kodu almadınız mı? Spam/önemsiz klasörünü kontrol edin veya biraz bekleyin.</string>
     <string name="email_backup_get_code">Kod al</string>
     <string name="email_backup_resend">Kodu yeniden gönder</string>
     <string name="email_backup_resend_in">%1$d sn sonra yeniden gönder</string>

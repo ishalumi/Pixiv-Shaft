@@ -1589,6 +1589,7 @@
     <string name="email_backup_email_label">電子郵件地址</string>
     <string name="email_backup_email_hint">you@example.com</string>
     <string name="email_backup_code_hint">6 位數電子郵件驗證碼</string>
+    <string name="email_backup_not_received">沒收到驗證碼？請檢查垃圾郵件匣（QQ 信箱尤其常見），或稍候片刻再試。</string>
     <string name="email_backup_get_code">取得驗證碼</string>
     <string name="email_backup_resend">重新傳送驗證碼</string>
     <string name="email_backup_resend_in">%1$d 秒後可重新傳送</string>

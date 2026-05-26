@@ -61,6 +61,7 @@ class EmailBackupV3Fragment : Fragment() {
     private lateinit var btnRequestCode: TextView
     private lateinit var btnSubmit: TextView
     private lateinit var statusText: TextView
+    private lateinit var codeHint: TextView
     private lateinit var progress: ProgressBar
     private lateinit var formContainer: View
     private lateinit var boundCard: View
@@ -94,6 +95,7 @@ class EmailBackupV3Fragment : Fragment() {
         btnRequestCode = view.findViewById(R.id.btn_request_code)
         btnSubmit = view.findViewById(R.id.btn_submit)
         statusText = view.findViewById(R.id.status_text)
+        codeHint = view.findViewById(R.id.code_hint)
         progress = view.findViewById(R.id.progress)
         formContainer = view.findViewById(R.id.form_container)
         boundCard = view.findViewById(R.id.bound_card)
@@ -139,6 +141,7 @@ class EmailBackupV3Fragment : Fragment() {
         val codeVisible = st.codeSent
         codeInput.visibility = if (codeVisible) View.VISIBLE else View.GONE
         btnSubmit.visibility = if (codeVisible) View.VISIBLE else View.GONE
+        codeHint.visibility = if (codeVisible) View.VISIBLE else View.GONE
         setTextIfDiffers(codeInput, st.code)
 
         btnRequestCode.text = when {

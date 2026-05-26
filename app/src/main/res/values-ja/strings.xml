@@ -1575,6 +1575,7 @@
     <string name="email_backup_email_label">メールアドレス</string>
     <string name="email_backup_email_hint">you@example.com</string>
     <string name="email_backup_code_hint">6 桁のメール認証コード</string>
+    <string name="email_backup_not_received">認証コードが届かない場合は、迷惑メールフォルダをご確認いただくか、しばらくお待ちください。</string>
     <string name="email_backup_get_code">コードを取得</string>
     <string name="email_backup_resend">コードを再送信</string>
     <string name="email_backup_resend_in">%1$d 秒後に再送信できます</string>

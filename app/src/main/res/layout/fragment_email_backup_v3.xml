@@ -249,6 +249,20 @@
                 android:visibility="gone"
                 tools:text="验证码已发送至 you@example.com"
                 tools:visibility="visible" />
+
+            <!-- 没收到提醒：和验证码输入框一起出现（codeSent），提示去翻垃圾箱。 -->
+            <TextView
+                android:id="@+id/code_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/email_backup_not_received"
+                android:textColor="@color/v3_text_3"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
             </LinearLayout>
 
             <ProgressBar
