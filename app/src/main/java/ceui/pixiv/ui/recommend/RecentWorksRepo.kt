@@ -17,10 +17,10 @@ import timber.log.Timber
  * 当前最热 - 插画/漫画 数据源。打 shaft-api-v2 的 recent/works 接口:「现在正在被人
  * 收藏的作品」,按最近一次 bookmark 事件倒序、server 端已按作品去重(每个作品只出一次)。
  *
- * 跟 [TrendingWorksRepo](本月收藏 = 当前周收藏加权榜)的区别只有两点:
- *   1. 接口走 recent 而非 trending(实时流 vs 周期快照);
- *   2. 不装饰 trendingScore —— 这是时间流不是加权榜,不露左上角 score pill。
- * 分页协议同 trending(跟随 server 的 next_url)。
+ * 跟 [TrendingWorksRepo](本月收藏 = 当前周收藏加权榜)的区别:接口走 recent 而非
+ * trending(实时流/榜单 vs 周期快照)。热度值同样露左上角 pill,但取 bookmark_count
+ * (server 端 score 恒为 0,加权分无意义)—— 实时模式是终身收藏数、日/周/月榜是窗口内
+ * 收藏数。分页协议同 trending(跟随 server 的 next_url)。
  */
 class RecentWorksRepo(
     private val type: String,
@@ -57,7 +57,9 @@ class RecentWorksRepo(
             item.bean?.let { json ->
                 try {
                     gson.fromJson(json, IllustsBean::class.java).apply {
-                        // 当前最热是时间流,不设 trendingScore → score pill 自动 GONE。
+                        // 热度值 = bookmark_count(实时=终身收藏数,日/周/月榜=窗口内收藏数),
+                        // 装饰到 trendingScore 上,IAdapter 露左上角 "▲ N" pill;0 时自动 GONE。
+                        trendingScore = item.bookmark_count.toFloat()
                         // payload 里的 is_bookmarked 是上报者当时的收藏态,跟当前用户无关,
                         // 一律清成 false,让用户能以自己名义点收藏。
                         setIs_bookmarked(false)
@@ -115,7 +117,8 @@ class RecentNovelsRepo(
             item.bean?.let { json ->
                 try {
                     gson.fromJson(json, NovelBean::class.java).apply {
-                        // 同上,时间流不设 trendingScore;清掉上报者收藏态。
+                        // 同上:热度值取 bookmark_count → NAdapter 露 "▲ N" pill;清掉上报者收藏态。
+                        trendingScore = item.bookmark_count.toFloat()
                         setIs_bookmarked(false)
                     }
                 } catch (e: Throwable) {
