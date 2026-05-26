@@ -4,10 +4,12 @@ import ceui.pixiv.chat.core.ChatMessageStream
 import ceui.pixiv.chat.data.ChatMessageEntity
 import ceui.pixiv.chat.data.SendState
 import ceui.pixiv.websocket.IncomingMessage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
@@ -59,16 +61,33 @@ class WsChatMessageStream(
         incoming
             .filterIsInstance<IncomingMessage.Text>()
             .map { ChatFrameDecoder.decode(it.text) }
-            .onEach { routeSideChannels(it) }
             .filterIsInstance<ChatFrame.Msg>()
             .filter { it.room == room }
             .mapNotNull(::toEntity)
 
     /**
-     * Hello / err frames are not room-scoped — they go to dedicated side
-     * flows so any subscriber (gateway-level UI bindings, the always-on
-     * raw logger) can pick them up independent of which room a fragment
-     * happens to be watching.
+     * Start always-on side-channel routing on [scope] (the app-scoped gateway
+     * scope). MUST be driven independently of [observe] — side channels (hello /
+     * err / typing / global_send_state) are connection-level, not room-level.
+     * Crucially the `hello` arrives at handshake, long before any chat fragment
+     * opens a room; if routing were tied to [observe] (as it used to be) that
+     * hello — and its `global_send_enabled` — would be missed entirely, leaving
+     * the public-room send gate stuck at its default. Decoding here is separate
+     * from [observe]'s own decode (manager.incoming is a fan-out SharedFlow);
+     * routing lives ONLY here so each side frame is emitted exactly once.
+     */
+    fun startSideChannelRouting(scope: CoroutineScope) {
+        incoming
+            .filterIsInstance<IncomingMessage.Text>()
+            .onEach { routeSideChannels(ChatFrameDecoder.decode(it.text)) }
+            .launchIn(scope)
+    }
+
+    /**
+     * Hello / err / typing / global_send_state frames are not room-scoped — they
+     * go to dedicated side flows so any subscriber (gateway state, fragment UI
+     * bindings, always-on logger) can pick them up independent of which room a
+     * fragment happens to be watching. Driven always-on by [startSideChannelRouting].
      */
     private fun routeSideChannels(frame: ChatFrame) {
         when (frame) {

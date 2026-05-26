@@ -92,6 +92,25 @@ object ShaftChatGateway {
     val globalSendEnabled: StateFlow<Boolean> get() = _globalSendEnabled
 
     /**
+     * The chat room the user is currently looking at (`ChatListViewModel.room`:
+     * "global" or a 1v1 thread id), or null when no chat fragment is foreground.
+     * The fragment maintains it from its own onResume/onPause — the authoritative
+     * source, vs reverse-engineering it from the foreground Activity. Read by
+     * [ceui.pixiv.banner.ChatBannerBridge] to suppress banners for the open room.
+     */
+    @Volatile
+    private var _foregroundChatRoom: String? = null
+    val foregroundChatRoom: String? get() = _foregroundChatRoom
+
+    fun enterChatRoom(room: String) { _foregroundChatRoom = room }
+
+    /** Guarded by [room] so out-of-order resume/pause across a room switch
+     *  (new fragment's onResume before old's onPause) can't wipe the new room. */
+    fun exitChatRoom(room: String) {
+        if (_foregroundChatRoom == room) _foregroundChatRoom = null
+    }
+
+    /**
      * Idempotent. Safe to call from `Application.onCreate` after
      * `EventReporter.init`. Subsequent calls are no-ops.
      */
@@ -155,6 +174,12 @@ object ShaftChatGateway {
         // arrives mid-session can still see the last hello via replay=1).
         stream = WsChatMessageStream(manager.incoming)
         persistDao = ChatDatabase.getInstance(app).chatMessageDao()
+
+        // Route hello/err/typing/global_send_state ALWAYS-ON (not tied to a chat
+        // fragment observing a room). The hello — carrying global_send_enabled —
+        // lands at handshake, before any room is open; this is what makes the
+        // send gate correct the moment the user opens the global chat.
+        stream.startSideChannelRouting(scope)
 
         startHeartbeatProbe()
         startAlwaysOnRawLog()

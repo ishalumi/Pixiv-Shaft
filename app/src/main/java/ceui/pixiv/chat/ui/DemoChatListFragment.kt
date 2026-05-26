@@ -631,6 +631,9 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     override fun onResume() {
         super.onResume()
+        // Authoritatively tell ChatBannerBridge which room is foreground so it
+        // suppresses banners for it (vs the bridge guessing from Activity state).
+        ShaftChatGateway.enterChatRoom(viewModel.room)
         val window = requireActivity().window
         previousSoftInputMode = window.attributes.softInputMode
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -638,6 +641,8 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     override fun onPause() {
         super.onPause()
+        // Guarded exit tolerates resume/pause reordering across a room switch.
+        ShaftChatGateway.exitChatRoom(viewModel.room)
         if (previousSoftInputMode != INVALID_SOFT_INPUT_MODE) {
             requireActivity().window.setSoftInputMode(previousSoftInputMode)
             previousSoftInputMode = INVALID_SOFT_INPUT_MODE

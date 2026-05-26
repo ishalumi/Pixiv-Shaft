@@ -1,6 +1,5 @@
 package ceui.pixiv.banner
 
-import ceui.lisa.activities.TemplateActivity
 import ceui.pixiv.chat.api.ChatFrame
 import ceui.pixiv.chat.api.ChatFrameDecoder
 import ceui.pixiv.chat.api.ChatThreadId
@@ -58,7 +57,7 @@ class ChatBannerBridge(
     private fun toBannerRequest(msg: ChatFrame.Msg): BannerRequest.Text? {
         val selfUid = SessionManager.loggedInUid
         if (selfUid != 0L && msg.uid == selfUid) return null
-        if (isViewingRoom(msg.room, selfUid)) {
+        if (isViewingRoom(msg.room)) {
             Timber.tag(TAG).d("suppress banner: foreground is room=%s", msg.room)
             return null
         }
@@ -94,27 +93,16 @@ class ChatBannerBridge(
     /**
      * Is the user already looking at the chat room that produced [msgRoom]?
      *
-     * The chat fragment lives inside [TemplateActivity] with
-     * `EXTRA_FRAGMENT="聊天室"` (+ `EXTRA_CHAT_PEER_UID` for 1v1). Reconstruct
-     * the active room id from those extras the same way `ChatListViewModel`
-     * does — global is literal "global", 1v1 is
-     * `ChatThreadId.oneOnOneThreadId(self, peer)`.
+     * Asks the authoritative foreground-room registry that the chat fragment
+     * itself maintains (`ShaftChatGateway.enterChatRoom` / `exitChatRoom` on its
+     * own resume/pause, keyed on `ChatListViewModel.room`). This replaced the
+     * earlier approach of reverse-engineering the room from the foreground
+     * Activity's intent extras — that was fragile (depended on currentActivity
+     * tracking + intent introspection) and is exactly what let global-room
+     * banners slip through while the user was sitting in the global room.
      */
-    private fun isViewingRoom(msgRoom: String, selfUid: Long): Boolean {
-        val activity = InAppBanners.currentActivity() ?: return false
-        if (activity !is TemplateActivity) return false
-        val intent = activity.intent ?: return false
-        if (intent.getStringExtra(TemplateActivity.EXTRA_FRAGMENT) != "聊天室") return false
-        val peerUid = intent.getLongExtra(TemplateActivity.EXTRA_CHAT_PEER_UID, 0L)
-        val activeRoom = if (peerUid > 0L) {
-            if (selfUid == 0L || selfUid == peerUid) return false
-            runCatching { ChatThreadId.oneOnOneThreadId(selfUid, peerUid) }.getOrNull()
-                ?: return false
-        } else {
-            ChatThreadId.ROOM_GLOBAL
-        }
-        return activeRoom == msgRoom
-    }
+    private fun isViewingRoom(msgRoom: String): Boolean =
+        ShaftChatGateway.foregroundChatRoom == msgRoom
 
     companion object {
         private const val TAG = "Chat-Banner-Bridge"
