@@ -334,6 +334,38 @@ class ChatListViewModel(
     }
 
     /**
+     * Drop an optimistic self-sent row entirely (vs [markFailedByClientMsgId]
+     * which keeps it as Failed). For non-retryable policy rejections like
+     * `global_send_disabled` (admin closed the public room): retry is pointless
+     * and the message was never accepted, so leaving a row — even a Failed one —
+     * is just noise. Anchors on cmid exactly; falls back to the most recent
+     * Sending row when the server couldn't echo a cmid.
+     *
+     * Safe to delete by key unconditionally (no "is it still Sending?" guard):
+     * the server returns the err XOR broadcasts the echo for a given cmid — never
+     * both (handleMsg returns right after sendErr) — and cmid is a fresh UUID per
+     * send, so `localKey == cmid` can only be this optimistic row, never a
+     * confirmed message. Deleting by key (vs scanning [messages]) also reaches
+     * rows that have scrolled out of the current window. Don't add a state guard.
+     */
+    fun removeByClientMsgId(cmid: String?) {
+        viewModelScope.launch {
+            val target: String = cmid
+                ?: messages.value.firstOrNull { it.state == SendState.Sending }?.localKey
+                ?: run {
+                    Timber.tag(TAG).w("removeOptimistic: no row to anchor (cmid=%s)", cmid ?: "-")
+                    return@launch
+                }
+            inFlightSends.remove(target)
+            store.deleteByLocalKey(target)
+            // Mirror the windowSize++ from the optimistic insert so paging stays
+            // consistent; never shrink below the base page size.
+            if (windowSize.value > pageSize) windowSize.value--
+            Timber.tag(TAG).i("✗ removeOptimistic cmid=%s (non-retryable reject)", target)
+        }
+    }
+
+    /**
      * Signal "user is typing right now" to the peer. Idempotent under
      * burst calls: only the first call within [TYPING_REFRESH_INTERVAL_MS]
      * actually dispatches a `typing` frame. The fragment is expected to

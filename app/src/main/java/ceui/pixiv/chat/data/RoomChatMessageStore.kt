@@ -37,6 +37,11 @@ class RoomChatMessageStore(
         return count
     }
 
+    override suspend fun deleteByLocalKey(localKey: String) {
+        dao.deleteByLocalKey(localKey)
+        Timber.tag(TAG).d("deleteByLocalKey: %s", localKey)
+    }
+
     override suspend fun deleteByRoom(room: String) {
         val t0 = System.nanoTime()
         dao.deleteByRoom(room)

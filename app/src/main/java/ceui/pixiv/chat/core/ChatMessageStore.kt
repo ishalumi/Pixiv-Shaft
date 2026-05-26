@@ -43,6 +43,13 @@ interface ChatMessageStore<M> {
     /** Number of locally stored messages for [room]. */
     suspend fun countByRoom(room: String): Int
 
+    /**
+     * Delete a single message by its `localKey`. Used to drop an optimistic
+     * self-sent row the server rejected non-retryably (e.g. the public room
+     * is closed) — it was never accepted, so it shouldn't linger in the list.
+     */
+    suspend fun deleteByLocalKey(localKey: String)
+
     /** Delete all messages for [room] (e.g. on cache clear). */
     suspend fun deleteByRoom(room: String)
 }

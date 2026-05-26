@@ -467,10 +467,15 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
      */
     private suspend fun observeServerErrors() {
         ShaftChatGateway.errorFrames.collectLatest { err ->
-            // Always: anchor the failure to the local row so UI shows Failed
-            // instead of stuck-Sending. cmid==null falls back to "most recent
-            // Sending" inside the VM.
-            viewModel.markFailedByClientMsgId(err.clientMsgId)
+            // global_send_disabled = 管理员关闭了公共聊天室发言:重试无意义,这条
+            // 消息从未被接受,直接移除该乐观行(否则会留一条看着像已发的气泡)。
+            // 其余错误维持"标记 Failed"语义(用户可重试),cmid==null 时 VM 兜底
+            // 锚定到最近一条 Sending 行。
+            if (err.code == "global_send_disabled") {
+                viewModel.removeByClientMsgId(err.clientMsgId)
+            } else {
+                viewModel.markFailedByClientMsgId(err.clientMsgId)
+            }
 
             if (err.code == "rate_limited") {
                 rateLimitCoolDown = true
