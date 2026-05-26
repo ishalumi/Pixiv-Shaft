@@ -116,7 +116,9 @@ object ObjectPool {
         } else {
             try {
                 val lastValue = storedObject.value
-                storedObject.value = if (isFullVersion || lastValue == null) {
+                // lastValue === obj:同一实例(典型 followUser 原地改字段后再 update),
+                // merge 自己跟自己无意义,直接赋值以保留 observer 通知,省掉 Gson 开销。
+                storedObject.value = if (isFullVersion || lastValue == null || lastValue === obj) {
                     obj
                 } else {
                     mergeKeepingExisting(obj.javaClass, lastValue, obj)
