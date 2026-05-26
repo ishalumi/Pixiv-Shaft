@@ -330,7 +330,11 @@ public class IllustsBean implements Serializable, Starable, Deduplicatable, Mode
     }
 
     public boolean isR18File() {
-        return x_restrict == 1 || sanity_level >= 4;
+        // x_restrict 是作者显式的限制级标记:1=R-18、2=R-18G,两者都算 R18。
+        // 此前还用 sanity_level >= 4 兜底,但 sanity_level 4 只是「敏感/R-15」级
+        // (并非 R18),会把瀑布流里没有 R18 标签的插画误标成 R18,故去掉。与小说
+        // 侧 (x_restrict > 0)、ArtworkDetailAdapter 的判定保持一致。
+        return x_restrict > 0;
     }
 
     public boolean isRelated() {
