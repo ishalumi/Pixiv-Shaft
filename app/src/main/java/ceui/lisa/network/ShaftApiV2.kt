@@ -82,30 +82,38 @@ interface ShaftApiV2 {
     )
 
     /**
-     * 当前最热 — 「现在正在被人收藏的作品」。按最近一次 bookmark 事件倒序、server 端
-     * 已按作品去重(每个作品只出一次)的实时流;只看 bookmark 事件,不是加权榜。
-     * item.bean 同 trending 一样带完整 payload,直接渲染。
+     * 当前最热 — 「现在正在被人收藏的作品」。item.bean 同 trending 一样带完整 payload。
      * 翻页同 trending:首屏 offset=0,后续走 [recentWorksByUrl] 喂 server 的 next_url。
+     *
+     * [window] 可选,day | week | month:
+     *   - null  → 实时流:按最近一次 bookmark 事件倒序、server 端按作品去重(原行为)。
+     *   - 给定  → 实时日/周/月榜:只统计窗口内 bookmark,按窗口内 bookmark_count 降序。
+     * 仍只看 bookmark 事件,不是加权榜 → server 端 score 恒为 0。Retrofit 对 null
+     * @Query 不发该参数,所以不传 window 即旧契约,向后兼容。
      */
     @GET("api/v1/recent/works")
     suspend fun recentWorks(
         @Query("type") type: String,
         @Query("limit") limit: Int = 60,
         @Query("offset") offset: Int = 0,
+        @Query("window") window: String? = null,
     ): RecentWorksResponse
 
-    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL)。 */
+    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL,已带 window)。 */
     @GET
     suspend fun recentWorksByUrl(@Url url: String): RecentWorksResponse
 
     /**
      * 复用 [TrendingWorkItem] 的 item 形状(只读 target_id / bookmark_count / bean)。
-     * 当前最热不是加权榜,server 端 score 恒为 0,客户端 score pill 自动隐藏。
+     * 当前最热不是加权榜,server 端 score 恒为 0,客户端 score pill 自动隐藏;窗口模式
+     * 下热度看 bookmark_count。window/sort 是 server 回显,nullable 兼容旧服务端。
      */
     data class RecentWorksResponse(
         val type: String,
         val limit: Int,
         val items: List<TrendingWorkItem>,
+        val window: String? = null,
+        val sort: String? = null,
         val offset: Int? = null,
         val total: Int? = null,
         val next_url: String? = null,

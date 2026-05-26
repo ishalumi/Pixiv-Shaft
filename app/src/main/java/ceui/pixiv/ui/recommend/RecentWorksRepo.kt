@@ -25,12 +25,14 @@ import timber.log.Timber
 class RecentWorksRepo(
     private val type: String,
     private val limitN: Int = 60,
+    /** null=实时流(原行为);day|week|month=实时日/周/月榜。 */
+    private val window: String? = null,
 ) : RemoteRepo<ListIllust>() {
 
     override fun initApi(): Observable<ListIllust> {
         return Observable.fromCallable {
             val resp = runBlocking {
-                ShaftApiV2Client.service.recentWorks(type = type, limit = limitN)
+                ShaftApiV2Client.service.recentWorks(type = type, limit = limitN, window = window)
             }
             buildListIllust(resp)
         }.subscribeOn(Schedulers.io())
@@ -81,12 +83,14 @@ class RecentWorksRepo(
  */
 class RecentNovelsRepo(
     private val limitN: Int = 60,
+    /** null=实时流(原行为);day|week|month=实时日/周/月榜。 */
+    private val window: String? = null,
 ) : RemoteRepo<ListNovel>() {
 
     override fun initApi(): Observable<ListNovel> {
         return Observable.fromCallable {
             val resp = runBlocking {
-                ShaftApiV2Client.service.recentWorks(type = "novel", limit = limitN)
+                ShaftApiV2Client.service.recentWorks(type = "novel", limit = limitN, window = window)
             }
             buildListNovel(resp)
         }.subscribeOn(Schedulers.io())

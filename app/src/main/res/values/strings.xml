@@ -1832,6 +1832,11 @@
     <string name="experimental_section">试验性</string>
     <string name="site_recommend">本月收藏</string>
     <string name="current_hot">当前最热</string>
+    <!-- 当前最热的窗口下拉(实时流 / 实时日·周·月榜) -->
+    <string name="recent_window_live">实时</string>
+    <string name="recent_window_day">日榜</string>
+    <string name="recent_window_week">周榜</string>
+    <string name="recent_window_month">月榜</string>
     <string name="sensitive_gate_title">敏感内容提示</string>
     <string name="sensitive_gate_message">可能包含 R-18 等敏感内容,是否继续查看?</string>
     <string name="sensitive_gate_cancel">取消查看</string>
