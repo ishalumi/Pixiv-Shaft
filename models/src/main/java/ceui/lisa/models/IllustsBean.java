@@ -337,6 +337,15 @@ public class IllustsBean implements Serializable, Starable, Deduplicatable, Mode
         return x_restrict > 0;
     }
 
+    /**
+     * 「敏感/R-15」级内容(sanity_level 4 为敏感,6 及以上更高)。它与 R18 正交:
+     * R18 看作者显式的 x_restrict,sensitive 看 Pixiv 自动评级 sanity_level。桌面
+     * widget 等需要同时回避 R18 与敏感内容的场景,用 isR18File() || isSensitive()。
+     */
+    public boolean isSensitive() {
+        return sanity_level >= 4;
+    }
+
     public boolean isRelated() {
         return isRelated;
     }

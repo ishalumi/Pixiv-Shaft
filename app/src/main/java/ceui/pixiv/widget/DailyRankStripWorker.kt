@@ -18,7 +18,7 @@ class DailyRankStripWorker(
         Retro.getAppApi().getRank("day", null)
             .blockingFirst()
             ?.illusts
-            ?.filter { !it.isR18File }
+            ?.filter { !it.isR18File && !it.isSensitive }
             ?.take(3)
     }
 }

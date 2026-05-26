@@ -52,7 +52,7 @@ class SpotlightWidgetWorker(
                     .blockingFirst()
                     ?.illusts
                     ?.shuffled()
-                    ?.firstOrNull { !it.isR18File }
+                    ?.firstOrNull { !it.isR18File && !it.isSensitive }
             }
         } catch (e: Exception) {
             e.printStackTrace()

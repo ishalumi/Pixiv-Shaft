@@ -18,7 +18,7 @@ class RecommendStripWorker(
         Retro.getAppApi().getRecmdIllust(true)
             .blockingFirst()
             ?.illusts
-            ?.filter { !it.isR18File }
+            ?.filter { !it.isR18File && !it.isSensitive }
             ?.shuffled()
             ?.take(3)
     }
