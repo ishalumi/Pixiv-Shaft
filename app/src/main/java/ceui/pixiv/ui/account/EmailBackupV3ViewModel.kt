@@ -65,7 +65,7 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
         val canRequestCode: Boolean
             get() = !loading && resendCountdown == 0 && isValidEmail(email)
         val canSubmit: Boolean
-            get() = !loading && codeSent && code.length == 6
+            get() = !loading && codeSent && code.length == CODE_LENGTH
     }
 
     sealed class Effect {
@@ -74,6 +74,7 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
         // restore done → pull cloud settings (ask to apply) like the web login, then relaunch
         data class RestoreLoggedIn(val uid: Long) : Effect()
         object HideKeyboard : Effect()  // any failure → drop the IME so the red error is visible
+        object FocusCode : Effect()     // code sent → focus the code field and pop the numeric IME
     }
 
     private val gson = Gson()
@@ -157,7 +158,17 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     }
 
     fun onEmailChanged(value: String) = update { it.copy(email = value.trim()) }
-    fun onCodeChanged(value: String) = update { it.copy(code = value.trim()) }
+
+    fun onCodeChanged(value: String) {
+        val code = value.trim()
+        update { it.copy(code = code) }
+        // 输满 6 位即自动收键盘并开始校验，省掉手动点「提交」（粘贴验证码同样触发）。
+        // 失败后停在 6 位红字态，改一位再补满会自动重试；submit() 的 !loading 保证不会重复提交。
+        if (code.length == CODE_LENGTH && cur().canSubmit) {
+            emit(Effect.HideKeyboard)
+            submit()
+        }
+    }
 
     fun requestCode() {
         val st = cur()
@@ -189,7 +200,8 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     fun submit() {
         val st = cur()
         if (!st.canSubmit) return
-        update { it.copy(loading = true, status = null, statusIsError = false) }
+        // 自动校验是无声触发的，给一句「正在校验…」配合 progress spinner 让用户有感知。
+        update { it.copy(loading = true, status = "正在校验验证码…", statusIsError = false) }
         viewModelScope.launch {
             try {
                 if (st.mode == Mode.BACKUP) doBackup(st) else doRestore(st)
@@ -253,6 +265,8 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
     private fun onCodeSent(email: String) {
         update { it.copy(loading = false, codeSent = true, status = "验证码已发送至 $email", statusIsError = false) }
         startCountdown()
+        // 验证码框此刻刚由 render() 显示出来，把焦点和数字键盘直接送过去，省一次点击。
+        emit(Effect.FocusCode)
     }
 
     private fun startCountdown() {
@@ -301,6 +315,7 @@ class EmailBackupV3ViewModel(initialMode: Mode) : ViewModel() {
 }
 
 private const val RESEND_SECONDS = 60
+private const val CODE_LENGTH = 6
 private val EMAIL_RE = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 
 private fun isValidEmail(e: String): Boolean =

@@ -27,6 +27,7 @@ import ceui.lisa.R
 import ceui.lisa.utils.Common
 import ceui.loxia.MoonSync
 import ceui.loxia.hideKeyboard
+import ceui.loxia.showKeyboard
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -174,6 +175,8 @@ class EmailBackupV3Fragment : Fragment() {
         when (e) {
             is EmailBackupV3ViewModel.Effect.Toast -> Common.showToast(e.msg)
             EmailBackupV3ViewModel.Effect.HideKeyboard -> hideKeyboard()
+            // post(): code_input 刚从 GONE 切到 VISIBLE，等它完成 layout 再 requestFocus + 弹 IME。
+            EmailBackupV3ViewModel.Effect.FocusCode -> codeInput.post { showKeyboard(codeInput) }
             EmailBackupV3ViewModel.Effect.Finish -> requireActivity().finish()
             is EmailBackupV3ViewModel.Effect.RestoreLoggedIn -> {
                 // 和官网浏览器登录一致:恢复登录后也拉一次云端设置,问用户要不要应用。
