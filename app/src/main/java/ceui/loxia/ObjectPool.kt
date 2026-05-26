@@ -3,6 +3,7 @@ package ceui.loxia
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.google.gson.Gson
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.ModelObject
 import ceui.lisa.models.NovelBean
@@ -114,21 +115,47 @@ object ObjectPool {
             store[key] = MutableLiveData(obj)
         } else {
             try {
-                if (isFullVersion) {
-                    storedObject.value = obj
+                val lastValue = storedObject.value
+                storedObject.value = if (isFullVersion || lastValue == null) {
+                    obj
                 } else {
-//                    val lastValue = storedObject.value
-//                    if (lastValue != null) {
-//                        storedObject.value = merge(ObjectT::class, lastValue as ObjectT, obj)
-//                    } else {
-                        storedObject.value = obj
-//                    }
+                    mergeKeepingExisting(obj.javaClass, lastValue, obj)
                 }
             } catch (ex: Exception) {
                 storedObject.postValue(obj)
             }
         }
         Log.d("updateObjectPool", "对象池大小：${store.size}")
+    }
+
+    @PublishedApi
+    internal val gson: Gson = Gson()
+
+    /**
+     * 列表接口返回的是「精简版」对象，往往缺少 detail 接口才有的字段（典型：caption）。
+     * 池里已存在更完整的旧值时，新值只用来「补充」自己实际带值的字段，绝不让空/缺失的字段
+     * 覆盖旧值的非空字段。这样后到的精简列表更新（如作者其他作品、用户作品列表）不会把
+     * 已经展示出来的简介等抹掉。isFullVersion=true 的 detail 更新仍走整体覆盖。
+     */
+    @PublishedApi
+    internal fun <T : Any> mergeKeepingExisting(clazz: Class<T>, old: Any, fresh: T): T {
+        return try {
+            val oldJson = gson.toJsonTree(old).asJsonObject
+            val freshJson = gson.toJsonTree(fresh).asJsonObject
+            for ((key, oldValue) in oldJson.entrySet()) {
+                if (oldValue == null || oldValue.isJsonNull) continue
+                val freshValue = freshJson.get(key)
+                val freshIsBlank = freshValue == null || freshValue.isJsonNull ||
+                    (freshValue.isJsonPrimitive && freshValue.asJsonPrimitive.isString && freshValue.asString.isEmpty()) ||
+                    (freshValue.isJsonArray && freshValue.asJsonArray.size() == 0)
+                if (freshIsBlank) {
+                    freshJson.add(key, oldValue)
+                }
+            }
+            gson.fromJson(freshJson, clazz) ?: fresh
+        } catch (ex: Exception) {
+            fresh
+        }
     }
 
     private fun <ObjectT : ModelObject> findObjectSpec(objClass: KClass<ObjectT>): Int {
