@@ -4,8 +4,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ceui.lisa.activities.Shaft
+import ceui.lisa.http.CronetInterceptor
 import ceui.lisa.http.HttpDns
+import ceui.lisa.http.RubySSLSocketFactory
+import ceui.lisa.http.TrustAllCertManager
 import ceui.loxia.Client
+import ceui.loxia.HeaderInterceptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -13,13 +17,17 @@ import kotlinx.coroutines.launch
 import okhttp3.ConnectionPool
 import okhttp3.Dns
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
+import okhttp3.logging.HttpLoggingInterceptor
+import timber.log.Timber
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLSession
 
 /** 单条步骤的语义状态，决定圆点 / pill 的颜色（在 Fragment 里按状态染 v3 颜色）。 */
 enum class StepStatus { INFO, OK, WARN, FAIL, RUNNING }
@@ -60,6 +68,25 @@ enum class OverallStatus { CLEAN, DEGRADED, POLLUTED }
  * 原作者 TODO（见 git 历史 PR #894）已落地：动态化结构、DoH 联动、实时滚动日志、
  * 5s 握手采样、直连 ICMP、PixshaftApi 连通、作品 API 探测。
  */
+
+/*
+* wangwang-code再度修改：
+* 主要修改内容：
+* www.pixiv.net -> app-api.pixiv.net。
+* 参照Client.kt，对HTTPS握手相关代码修改。
+* 对于i.pximg.net，需要像Shaft.kt中那样，无 SNI 的 TLS 和 忽略主机名校验的TLS握手，强制 HTTP/1.1，注意不要被Cronet拦截。
+* 添加fakeip检测。
+* 修改了一些提示，逻辑为：
+* 1. 出现DNS污染且直连模式和「安全 DNS（DoH）」未开启，提醒用户同时启用直连模式和「安全 DNS（DoH）」。
+* 2. 出现DNS污染且直连模式开启，但「安全 DNS（DoH）」未开启，提醒用户启用「安全 DNS（DoH）」。
+* 3. 出现DNS解析结果为fakeip，提醒用户修改DNS模式。
+* 待完善：
+* 分离3者（app-api.pixiv.net、i.pximg.net、pixshaft.com）的测试逻辑，而不是共用一个测试逻辑。
+* 拆开后可以分别复刻各自的HTTPS握手逻辑（如Client.kt里的createAPPAPI()），共用一套就如现在般棘手。
+* 相关UI需要进行完善适配（如 假ip 不应该是“失败”，而是“取消”）。
+*
+* wangwang-code：网络测试旨在无代理的环境下，测试Pixiv的网络连接情况，并不推荐在代理下进行测试，但用户非要测也是可以的。
+* */
 class NetworkTestViewModel : ViewModel() {
 
     val running = MutableLiveData(false)
@@ -98,7 +125,7 @@ class NetworkTestViewModel : ViewModel() {
             log("")
 
             val configs = listOf(
-                TargetConfig("www.pixiv.net", "网页 / API · Cloudflare CDN", PIXIV_CIDRS),
+                TargetConfig("app-api.pixiv.net", "pixiv API · Cloudflare CDN", PIXIV_CIDRS),
                 TargetConfig("i.pximg.net", "图片服务器 · Pixiv Japan", PXIMG_CIDRS),
                 TargetConfig("pixshaft.com", "Shaft 云服务 · 浏览记录同步", null),
             )
@@ -123,6 +150,14 @@ class NetworkTestViewModel : ViewModel() {
         }
     }
 
+    private val FAKE_IP_PREFIX = "[FAKE_IP]"
+
+    private fun buildFakeIpMessage(host: String, fakeIps: List<String>): String {
+
+        return "$FAKE_IP_PREFIX 域名 $host 返回了假 IP（${fakeIps.joinToString()}），可能原因：\n" +
+                "• 当前网络启用了 VPN / 代理，且 DNS 模式处于 fakeip\n" +
+                "• 建议将代理工具的 DNS 模式改为 redirHost 或 normal，否则该测试无意义"
+    }
     /** @return 该目标本机 DNS 是否被判定为污染。 */
     private fun testTarget(idx: Int, cfg: TargetConfig, doh: Boolean, direct: Boolean): Boolean {
         log("========== ${cfg.host} ==========")
@@ -136,6 +171,18 @@ class NetworkTestViewModel : ViewModel() {
             return false
         }
         val ipv4 = sysAddrs.filterIsInstance<Inet4Address>()
+        // 新增：假 IP 检测（代理下无意义）
+        val fakeIpDetected = ipv4.any { isFakeIp(it.hostAddress ?: "") }
+        if (fakeIpDetected) {
+            val fakeIps = ipv4.mapNotNull { it.hostAddress }.filter { isFakeIp(it) }
+            addStep(idx, TestStep("系统 DNS 解析", "返回假 IP: ${fakeIps.joinToString()}", StepStatus.FAIL))
+            log("检测到假 IP，测试取消: ${fakeIps.joinToString()}")
+            setStatus(idx, TargetStatus.FAILED)
+            viewModelScope.launch {
+                _pollutionAlert.emit(buildFakeIpMessage(cfg.host, fakeIps))
+            }
+            return false
+        }
         log("DNS: " + sysAddrs.joinToString(", ") { it.hostAddress ?: "?" })
 
         var polluted = false
@@ -178,16 +225,47 @@ class NetworkTestViewModel : ViewModel() {
         if ((doh || direct) && cfg.cidrs != null) {
             try {
                 val appAddrs = HttpDns.getInstance().lookup(cfg.host)
-                appIp = appAddrs.filterIsInstance<Inet4Address>().firstOrNull()
+                val appV4 = appAddrs.filterIsInstance<Inet4Address>()
+
+                // 判断应用内解析结果是否干净
+                val sb = StringBuilder()
+                var appClean = 0
+                for (a in appV4) {
+                    val ip = a.hostAddress ?: continue
+                    val hit = cfg.cidrs.firstOrNull { isIpInCidr(ip, it) }
+                    if (hit != null) {
+                        appClean++
+                        sb.append("✓ $ip ∈ $hit\n")
+                    } else {
+                        sb.append("✗ $ip 不在任何已知段\n")
+                    }
+                }
+                appAddrs.filter { it !is Inet4Address }.forEach { sb.append("· ${it.hostAddress} (IPv6, 跳过)\n") }
+
+                val appPolluted = appV4.isNotEmpty() && appClean == 0
+                val st = when {
+                    appV4.isEmpty() -> StepStatus.WARN
+                    appPolluted -> StepStatus.FAIL
+                    appClean < appV4.size -> StepStatus.WARN
+                    else -> StepStatus.OK
+                }
+
                 addStep(
                     idx,
                     TestStep(
-                        "应用内解析 · HttpDns(DoH/直连)",
-                        appAddrs.joinToString("\n") { "· ${it.hostAddress}" },
-                        StepStatus.INFO,
+                        "应用内解析 · HttpDns(DoH/直连) · ${appAddrs.size} 条",
+                        sb.toString().trimEnd(),
+                        st,
                     ),
                 )
                 log("HttpDns: " + appAddrs.joinToString(", ") { it.hostAddress ?: "?" })
+
+                // 只取干净的应用内解析结果
+                appIp = if (cfg.cidrs != null) {
+                    appV4.firstOrNull { a -> cfg.cidrs.any { isIpInCidr(a.hostAddress ?: "", it) } }
+                } else {
+                    appV4.firstOrNull()
+                }
             } catch (e: Exception) {
                 addStep(idx, TestStep("应用内解析 · HttpDns", "失败: ${e.message}", StepStatus.WARN))
             }
@@ -202,7 +280,7 @@ class NetworkTestViewModel : ViewModel() {
         val targetIp: Inet4Address? = cleanV4.firstOrNull() ?: appIp
         if (targetIp == null) {
             val detail = if (polluted) {
-                "本机 DNS 解析不可信，且无可用绕过路径"
+                "DNS 解析不可信，且无可用绕过路径"
             } else {
                 "无可用 IPv4 地址"
             }
@@ -280,17 +358,52 @@ class NetworkTestViewModel : ViewModel() {
      */
     private fun httpsHandshakeSampled(idx: Int, domain: String, ip: InetAddress): Boolean {
         val pinnedDns = object : Dns {
-            override fun lookup(hostname: String): List<InetAddress> =
-                if (hostname.equals(domain, ignoreCase = true)) listOf(ip) else Dns.SYSTEM.lookup(hostname)
-        }
-        val client = OkHttpClient.Builder()
+            override fun lookup(hostname: String): List<InetAddress> {
+                log("DNS 强制解析: $hostname -> ${ip.hostAddress}")
+                return listOf(ip)
+            }}
+        /*val client = OkHttpClient.Builder()
+            .dns(pinnedDns)
+            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+            .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.SECONDS)
+            .build()*/
+        val okhttpClientBuilder = OkHttpClient.Builder()
             .dns(pinnedDns)
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.SECONDS)
             .writeTimeout(5, TimeUnit.SECONDS)
-            .build()
-        val request = Request.Builder().url("https://$domain/").head().build()
+            .protocols(
+                if (domain != "i.pximg.net")
+                    listOf(Protocol.HTTP_2, Protocol.HTTP_1_1)
+                else
+                    listOf(Protocol.HTTP_1_1)
+            )
+
+        if (domain == "i.pximg.net") {
+            try {
+                val trustManager = TrustAllCertManager()
+                okhttpClientBuilder.sslSocketFactory(RubySSLSocketFactory(), trustManager)
+                okhttpClientBuilder.hostnameVerifier({ hostname: String?, session: SSLSession? -> true })
+            } catch (e: Exception) {
+                Timber.e(e, "Direct-connect SSL init error")
+            }
+            okhttpClientBuilder.hostnameVerifier { _, _ -> true }
+            //上面的TrustAllCertManager 或 RubySSLSocketFactory 没有正确工作，待解决
+        }
+
+        okhttpClientBuilder.addInterceptor(HeaderInterceptor())
+        //okhttpClientBuilder.addInterceptor(TokenFetcherInterceptor())
+        okhttpClientBuilder.addInterceptor(HttpLoggingInterceptor().apply {
+            setLevel(HttpLoggingInterceptor.Level.BODY)
+        })
+        //上面这两是否要加待讨论
+        if (domain != "i.pximg.net") applyDirectConnect(okhttpClientBuilder) //需要讨论真的需要请求拦截并转发给 Cronet，但在Client.kt是进行了拦截，对于i.pximg.net需要禁用证书和SNI绕过，否则会不听okhttp
+
+        val request = Request.Builder().url("https://${if (domain == "i.pximg.net") ip else domain}/").header("Host", domain).head().build()
 
         val samples = mutableListOf<Long>()
         var fail = 0
@@ -307,7 +420,7 @@ class NetworkTestViewModel : ViewModel() {
             n++
             val t0 = System.currentTimeMillis()
             try {
-                client.newCall(request).execute().use { resp ->
+                okhttpClientBuilder.build().newCall(request).execute().use { resp ->
                     samples.add(System.currentTimeMillis() - t0)
                     resp.handshake?.let {
                         tls = it.tlsVersion.javaName
@@ -320,8 +433,6 @@ class NetworkTestViewModel : ViewModel() {
             }
             updateStep(idx, stepIdx, handshakeDetail(samples, fail, tls, cipher, firstErr), StepStatus.RUNNING)
         }
-        client.connectionPool.evictAll()
-        client.dispatcher.executorService.shutdown()
 
         val ok = samples.isNotEmpty()
         val st = when {
@@ -336,6 +447,10 @@ class NetworkTestViewModel : ViewModel() {
                 else " · ${firstErr ?: ""}",
         )
         return ok
+    }
+
+    private fun applyDirectConnect(builder: OkHttpClient.Builder) {
+        builder.addInterceptor(CronetInterceptor(CronetInterceptor.getEngine(Shaft.getContext())))
     }
 
     private fun handshakeDetail(
@@ -472,17 +587,31 @@ class NetworkTestViewModel : ViewModel() {
     private fun onOff(v: Boolean) = if (v) "开" else "关"
 
     private fun buildPollutionMessage(domains: List<String>, doh: Boolean, direct: Boolean): String {
-        val head = "以下域名的本机 DNS 解析结果不在已知 IP 段，疑似被污染:\n" +
+        val head = "以下是疑似被DNS污染的域名\n（域名解析出的IP不在已知的正确IP列表中）:\n" +
             domains.joinToString("\n") { "· $it" }
-        val tail = if (doh || direct) {
-            "\n\n当前已开启 安全 DNS / 直连，应用已绕过本机 DNS，访问通常不受影响。"
+        val tail = if (doh && direct) {
+            "\n\n当前已同时开启直连模式和「安全 DNS（DoH）」，已尝试绕过污染，具体效果请以实际为准。"
+        } else if (direct) {
+            "\n\n当前已开启直连模式，但DNS污染仍在，建议同时开启「安全 DNS（DoH）」。"
         } else {
-            "\n\n建议在「设置 → 网络」开启「安全 DNS（DoH）」或直连模式来绕过污染。"
+            "\n\n建议在「设置 → 网络」同时开启直连模式和「安全 DNS（DoH）」来绕过污染。"
         }
         return head + tail
     }
 
     companion object {
+        private fun isFakeIp(ip: String): Boolean {
+            return when {
+                ip.startsWith("192.0.2.") -> true     // TEST-NET-1
+                ip.startsWith("198.51.100.") -> true   // TEST-NET-2
+                ip.startsWith("198.18.") -> true   // TEST-NET-2
+                ip.startsWith("203.0.113.") -> true    // TEST-NET-3
+                ip.startsWith("127.95.") -> true    // TEST-NET-4
+                else -> false
+            }
+        }
+
+        const val FAKE_IP_PREFIX = "[FAKE_IP]"
         // www.pixiv.net 在 Cloudflare CDN 后，这批是 Cloudflare 公布的 IPv4 段。
         private val PIXIV_CIDRS = listOf(
             "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22",
