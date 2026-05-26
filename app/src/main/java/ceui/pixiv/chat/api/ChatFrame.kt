@@ -16,11 +16,17 @@ import timber.log.Timber
  */
 sealed interface ChatFrame {
 
-    /** `{ "kind": "hello", "uid", "display_name", "server_ts" }` — first frame after handshake. */
+    /**
+     * `{ "kind": "hello", "uid", "display_name", "server_ts", "global_send_enabled"? }`
+     * — first frame after handshake. [globalSendEnabled] is the current public-room
+     * send switch; `null` only when talking to an older server that omits it (treat
+     * as enabled). Live changes arrive via [GlobalSendState].
+     */
     data class Hello(
         val uid: Long,
         val displayName: String?,
         val serverTs: Long,
+        val globalSendEnabled: Boolean? = null,
     ) : ChatFrame
 
     /**
@@ -93,6 +99,14 @@ sealed interface ChatFrame {
         val ts: Long,
     ) : ChatFrame
 
+    /**
+     * `{ "kind": "global_send_state", "enabled": Boolean, "server_ts" }` — pushed
+     * to all connections when an admin toggles the public-room send switch. Lets
+     * a client already sitting in the global room enable/disable its input live
+     * (vs only learning at next handshake via [Hello.globalSendEnabled]).
+     */
+    data class GlobalSendState(val enabled: Boolean) : ChatFrame
+
     /** Valid JSON but unknown / malformed envelope. Logged, dead-lettered, stream stays alive. */
     data class Unknown(val raw: String) : ChatFrame
 }
@@ -131,6 +145,7 @@ object ChatFrameDecoder {
                     uid = uid,
                     displayName = obj.get("display_name")?.asStringOrNull(),
                     serverTs = obj.get("server_ts")?.asLongOrNull() ?: 0L,
+                    globalSendEnabled = obj.get("global_send_enabled")?.asBooleanOrNull(),
                 )
             }
             "msg" -> {
@@ -174,6 +189,13 @@ object ChatFrameDecoder {
                     ts = obj.get("ts")?.asLongOrNull() ?: 0L,
                 )
             }
+            "global_send_state" -> {
+                val enabled = obj.get("enabled")?.asBooleanOrNull()
+                if (enabled == null) {
+                    Timber.tag(TAG).w("global_send_state missing 'enabled': %s", raw.take(120))
+                    ChatFrame.Unknown(raw)
+                } else ChatFrame.GlobalSendState(enabled = enabled)
+            }
             else -> ChatFrame.Unknown(raw).also {
                 Timber.tag(TAG).d("unknown kind=%s — ignored", kind)
             }
@@ -191,6 +213,14 @@ object ChatFrameDecoder {
         isJsonNull -> null
         isJsonPrimitive && asJsonPrimitive.isNumber -> asLong
         isJsonPrimitive && asJsonPrimitive.isString -> asString.toLongOrNull()
+        else -> null
+    }
+
+    private fun com.google.gson.JsonElement.asBooleanOrNull(): Boolean? = when {
+        isJsonNull -> null
+        isJsonPrimitive && asJsonPrimitive.isBoolean -> asBoolean
+        isJsonPrimitive && asJsonPrimitive.isString -> asString.toBooleanStrictOrNull()
+        isJsonPrimitive && asJsonPrimitive.isNumber -> asInt != 0
         else -> null
     }
 }

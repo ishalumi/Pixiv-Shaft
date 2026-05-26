@@ -19,12 +19,15 @@ import ceui.pixiv.session.SessionManager
 import ceui.pixiv.websocket.WebSocketEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -75,6 +78,18 @@ object ShaftChatGateway {
         replay = 0,
         extraBufferCapacity = 1,
     )
+
+    /**
+     * Current public-room ("global") send switch. Single source of truth merged
+     * from the hello frame (handshake-time state) and live `global_send_state`
+     * pushes, in real arrival order — so it never suffers the replay-ordering
+     * race a fragment would hit combining two replay flows itself. Defaults to
+     * `true` (and older servers omit the flag → stays enabled). UI in the global
+     * room reads this to disable input when closed, so a rejected message is
+     * never optimistically appended in the first place. 1v1 chats ignore it.
+     */
+    private val _globalSendEnabled = MutableStateFlow(true)
+    val globalSendEnabled: StateFlow<Boolean> get() = _globalSendEnabled
 
     /**
      * Idempotent. Safe to call from `Application.onCreate` after
@@ -145,6 +160,7 @@ object ShaftChatGateway {
         startAlwaysOnRawLog()
         startAlwaysOnPersister()
         startFatalAuthMonitor()
+        startGlobalSendStateTracker()
 
         // 收到 DM 消息时短震一下。subscribe 到同一份 manager.incoming SharedFlow,
         // 跟 persister / banner bridge 共用单 socket,无额外开销。
@@ -234,6 +250,26 @@ object ShaftChatGateway {
                     )
                     _fatalAuth.tryEmit(Unit)
                 }
+        }
+    }
+
+    /**
+     * Keep [globalSendEnabled] current from both sources, in real arrival order:
+     *  - hello frame's `global_send_enabled` (state at handshake / reconnect)
+     *  - `global_send_state` pushes (admin toggled it mid-session)
+     * Two app-scoped collectors writing one StateFlow → last event wins by time,
+     * no replay-ordering race for late subscribers.
+     */
+    private fun startGlobalSendStateTracker() {
+        // Single collector over a merged flow → strictly sequential, arrival-order
+        // processing (no reorder window two independent collectors could have).
+        // hello with no flag (older server) maps to nothing via mapNotNull, so it
+        // never clobbers a known state back to the default.
+        scope.launch {
+            merge(
+                stream.helloFrames.mapNotNull { it.globalSendEnabled },
+                stream.globalSendStateFrames.map { it.enabled },
+            ).collect { _globalSendEnabled.value = it }
         }
     }
 

@@ -114,6 +114,12 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     /** Send button gating (doc §12): WS Connected + has text + not rate-limited. */
     private var wsConnected = false
     private var rateLimitCoolDown = false
+    // Public room closed by admin (global_send_enabled=false). Only gates the
+    // global room; 1v1 always sends. Tracked from ShaftChatGateway.globalSendEnabled.
+    private var globalSendClosed = false
+
+    /** null peer arg ⇒ the public broadcast room. */
+    private val isGlobalRoom: Boolean get() = peerUidArg == null
 
     /**
      * TemplateActivity declares `windowSoftInputMode="adjustPan"` in the
@@ -224,6 +230,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             launch { observeMessages(chatAdapter, footerAdapter, layoutManager) }
             launch { observeConnection() }
             launch { observeServerErrors() }
+            launch { observeGlobalSendState() }
             launch { observeReplacedByOtherDevice() }
             launch { observeFatalAuth() }
             launch { observeMarkRead() }
@@ -407,8 +414,29 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     }
 
     private fun refreshSendEnabled() {
+        // Public room closed by admin → lock the input entirely so a rejected
+        // message is never optimistically appended in the first place (vs the
+        // reactive removal fallback in observeServerErrors). 1v1 is never gated.
+        val closed = isGlobalRoom && globalSendClosed
         val hasText = !binding.etInput.text.isNullOrBlank()
-        binding.btnSend.isEnabled = hasText && wsConnected && !rateLimitCoolDown
+        binding.btnSend.isEnabled = hasText && wsConnected && !rateLimitCoolDown && !closed
+        binding.etInput.isEnabled = !closed
+        binding.etInput.hint = getString(
+            if (closed) R.string.chat_global_closed_hint else R.string.chat_input_hint
+        )
+    }
+
+    /**
+     * Track the public-room send switch (gateway merges hello + live
+     * `global_send_state` pushes). When it closes while the user sits in the
+     * global room, lock input immediately — no flash, nothing appended. Reopens
+     * re-enable live. Tracked for all rooms but only *gates* the global room.
+     */
+    private suspend fun observeGlobalSendState() {
+        ShaftChatGateway.globalSendEnabled.collect { enabled ->
+            globalSendClosed = !enabled
+            refreshSendEnabled()
+        }
     }
 
     /**

@@ -48,6 +48,13 @@ class WsChatMessageStream(
     )
     val typingFrames: Flow<ChatFrame.Typing> get() = _typingFrames
 
+    // Public-room send switch changes, pushed to all connections. replay=1 so a
+    // subscriber that arrives after the toggle still sees the latest state.
+    private val _globalSendStateFrames = MutableSharedFlow<ChatFrame.GlobalSendState>(
+        replay = 1, extraBufferCapacity = 1,
+    )
+    val globalSendStateFrames: Flow<ChatFrame.GlobalSendState> get() = _globalSendStateFrames
+
     override fun observe(room: String): Flow<ChatMessageEntity> =
         incoming
             .filterIsInstance<IncomingMessage.Text>()
@@ -95,6 +102,10 @@ class WsChatMessageStream(
                     frame.room, frame.uid, frame.state, frame.displayName ?: "-",
                 )
                 _typingFrames.tryEmit(frame)
+            }
+            is ChatFrame.GlobalSendState -> {
+                Timber.tag(TAG).i("⇣ global_send_state enabled=%b", frame.enabled)
+                _globalSendStateFrames.tryEmit(frame)
             }
             is ChatFrame.Pong -> Timber.tag(TAG).d("⇣ pong server_ts=%d", frame.serverTs)
             is ChatFrame.Unknown -> Timber.tag(TAG).d("⇣ unknown frame dead-lettered")
