@@ -1614,4 +1614,15 @@
     <string name="view_history_import_invalid">匯入失敗：檔案為空或格式不正確</string>
     <string name="view_history_import_success">匯入成功，共 %1$d 筆記錄</string>
     <string name="view_history_import_failed">匯入失敗：%1$s</string>
+    <!-- 標籤熱度匯出 debug 頁(僅 debug 側邊欄「試驗性」可見) -->
+    <string name="tag_popular_export_entry">標籤熱度匯出</string>
+    <string name="tag_popular_export_subtitle">輸入 tag,以會員身分按熱度(popular_desc)擷取前 N 頁,匯出 JSON 至 下載/Shaft</string>
+    <string name="tag_popular_export_tag_label">TAG 名稱</string>
+    <string name="tag_popular_export_tag_hint">例如:原神</string>
+    <string name="tag_popular_export_pages_label">頁數(1-30)</string>
+    <string name="tag_popular_export_pages_hint">10</string>
+    <string name="tag_popular_export_log_section">執行紀錄</string>
+    <string name="tag_popular_export_run">開始匯出</string>
+    <string name="tag_popular_export_running">匯出中…</string>
+    <string name="tag_popular_export_need_tag">請先輸入 tag 名稱</string>
 </resources>

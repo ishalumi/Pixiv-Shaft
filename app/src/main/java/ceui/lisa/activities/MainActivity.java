@@ -105,6 +105,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(!isGoogleChannel);
+            // 标签热度导出:纯调试工具,只在 debug build 放出(menu 里默认 visible=false)。
+            baseBind.navView.getMenu().findItem(R.id.nav_tag_popular_export).setVisible(isDebugBuild);
             // 聊天室 / 广场入口由「设置 - 试验性」开关控制,默认关闭;onResume 时再刷新一次。
             updateExperimentalEntriesVisibility();
         }
@@ -467,6 +469,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         } else if (id == R.id.nav_network_test) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "网络测试");
+        } else if (id == R.id.nav_tag_popular_export) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "标签热度导出");
         } else if (id == R.id.nav_chat_room) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "聊天室");

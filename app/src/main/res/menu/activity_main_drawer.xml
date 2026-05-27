@@ -150,6 +150,12 @@
                 android:id="@+id/nav_plaza"
                 android:icon="@drawable/ic_plaza_forum_24"
                 android:title="@string/plaza_drawer_entry" />
+            <!-- 标签热度导出:debug-only,默认隐藏,MainActivity 按 BuildConfig.DEBUG 放出 -->
+            <item
+                android:id="@+id/nav_tag_popular_export"
+                android:icon="@drawable/ic_baseline_settings_24"
+                android:title="@string/tag_popular_export_entry"
+                android:visible="false" />
         </menu>
     </item>
 

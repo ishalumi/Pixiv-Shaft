@@ -1499,4 +1499,15 @@
     <string name="view_history_import_invalid">İçe aktarma başarısız: dosya boş veya bozuk</string>
     <string name="view_history_import_success">%1$d kayıt içe aktarıldı</string>
     <string name="view_history_import_failed">İçe aktarma başarısız: %1$s</string>
+    <!-- Etikete göre popülerlik dışa aktarımı debug sayfası (yalnızca debug, kenar çubuğu "Deneysel") -->
+    <string name="tag_popular_export_entry">Etikete Göre Popülerlik Dışa Aktarımı</string>
+    <string name="tag_popular_export_subtitle">Bir etiket girin; popülerliğe göre (popular_desc, Premium) ilk N sayfayı çekip JSON\'u Download/Shaft konumuna aktarır</string>
+    <string name="tag_popular_export_tag_label">Etiket adı</string>
+    <string name="tag_popular_export_tag_hint">örn. Genshin</string>
+    <string name="tag_popular_export_pages_label">Sayfa (1-30)</string>
+    <string name="tag_popular_export_pages_hint">10</string>
+    <string name="tag_popular_export_log_section">Çalışma günlüğü</string>
+    <string name="tag_popular_export_run">Dışa aktar</string>
+    <string name="tag_popular_export_running">Aktarılıyor…</string>
+    <string name="tag_popular_export_need_tag">Lütfen önce bir etiket adı girin</string>
 </resources>

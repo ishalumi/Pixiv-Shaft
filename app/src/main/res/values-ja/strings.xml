@@ -1600,4 +1600,15 @@
     <string name="view_history_import_invalid">インポート失敗：ファイルが空か形式が正しくありません</string>
     <string name="view_history_import_success">%1$d 件をインポートしました</string>
     <string name="view_history_import_failed">インポート失敗：%1$s</string>
+    <!-- タグ人気順エクスポート debug ページ(debug のみ、サイドバー「試験的」) -->
+    <string name="tag_popular_export_entry">タグ人気順エクスポート</string>
+    <string name="tag_popular_export_subtitle">タグを入力し、人気順(popular_desc・プレミアム)で先頭 N ページを取得して JSON を Download/Shaft に書き出します</string>
+    <string name="tag_popular_export_tag_label">タグ名</string>
+    <string name="tag_popular_export_tag_hint">例:原神</string>
+    <string name="tag_popular_export_pages_label">ページ数(1-30)</string>
+    <string name="tag_popular_export_pages_hint">10</string>
+    <string name="tag_popular_export_log_section">実行ログ</string>
+    <string name="tag_popular_export_run">エクスポート</string>
+    <string name="tag_popular_export_running">エクスポート中…</string>
+    <string name="tag_popular_export_need_tag">先にタグ名を入力してください</string>
 </resources>

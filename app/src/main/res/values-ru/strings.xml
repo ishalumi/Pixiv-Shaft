@@ -1501,4 +1501,15 @@
     <string name="view_history_import_invalid">Сбой импорта: файл пуст или имеет неверный формат</string>
     <string name="view_history_import_success">Импортировано записей: %1$d</string>
     <string name="view_history_import_failed">Сбой импорта: %1$s</string>
+    <!-- Экспорт тега по популярности — debug-страница (только debug, боковое меню «Экспериментальное») -->
+    <string name="tag_popular_export_entry">Экспорт тега по популярности</string>
+    <string name="tag_popular_export_subtitle">Введите тег, чтобы получить первые N страниц по популярности (popular_desc, Premium) и экспортировать JSON в Download/Shaft</string>
+    <string name="tag_popular_export_tag_label">Имя тега</string>
+    <string name="tag_popular_export_tag_hint">напр. Genshin</string>
+    <string name="tag_popular_export_pages_label">Страниц (1-30)</string>
+    <string name="tag_popular_export_pages_hint">10</string>
+    <string name="tag_popular_export_log_section">Журнал</string>
+    <string name="tag_popular_export_run">Экспорт</string>
+    <string name="tag_popular_export_running">Экспорт…</string>
+    <string name="tag_popular_export_need_tag">Сначала введите имя тега</string>
 </resources>

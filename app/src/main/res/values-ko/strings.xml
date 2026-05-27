@@ -1508,4 +1508,15 @@
     <string name="view_history_import_invalid">가져오기 실패: 파일이 비어 있거나 형식이 올바르지 않습니다</string>
     <string name="view_history_import_success">%1$d개 기록을 가져왔습니다</string>
     <string name="view_history_import_failed">가져오기 실패: %1$s</string>
+    <!-- 태그 인기순 내보내기 debug 페이지 (debug 전용, 사이드바 "실험적") -->
+    <string name="tag_popular_export_entry">태그 인기순 내보내기</string>
+    <string name="tag_popular_export_subtitle">태그를 입력하면 인기순(popular_desc, 프리미엄)으로 앞 N페이지를 가져와 JSON을 Download/Shaft에 저장합니다</string>
+    <string name="tag_popular_export_tag_label">태그 이름</string>
+    <string name="tag_popular_export_tag_hint">예: 원신</string>
+    <string name="tag_popular_export_pages_label">페이지 수 (1-30)</string>
+    <string name="tag_popular_export_pages_hint">10</string>
+    <string name="tag_popular_export_log_section">실행 로그</string>
+    <string name="tag_popular_export_run">내보내기</string>
+    <string name="tag_popular_export_running">내보내는 중…</string>
+    <string name="tag_popular_export_need_tag">먼저 태그 이름을 입력하세요</string>
 </resources>

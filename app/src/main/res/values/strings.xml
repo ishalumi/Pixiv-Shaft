@@ -2066,4 +2066,15 @@
     <string name="view_history_import_invalid">导入失败：文件为空或格式不正确</string>
     <string name="view_history_import_success">导入成功，共 %1$d 条记录</string>
     <string name="view_history_import_failed">导入失败：%1$s</string>
+    <!-- 标签热度导出 debug 页(仅 debug 侧边栏「试验性」可见) -->
+    <string name="tag_popular_export_entry">标签热度导出</string>
+    <string name="tag_popular_export_subtitle">输入 tag,以会员身份按热度(popular_desc)拉取前 N 页,导出 JSON 到 下载/Shaft</string>
+    <string name="tag_popular_export_tag_label">TAG 名称</string>
+    <string name="tag_popular_export_tag_hint">例如:原神</string>
+    <string name="tag_popular_export_pages_label">页数(1-30)</string>
+    <string name="tag_popular_export_pages_hint">10</string>
+    <string name="tag_popular_export_log_section">运行日志</string>
+    <string name="tag_popular_export_run">开始导出</string>
+    <string name="tag_popular_export_running">导出中…</string>
+    <string name="tag_popular_export_need_tag">请先输入 tag 名称</string>
 </resources>
