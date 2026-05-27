@@ -146,6 +146,7 @@
     <color name="buttonTextGreen">#FF94FFDE</color>
     <color name="buttonTextBlue">#00E6FF</color>
     <color name="buttonTextRed">#FF3E65</color>
+    <color name="warning_red">#E53935</color>
     <color name="buttonSmallStrokeGreen">#FF0DFFCC</color>
     <color name="buttonSmallStrokeBlue">#00E6FF</color>
     <color name="buttonSmallStrokeRed">#FF5A7E</color>

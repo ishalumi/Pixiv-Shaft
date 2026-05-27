@@ -1498,8 +1498,21 @@
                             style="@style/ripple_rela">
 
                             <TextView
-                                style="@style/setting_text_left_and_center"
+                                android:id="@+id/show_chat_room_entry_mark"
+                                style="@style/setting_text_left"
+                                android:layout_marginBottom="@dimen/six_dp"
                                 android:text="@string/setting_show_chat_room_entry" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@+id/show_chat_room_entry_mark"
+                                android:layout_marginStart="@dimen/sixteen_dp"
+                                android:layout_marginBottom="@dimen/twelve_dp"
+                                android:layout_toStartOf="@+id/show_chat_room_entry"
+                                android:text="@string/setting_chat_room_entry_warning"
+                                android:textColor="@color/warning_red"
+                                android:textSize="12sp" />
 
                             <androidx.appcompat.widget.SwitchCompat
                                 android:id="@+id/show_chat_room_entry"

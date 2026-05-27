@@ -1396,6 +1396,7 @@
     <string name="plaza_drawer_entry">Meydan</string>
     <string name="setting_show_chat_room_entry">Sohbet odası girişini ana ekran kenar çubuğunda göster</string>
     <string name="setting_show_chat_room_push_banner">Herkese açık sohbet odasındaki yeni mesajlar için uygulama içi push banner göster</string>
+    <string name="setting_chat_room_entry_warning">Siyaset konuşmak kalıcı yasak demektir</string>
     <string name="setting_show_plaza_entry">Meydan girişini ana ekran kenar çubuğunda göster</string>
     <string name="plaza_title">Meydan</string>
     <string name="plaza_compose_title">Yeni Gönderi</string>

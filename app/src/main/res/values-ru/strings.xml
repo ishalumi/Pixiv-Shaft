@@ -1398,6 +1398,7 @@
     <string name="plaza_drawer_entry">Площадь</string>
     <string name="setting_show_chat_room_entry">Показывать вход в чат на боковой панели главной</string>
     <string name="setting_show_chat_room_push_banner">Показывать всплывающий баннер о новых сообщениях в общем чате</string>
+    <string name="setting_chat_room_entry_warning">Разговоры о политике — вечный бан</string>
     <string name="setting_show_plaza_entry">Показывать вход на «Площадь» на боковой панели главной</string>
     <string name="plaza_title">Площадь</string>
     <string name="plaza_compose_title">Новый пост</string>
