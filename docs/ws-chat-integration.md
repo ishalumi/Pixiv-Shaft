@@ -15,7 +15,8 @@ strict to_uid 校验、实时 display_name、Map iteration 快照、closeChatDb
 ## 0. 一句话总览
 
 - 一个 app 对应**一条** WS,握手成功(收到 `hello`)后**自动接收**:
-  - 所有 `room: "global"` 公共房广播
+  - 所有 `room: "global"` 公共房广播 —— ⚠️ 服务端按握手带的 `v`(client versionCode)
+    version-gate:`v` 缺失/过低的老客户端**不下发** global(见 §2.1)
   - 所有 `to_uid` 指向自己的 1v1 消息(无论自己有没有"打开"那个聊天)
 - 客户端**不发 sub / unsub 帧**,服务端按 `uid` 做路由,连上即收
 - 发消息:`{kind:"msg", to_uid:X, client_msg_id, text}`(1v1) 或
@@ -90,11 +91,11 @@ onClose(code=1008, reason="replaced")
 
 ```
 握手 URL:
-  ws://host:8080/api/v1/chat/ws?uid=<long>&ts=<unix_ms>&sig=<hmac_hex>
+  ws://host:8080/api/v1/chat/ws?uid=<long>&ts=<unix_ms>&sig=<hmac_hex>&v=<versionCode>
 
 sig = HMAC_SHA256_HEX(
   key  = BuildConfig.SHAFT_EVENTS_HMAC.toByteArray(UTF_8),  // ASCII 字节,不是 hex 解码
-  data = "${uid}|${ts}".toByteArray(UTF_8),
+  data = "${uid}|${ts}".toByteArray(UTF_8),                 // 注意:v 不进签名
 )
 ```
 
@@ -106,6 +107,26 @@ sig = HMAC_SHA256_HEX(
 4. 输出 hex **小写**
 
 服务端 `ts` 正则:`/^[1-9][0-9]{12,13}$/`,与当前时间差 ≤ 60s。
+
+#### `v`(client versionCode)—— 公共房按版本下发的服务端契约
+
+`v` 是客户端 app 的 `BuildConfig.VERSION_CODE`,作为**明文 query 挂在握手 URL**,
+**不进 sig**。这样保证向后兼容:现网服务端只验 `uid|ts` 的 sig、忽略未知 query,
+所以新客户端先发 `v`、服务端后上线读 `v`,中间不会把新客户端锁在门外。
+
+**服务端需要实现的 gate(broker/router 的 `deliverToAll`/global fan-out 处):**
+
+- 仅向 `v >= GLOBAL_MIN_VERSION` 的连接下发 `room:"global"` 广播;
+- `v` 缺失或 `< GLOBAL_MIN_VERSION`(= 现存所有已发布版本,它们根本不带 `v`)→ **不发 global**;
+- 1v1(`to_uid`)下发不受影响。
+
+`GLOBAL_MIN_VERSION` 取**第一个带"默认关 + 开关 gate"** 的客户端 versionCode
+(即 40740 之后的那个新版本号)。这是唯一能拦住**已冻结的老客户端**"无脑弹公共聊天
+push banner"的手段 —— 老客户端收到就弹,改不动,只能让它收不到。建议把
+`GLOBAL_MIN_VERSION` 做成服务端可热改的配置,不必每次重新部署就能抬高门槛。
+
+> `v` 是 feature-gate 提示、不是凭证,可被改包伪造;但老客户端是冻结的、根本不发 `v`,
+> 不在威胁模型内,因此不进签名是可接受的取舍。
 
 ### 2.2 握手失败响应
 
@@ -128,15 +149,16 @@ class ShaftHmacAuthProvider(
     private val baseHttpUrl: String,            // BuildConfig.SHAFT_EVENTS_BASE_URL
     private val secretAscii: String,            // BuildConfig.SHAFT_EVENTS_HMAC
     private val uidProvider: () -> Long,        // 当前登录用户的 pixiv uid
+    private val appVersionCode: Int,            // BuildConfig.VERSION_CODE
 ) : WebSocketAuthProvider {
 
     override fun nextRequest(): Request {
         val uid = uidProvider()
         require(uid > 0L) { "uid not initialised (not logged in?)" }
         val ts  = System.currentTimeMillis().toString()
-        val sig = ShaftHmac.sign("$uid|$ts", secretAscii)
+        val sig = ShaftHmac.sign("$uid|$ts", secretAscii)  // 只签 uid|ts
         val url = deriveWsBase(baseHttpUrl) +
-            "/api/v1/chat/ws?uid=$uid&ts=$ts&sig=$sig"
+            "/api/v1/chat/ws?uid=$uid&ts=$ts&sig=$sig&v=$appVersionCode"
         return Request.Builder().url(url).build()
     }
 }

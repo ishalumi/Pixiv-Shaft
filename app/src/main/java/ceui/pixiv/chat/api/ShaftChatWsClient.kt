@@ -47,6 +47,10 @@ object ShaftChatWsClient {
             // throws and RobustWebSocketClient routes through onFailure +
             // exponential backoff until the user signs in.
             uidProvider = { SessionManager.loggedInUid },
+            // Advertised as unsigned `&v=` so the server can version-gate
+            // `room:"global"` delivery (old builds send no `v` → no global →
+            // no blind public-chat push banner). See ShaftHmacAuthProvider.
+            appVersionCode = BuildConfig.VERSION_CODE,
         )
 
         val placeholderUrl = ShaftHmacAuthProvider.deriveWsBase(

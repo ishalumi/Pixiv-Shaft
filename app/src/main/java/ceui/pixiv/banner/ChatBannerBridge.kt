@@ -57,7 +57,10 @@ class ChatBannerBridge(
     private fun toBannerRequest(msg: ChatFrame.Msg): BannerRequest.Text? {
         val selfUid = SessionManager.loggedInUid
         if (selfUid != 0L && msg.uid == selfUid) return null
-        // 「展示公开聊天室新消息 push banner」开关(设置 - 试验性):仅控制公开/全局房间,默认关闭。
+        // 试验性开关只 gate 公开/全局房 banner(默认关)。1v1 私信 banner **故意不 gate**:
+        // 私信入口是用户主页的「发消息」按钮(UserActivityV3,独立于侧边栏「聊天室入口」开关),
+        // 是用户主动发起的会话;若按聊天室入口开关把回复通知静默掉,反而是更严重的 bug。
+        // ⚠️ 别为了「一致性」把这条收紧成 !showChatRoomEntry 就 return —— 会吞掉私信通知。
         if (msg.room == ChatThreadId.ROOM_GLOBAL && !publicChatBannerEnabled()) {
             return null
         }
