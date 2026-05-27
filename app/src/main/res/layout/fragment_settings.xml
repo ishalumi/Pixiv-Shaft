@@ -1483,6 +1483,73 @@
 
                     <TextView
                         style="@style/setting_text_head"
+                        android:text="@string/experimental_section" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/white_and_black"
+                        android:orientation="vertical">
+
+                        <View style="@style/full_divider" />
+
+                        <RelativeLayout
+                            android:id="@+id/show_chat_room_entry_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/setting_show_chat_room_entry" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/show_chat_room_entry"
+                                style="@style/setting_right_switch" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <!-- 仅在「聊天室入口」开启时展示,可见性由 FragmentSettings 联动控制 -->
+                        <RelativeLayout
+                            android:id="@+id/show_chat_room_push_banner_rela"
+                            style="@style/ripple_rela"
+                            android:visibility="gone">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/setting_show_chat_room_push_banner" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/show_chat_room_push_banner"
+                                style="@style/setting_right_switch" />
+
+                        </RelativeLayout>
+
+                        <View
+                            android:id="@+id/show_chat_room_push_banner_divider"
+                            style="@style/half_divider"
+                            android:visibility="gone" />
+
+                        <RelativeLayout
+                            android:id="@+id/show_plaza_entry_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/setting_show_plaza_entry" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/show_plaza_entry"
+                                style="@style/setting_right_switch" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/full_divider" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        style="@style/setting_text_head"
                         android:text="@string/string_419" />
 
                     <LinearLayout

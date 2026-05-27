@@ -57,6 +57,10 @@ class ChatBannerBridge(
     private fun toBannerRequest(msg: ChatFrame.Msg): BannerRequest.Text? {
         val selfUid = SessionManager.loggedInUid
         if (selfUid != 0L && msg.uid == selfUid) return null
+        // 「展示公开聊天室新消息 push banner」开关(设置 - 试验性):仅控制公开/全局房间,默认关闭。
+        if (msg.room == ChatThreadId.ROOM_GLOBAL && !publicChatBannerEnabled()) {
+            return null
+        }
         if (isViewingRoom(msg.room)) {
             Timber.tag(TAG).d("suppress banner: foreground is room=%s", msg.room)
             return null
@@ -103,6 +107,13 @@ class ChatBannerBridge(
      */
     private fun isViewingRoom(msgRoom: String): Boolean =
         ShaftChatGateway.foregroundChatRoom == msgRoom
+
+    // 公开聊天室 push banner 同时受两个「试验性」开关约束:聊天室入口本身开启,且 banner 开关开启。
+    // 任一关闭都不弹,因此设置页隐藏 push 行时即使其值残留为 true 也不会误弹。
+    private fun publicChatBannerEnabled(): Boolean {
+        val settings = ceui.lisa.activities.Shaft.sSettings ?: return false
+        return settings.isShowChatRoomEntry && settings.isShowChatRoomPushBanner
+    }
 
     companion object {
         private const val TAG = "Chat-Banner-Bridge"

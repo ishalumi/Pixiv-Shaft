@@ -295,6 +295,69 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
             });
         }
 
+        // 试验性
+        {
+            boolean chatRoomOn = Shaft.sSettings.isShowChatRoomEntry();
+            baseBind.showChatRoomEntry.setChecked(chatRoomOn);
+            // push banner 行只在「聊天室入口」开启时展示
+            int bannerRowVisibility = chatRoomOn ? View.VISIBLE : View.GONE;
+            baseBind.showChatRoomPushBannerRela.setVisibility(bannerRowVisibility);
+            baseBind.showChatRoomPushBannerDivider.setVisibility(bannerRowVisibility);
+            baseBind.showChatRoomPushBanner.setChecked(Shaft.sSettings.isShowChatRoomPushBanner());
+            baseBind.showPlazaEntry.setChecked(Shaft.sSettings.isShowPlazaEntry());
+
+            baseBind.showChatRoomEntry.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setShowChatRoomEntry(isChecked);
+                    // push banner 行随「聊天室入口」联动显隐;banner 是否真正弹出由 ChatBannerBridge
+                    // 同时校验 showChatRoomEntry && showChatRoomPushBanner 决定,所以这里只切显隐、
+                    // 保留子开关自身的值(关掉再打开聊天室不会丢失用户的 push 偏好)。
+                    int visibility = isChecked ? View.VISIBLE : View.GONE;
+                    baseBind.showChatRoomPushBannerRela.setVisibility(visibility);
+                    baseBind.showChatRoomPushBannerDivider.setVisibility(visibility);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.showChatRoomEntryRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.showChatRoomEntry.performClick();
+                }
+            });
+
+            baseBind.showChatRoomPushBanner.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setShowChatRoomPushBanner(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.showChatRoomPushBannerRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.showChatRoomPushBanner.performClick();
+                }
+            });
+
+            baseBind.showPlazaEntry.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setShowPlazaEntry(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.showPlazaEntryRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.showPlazaEntry.performClick();
+                }
+            });
+        }
+
         // 常规
         {
             baseBind.saveHistory.setChecked(Shaft.sSettings.isSaveViewHistory());

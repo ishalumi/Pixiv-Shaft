@@ -105,8 +105,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isGoogleChannel);
             baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(!isGoogleChannel);
-            baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(isDebugBuild);
-            baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(isDebugBuild);
+            // 聊天室 / 广场入口由「设置 - 试验性」开关控制,默认关闭;onResume 时再刷新一次。
+            updateExperimentalEntriesVisibility();
         }
         // 通知中心走 pixiv 官方 API,google play release 渠道为合规起见隐藏整个入口。
         if (isGoogleChannel && !isDebugBuild) {
@@ -346,6 +346,20 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
                 + " strongAuthors=" + strongAuthors + "/10");
     }
 
+    /**
+     * 聊天室 / 广场入口可见性 = 「设置 - 试验性」对应开关。google play release 整段试验性分区隐藏,
+     * 此时不参与(与 initView 的渠道 gate 保持一致)。从设置页返回时 onResume 会再调一次。
+     */
+    private void updateExperimentalEntriesVisibility() {
+        boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
+        boolean isGoogleChannel = "google".equals(ceui.lisa.BuildConfig.UPDATE_CHANNEL);
+        if (isGoogleChannel && !isDebugBuild) {
+            return;
+        }
+        baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(Shaft.sSettings.isShowChatRoomEntry());
+        baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(Shaft.sSettings.isShowPlazaEntry());
+    }
+
     public DrawerLayout getDrawer() {
         return baseBind.drawerLayout;
     }
@@ -581,6 +595,7 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             Dev.refreshUser = false;
         }
         updateDiscoveryVisibility();
+        updateExperimentalEntriesVisibility();
     }
 
     @Override

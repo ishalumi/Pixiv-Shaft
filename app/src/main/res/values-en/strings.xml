@@ -1490,6 +1490,9 @@
 
     <!-- Plaza -->
     <string name="plaza_drawer_entry">Plaza</string>
+    <string name="setting_show_chat_room_entry">Show chat room entry in home sidebar</string>
+    <string name="setting_show_chat_room_push_banner">Show in-app push banner for new public chat room messages</string>
+    <string name="setting_show_plaza_entry">Show plaza entry in home sidebar</string>
     <string name="plaza_title">Plaza</string>
     <string name="plaza_compose_title">New Post</string>
     <string name="plaza_send_post">Post</string>
