@@ -4,6 +4,7 @@ import ceui.lisa.activities.Shaft
 import ceui.loxia.Client
 import ceui.loxia.HistoryReportBody
 import ceui.loxia.HistoryReportItem
+import ceui.loxia.SyncPrefBody
 import ceui.pixiv.session.SessionManager
 import com.google.gson.JsonElement
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -73,6 +74,27 @@ object HistoryReporter {
     fun clearPending() {
         queue.clear()
         flushJob?.cancel()
+    }
+
+    /**
+     * Fire-and-forget: tell pixshaft-api the current cloud-sync toggle so the admin
+     * console's "opted out" list reflects reality. Unlike history upload this MUST
+     * run even when sync is off (that's the whole point), so it does NOT gate on
+     * [cloudSyncAllowed]. Best-effort: never blocks the UI, swallows all errors.
+     */
+    fun reportSyncPref(enabled: Boolean) = reportSyncPref(SessionManager.loggedInUid, enabled)
+
+    /** uid-explicit variant for callers that already know it (e.g. the login flow,
+     *  where [SessionManager.loggedInUid] may not be wired up yet). */
+    fun reportSyncPref(uid: Long, enabled: Boolean) {
+        if (uid <= 0L) return // history sync is per-viewer; nothing to report logged out
+        scope.launch {
+            try {
+                Client.pixshaft.reportHistorySyncPref(uid, SyncPrefBody(enabled))
+            } catch (ex: Exception) {
+                Timber.w(ex, "sync-pref report failed (ignored)")
+            }
+        }
     }
 
     /** Drains the queue to the server in MAX_BATCH chunks. Safe to call anytime. */

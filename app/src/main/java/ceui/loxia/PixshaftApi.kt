@@ -43,6 +43,18 @@ interface PixshaftApi {
         @Query("type") type: String?,
     ): HistoryDeleteAck
 
+    /**
+     * Report the current browse-history cloud-sync toggle. Called on every flip
+     * (and once on login) so the admin console can list opted-out users — the
+     * settings blob goes to a different backend (moonAPI), so the server can't
+     * learn this any other way. Best-effort; unsigned like the rest of /v1/history.
+     */
+    @POST("v1/history/{uid}/sync-pref")
+    suspend fun reportHistorySyncPref(
+        @Path("uid") uid: Long,
+        @Body body: SyncPrefBody,
+    ): SyncPrefAck
+
     // ── email-bound account backup ──
     // All four are signed with X-Shaft-Sign by the OkHttp interceptor in
     // ClientManager (the `/v1/account/` path match). Server: src/account.js.
@@ -114,6 +126,15 @@ data class BindStatusResp(
 data class BindDeleteAck(
     val ok: Boolean = false,
     val deleted: Int = 0,
+)
+
+data class SyncPrefBody(val enabled: Boolean)
+
+data class SyncPrefAck(
+    val uid: Long = 0L,
+    val enabled: Boolean = true,
+    val changes: Int = 0,
+    val updatedAt: Long = 0L,
 )
 
 data class HistoryReportBody(

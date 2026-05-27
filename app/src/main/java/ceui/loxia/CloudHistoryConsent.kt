@@ -29,6 +29,9 @@ object CloudHistoryConsent {
         Shaft.sSettings.isCloudHistoryConsentShown = consentShown
         Local.setSettings(Shaft.sSettings)
         if (!enabled) HistoryReporter.clearPending()
+        // Tell the server the new toggle state so the admin "opted out" list is
+        // accurate. Fire-and-forget; the server bumps its counter only on a real flip.
+        HistoryReporter.reportSyncPref(enabled)
     }
 
     /** 设置页开关直接调用:用户手动拨开关本身就是一次明确选择,顺手标记同意框无需再弹。 */

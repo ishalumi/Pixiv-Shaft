@@ -246,6 +246,13 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                                         }
                                     };
 
+                                    // pixshaft-api: 上报当前「浏览记录云同步」开关,让 admin 的「关同步」
+                                    // 列表能回填已有用户(之后每次拨开关也会即时上报)。fire-and-forget。
+                                    ceui.pixiv.db.HistoryReporter.INSTANCE.reportSyncPref(
+                                            loggedInUser.getUser().getId(),
+                                            Shaft.sSettings.isCloudHistorySync()
+                                    );
+
                                     // moonAPI: 拉取云端设置,如有新版本弹窗询问是否应用;完成后继续 R18 流程
                                     ceui.loxia.MoonSync.syncFromCloudOnLogin(
                                             mActivity,
