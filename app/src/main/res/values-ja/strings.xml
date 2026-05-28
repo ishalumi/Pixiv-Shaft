@@ -648,6 +648,7 @@
   <string name="terms_of_service">利用規約</string>
   <string name="privacy_policy">プライバシーポリシー</string>
   <string name="landing_terms_base">%sと%sに同意する</string>
+  <string name="pinned_tags">ピン留めしたタグ</string>
   <string name="read_agreement">[利用規約とプライバシーポリシーに同意する]のチェックが必要です</string>
   <string name="empty_content_here">コンテンツがありません</string>
   <string name="refresh">リロード</string>

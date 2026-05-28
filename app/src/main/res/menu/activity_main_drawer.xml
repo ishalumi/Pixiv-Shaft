@@ -21,6 +21,11 @@
             android:title="@string/prime_tags" />
 
         <item
+            android:id="@+id/nav_pinned_tags"
+            android:icon="@drawable/ic_baseline_bookmark_24"
+            android:title="@string/pinned_tags" />
+
+        <item
             android:id="@+id/nav_gallery"
             android:icon="@drawable/ic_file_download_black_24dp"
             android:title="@string/download_manager" />

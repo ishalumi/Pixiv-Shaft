@@ -653,6 +653,7 @@
   <string name="terms_of_service">服務條款</string>
   <string name="privacy_policy">隱私政策</string>
   <string name="landing_terms_base">歡迎使用！繼續即表示你同意 Shaft 的 %s 並且確認已閱讀我們的 %s.</string>
+  <string name="pinned_tags">釘選標籤</string>
   <string name="read_agreement">請先閱讀協議</string>
   <string name="empty_content_here">這裡好像空空的</string>
   <string name="refresh">重新整理</string>

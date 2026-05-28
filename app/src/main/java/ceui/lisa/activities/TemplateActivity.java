@@ -339,6 +339,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new FragmentWorkSpace();
                 case "PrimeTagsList":
                     return new PrimeTagsFragment();
+                case "PinnedTagsList":
+                    return new ceui.pixiv.ui.pinned.PinnedTagsFragment();
                 case "PrimeTagDetail":
                     String path = intent.getStringExtra("path");
                     assert path != null;
