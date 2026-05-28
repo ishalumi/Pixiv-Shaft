@@ -111,6 +111,7 @@
             android:theme="@style/SplashTheme" />
         <activity
             android:name=".activities.OutWakeActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:exported="true"
             android:label="@string/string_310"
             android:theme="@style/SplashTheme">

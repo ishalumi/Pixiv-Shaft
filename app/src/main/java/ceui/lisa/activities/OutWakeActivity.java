@@ -33,6 +33,11 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
     public static final String HOST_PIXIVISION = "pixivision.net";
     public static boolean isNetWorking = false;
 
+    // 已经发起过 token 交换的登录 code。OAuth 授权码是单次性的,重复提交会被 Pixiv
+    // 拒成「不正确的请求」(invalid_request)。static 是为了跨 Activity 重建(配置变化/
+    // 回调重投递)仍能去重,避免同一个 code 交换两次。#892
+    private static String sHandledLoginCode = null;
+
     @Override
     protected int initLayout() {
         return R.layout.activity_out_wake;
@@ -187,6 +192,21 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                         if (!TextUtils.isEmpty(host)) {
 
                             if (host.equals("account")) {
+                                // 同一个 code 只交换一次。配置变化(旋转/深色模式)等会用同一个
+                                // 回调 intent 重跑 initData,二次提交单次性 code 必被 Pixiv 拒成
+                                // 「不正确的请求」。已处理过就跳过,落到底部登录态判断。#892
+                                String loginCode = uri.getQueryParameter("code");
+                                if (loginCode != null && loginCode.equals(sHandledLoginCode)) {
+                                    if (SessionManager.INSTANCE.isLoggedIn()) {
+                                        startActivity(new Intent(mContext, MainActivity.class));
+                                    } else {
+                                        backToLoginScreen();
+                                        return;
+                                    }
+                                    finish();
+                                    return;
+                                }
+                                sHandledLoginCode = loginCode;
                                 Common.showToast(getString(R.string.trying_login));
                                 Observable.fromCallable(() -> PixivLogin.INSTANCE.handleCallback(uri))
                                 .subscribeOn(Schedulers.io())
