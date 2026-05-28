@@ -9,12 +9,13 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.loxia.RefreshHint
 import ceui.pixiv.ui.common.CommonAdapter
+import ceui.pixiv.ui.common.ListMode
 import ceui.pixiv.ui.common.PixivFragment
+import ceui.pixiv.ui.common.setUpLayoutManager
 import com.blankj.utilcode.util.BarUtils
 import kotlinx.coroutines.launch
 
@@ -50,7 +51,11 @@ class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags) {
         val listView = view.findViewById<RecyclerView>(R.id.list_view)
         val emptyView = view.findViewById<View>(R.id.empty_view)
 
-        listView.layoutManager = LinearLayoutManager(requireContext())
+        // 走项目标准 setUpLayoutManager:VERTICAL 模式会挂上 LinearItemDecoration(18dp),
+        // 给每个 item 上下左右各 18dp 间距 + 第一项额外 top —— 不挂 cell 会顶到屏幕边、
+        // 上下也无空隙。`fragment_pixiv_list` 体系通过 setUpRefreshState 间接调用这个,
+        // 我们没复用 helper 就要手动挂上。
+        setUpLayoutManager(listView, ListMode.VERTICAL)
         val adapter = CommonAdapter(viewLifecycleOwner)
         listView.adapter = adapter
 

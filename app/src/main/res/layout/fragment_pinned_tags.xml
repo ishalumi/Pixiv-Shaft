@@ -49,27 +49,14 @@
             android:layout_height="match_parent"
             android:clipToPadding="false" />
 
-        <LinearLayout
+        <!-- 空态用首页推荐列表 (fragment_base_list.xml) 同款 empty_layout：
+             `@mipmap/empty_img` 带 colorPrimary tint + 主题色加粗文案「这里什么都没有呢」。
+             include 自身 id 命名为 empty_view，Fragment 直接 findViewById 切 visible/gone。 -->
+        <include
             android:id="@+id/empty_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/icon_empty_state" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center"
-                android:text="@string/string_48"
-                android:textColor="@color/text10" />
-        </LinearLayout>
+            layout="@layout/empty_layout" />
     </FrameLayout>
 </LinearLayout>
