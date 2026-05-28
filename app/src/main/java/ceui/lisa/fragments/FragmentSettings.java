@@ -1,18 +1,23 @@
 package ceui.lisa.fragments;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.os.Bundle;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.databinding.DataBindingUtil;
@@ -1390,19 +1395,56 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
             });
 
             //插画二级详情：自定义双击放大模式（PR#900）
+            baseBind.useCustomLongPressResetGroup.setVisibility(
+                    Shaft.sSettings.isUseCustomDoubleTapZoom() ? View.VISIBLE : View.GONE);
             baseBind.useCustomDoubleTapZoom.setChecked(Shaft.sSettings.isUseCustomDoubleTapZoom());
             baseBind.useCustomDoubleTapZoom.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    boolean changed = isChecked != Shaft.sSettings.isUseCustomDoubleTapZoom();
                     Shaft.sSettings.setUseCustomDoubleTapZoom(isChecked);
                     Common.showToast(getString(R.string.string_428));
                     Local.setSettings(Shaft.sSettings);
+                    ViewGroup CustomLongPressGroup = (ViewGroup) baseBind.useCustomLongPressResetGroup.getParent();
+                    if (CustomLongPressGroup != null) {
+                        TransitionManager.beginDelayedTransition(CustomLongPressGroup, new AutoTransition());
+                    }
+                    baseBind.useCustomLongPressResetGroup.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+                    if (changed) {
+                        Retro.refreshAppApi();
+                        Client.INSTANCE.reset();
+                    }
                 }
             });
+
             baseBind.useCustomDoubleTapZoomRela.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     baseBind.useCustomDoubleTapZoom.performClick();
+                }
+            });
+
+            // 初始化缩放增量数值调节
+            setupCustomZoomScaleAdjust();
+
+            //长按复位
+            baseBind.useCustomLongPressReset.setChecked(Shaft.sSettings.isUseCustomLongPressReset());
+            baseBind.useCustomLongPressReset.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setUseCustomLongPressReset(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+
+            baseBind.useCustomThreeLevelZoom.setChecked(Shaft.sSettings.isUseThreeLevelZoo());
+            baseBind.useCustomThreeLevelZoom.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setUseThreeLevelZoo(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
                 }
             });
 
@@ -1626,6 +1668,126 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                         }
                     });
         }
+    }
+
+    private void setupCustomZoomScaleAdjust() {
+        TextView scaleDisplay = baseBind.customZoomScaleDisplay;
+        ImageButton decreaseBtn = baseBind.customZoomScaleDecrease;
+        ImageButton increaseBtn = baseBind.customZoomScaleIncrease;
+
+        // 获取当前保存的缩放增量值
+        float currentScale = Shaft.sSettings.getCustomZoomAddScale();
+        if (currentScale < 1.1f || currentScale > 3.0f) {
+            currentScale = 1.8f; // 默认值
+            Shaft.sSettings.setCustomZoomAddScale(currentScale);
+        }
+
+        // 显示当前值
+        scaleDisplay.setText(String.format(Locale.US, "%.1f", currentScale));
+
+        // 减少按钮
+        decreaseBtn.setOnClickListener(v -> {
+            float scale = Shaft.sSettings.getCustomZoomAddScale();
+            if (scale > 1.1f) {
+                scale = Math.round((scale - 0.1f) * 10f) / 10f;
+                updateZoomScale(scale, scaleDisplay);
+            }
+        });
+
+        // 增加按钮
+        increaseBtn.setOnClickListener(v -> {
+            float scale = Shaft.sSettings.getCustomZoomAddScale();
+            if (scale < 3.0f) {
+                scale = Math.round((scale + 0.1f) * 10f) / 10f;
+                updateZoomScale(scale, scaleDisplay);
+            }
+        });
+
+        // 长按快速调节（可选）
+        setupLongPressAdjust(decreaseBtn, increaseBtn, scaleDisplay);
+    }
+
+    private void updateZoomScale(float newScale, TextView scaleDisplay) {
+        // 保存到 Shaft.sSettings
+        Shaft.sSettings.setCustomZoomAddScale(newScale);
+
+        // 更新显示
+        scaleDisplay.setText(String.format(Locale.US, "%.1f", newScale));
+
+        // 保存设置
+        Local.setSettings(Shaft.sSettings);
+    }
+
+    // 长按快速调节功能（可选）
+    private Handler autoAdjustHandler;
+    private Runnable autoAdjustRunnable;
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupLongPressAdjust(ImageButton decreaseBtn,
+                                      ImageButton increaseBtn,
+                                      TextView scaleDisplay) {
+        decreaseBtn.setOnLongClickListener(v -> {
+            startAutoAdjust(scaleDisplay, false);
+            return true;
+        });
+
+        increaseBtn.setOnLongClickListener(v -> {
+            startAutoAdjust(scaleDisplay, true);
+            return true;
+        });
+
+        View.OnTouchListener stopAdjustListener = new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_UP ||
+                        event.getAction() == MotionEvent.ACTION_CANCEL) {
+                    stopAutoAdjust();
+                }
+                return false;
+            }
+        };
+
+        decreaseBtn.setOnTouchListener(stopAdjustListener);
+        increaseBtn.setOnTouchListener(stopAdjustListener);
+    }
+
+    private void startAutoAdjust(TextView scaleDisplay, boolean isIncrease) {
+        stopAutoAdjust();
+
+        if (autoAdjustHandler == null) {
+            autoAdjustHandler = new Handler(Looper.getMainLooper());
+        }
+
+        autoAdjustRunnable = new Runnable() {
+            @Override
+            public void run() {
+                float scale = Shaft.sSettings.getCustomZoomAddScale();
+
+                if (isIncrease && scale < 3.0f) {
+                    scale = Math.round((scale + 0.1f) * 10f) / 10f;
+                    updateZoomScale(scale, scaleDisplay);
+                } else if (!isIncrease && scale > 1.1f) {
+                    scale = Math.round((scale - 0.1f) * 10f) / 10f;
+                    updateZoomScale(scale, scaleDisplay);
+                }
+
+                autoAdjustHandler.postDelayed(this, 100);
+            }
+        };
+
+        autoAdjustHandler.postDelayed(autoAdjustRunnable, 500);
+    }
+
+    private void stopAutoAdjust() {
+        if (autoAdjustHandler != null && autoAdjustRunnable != null) {
+            autoAdjustHandler.removeCallbacks(autoAdjustRunnable);
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        stopAutoAdjust();
     }
 
     @Override

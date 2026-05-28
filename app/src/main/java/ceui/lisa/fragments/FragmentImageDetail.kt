@@ -43,7 +43,11 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     private var saveName: String? = null
     private val viewModel by viewModels<ToggleToolnarViewModel>(ownerProducer = { requireActivity() })
     private val translationViewModel by viewModels<ImageTranslationViewModel>(ownerProducer = { requireActivity() })
-
+    private var isAnimated: Boolean = false
+    private var isScaleMax: Boolean = false
+    private var savedScale: Float? = null
+    private var zoomedToMax: Boolean = false
+    private var pendingGestureCheck: Boolean = false
     // 不再放进 arguments / savedInstanceState，避免每个 Fragment 重复持久化 80KB IllustsBean
     // 导致 TransactionTooLargeException。统一向 ImageDetailActivity 取。
     private val mIllustsBean: IllustsBean?
@@ -55,42 +59,184 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     private val gestureDetector by lazy {
         GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (isAnimated) return true
+                isAnimated = true
                 val zoomable = baseBind.image.zoomable
                 val contentPoint = zoomable.touchPointToContentPointF(OffsetCompat(e.x, e.y))
-                if (viewModel.isFullscreenMode.value == false) {
-                    viewModel.toggleFullscreen()
-                }
                 viewLifecycleOwner.lifecycleScope.launch {
-                    zoomable.scaleBy(
-                        addScale = CUSTOM_ZOOM_ADD_SCALE,
-                        centroidContentPointF = contentPoint,
-                        animated = true
-                    )
-                    val afterScale = zoomable.transformState.value.scaleX
-                    val maxScale = zoomable.maxScaleState.value
-                    if (afterScale >= maxScale - MAX_SCALE_EPSILON) {
-                        Toast.makeText(
-                            requireContext(),
-                            R.string.double_tap_zoom_max_reached,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    //三级智能推测
+                    if (Shaft.sSettings.isUseThreeLevelZoo) {
+                        val currentScale = zoomable.transformState.value.scaleX
+                        val minScale = zoomable.minScaleState.value
+                        val maxScale = zoomable.maxScaleState.value
+                        val targetScale = currentScale * Shaft.sSettings.customZoomAddScale
+
+                        when {
+                            // ① 初始记录
+                            savedScale == null -> {
+                                if (viewModel.isFullscreenMode.value == false) {
+                                    viewModel.toggleFullscreen()
+                                }
+                                zoomable.scale(
+                                    targetScale = targetScale,
+                                    centroidContentPointF = contentPoint,
+                                    animated = true
+                                )
+                                savedScale = targetScale
+                                zoomedToMax = false
+                                pendingGestureCheck = false
+                            }
+
+                            // ② 处于待定期：上次从最大缩回了中间，现在根据手动缩放决定
+                            pendingGestureCheck -> {
+                                val saved = savedScale!!
+                                if (currentScale > saved) {
+                                    if (viewModel.isFullscreenMode.value == false) {
+                                        viewModel.toggleFullscreen()
+                                    }
+                                    // 用户手动放大了 → 放大到最大
+                                    zoomable.scale(
+                                        targetScale = maxScale,
+                                        centroidContentPointF = contentPoint,
+                                        animated = true
+                                    )
+                                    zoomedToMax = true
+                                } else {
+                                    if (viewModel.isFullscreenMode.value == false) {
+                                        viewModel.toggleFullscreen()
+                                    }
+                                    // 用户没放大或缩得更小 → 直接缩到最小并重置
+                                    zoomable.scale(
+                                        targetScale = minScale,
+                                        centroidContentPointF = contentPoint,
+                                        animated = true
+                                    )
+                                    savedScale = null
+                                    zoomedToMax = false
+                                }
+                                pendingGestureCheck = false
+                            }
+
+                            // ③ 还没到最大，且当前缩放 ≥ 记录的中间值 → 放大到最大
+                            !zoomedToMax && currentScale >= savedScale!! -> {
+                                if (viewModel.isFullscreenMode.value == false) {
+                                    viewModel.toggleFullscreen()
+                                }
+                                zoomable.scale(
+                                    targetScale = maxScale,
+                                    centroidContentPointF = contentPoint,
+                                    animated = true
+                                )
+                                zoomedToMax = true
+                            }
+
+                            // ④ 其余情况：缩回逻辑
+                            else -> {
+                                val saved = savedScale!!
+                                when {
+                                    // 等于最大，或介于中间和最大之间 → 缩回中间，并开启待定期
+                                    currentScale == maxScale || (currentScale < maxScale && currentScale > saved) -> {
+                                        if (viewModel.isFullscreenMode.value == false) {
+                                            viewModel.toggleFullscreen()
+                                        }
+                                        zoomable.scale(
+                                            targetScale = saved,
+                                            centroidContentPointF = contentPoint,
+                                            animated = true
+                                        )
+                                        zoomedToMax = false
+                                        pendingGestureCheck = true   // 等待用户手势
+                                        // savedScale 不变
+                                    }
+                                    // 当前缩放 ≤ 中间 → 缩回最小，完全重置
+                                    else -> {
+                                        if (viewModel.isFullscreenMode.value == true) {
+                                            viewModel.toggleFullscreen()
+                                        }
+                                        zoomable.scale(
+                                            targetScale = minScale,
+                                            centroidContentPointF = contentPoint,
+                                            animated = true
+                                        )
+                                        savedScale = null
+                                        zoomedToMax = false
+                                        pendingGestureCheck = false
+                                    }
+                                }
+                            }
+                        }
+
+                        isAnimated = false
+
+
+                    } else {
+                        if (isScaleMax) {
+                            if (viewModel.isFullscreenMode.value == true) {
+                                viewModel.toggleFullscreen()
+                            }
+                            val minScale = zoomable.minScaleState.value
+                            zoomable.scale(
+                                targetScale = minScale,
+                                centroidContentPointF = contentPoint,
+                                animated = true
+                            )
+                            isScaleMax = false
+                            isAnimated = false
+                        } else {
+                            if (viewModel.isFullscreenMode.value == false) {
+                                viewModel.toggleFullscreen()
+                            }
+                            zoomable.scaleBy(
+                                addScale = Shaft.sSettings.customZoomAddScale,
+                                centroidContentPointF = contentPoint,
+                                animated = true
+                            )
+                            val afterScale = zoomable.transformState.value.scaleX
+                            val maxScale = zoomable.maxScaleState.value
+                            if (afterScale >= maxScale - MAX_SCALE_EPSILON) {
+                                if (Shaft.sSettings.isUseCustomLongPressReset) {
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.double_tap_zoom_max_reached,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    if (viewModel.isFullscreenMode.value == true) {
+                                        viewModel.toggleFullscreen()
+                                    }
+                                } else {
+                                    isScaleMax = true
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.double_tap_zoom_max_reached2,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                    }
+                        isAnimated = false
                     }
                 }
                 return true
             }
 
             override fun onLongPress(e: MotionEvent) {
-                val zoomable = baseBind.image.zoomable
-                val contentPoint = zoomable.touchPointToContentPointF(OffsetCompat(e.x, e.y))
-                if (viewModel.isFullscreenMode.value == true) {
-                    viewModel.toggleFullscreen()
-                }
-                viewLifecycleOwner.lifecycleScope.launch {
-                    zoomable.scale(
-                        targetScale = zoomable.minScaleState.value,
-                        centroidContentPointF = contentPoint,
-                        animated = true
-                    )
+                if (!isAnimated && Shaft.sSettings.isUseCustomLongPressReset) {
+                    val zoomable = baseBind.image.zoomable
+                    val contentPoint = zoomable.touchPointToContentPointF(OffsetCompat(e.x, e.y))
+                    if (viewModel.isFullscreenMode.value == true) {
+                        viewModel.toggleFullscreen()
+                    }
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        zoomable.scale(
+                            targetScale = zoomable.minScaleState.value,
+                            centroidContentPointF = contentPoint,
+                            animated = true
+                        )
+                        isScaleMax = false
+                        savedScale = null
+                        zoomedToMax = false
+                        pendingGestureCheck = false
+                    }
                 }
             }
 
@@ -125,6 +271,7 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
             )
             // 单指交给 gestureDetector（双击/长按/单击），多指交回 ZoomImage（拖拽/双指缩放）
             baseBind.image.setOnTouchListener { v, event ->
+                //还是要阻止可能存在误触打断到动画的
                 if (event.pointerCount == 1) {
                     gestureDetector.onTouchEvent(event)
                 } else {
@@ -224,7 +371,7 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
 
     companion object {
         // PR#900 自定义双击放大：每次乘 1.8f；浮点误差判最大倍数容差 0.01f
-        private const val CUSTOM_ZOOM_ADD_SCALE = 1.8f
+        //private const val CUSTOM_ZOOM_ADD_SCALE = 1.8f
         private const val MAX_SCALE_EPSILON = 0.01f
 
         // IllustsBean 由 ImageDetailActivity 持有，Fragment 运行时读取，避免放进 Bundle

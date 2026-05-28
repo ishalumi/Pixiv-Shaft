@@ -802,12 +802,34 @@ public class Settings {
     // 插画二级详情：双击放大模式（false=ZoomImage 默认双击缩放，true=自定义增量双击+长按归位 PR#900）
     private boolean useCustomDoubleTapZoom = false;
 
+    private float customZoomAddScale = 1.8f;
+
+    private boolean useCustomLongPressReset = false;
+
+    private boolean useThreeLevelZoo = false;
+
     public boolean isUseCustomDoubleTapZoom() {
         return useCustomDoubleTapZoom;
     }
 
+    public boolean isUseCustomLongPressReset() {
+        return useCustomLongPressReset;
+    }
+
+    public boolean isUseThreeLevelZoo() {
+        return useThreeLevelZoo;
+    }
+
     public void setUseCustomDoubleTapZoom(boolean useCustomDoubleTapZoom) {
         this.useCustomDoubleTapZoom = useCustomDoubleTapZoom;
+    }
+
+    public void setUseCustomLongPressReset(boolean useCustomLongPressReset) {
+        this.useCustomLongPressReset = useCustomLongPressReset;
+    }
+
+    public void setUseThreeLevelZoo(boolean useThreeLevelZoo) {
+        this.useThreeLevelZoo = useThreeLevelZoo;
     }
 
     // 插画V3详情页：下载按钮是否在左（true=左下载右收藏，false=左收藏右下载）
@@ -894,5 +916,13 @@ public class Settings {
 
     public void setShowPlazaEntry(boolean showPlazaEntry) {
         this.showPlazaEntry = showPlazaEntry;
+    }
+
+    public float getCustomZoomAddScale() {
+        return customZoomAddScale;
+    }
+
+    public void setCustomZoomAddScale(float customZoomAddScale) {
+        this.customZoomAddScale = customZoomAddScale;
     }
 }

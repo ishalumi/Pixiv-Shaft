@@ -1351,6 +1351,140 @@
 
                         <View style="@style/half_divider" />
 
+                        <LinearLayout
+                            android:id="@+id/use_custom_long_press_reset_group"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <!-- 新增：数值调节选项 -->
+                            <RelativeLayout
+                                android:id="@+id/custom_zoom_scale_rela"
+                                style="@style/ripple_rela">
+
+                                <TextView
+                                    android:id="@+id/custom_zoom_scale_title"
+                                    style="@style/setting_text_left"
+                                    android:text="缩放增量值" />
+
+                                <TextView
+                                    android:id="@+id/custom_zoom_scale_title_link"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_below="@+id/custom_zoom_scale_title"
+                                    android:layout_marginStart="@dimen/sixteen_dp"
+                                    android:layout_marginBottom="@dimen/twelve_dp"
+                                    android:ellipsize="start"
+                                    android:singleLine="true"
+                                    android:text="默认1.8，数值不合理（过大或过小）会影响图片缩放体验"
+                                    android:textColor="?attr/colorPrimary"
+                                    android:textSize="12sp" />
+
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_alignParentEnd="true"
+                                    android:layout_centerVertical="true"
+                                    android:layout_marginEnd="@dimen/sixteen_dp"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <ImageButton
+                                        android:id="@+id/custom_zoom_scale_decrease"
+                                        android:layout_width="40dp"
+                                        android:layout_height="40dp"
+                                        android:background="?attr/selectableItemBackgroundBorderless"
+                                        android:src="@android:drawable/ic_media_previous"
+                                        android:contentDescription="减少缩放增量" />
+
+                                    <TextView
+                                        android:id="@+id/custom_zoom_scale_display"
+                                        android:layout_width="60dp"
+                                        android:layout_height="wrap_content"
+                                        android:gravity="center"
+                                        android:text="1.8"
+                                        android:textSize="18sp"
+                                        android:textStyle="bold"
+                                        android:textColor="?attr/colorPrimary" />
+
+                                    <ImageButton
+                                        android:id="@+id/custom_zoom_scale_increase"
+                                        android:layout_width="40dp"
+                                        android:layout_height="40dp"
+                                        android:background="?attr/selectableItemBackgroundBorderless"
+                                        android:src="@android:drawable/ic_media_next"
+                                        android:contentDescription="增加缩放增量" />
+
+                                </LinearLayout>
+
+                            </RelativeLayout>
+
+                            <!-- 新增：三级缩放开关 -->
+                            <RelativeLayout
+                                android:id="@+id/use_custom_three_level_zoom_rela"
+                                style="@style/ripple_rela">
+
+                                <TextView
+                                    android:id="@+id/use_custom_three_level_zoom_title"
+                                    style="@style/setting_text_left"
+                                    android:layout_marginBottom="@dimen/six_dp"
+                                    android:text="增量缩放改为三级智能缩放模式" />
+
+                                <TextView
+                                    android:id="@+id/three_level_zoom_link"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_below="@+id/use_custom_three_level_zoom_title"
+                                    android:layout_marginStart="@dimen/sixteen_dp"
+                                    android:layout_marginBottom="@dimen/twelve_dp"
+                                    android:ellipsize="start"
+                                    android:singleLine="true"
+                                    android:text="第二级的缩放大小与上面的缩放增量有联"
+                                    android:textColor="?attr/colorPrimary"
+                                    android:textSize="12sp" />
+
+                                <androidx.appcompat.widget.SwitchCompat
+                                    android:id="@+id/use_custom_three_level_zoom"
+                                    style="@style/setting_right_switch" />
+
+                            </RelativeLayout>
+
+                            <View style="@style/half_divider" />
+                            <!-- 原有的 use_custom_long_press_reset_rela -->
+                            <RelativeLayout
+                                android:id="@+id/use_custom_long_press_reset_rela"
+                                style="@style/ripple_rela">
+
+                                <TextView
+                                    android:id="@+id/use_custom_long_press_reset_title"
+                                    style="@style/setting_text_left"
+                                    android:layout_marginBottom="@dimen/six_dp"
+                                    android:text="@string/use_custom_long_press_reset" />
+
+                                <TextView
+                                    android:id="@+id/use_custom_long_press_reset_link"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_below="@+id/use_custom_long_press_reset_title"
+                                    android:layout_marginStart="@dimen/sixteen_dp"
+                                    android:layout_marginBottom="@dimen/twelve_dp"
+                                    android:ellipsize="start"
+                                    android:singleLine="true"
+                                    android:text="@string/use_custom_long_press_reset_link_text"
+                                    android:textColor="?attr/colorPrimary"
+                                    android:textSize="12sp" />
+
+                                <androidx.appcompat.widget.SwitchCompat
+                                    android:id="@+id/use_custom_long_press_reset"
+                                    style="@style/setting_right_switch" />
+
+                            </RelativeLayout>
+
+                        </LinearLayout>
+
+                        <View style="@style/half_divider" />
+
                         <RelativeLayout
                             android:id="@+id/is_firebase_enable_rela"
                             style="@style/ripple_rela">
@@ -1378,6 +1512,7 @@
                             <TextView
                                 android:id="@+id/default_upscale_model"
                                 style="@style/setting_right_arrow"
+                                android:layout_width="wrap_content"
                                 android:text="@string/string_not_set" />
 
                         </RelativeLayout>
