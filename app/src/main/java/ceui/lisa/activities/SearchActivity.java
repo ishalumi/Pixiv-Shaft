@@ -172,10 +172,6 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
         if (index != 0) {
             baseBind.viewPager.setCurrentItem(index);
         }
-
-        if (Shaft.getMMKV().decodeBool(Params.MMKV_KEY_ISSHOWTIPS_SEARCHSORT, true)) {
-            tipDialog(mContext);
-        }
     }
 
     @Override
@@ -468,21 +464,5 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
                     dialog.dismiss();
                 })
                 .show();
-    }
-
-    private void tipDialog(Context context){
-        QMUIDialog qmuiDialog = new QMUIDialog.MessageDialogBuilder(context)
-                .setTitle(context.getString(R.string.string_433))
-                .setMessage(context.getString(R.string.string_434))
-                .setSkinManager(QMUISkinManager.defaultInstance(context))
-                .addAction(context.getString(R.string.string_190), new QMUIDialogAction.ActionListener() {
-                    @Override
-                    public void onClick(QMUIDialog dialog, int index) {
-                        Shaft.getMMKV().encode(Params.MMKV_KEY_ISSHOWTIPS_SEARCHSORT, false);
-                        dialog.dismiss();
-                    }
-                })
-                .create();
-        qmuiDialog.show();
     }
 }
