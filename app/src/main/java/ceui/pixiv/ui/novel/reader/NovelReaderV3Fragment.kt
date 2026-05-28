@@ -577,7 +577,32 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                     cm.setPrimaryClip(ClipData.newPlainText("pixiv-novel", NOVEL_URL_HEAD + novelId))
                     Toast.makeText(requireContext(), getString(R.string.msg_link_copied), Toast.LENGTH_SHORT).show()
                 }
+                item(getString(R.string.menu_copy_novel_text), R.drawable.chat_ic_content_copy) {
+                    copyNovelBodyToClipboard()
+                }
             }
+        }
+    }
+
+    /**
+     * 把当前小说正文塞进剪贴板。Pixiv 单篇上限约 10 万字 (~200KB UTF-16)，
+     * 远低于 Binder 事务的 ~1MB 上限，正常不会崩；但极端长内容 / OEM 剪贴板服务
+     * 抽风仍可能抛 [android.os.TransactionTooLargeException] 之类，catch 住 toast 兜底，
+     * 不让进程挂掉。
+     */
+    private fun copyNovelBodyToClipboard() {
+        val text = viewModel.buildBodyPlainText()
+        if (text.isNullOrEmpty()) {
+            Toast.makeText(requireContext(), getString(R.string.msg_novel_not_ready), Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("pixiv-novel-text", text))
+            Toast.makeText(requireContext(), getString(R.string.msg_novel_text_copied, text.length), Toast.LENGTH_SHORT).show()
+        } catch (t: Throwable) {
+            Timber.w(t, "copy novel text to clipboard failed, len=${text.length}")
+            Toast.makeText(requireContext(), getString(R.string.msg_copy_failed), Toast.LENGTH_LONG).show()
         }
     }
 

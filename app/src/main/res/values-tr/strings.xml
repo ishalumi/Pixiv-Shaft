@@ -845,7 +845,10 @@
   <string name="menu_save_position">Mevcut konumu kaydet</string>
   <string name="menu_export">Dışa aktar</string>
   <string name="menu_copy_link">Bağlantıyı kopyala</string>
+  <string name="menu_copy_novel_text">Metni panoya kopyala</string>
   <string name="msg_link_copied">Bağlantı kopyalandı</string>
+  <string name="msg_novel_text_copied">Metin kopyalandı (%1$d karakter)</string>
+  <string name="msg_copy_failed">Kopyalanamadı — metin çok uzun olabilir</string>
   <string name="msg_copied">Kopyalandı</string>
   <string name="msg_highlighted">Vurgulandı</string>
   <string name="msg_note_saved">Not kaydedildi</string>

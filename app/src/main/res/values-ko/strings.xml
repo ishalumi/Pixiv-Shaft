@@ -854,7 +854,10 @@
   <string name="menu_save_position">현재 위치 저장</string>
   <string name="menu_export">내보내기</string>
   <string name="menu_copy_link">링크 복사</string>
+  <string name="menu_copy_novel_text">본문을 클립보드에 복사</string>
   <string name="msg_link_copied">링크가 복사되었습니다</string>
+  <string name="msg_novel_text_copied">본문을 복사했습니다 (%1$d 자)</string>
+  <string name="msg_copy_failed">복사 실패 — 본문이 너무 길 수 있습니다</string>
   <string name="msg_copied">복사되었습니다</string>
   <string name="msg_highlighted">하이라이트되었습니다</string>
   <string name="msg_note_saved">메모가 저장되었습니다</string>

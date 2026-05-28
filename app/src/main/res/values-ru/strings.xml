@@ -847,7 +847,10 @@
   <string name="menu_save_position">Сохранить позицию</string>
   <string name="menu_export">Экспорт</string>
   <string name="menu_copy_link">Копировать ссылку</string>
+  <string name="menu_copy_novel_text">Копировать текст в буфер обмена</string>
   <string name="msg_link_copied">Ссылка скопирована</string>
+  <string name="msg_novel_text_copied">Текст скопирован (%1$d симв.)</string>
+  <string name="msg_copy_failed">Не удалось скопировать — возможно, текст слишком длинный</string>
   <string name="msg_copied">Скопировано</string>
   <string name="msg_highlighted">Выделено</string>
   <string name="msg_note_saved">Заметка сохранена</string>

@@ -363,6 +363,43 @@ class NovelReaderV3ViewModel(
         )
     }
 
+    // ---- Plain-text body (for clipboard copy) -------------------------------
+
+    /**
+     * 渲染正文为可粘贴的纯文本：章节作 `【标题】` 段落，图片/跳转折叠为占位符。
+     * 加载未完成返回 null；上层弹 toast 让用户稍后再试。结构与 [TxtExporter] 保持一致，
+     * 但不带元数据头——剪贴板场景要的就是干净正文。
+     */
+    fun buildBodyPlainText(): String? {
+        val loaded = _loadState.value as? LoadState.Loaded ?: return null
+        val title = loaded.webNovel.title.orEmpty()
+        return buildString {
+            if (title.isNotEmpty()) {
+                appendLine(title)
+                appendLine()
+            }
+            for (token in loaded.tokens) {
+                when (token) {
+                    is ContentToken.Paragraph -> appendLine(token.text)
+                    is ContentToken.BlankLine -> appendLine()
+                    is ContentToken.PageBreak -> {
+                        appendLine()
+                        appendLine("- - - - - - - - - -")
+                        appendLine()
+                    }
+                    is ContentToken.Chapter -> {
+                        appendLine()
+                        appendLine("【${token.title}】")
+                        appendLine()
+                    }
+                    is ContentToken.PixivImage -> appendLine("[图片: pixiv ${token.illustId}]")
+                    is ContentToken.UploadedImage -> appendLine("[图片: uploaded ${token.imageId}]")
+                    is ContentToken.Jump -> appendLine("[跳转→第 ${token.target} 段]")
+                }
+            }
+        }
+    }
+
     // ---- Chapter outline ----------------------------------------------------
 
     fun getChapterOutline(): List<ChapterOutlineEntry> {

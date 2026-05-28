@@ -946,7 +946,10 @@
   <string name="menu_save_position">現在位置を保存</string>
   <string name="menu_export">エクスポート</string>
   <string name="menu_copy_link">リンクをコピー</string>
+  <string name="menu_copy_novel_text">本文をクリップボードにコピー</string>
   <string name="msg_link_copied">リンクをコピーしました</string>
+  <string name="msg_novel_text_copied">本文をコピーしました（%1$d 文字）</string>
+  <string name="msg_copy_failed">コピーに失敗しました。本文が長すぎる可能性があります</string>
   <string name="msg_copied">コピーしました</string>
   <string name="msg_highlighted">ハイライトしました</string>
   <string name="msg_note_saved">メモを保存しました</string>

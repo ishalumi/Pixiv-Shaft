@@ -915,7 +915,10 @@
   <string name="menu_save_position">Save current position</string>
   <string name="menu_export">Export</string>
   <string name="menu_copy_link">Copy link</string>
+  <string name="menu_copy_novel_text">Copy text to clipboard</string>
   <string name="msg_link_copied">Link copied</string>
+  <string name="msg_novel_text_copied">Text copied (%1$d chars)</string>
+  <string name="msg_copy_failed">Copy failed — text may be too long</string>
   <string name="msg_copied">Copied</string>
   <string name="msg_highlighted">Highlighted</string>
   <string name="msg_note_saved">Note saved</string>

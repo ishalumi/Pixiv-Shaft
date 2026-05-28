@@ -960,7 +960,10 @@
   <string name="menu_save_position">儲存目前位置</string>
   <string name="menu_export">匯出</string>
   <string name="menu_copy_link">複製連結</string>
+  <string name="menu_copy_novel_text">複製正文到剪貼簿</string>
   <string name="msg_link_copied">連結已複製</string>
+  <string name="msg_novel_text_copied">正文已複製（%1$d 字）</string>
+  <string name="msg_copy_failed">複製失敗，正文可能太長</string>
   <string name="msg_copied">已複製</string>
   <string name="msg_highlighted">已標記</string>
   <string name="msg_note_saved">筆記已儲存</string>

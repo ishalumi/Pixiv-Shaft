@@ -1170,9 +1170,12 @@
     <string name="menu_save_position">保存当前位置</string>
     <string name="menu_export">导出</string>
     <string name="menu_copy_link">复制链接</string>
+    <string name="menu_copy_novel_text">复制正文到剪贴板</string>
 
     <!-- Reader toast / messages -->
     <string name="msg_link_copied">链接已复制</string>
+    <string name="msg_novel_text_copied">正文已复制（%1$d 字）</string>
+    <string name="msg_copy_failed">复制失败，正文可能太长</string>
     <string name="msg_copied">已复制</string>
     <string name="msg_highlighted">已高亮</string>
     <string name="msg_note_saved">笔记已保存</string>
