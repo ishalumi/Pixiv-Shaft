@@ -88,6 +88,29 @@ public class Shaft extends Application implements ServicesProvider {
         return sContext;
     }
 
+    /**
+     * 在 super.attachBaseContext 之前提前 init MMKV、再用 [AppLocales.wrapWithSavedLocale] 包出
+     * 正确 locale 的 base context。
+     *
+     * 影响：Application Context 的 Resources 从进程启动就是正确 locale —— 任何走
+     * `Shaft.sApplicationContext.getString(...)` / `Common.showToast(...)` 之类的代码路径在
+     * Application Context 上拿 string 都直接是用户选定的语言，不需要等下次冷启再补。
+     *
+     * MMKV.initialize 提前到 attachBaseContext 是 OK 的：onCreate 里那次重复调用幂等无害；
+     * Pixiv-Shaft 的 ContentProvider 只有 androidx FileProvider，不依赖 MMKV，无时序冲突。
+     *
+     * 出错绝对吞掉 —— attachBaseContext 抛异常会让整个进程起不来。
+     */
+    @Override
+    protected void attachBaseContext(Context base) {
+        try {
+            MMKV.initialize(base);
+        } catch (Throwable ignored) {
+            // Application.onCreate 里还会再 init 一次兜底。
+        }
+        super.attachBaseContext(ceui.pixiv.i18n.AppLocales.INSTANCE.wrapWithSavedLocale(base));
+    }
+
     private static boolean hasStackFrame(Throwable t, String classNamePrefix) {
         for (StackTraceElement frame : t.getStackTrace()) {
             if (frame.getClassName().startsWith(classNamePrefix)) {

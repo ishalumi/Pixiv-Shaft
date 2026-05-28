@@ -1515,4 +1515,7 @@
     <string name="tag_popular_export_run">Экспорт</string>
     <string name="tag_popular_export_running">Экспорт…</string>
     <string name="tag_popular_export_need_tag">Сначала введите имя тега</string>
+    <string name="terms_of_service">Условия использования</string>
+    <string name="privacy_policy">Политика конфиденциальности</string>
+    <string name="landing_terms_base">Добро пожаловать! Продолжая, вы принимаете %s Shaft и подтверждаете, что ознакомились с %s.</string>
 </resources>

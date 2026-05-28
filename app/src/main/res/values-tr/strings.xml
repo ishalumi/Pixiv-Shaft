@@ -1513,4 +1513,7 @@
     <string name="tag_popular_export_run">Dışa aktar</string>
     <string name="tag_popular_export_running">Aktarılıyor…</string>
     <string name="tag_popular_export_need_tag">Lütfen önce bir etiket adı girin</string>
+    <string name="terms_of_service">Hizmet Şartları</string>
+    <string name="privacy_policy">Gizlilik Politikası</string>
+    <string name="landing_terms_base">Hoş geldiniz! Devam ederek Shaft\'ın %s belgesini kabul etmiş ve %s belgemizi okuduğunuzu onaylamış olursunuz.</string>
 </resources>

@@ -1609,4 +1609,7 @@
     <string name="tag_popular_export_run">Export</string>
     <string name="tag_popular_export_running">Exporting…</string>
     <string name="tag_popular_export_need_tag">Please enter a tag name first</string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="landing_terms_base">Welcome! By continuing, you agree to Shaft\'s %s and confirm you\'ve read our %s.</string>
 </resources>

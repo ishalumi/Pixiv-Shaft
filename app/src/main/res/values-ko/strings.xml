@@ -1522,4 +1522,7 @@
     <string name="tag_popular_export_run">내보내기</string>
     <string name="tag_popular_export_running">내보내는 중…</string>
     <string name="tag_popular_export_need_tag">먼저 태그 이름을 입력하세요</string>
+    <string name="terms_of_service">서비스 약관</string>
+    <string name="privacy_policy">개인정보 처리방침</string>
+    <string name="landing_terms_base">환영합니다! 계속하면 Shaft의 %s에 동의하고 %s을(를) 읽었음을 확인하게 됩니다.</string>
 </resources>

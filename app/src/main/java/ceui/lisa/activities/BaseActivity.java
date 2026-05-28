@@ -47,6 +47,17 @@ public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCo
     public static final int ASK_URI = 42;
     private FeedBack mFeedBack;
 
+    /**
+     * 把 MMKV 里持久化的 locale tag 转成 Configuration 包到 base context 上。
+     * 这是「FragmentLogin 选完语言不 recreate、直接 startActivity 进下一页」也能正确显示语言的根。
+     * AppCompat 自己的 per-app locale 持久化在 onboarding 那条路径上是空的（我们故意没调
+     * setApplicationLocales 以避开 recreate），所以必须由这里兜底。
+     */
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(ceui.pixiv.i18n.AppLocales.INSTANCE.wrapWithSavedLocale(newBase));
+    }
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

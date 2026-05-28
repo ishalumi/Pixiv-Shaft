@@ -281,12 +281,64 @@ class FragmentLogin : BaseFragment<ActivityLoginBinding>() {
 
     // ── Page transition ──
 
+    /**
+     * 选完语言后，原地切到登录页 —— 关键是不触发 AppCompat 的 recreate，否则 shader 背景、greeting
+     * 切换动画、loading spinner 全部从零再来一遍，体感非常糟。
+     *
+     * 步骤：
+     *  1. 只把 tag 写进 MMKV ([AppLocales.saveTag])，**不**调 `setApplicationLocales`；
+     *  2. 把当前 Activity 的 Resources 配置就地切到目标 locale，让后续 `getString(...)`、dialog、
+     *     toast 自动用上新文案 ([AppLocales.applyConfigurationInPlace])；
+     *  3. 重新塞登录页里已经 inflate 出来的几个 TextView 的文本（XML `android:text="@string/..."`
+     *     的值在 inflate 那一刻就固定了，光改 Configuration 不会刷新它们）；
+     *  4. 语言页 / 登录页交叉淡出淡入，shader 背景共享不打断。
+     *
+     * 进程下次冷启时 [ceui.pixiv.i18n.AppLocalesBootstrap.syncAppCompatFromSavedTag] 会把
+     * AppCompat per-app locale 也对齐到 MMKV，那次 set 发生在 Application.onCreate、没有 Activity
+     * 在前台，AppCompat 的 lifecycle callback 不会触发 recreate。
+     */
     private fun transitionToLogin() {
         greetingCycleJob?.cancel()
-        // Apply locale immediately — triggers Activity recreation.
-        // After recreation, hasUserConfigured=true → login page shows
-        // directly with correct locale strings + fade-in animation.
-        AppLocales.apply(selectedTag)
+
+        AppLocales.saveTag(selectedTag)
+        AppLocales.applyConfigurationInPlace(requireActivity(), selectedTag)
+
+        relocalizeLoginPage()
+        crossFadeLanguagePageToLoginPage()
+    }
+
+    /**
+     * 重新读 [R.string.*] 把登录页里已经 inflate 的 TextView 文本刷一遍。
+     * 注意 click listener、checkbox observer 不要重绑 —— [setupLoginPage] 已经在 [initView] 跑过。
+     */
+    private fun relocalizeLoginPage() {
+        val page = baseBind.loginPage
+        page.loginButton.text = getString(R.string.now_login)
+        page.signButton.text = getString(R.string.now_sign)
+        page.restoreFromEmail.text = getString(R.string.email_backup_login_entry)
+        // 协议链接里的 SpannableString 也是 inflate 时算的，要重塞 —— 内部 getString(...) 此刻
+        // 已经走新 locale 了。
+        setupTermsText(page.firstText)
+
+        // Toolbar overflow 菜单（action_settings / action_import）的 title 是 inflate 那一刻烤
+        // 进 MenuItem 的，光改 Configuration 不会刷新。清空重 inflate；setOnMenuItemClickListener
+        // 挂在 Toolbar 上而不是 MenuItem 上，不需要重绑。
+        baseBind.toolbar.menu.clear()
+        baseBind.toolbar.inflateMenu(R.menu.login_menu)
+    }
+
+    private fun crossFadeLanguagePageToLoginPage() {
+        val langPage = baseBind.languagePage.root
+        val loginPage = baseBind.loginPage.root
+        val dur = 380L
+
+        loginPage.alpha = 0f
+        loginPage.visibility = View.VISIBLE
+        loginPage.animate().alpha(1f).setDuration(dur).start()
+
+        langPage.animate().alpha(0f).setDuration(dur).withEndAction {
+            langPage.visibility = View.GONE
+        }.start()
     }
 
     // ── Login page ──
