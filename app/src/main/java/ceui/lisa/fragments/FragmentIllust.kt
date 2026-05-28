@@ -58,6 +58,7 @@ import ceui.loxia.flag.FlagDescFragment
 import ceui.loxia.threadSafeArgs
 import ceui.pixiv.ui.share.shareFirstImage
 import ceui.pixiv.ui.upscale.IllustAiHelper
+import ceui.pixiv.utils.buildPinnedTagPreviewJson
 import ceui.pixiv.utils.setOnClick
 
 import com.bumptech.glide.Glide
@@ -395,7 +396,8 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
             true
         }
         baseBind.illustTag.setOnTagLongClickListener { view, position, parent ->
-            val tagName = illust.tags[position].name
+            val tagBean = illust.tags[position]
+            val tagName = tagBean.name
             val searchEntity =
                 PixivOperate.getSearchHistory(tagName, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD)
             val isPinned = searchEntity != null && searchEntity.isPinned
@@ -403,8 +405,11 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 .setTitle(tagName)
                 .setSkinManager(QMUISkinManager.defaultInstance(mContext))
                 .addAction(if (isPinned) getString(R.string.string_443) else getString(R.string.string_442)) { dialog, index ->
+                    val nextPinned = !isPinned
+                    val previewJson =
+                        if (nextPinned) buildPinnedTagPreviewJson(tagBean, illust) else null
                     PixivOperate.insertPinnedSearchHistory(
-                        tagName, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD, !isPinned
+                        tagName, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD, nextPinned, previewJson
                     )
                     Common.showToast(R.string.operate_success)
                     dialog.dismiss()

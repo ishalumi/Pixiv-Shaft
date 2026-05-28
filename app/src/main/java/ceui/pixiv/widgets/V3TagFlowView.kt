@@ -20,6 +20,7 @@ import ceui.lisa.activities.SearchActivity
 import ceui.lisa.models.TagsBean
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
+import ceui.lisa.utils.SearchTypeUtil
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Tag
 import ceui.pixiv.utils.ppppx
@@ -62,6 +63,13 @@ class V3TagFlowView @JvmOverloads constructor(
      * this callback and consumes the gesture (no regular click fires).
      */
     var onTagLongClick: ((name: String) -> Unit)? = null
+
+    /**
+     * 当 host 能提供「固定 tag」语义时（详情页知道当前 illust）赋值。
+     * 接收 (tag 名, 译名, 新的 pinned 状态)；view 内部已查过 DB 当前状态并切换。
+     * 非空时长按菜单会多一条「固定/取消固定」项。
+     */
+    var onPinTag: ((name: String, translated: String?, newPinned: Boolean) -> Unit)? = null
 
     /** Show a trailing × icon on each chip — for editable/removable chip rows. */
     var showRemoveIcon: Boolean = false
@@ -234,7 +242,7 @@ class V3TagFlowView @JvmOverloads constructor(
 
     private fun showTagActionMenu(name: String, translated: String?) {
         val hasTranslation = !translated.isNullOrBlank()
-        // 三个固定 action 顺序：原文 / 译文（可选）/ 屏蔽。译文不存在时直接跳过该项。
+        // 顺序：原文 / 译文（可选）/ 固定（host 提供 onPinTag 才有）/ 屏蔽
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
         labels.add(context.getString(R.string.v3_tag_menu_copy_original))
@@ -242,6 +250,16 @@ class V3TagFlowView @JvmOverloads constructor(
         if (hasTranslation) {
             labels.add(context.getString(R.string.v3_tag_menu_copy_translation))
             actions.add { copyToClipboard(translated!!) }
+        }
+        val pinHandler = onPinTag
+        if (pinHandler != null) {
+            // 跟 FragmentIllust 长按 dialog 用同一对 string_442/443
+            val existing = PixivOperate.getSearchHistory(name, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD)
+            val pinned = existing != null && existing.isPinned
+            labels.add(
+                context.getString(if (pinned) R.string.string_443 else R.string.string_442)
+            )
+            actions.add { pinHandler.invoke(name, translated, !pinned) }
         }
         labels.add(context.getString(R.string.v3_tag_menu_mute))
         actions.add { muteTag(name, translated) }

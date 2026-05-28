@@ -43,7 +43,7 @@ import ceui.pixiv.db.queue.DownloadQueueEntity;
                 ComicReadingStatsEntity.class, // V3 漫画阅读器累计统计
                 DownloadQueueEntity.class, // 批量下载队列（v33）
         },
-        version = 34,
+        version = 35,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -291,6 +291,13 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("ALTER TABLE download_queue ADD COLUMN illustGson TEXT");
         }
     };
+    // 迁移 34 -> 35：固定标签存预览 illust json（shape 镜像 PrimeTagResult）
+    private static final Migration MIGRATION_34_35 = new Migration(34, 35) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE search_table ADD COLUMN previewIllustsJson TEXT");
+        }
+    };
 
     private static AppDatabase INSTANCE;
 
@@ -313,6 +320,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_31_32) // 注册 31 -> 32 迁移 (V3 漫画累计统计)
                             .addMigrations(MIGRATION_32_33) // 注册 32 -> 33 迁移 (批量下载队列)
                             .addMigrations(MIGRATION_33_34) // 注册 33 -> 34 迁移 (download_queue.illustGson)
+                            .addMigrations(MIGRATION_34_35) // 注册 34 -> 35 迁移 (search_table.previewIllustsJson)
                             .build();
         }
         return INSTANCE;

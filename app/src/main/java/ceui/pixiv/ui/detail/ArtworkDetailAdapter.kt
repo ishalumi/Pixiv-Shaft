@@ -40,15 +40,19 @@ import ceui.lisa.databinding.SectionV3SeriesBinding
 import ceui.lisa.databinding.SectionV3StatsBinding
 import ceui.lisa.databinding.SectionV3TagsBinding
 import ceui.lisa.models.IllustsBean
+import ceui.lisa.models.TagsBean
 import ceui.lisa.models.UserBean
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.GlideUrlChild
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
+import ceui.lisa.utils.PixivOperate
+import ceui.lisa.utils.SearchTypeUtil
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Comment
 import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressTextButton
+import ceui.pixiv.utils.buildPinnedTagPreviewJson
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import com.bumptech.glide.Glide
@@ -300,6 +304,20 @@ class ArtworkDetailAdapter(
         fun bind(illust: IllustsBean) {
             b.tagsFlow.searchIndex = 0 // illust tab
             b.tagsFlow.setJavaTags(illust.tags.orEmpty())
+            // 长按菜单接「固定 tag」：写 search_table，pinned=true 时 previewIllustsJson
+            // 存当前 illust（shape 对齐 PrimeTagResult）；和 FragmentIllust 行为一致。
+            b.tagsFlow.onPinTag = { name, translated, newPinned ->
+                val tagBean = TagsBean().apply {
+                    this.name = name
+                    this.translated_name = translated
+                }
+                val previewJson =
+                    if (newPinned) buildPinnedTagPreviewJson(tagBean, illust) else null
+                PixivOperate.insertPinnedSearchHistory(
+                    name, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD, newPinned, previewJson
+                )
+                Common.showToast(R.string.operate_success)
+            }
         }
     }
 

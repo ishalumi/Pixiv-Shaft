@@ -666,11 +666,27 @@ public class PixivOperate {
         SearchEntity existEntity = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getSearchEntity(searchEntity.getId());
         if (existEntity != null) {
             searchEntity.setPinned(existEntity.isPinned());
+            // DAO 是 REPLACE,不带 previewIllustsJson 回去会把详情页保存的固定预览 illust 抹掉。
+            searchEntity.setPreviewIllustsJson(existEntity.getPreviewIllustsJson());
         }
         AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().insert(searchEntity);
     }
 
     public static void insertPinnedSearchHistory(String key, int searchType, boolean pinned) {
+        if (TextUtils.isEmpty(key)) {
+            return;
+        }
+        // 3 参版本没机会带 illust：pinned=true 时保留 DB 已有 json（别让 FragmentSearch 等
+        // 旧路径切 pinned 时把详情页存的 illust 抹掉）；pinned=false 时清掉。
+        int id = key.hashCode() + searchType;
+        SearchEntity existing = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getSearchEntity(id);
+        String preserved = (pinned && existing != null) ? existing.getPreviewIllustsJson() : null;
+        insertPinnedSearchHistory(key, searchType, pinned, preserved);
+    }
+
+    // 4 参显式版本：pinned=true 时把 previewJson 写入 search_table.previewIllustsJson；
+    // pinned=false 时无论 previewJson 如何，字段都置 null（取消固定就别留 stale json）。
+    public static void insertPinnedSearchHistory(String key, int searchType, boolean pinned, String previewJson) {
         if (TextUtils.isEmpty(key)) {
             return;
         }
@@ -680,8 +696,8 @@ public class PixivOperate {
         searchEntity.setSearchTime(System.currentTimeMillis());
         searchEntity.setId(searchEntity.getKeyword().hashCode() + searchEntity.getSearchType());
         searchEntity.setPinned(pinned);
+        searchEntity.setPreviewIllustsJson(pinned ? previewJson : null);
         Common.showLog("insertSearchHistory " + searchType + " " + searchEntity.getId());
-        SearchEntity existEntity = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getSearchEntity(searchEntity.getId());
         AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().insert(searchEntity);
     }
 
