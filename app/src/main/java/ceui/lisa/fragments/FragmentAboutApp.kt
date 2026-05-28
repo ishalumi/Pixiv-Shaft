@@ -37,7 +37,7 @@ class FragmentAboutApp : SwipeFragment<FragmentAboutBinding>() {
         baseBind.appVersion.text = "%s (%s) "
             .format(Common.getAppVersionName(mContext), Common.getAppVersionCode(mContext))
 
-        if (BuildConfig.UPDATE_CHANNEL == "github") {
+        if (!BuildConfig.IS_LITE) {
             baseBind.githubUpdateSection.visibility = View.VISIBLE
             baseBind.checkUpdate.setOnClickListener {
                 performUpdateCheck(manual = true)

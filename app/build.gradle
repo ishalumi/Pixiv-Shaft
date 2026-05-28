@@ -63,10 +63,12 @@ android {
         google {
             dimension "channel"
             buildConfigField "String", "UPDATE_CHANNEL", '"google"'
+            buildConfigField "boolean", "IS_LITE", "true"
         }
         github {
             dimension "channel"
             buildConfigField "String", "UPDATE_CHANNEL", '"github"'
+            buildConfigField "boolean", "IS_LITE", "false"
         }
     }
 

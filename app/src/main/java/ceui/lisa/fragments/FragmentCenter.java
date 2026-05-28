@@ -103,7 +103,7 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         // Play Store 视作未完成功能扣分,且没有实际跳转目标。github 渠道保留,便于开发预览。
         // GridLayout 是 3 行 × 2 列固定高度 402dp,web_street 单独占第 3 行第 1 格,直接 GONE 会
         // 留 ~134dp 空白,所以把 rowCount 改成 2 同时按比例(2/3)缩小高度。
-        if ("google".equals(BuildConfig.UPDATE_CHANNEL)) {
+        if (BuildConfig.IS_LITE) {
             baseBind.webStreet.setVisibility(View.GONE);
             android.widget.GridLayout grid = (android.widget.GridLayout) baseBind.webStreet.getParent();
             grid.setRowCount(2);

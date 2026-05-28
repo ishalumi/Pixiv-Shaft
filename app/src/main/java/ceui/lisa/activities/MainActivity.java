@@ -97,21 +97,21 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         //   github 渠道 release 保留「批量下载 Debug」(存储占用诊断) +「操作记录」(用户自查动作历史) +「站长推荐」;其它调试入口仅 debug 可见。
         //   google play 渠道为合规起见整段隐藏;且服务端依赖入口(站长推荐 / 操作记录)在任何 google build 都不展示。
         boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
-        boolean isGoogleChannel = "google".equals(ceui.lisa.BuildConfig.UPDATE_CHANNEL);
-        if (isGoogleChannel && !isDebugBuild) {
+        boolean isLite = ceui.lisa.BuildConfig.IS_LITE;
+        if (isLite && !isDebugBuild) {
             baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(false);
         } else {
             // 当前最热 / 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
-            baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isGoogleChannel);
-            baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isGoogleChannel);
-            baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(!isGoogleChannel);
+            baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isLite);
+            baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isLite);
+            baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(!isLite);
             // 标签热度导出:纯调试工具,只在 debug build 放出(menu 里默认 visible=false)。
             baseBind.navView.getMenu().findItem(R.id.nav_tag_popular_export).setVisible(isDebugBuild);
             // 聊天室 / 广场入口由「设置 - 试验性」开关控制,默认关闭;onResume 时再刷新一次。
             updateExperimentalEntriesVisibility();
         }
         // 通知中心走 pixiv 官方 API,google play release 渠道为合规起见隐藏整个入口。
-        if (isGoogleChannel && !isDebugBuild) {
+        if (isLite && !isDebugBuild) {
             baseBind.navView.getMenu().findItem(R.id.nav_notifications).setVisible(false);
         }
 
@@ -354,8 +354,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
      */
     private void updateExperimentalEntriesVisibility() {
         boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
-        boolean isGoogleChannel = "google".equals(ceui.lisa.BuildConfig.UPDATE_CHANNEL);
-        if (isGoogleChannel && !isDebugBuild) {
+        boolean isLite = ceui.lisa.BuildConfig.IS_LITE;
+        if (isLite && !isDebugBuild) {
             return;
         }
         baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(Shaft.sSettings.isShowChatRoomEntry());

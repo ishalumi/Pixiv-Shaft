@@ -57,7 +57,7 @@ object AppUpdateChecker {
     }
 
     fun shouldAutoCheck(): Boolean {
-        if (BuildConfig.UPDATE_CHANNEL != "github") return false
+        if (BuildConfig.IS_LITE) return false
         val mmkv = MMKV.defaultMMKV()
         val lastCheck = mmkv.decodeLong(KEY_LAST_CHECK_TIME, 0L)
         return System.currentTimeMillis() - lastCheck > CHECK_INTERVAL_MS
