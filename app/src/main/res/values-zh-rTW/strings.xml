@@ -1629,4 +1629,6 @@
     <string name="tag_popular_export_run">開始匯出</string>
     <string name="tag_popular_export_running">匯出中…</string>
     <string name="tag_popular_export_need_tag">請先輸入 tag 名稱</string>
+    <string name="use_custom_double_tap_zoom">自訂雙擊放大（長按復原）</string>
+    <string name="double_tap_zoom_max_reached">已至最大，長按復原</string>
 </resources>

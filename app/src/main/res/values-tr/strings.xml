@@ -1517,4 +1517,6 @@
     <string name="privacy_policy">Gizlilik Politikası</string>
     <string name="landing_terms_base">Hoş geldiniz! Devam ederek Shaft\'ın %s belgesini kabul etmiş ve %s belgemizi okuduğunuzu onaylamış olursunuz.</string>
     <string name="pinned_tags">Sabitlenen Etiketler</string>
+    <string name="use_custom_double_tap_zoom">Özel kademeli çift dokunma yakınlaştırma (sıfırlamak için basılı tutun)</string>
+    <string name="double_tap_zoom_max_reached">Maksimuma ulaşıldı — sıfırlamak için basılı tutun</string>
 </resources>

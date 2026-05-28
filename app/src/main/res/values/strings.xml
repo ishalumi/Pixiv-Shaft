@@ -2081,4 +2081,7 @@
     <string name="tag_popular_export_run">开始导出</string>
     <string name="tag_popular_export_running">导出中…</string>
     <string name="tag_popular_export_need_tag">请先输入 tag 名称</string>
+    <!-- 插画二级详情：自定义双击放大模式（PR#900） -->
+    <string name="use_custom_double_tap_zoom">自定义双击放大（长按复原）</string>
+    <string name="double_tap_zoom_max_reached">已至最大，长按复原</string>
 </resources>

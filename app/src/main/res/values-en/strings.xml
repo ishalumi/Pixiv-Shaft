@@ -1613,4 +1613,6 @@
     <string name="privacy_policy">Privacy Policy</string>
     <string name="landing_terms_base">Welcome! By continuing, you agree to Shaft\'s %s and confirm you\'ve read our %s.</string>
     <string name="pinned_tags">Pinned Tags</string>
+    <string name="use_custom_double_tap_zoom">Custom incremental double-tap zoom (long-press to reset)</string>
+    <string name="double_tap_zoom_max_reached">Max zoom reached — long-press to reset</string>
 </resources>

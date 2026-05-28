@@ -799,6 +799,17 @@ public class Settings {
         this.filterInvalidBookmarks = filterInvalidBookmarks;
     }
 
+    // 插画二级详情：双击放大模式（false=ZoomImage 默认双击缩放，true=自定义增量双击+长按归位 PR#900）
+    private boolean useCustomDoubleTapZoom = false;
+
+    public boolean isUseCustomDoubleTapZoom() {
+        return useCustomDoubleTapZoom;
+    }
+
+    public void setUseCustomDoubleTapZoom(boolean useCustomDoubleTapZoom) {
+        this.useCustomDoubleTapZoom = useCustomDoubleTapZoom;
+    }
+
     // 插画V3详情页：下载按钮是否在左（true=左下载右收藏，false=左收藏右下载）
     private boolean artworkV3FabDownloadOnLeft = true;
 

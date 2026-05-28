@@ -1389,6 +1389,23 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            //插画二级详情：自定义双击放大模式（PR#900）
+            baseBind.useCustomDoubleTapZoom.setChecked(Shaft.sSettings.isUseCustomDoubleTapZoom());
+            baseBind.useCustomDoubleTapZoom.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setUseCustomDoubleTapZoom(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.useCustomDoubleTapZoomRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.useCustomDoubleTapZoom.performClick();
+                }
+            });
+
             baseBind.isFirebaseEnable.setChecked(Shaft.sSettings.isFirebaseEnable());
             baseBind.isFirebaseEnable.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override

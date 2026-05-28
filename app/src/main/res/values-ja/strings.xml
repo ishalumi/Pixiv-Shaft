@@ -1615,4 +1615,6 @@
     <string name="tag_popular_export_run">エクスポート</string>
     <string name="tag_popular_export_running">エクスポート中…</string>
     <string name="tag_popular_export_need_tag">先にタグ名を入力してください</string>
+    <string name="use_custom_double_tap_zoom">ダブルタップで段階的に拡大（長押しで元に戻す）</string>
+    <string name="double_tap_zoom_max_reached">最大倍率に到達、長押しで元に戻ります</string>
 </resources>

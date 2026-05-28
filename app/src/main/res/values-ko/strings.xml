@@ -1526,4 +1526,6 @@
     <string name="privacy_policy">개인정보 처리방침</string>
     <string name="landing_terms_base">환영합니다! 계속하면 Shaft의 %s에 동의하고 %s을(를) 읽었음을 확인하게 됩니다.</string>
     <string name="pinned_tags">고정된 태그</string>
+    <string name="use_custom_double_tap_zoom">사용자 정의 더블 탭 확대 (길게 눌러 복원)</string>
+    <string name="double_tap_zoom_max_reached">최대 배율 도달, 길게 눌러 복원</string>
 </resources>
