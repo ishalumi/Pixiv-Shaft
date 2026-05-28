@@ -194,6 +194,7 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                                 .subscribe(result -> {
                                     if (result instanceof PixivOAuthResult.Failure) {
                                         Common.showToast("登录失败: " + ((PixivOAuthResult.Failure) result).getMessage());
+                                        backToLoginScreen();
                                         return;
                                     }
                                     PixivOAuthResult.Success success = (PixivOAuthResult.Success) result;
@@ -261,6 +262,7 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                                     );
                                 }, throwable -> {
                                     Common.showToast("登录失败");
+                                    backToLoginScreen();
                                 });
                                 return;
                             }
@@ -315,6 +317,17 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
             startActivity(i);
             finish();
         }
+    }
+
+    /**
+     * 登录回调失败后把用户送回登录注册页并结束本 Activity。少了这步会一直卡在
+     * activity_out_wake 的「资源解析中」loading 页,无法返回 (#892)。
+     */
+    private void backToLoginScreen() {
+        Intent i = new Intent(mContext, TemplateActivity.class);
+        i.putExtra(TemplateActivity.EXTRA_FRAGMENT, "登录注册");
+        startActivity(i);
+        finish();
     }
 
     /**
