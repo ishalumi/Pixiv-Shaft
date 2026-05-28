@@ -1519,6 +1519,10 @@
     <string name="privacy_policy">Политика конфиденциальности</string>
     <string name="landing_terms_base">Добро пожаловать! Продолжая, вы принимаете %s Shaft и подтверждаете, что ознакомились с %s.</string>
     <string name="pinned_tags">Закреплённые теги</string>
+    <string name="clear_pinned_tags_msg">Все закреплённые теги будут откреплены</string>
+    <string name="pinned_tags_cleared">Все закреплённые теги откреплены</string>
+    <string name="unpin_tag_confirm_message">Открепить «%1$s»?</string>
+    <string name="unpin_tag_success">Тег откреплён</string>
     <string name="use_custom_double_tap_zoom">Инкрементное увеличение по двойному касанию (долгое нажатие — сброс)</string>
     <string name="double_tap_zoom_max_reached">Достигнут максимум — удерживайте для сброса</string>
 </resources>

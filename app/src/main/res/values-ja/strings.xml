@@ -649,6 +649,10 @@
   <string name="privacy_policy">プライバシーポリシー</string>
   <string name="landing_terms_base">%sと%sに同意する</string>
   <string name="pinned_tags">ピン留めしたタグ</string>
+  <string name="clear_pinned_tags_msg">すべてのピン留めタグを解除します</string>
+  <string name="pinned_tags_cleared">すべてのピン留めを解除しました</string>
+  <string name="unpin_tag_confirm_message">「%1$s」のピン留めを解除しますか？</string>
+  <string name="unpin_tag_success">ピン留めを解除しました</string>
   <string name="read_agreement">[利用規約とプライバシーポリシーに同意する]のチェックが必要です</string>
   <string name="empty_content_here">コンテンツがありません</string>
   <string name="refresh">リロード</string>

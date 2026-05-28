@@ -11,6 +11,7 @@ import ceui.lisa.utils.Params
 import ceui.loxia.Illust
 import ceui.loxia.ImageUrls
 import ceui.loxia.Tag
+import ceui.loxia.findActionReceiverOrNull
 import ceui.pixiv.ui.common.ListItemHolder
 import ceui.pixiv.ui.common.ListItemViewHolder
 import com.google.gson.Gson
@@ -72,7 +73,15 @@ class PinnedTagItemViewHolder(private val bd: CellItemPinnedTagBinding) :
             }
             ctx.startActivity(intent)
         }
+        binding.deletePin.setOnClickListener { v ->
+            v.findActionReceiverOrNull<PinnedTagActionReceiver>()
+                ?.onClickDeletePinnedTag(holder.entity)
+        }
     }
+}
+
+interface PinnedTagActionReceiver {
+    fun onClickDeletePinnedTag(entity: SearchEntity)
 }
 
 // ── previewIllustsJson 解析 ──

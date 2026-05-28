@@ -1517,6 +1517,10 @@
     <string name="privacy_policy">Gizlilik Politikası</string>
     <string name="landing_terms_base">Hoş geldiniz! Devam ederek Shaft\'ın %s belgesini kabul etmiş ve %s belgemizi okuduğunuzu onaylamış olursunuz.</string>
     <string name="pinned_tags">Sabitlenen Etiketler</string>
+    <string name="clear_pinned_tags_msg">Tüm sabitlenmiş etiketler kaldırılacak</string>
+    <string name="pinned_tags_cleared">Tüm sabitlenmiş etiketler kaldırıldı</string>
+    <string name="unpin_tag_confirm_message">“%1$s” sabitlemesi kaldırılsın mı?</string>
+    <string name="unpin_tag_success">Etiket sabitlemesi kaldırıldı</string>
     <string name="use_custom_double_tap_zoom">Özel kademeli çift dokunma yakınlaştırma (sıfırlamak için basılı tutun)</string>
     <string name="double_tap_zoom_max_reached">Maksimuma ulaşıldı — sıfırlamak için basılı tutun</string>
 </resources>

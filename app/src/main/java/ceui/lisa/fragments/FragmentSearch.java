@@ -26,7 +26,6 @@ import com.zhy.view.flowlayout.FlowLayout;
 import com.zhy.view.flowlayout.TagAdapter;
 import com.zhy.view.flowlayout.TagFlowLayout;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,6 +34,7 @@ import ceui.lisa.R;
 import ceui.lisa.activities.OutWakeActivity;
 import ceui.lisa.activities.SearchActivity;
 import ceui.lisa.activities.Shaft;
+import ceui.lisa.activities.TemplateActivity;
 import ceui.lisa.activities.UActivity;
 import ceui.lisa.adapters.SearchHintAdapter;
 import ceui.lisa.database.AppDatabase;
@@ -350,18 +350,75 @@ public class FragmentSearch extends BaseFragment<FragmentSearchBinding> {
      * Load the search history
      * */
     private void loadHistory() {
-        /**
-         * history:Represents the search history
-         * history: size = {x} (x Represents the number of search history)
-         * */
         // 固定标签全量取，最近搜索另取上限；不能把两者塞进同一个 LIMIT，否则
         // 固定数量超出上限时会被静默挤掉（issue #524）
         List<SearchEntity> pinned = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getAllPinned();
         List<SearchEntity> recent = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().getRecentUnpinned(50);
-        List<SearchEntity> history = new ArrayList<>(pinned.size() + recent.size());
-        history.addAll(pinned);
-        history.addAll(recent);
-        baseBind.searchHistory.setAdapter(new TagAdapter<SearchEntity>(history) {
+        bindPinnedSection(pinned);
+        bindHistorySection(recent);
+    }
+
+    private void bindPinnedSection(final List<SearchEntity> pinned) {
+        if (pinned.isEmpty()) {
+            baseBind.pinnedSection.setVisibility(View.GONE);
+            return;
+        }
+        baseBind.pinnedSection.setVisibility(View.VISIBLE);
+        baseBind.pinnedTagsFlow.setAdapter(buildTagAdapter(pinned));
+        baseBind.pinnedTagsFlow.setOnTagClickListener((view, position, parent) -> {
+            handleHistoryClick(pinned.get(position));
+            return false;
+        });
+        baseBind.pinnedTagsFlow.setOnTagLongClickListener((view, position, parent) ->
+                showHistoryActionDialog(pinned.get(position)));
+        baseBind.clearPinned.setOnClickListener(v -> new QMUIDialog.MessageDialogBuilder(getActivity())
+                .setTitle(getString(R.string.string_143))
+                .setMessage(getString(R.string.clear_pinned_tags_msg))
+                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                .addAction(getString(R.string.string_142), (dialog, index) -> dialog.dismiss())
+                .addAction(0, getString(R.string.string_141), QMUIDialogAction.ACTION_PROP_NEGATIVE, (dialog, index) -> {
+                    AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().deleteAllPinned();
+                    Common.showToast(getString(R.string.pinned_tags_cleared));
+                    dialog.dismiss();
+                    onResume();
+                })
+                .show());
+        baseBind.viewAllPinned.setOnClickListener(v -> {
+            Intent intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "PinnedTagsList");
+            startActivity(intent);
+        });
+    }
+
+    private void bindHistorySection(final List<SearchEntity> history) {
+        if (history.isEmpty()) {
+            baseBind.historySection.setVisibility(View.GONE);
+            return;
+        }
+        baseBind.historySection.setVisibility(View.VISIBLE);
+        baseBind.searchHistory.setAdapter(buildTagAdapter(history));
+        baseBind.searchHistory.setOnTagClickListener((view, position, parent) -> {
+            handleHistoryClick(history.get(position));
+            return false;
+        });
+        baseBind.searchHistory.setOnTagLongClickListener((view, position, parent) ->
+                showHistoryActionDialog(history.get(position)));
+        baseBind.clearHistory.setOnClickListener(v -> new QMUIDialog.MessageDialogBuilder(getActivity())
+                .setTitle(getString(R.string.string_143))
+                .setMessage(getString(R.string.string_144))
+                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                .addAction(getString(R.string.string_142), (dialog, index) -> dialog.dismiss())
+                .addAction(0, getString(R.string.string_141), QMUIDialogAction.ACTION_PROP_NEGATIVE, (dialog, index) -> {
+                    AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().deleteAllUnpinned();
+                    Common.showToast(getString(R.string.string_140));
+                    dialog.dismiss();
+                    onResume();
+                })
+                .show());
+    }
+
+    private TagAdapter<SearchEntity> buildTagAdapter(final List<SearchEntity> data) {
+        return new TagAdapter<SearchEntity>(data) {
             @Override
             public View getView(FlowLayout parent, int position, SearchEntity searchEntity) {
                 RecySingleLineTextWithDeleteBinding binding = DataBindingUtil.inflate(
@@ -375,120 +432,72 @@ public class FragmentSearch extends BaseFragment<FragmentSearchBinding> {
                     binding.deleteItem.setVisibility(View.VISIBLE);
                 }
                 binding.tagTitle.setText(searchEntity.getKeyword());
-                binding.deleteItem.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        AppDatabase.getAppDatabase(mContext).searchDao().deleteSearchEntity(searchEntity);
-                        Common.showToast("删除成功");
-                        loadHistory();
-                    }
+                binding.deleteItem.setOnClickListener(view -> {
+                    AppDatabase.getAppDatabase(mContext).searchDao().deleteSearchEntity(searchEntity);
+                    Common.showToast("删除成功");
+                    loadHistory();
                 });
                 return binding.getRoot();
             }
-        });
-        if (history != null && history.size() != 0) {
-            baseBind.clearHistory.setVisibility(View.VISIBLE);
-            baseBind.clearHistory.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    new QMUIDialog.MessageDialogBuilder(getActivity())
-                            .setTitle(getString(R.string.string_143))
-                            .setMessage(getString(R.string.string_144))
-                            .setSkinManager(QMUISkinManager.defaultInstance(mContext))
-                            .addAction(getString(R.string.string_142), new QMUIDialogAction.ActionListener() {
-                                @Override
-                                public void onClick(QMUIDialog dialog, int index) {
-                                    dialog.dismiss();
-                                }
-                            })
-                            .addAction(0, getString(R.string.string_141), QMUIDialogAction.ACTION_PROP_NEGATIVE, new QMUIDialogAction.ActionListener() {
-                                @Override
-                                public void onClick(QMUIDialog dialog, int index) {
-                                    AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().deleteAllUnpinned();
-                                    Common.showToast(getString(R.string.string_140));
-                                    dialog.dismiss();
-                                    onResume();
-                                }
-                            })
-                            .show();
-                }
-            });
-        } else {
-            baseBind.clearHistory.setVisibility(View.INVISIBLE);
+        };
+    }
+
+    private void handleHistoryClick(SearchEntity entity) {
+        int type = entity.getSearchType();
+        if (type == SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD) {
+            hintViewModel.hideHints();
+            Intent intent = new Intent(mContext, SearchActivity.class);
+            intent.putExtra(Params.KEY_WORD, entity.getKeyword());
+            intent.putExtra(Params.INDEX, 0);
+            startActivity(intent);
+        } else if (type == SearchTypeUtil.SEARCH_TYPE_DB_ILLUSTSID) {
+            entity.setSearchTime(System.currentTimeMillis());
+            AppDatabase.getAppDatabase(mContext).searchDao().insert(entity);
+            PixivOperate.getIllustByID(tryParseId(entity.getKeyword()), mContext);
+        } else if (type == SearchTypeUtil.SEARCH_TYPE_DB_USERKEYWORD) {
+            hintViewModel.hideHints();
+            Intent intent = new Intent(mContext, SearchActivity.class);
+            intent.putExtra(Params.KEY_WORD, entity.getKeyword());
+            intent.putExtra(Params.INDEX, 0);
+            startActivity(intent);
+        } else if (type == SearchTypeUtil.SEARCH_TYPE_DB_USERID) {
+            entity.setSearchTime(System.currentTimeMillis());
+            AppDatabase.getAppDatabase(mContext).searchDao().insert(entity);
+            Intent intent = new Intent(mContext, UActivity.class);
+            intent.putExtra(Params.USER_ID, Integer.valueOf(entity.getKeyword()));
+            startActivity(intent);
+        } else if (type == SearchTypeUtil.SEARCH_TYPE_DB_NOVELID) {
+            entity.setSearchTime(System.currentTimeMillis());
+            AppDatabase.getAppDatabase(mContext).searchDao().insert(entity);
+            PixivOperate.getNovelByID(tryParseId(entity.getKeyword()), mContext, null);
+        } else if (type == SearchTypeUtil.SEARCH_TYPE_DB_URL) {
+            entity.setSearchTime(System.currentTimeMillis());
+            AppDatabase.getAppDatabase(mContext).searchDao().insert(entity);
+            Intent intent = new Intent(mContext, OutWakeActivity.class);
+            intent.setData(Uri.parse(entity.getKeyword()));
+            startActivity(intent);
         }
-        baseBind.searchHistory.setOnTagClickListener(new TagFlowLayout.OnTagClickListener() {
-            @Override
-            public boolean onTagClick(View view, int position, FlowLayout parent) {
-                if (history.get(position).getSearchType() == SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD) {
-                    hintViewModel.hideHints();
-                    Intent intent = new Intent(mContext, SearchActivity.class);
-                    intent.putExtra(Params.KEY_WORD, history.get(position).getKeyword());
-                    intent.putExtra(Params.INDEX, 0);
-                    startActivity(intent);
-                } else if (history.get(position).getSearchType() == SearchTypeUtil.SEARCH_TYPE_DB_ILLUSTSID) {
-                    history.get(position).setSearchTime(System.currentTimeMillis());
-                    AppDatabase.getAppDatabase(mContext).searchDao().insert(history.get(position));
-                    PixivOperate.getIllustByID(tryParseId(history.get(position).getKeyword()), mContext);
-                } else if (history.get(position).getSearchType() == SearchTypeUtil.SEARCH_TYPE_DB_USERKEYWORD) {
-                    hintViewModel.hideHints();
-                    Intent intent = new Intent(mContext, SearchActivity.class);
-                    intent.putExtra(Params.KEY_WORD, history.get(position).getKeyword());
-                    intent.putExtra(Params.INDEX, 0);
-                    startActivity(intent);
-                } else if (history.get(position).getSearchType() == SearchTypeUtil.SEARCH_TYPE_DB_USERID) {
-                    history.get(position).setSearchTime(System.currentTimeMillis());
-                    AppDatabase.getAppDatabase(mContext).searchDao().insert(history.get(position));
-                    Intent intent = new Intent(mContext, UActivity.class);
-                    intent.putExtra(Params.USER_ID, Integer.valueOf(history.get(position).getKeyword()));
-                    startActivity(intent);
-                } else if (history.get(position).getSearchType() == SearchTypeUtil.SEARCH_TYPE_DB_NOVELID) {
-                    history.get(position).setSearchTime(System.currentTimeMillis());
-                    AppDatabase.getAppDatabase(mContext).searchDao().insert(history.get(position));
-                    PixivOperate.getNovelByID(tryParseId(history.get(position).getKeyword()), mContext, null);
-                } else if (history.get(position).getSearchType() == SearchTypeUtil.SEARCH_TYPE_DB_URL) {
-                    history.get(position).setSearchTime(System.currentTimeMillis());
-                    AppDatabase.getAppDatabase(mContext).searchDao().insert(history.get(position));
-                    Intent intent = new Intent(mContext, OutWakeActivity.class);
-                    intent.setData(Uri.parse(history.get(position).getKeyword()));
-                    startActivity(intent);
-                }
-                return false;
-            }
-        });
-        baseBind.searchHistory.setOnTagLongClickListener(new TagFlowLayout.OnTagLongClickListener() {
-            @Override
-            public boolean onTagLongClick(View view, int position, FlowLayout parent) {
-                final SearchEntity searchEntity = history.get(position);
-                new QMUIDialog.MessageDialogBuilder(mContext)
-                        .setTitle(R.string.string_87)
-                        .setMessage(searchEntity.getKeyword())
-                        .setSkinManager(QMUISkinManager.defaultInstance(mActivity))
-                        .addAction(getString(R.string.string_142), new QMUIDialogAction.ActionListener() {
-                            @Override
-                            public void onClick(QMUIDialog dialog, int index) {
-                                dialog.dismiss();
-                            }
-                        })
-                        .addAction(searchEntity.isPinned() ? getString(R.string.string_443) : getString(R.string.string_442), new QMUIDialogAction.ActionListener() {
-                            @Override
-                            public void onClick(QMUIDialog dialog, int index) {
-                                searchEntity.setPinned(!searchEntity.isPinned());
-                                AppDatabase.getAppDatabase(mContext).searchDao().insert(searchEntity);
-                                baseBind.searchHistory.getAdapter().notifyDataChanged();
-                                dialog.dismiss();
-                            }
-                        })
-                        .addAction(getString(R.string.string_120), new QMUIDialogAction.ActionListener() {
-                            @Override
-                            public void onClick(QMUIDialog dialog, int index) {
-                                Common.copy(mContext, searchEntity.getKeyword());
-                                dialog.dismiss();
-                            }
-                        })
-                        .show();
-                return true;
-            }
-        });
+    }
+
+    private boolean showHistoryActionDialog(final SearchEntity searchEntity) {
+        new QMUIDialog.MessageDialogBuilder(mContext)
+                .setTitle(R.string.string_87)
+                .setMessage(searchEntity.getKeyword())
+                .setSkinManager(QMUISkinManager.defaultInstance(mActivity))
+                .addAction(getString(R.string.string_142), (dialog, index) -> dialog.dismiss())
+                .addAction(searchEntity.isPinned() ? getString(R.string.string_443) : getString(R.string.string_442), (dialog, index) -> {
+                    searchEntity.setPinned(!searchEntity.isPinned());
+                    AppDatabase.getAppDatabase(mContext).searchDao().insert(searchEntity);
+                    dialog.dismiss();
+                    // 切换 pinned 后该条目需要在两个 section 间挪动,简单粗暴重新加载两段
+                    loadHistory();
+                })
+                .addAction(getString(R.string.string_120), (dialog, index) -> {
+                    Common.copy(mContext, searchEntity.getKeyword());
+                    dialog.dismiss();
+                })
+                .show();
+        return true;
     }
 
     private void predictSearchType(){

@@ -107,59 +107,139 @@
                     android:orientation="vertical">
 
 
-                    <RelativeLayout
+                    <LinearLayout
+                        android:id="@+id/pinned_section"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/sixteen_dp"
-                            android:layout_marginTop="@dimen/twenty_four_dp"
-                            android:text="@string/string_87"
-                            android:textColor="@color/second_text_color"
-                            android:textSize="14sp">
-
-
-                        </TextView>
-
-
-                        <TextView
-                            android:id="@+id/clear_history"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_alignParentEnd="true"
-                            android:layout_marginTop="@dimen/twenty_four_dp"
-                            android:layout_marginEnd="@dimen/sixteen_dp"
-                            android:layout_marginBottom="@dimen/eight_dp"
-                            android:text="@string/clear"
-                            android:textColor="?attr/colorPrimary"
-                            android:textSize="14sp">
-
-
-                        </TextView>
-
-                    </RelativeLayout>
-
-                    <ceui.lisa.view.NestMax
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
-
-                        <com.zhy.view.flowlayout.TagFlowLayout
-                            android:id="@+id/search_history"
+                        <RelativeLayout
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/twelve_dp"
-                            android:layout_marginEnd="@dimen/four_dp"></com.zhy.view.flowlayout.TagFlowLayout>
+                            android:layout_height="wrap_content">
 
-                    </ceui.lisa.view.NestMax>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_centerVertical="true"
+                                android:layout_marginStart="@dimen/sixteen_dp"
+                                android:layout_marginTop="@dimen/twenty_four_dp"
+                                android:layout_marginBottom="@dimen/eight_dp"
+                                android:text="@string/pinned_tags"
+                                android:textColor="@color/second_text_color"
+                                android:textSize="14sp" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
+                                android:layout_marginTop="@dimen/twenty_four_dp"
+                                android:layout_marginEnd="@dimen/sixteen_dp"
+                                android:layout_marginBottom="@dimen/eight_dp"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/clear_pinned"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:paddingHorizontal="@dimen/four_dp"
+                                    android:text="@string/clear"
+                                    android:textColor="?attr/colorPrimary"
+                                    android:textSize="14sp" />
+
+                                <TextView
+                                    android:id="@+id/view_all_pinned"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/twelve_dp"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:paddingHorizontal="@dimen/four_dp"
+                                    android:text="@string/string_167"
+                                    android:textColor="?attr/colorPrimary"
+                                    android:textSize="14sp" />
+
+                            </LinearLayout>
+
+                        </RelativeLayout>
+
+                        <ceui.lisa.view.NestMax
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <com.zhy.view.flowlayout.TagFlowLayout
+                                android:id="@+id/pinned_tags_flow"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/twelve_dp"
+                                android:layout_marginEnd="@dimen/four_dp" />
+
+                        </ceui.lisa.view.NestMax>
+
+                    </LinearLayout>
+
+
+                    <LinearLayout
+                        android:id="@+id/history_section"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_centerVertical="true"
+                                android:layout_marginStart="@dimen/sixteen_dp"
+                                android:layout_marginTop="@dimen/twenty_four_dp"
+                                android:layout_marginBottom="@dimen/eight_dp"
+                                android:text="@string/string_87"
+                                android:textColor="@color/second_text_color"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/clear_history"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
+                                android:layout_marginTop="@dimen/twenty_four_dp"
+                                android:layout_marginEnd="@dimen/sixteen_dp"
+                                android:layout_marginBottom="@dimen/eight_dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:paddingHorizontal="@dimen/four_dp"
+                                android:text="@string/clear"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="14sp" />
+
+                        </RelativeLayout>
+
+                        <ceui.lisa.view.NestMax
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <com.zhy.view.flowlayout.TagFlowLayout
+                                android:id="@+id/search_history"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/twelve_dp"
+                                android:layout_marginEnd="@dimen/four_dp" />
+
+                        </ceui.lisa.view.NestMax>
+
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/search_hint"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/sixteen_dp"
-                        android:layout_marginTop="@dimen/eight_dp"
+                        android:layout_marginTop="@dimen/twenty_four_dp"
                         android:layout_marginBottom="@dimen/eight_dp"
                         android:text="@string/string_88"
                         android:textColor="@color/second_text_color"

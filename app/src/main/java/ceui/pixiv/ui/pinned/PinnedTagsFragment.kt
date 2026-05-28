@@ -2,6 +2,7 @@ package ceui.pixiv.ui.pinned
 
 import android.os.Bundle
 import android.view.View
+import android.widget.TextView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
@@ -11,12 +12,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
+import ceui.lisa.database.SearchEntity
+import ceui.lisa.utils.Common
 import ceui.loxia.RefreshHint
 import ceui.pixiv.ui.common.CommonAdapter
 import ceui.pixiv.ui.common.ListMode
 import ceui.pixiv.ui.common.PixivFragment
 import ceui.pixiv.ui.common.setUpLayoutManager
 import com.blankj.utilcode.util.BarUtils
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.launch
 
 /**
@@ -34,7 +40,7 @@ import kotlinx.coroutines.launch
  * LinearLayoutManager + CommonAdapter + 观察 holders + 切换 empty view。本地 DB 查询毫秒级，
  * 不需要下拉刷新；新置顶通过 [onResume] 重新查一次 DB 自动出现。
  */
-class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags) {
+class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags), PinnedTagActionReceiver {
 
     private val viewModel by viewModels<PinnedTagsViewModel>()
 
@@ -47,6 +53,9 @@ class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags) {
             updatePadding(top = BarUtils.getStatusBarHeight())
             setNavigationOnClickListener { activity?.finish() }
         }
+
+        val clearAll = view.findViewById<TextView>(R.id.clear_all)
+        clearAll.setOnClickListener { showClearAllDialog() }
 
         val listView = view.findViewById<RecyclerView>(R.id.list_view)
         val emptyView = view.findViewById<View>(R.id.empty_view)
@@ -62,6 +71,7 @@ class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags) {
         viewModel.holders.observe(viewLifecycleOwner) { holders ->
             adapter.submitList(holders)
             emptyView.isVisible = holders.isEmpty()
+            clearAll.isVisible = holders.isNotEmpty()
         }
 
         // 用户从详情页长按置顶 / 取消置顶后回到本页,要看到列表更新。
@@ -71,5 +81,38 @@ class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags) {
                 viewModel.refresh(RefreshHint.PullToRefresh)
             }
         }
+    }
+
+    override fun onClickDeletePinnedTag(entity: SearchEntity) {
+        val ctx = context ?: return
+        val displayName = entity.keyword.orEmpty()
+        QMUIDialog.MessageDialogBuilder(ctx)
+            .setTitle(R.string.string_143)
+            .setMessage(getString(R.string.unpin_tag_confirm_message, displayName))
+            .setSkinManager(QMUISkinManager.defaultInstance(ctx))
+            .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
+            .addAction(0, R.string.string_443, QMUIDialogAction.ACTION_PROP_NEGATIVE) { dialog, _ ->
+                viewModel.deleteOne(entity)
+                // Toast 走 application-context 的 ToastUtils,fragment 已 detach 时也安全；
+                // 用 int 资源是为了避免 dialog 回调里 getString() 撞上 fragment 未 attach 抛 ISE。
+                Common.showToast(R.string.unpin_tag_success)
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showClearAllDialog() {
+        val ctx = context ?: return
+        QMUIDialog.MessageDialogBuilder(ctx)
+            .setTitle(R.string.string_143)
+            .setMessage(R.string.clear_pinned_tags_msg)
+            .setSkinManager(QMUISkinManager.defaultInstance(ctx))
+            .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
+            .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { dialog, _ ->
+                viewModel.clearAll()
+                Common.showToast(R.string.pinned_tags_cleared)
+                dialog.dismiss()
+            }
+            .show()
     }
 }

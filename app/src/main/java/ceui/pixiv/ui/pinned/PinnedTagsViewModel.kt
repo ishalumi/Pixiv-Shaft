@@ -1,11 +1,14 @@
 package ceui.pixiv.ui.pinned
 
+import androidx.lifecycle.viewModelScope
 import ceui.lisa.activities.Shaft
 import ceui.lisa.database.AppDatabase
+import ceui.lisa.database.SearchEntity
 import ceui.loxia.RefreshHint
 import ceui.loxia.RefreshState
 import ceui.pixiv.ui.common.HoldersViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -28,6 +31,24 @@ class PinnedTagsViewModel : HoldersViewModel() {
             hasContent = items.isNotEmpty(),
             hasNext = false,
         )
+    }
+
+    fun deleteOne(entity: SearchEntity) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().deleteSearchEntity(entity)
+            }
+            refresh(RefreshHint.PullToRefresh)
+        }
+    }
+
+    fun clearAll() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getAppDatabase(Shaft.getContext()).searchDao().deleteAllPinned()
+            }
+            refresh(RefreshHint.PullToRefresh)
+        }
     }
 
     init {

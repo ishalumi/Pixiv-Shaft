@@ -20,6 +20,9 @@ interface SearchDao {
     @Query("DELETE FROM search_table WHERE pinned = 0")
     fun deleteAllUnpinned()
 
+    @Query("DELETE FROM search_table WHERE pinned = 1")
+    fun deleteAllPinned()
+
     // 固定标签全量返回，不能被 recent-history LIMIT 截掉（issue #524）
     @Query("SELECT * FROM search_table WHERE pinned = 1 ORDER BY searchTime DESC")
     fun getAllPinned(): List<SearchEntity>
