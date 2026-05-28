@@ -193,7 +193,27 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                                 .observeOn(AndroidSchedulers.mainThread())
                                 .subscribe(result -> {
                                     if (result instanceof PixivOAuthResult.Failure) {
-                                        Common.showToast("登录失败: " + ((PixivOAuthResult.Failure) result).getMessage());
+                                        PixivOAuthResult.Failure failure = (PixivOAuthResult.Failure) result;
+                                        // 原始 message 写日志,Toast 给可操作的提示。#892:
+                                        // 用户看到「不正确的请求」(ServerRejected) 却以为是网络问题,
+                                        // 一直换节点,所以这里要把"该重新登录"和"该查网络"分开说。
+                                        Common.showLog("OAuth login failed: " + failure.getMessage());
+                                        String hint;
+                                        if (failure instanceof PixivOAuthResult.Failure.NetworkError) {
+                                            hint = "登录失败：网络连接不上,请检查网络或代理后重试";
+                                        } else if (failure instanceof PixivOAuthResult.Failure.MissingVerifier) {
+                                            hint = "登录已过期,请重新点击登录";
+                                        } else if (failure instanceof PixivOAuthResult.Failure.MissingCode) {
+                                            hint = "登录被取消或回调异常,请重新登录";
+                                        } else if (failure instanceof PixivOAuthResult.Failure.ServerRejected) {
+                                            // 换节点没用——是 Pixiv 服务端拒绝(多见 code 失效/重复使用),需要重新走一遍登录
+                                            hint = "Pixiv 拒绝了登录请求(HTTP "
+                                                    + ((PixivOAuthResult.Failure.ServerRejected) failure).getHttpCode()
+                                                    + "),请重新点击登录(换节点无效)";
+                                        } else {
+                                            hint = "登录失败: " + failure.getMessage();
+                                        }
+                                        Common.showToast(hint);
                                         backToLoginScreen();
                                         return;
                                     }
