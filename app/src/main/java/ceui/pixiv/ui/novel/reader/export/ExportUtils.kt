@@ -26,22 +26,38 @@ internal object ExportUtils {
      * run [writer] with its OutputStream, and return the entry's Uri. Caller
      * is responsible for closing/flushing its own zip / bitmap / whatever
      * wrappers.
+     *
+     * Returns `null` only when the overwrite policy skipped the write. On any
+     * I/O / MediaStore failure it does NOT swallow — it propagates the (often
+     * OEM-specific, user-actionable) exception so the export pipeline can show
+     * the real cause instead of a generic "无法写入 Downloads".
      */
     fun saveToDownloads(
         context: Context,
         destination: RelativePath,
         mimeType: String,
         writer: (OutputStream) -> Unit,
-    ): Uri? = runCatching {
+    ): Uri? {
         val handle = DownloadsRegistry.downloads.openRaw(
             Bucket.Novel,
             destination,
             mimeType,
-        ) ?: return@runCatching null
-        handle.stream.use { writer(it) }
-        handle.onFinish()
-        handle.uri
-    }.getOrNull()
+        ) ?: return null
+        // The backend throws deliberately-actionable, OEM-specific messages
+        // (e.g. "下载目录被系统占用，无法写入 …/，请在文件管理器删掉同名旧文件后重试"
+        // on vivo / MIUI / HarmonyOS skins) that the user must see. On a
+        // mid-write failure, abort the pending row first — otherwise a 0-byte
+        // `.pending-` orphan leaks and trips the same guard on the next try —
+        // then rethrow so the caller surfaces the real cause.
+        try {
+            handle.stream.use { writer(it) }
+            handle.onFinish()
+        } catch (t: Throwable) {
+            handle.onAbort()
+            throw t
+        }
+        return handle.uri
+    }
 
     /** Replace all `<br/>`-like HTML tags with newlines and strip remaining markup. */
     fun brToNewline(input: String?): String {
