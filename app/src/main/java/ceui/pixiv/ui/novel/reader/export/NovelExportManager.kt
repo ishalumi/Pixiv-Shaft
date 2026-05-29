@@ -61,6 +61,11 @@ object NovelExportManager {
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
+            // The message reaches the user via the toast; log the full stack so
+            // environment-specific write failures (OEM MediaStore quirks, SAF
+            // permission loss, …) are diagnosable from a bug report instead of
+            // hiding behind a one-line message.
+            Timber.e(t, "novel export failed: format=$format id=${novel?.id} dest=${destination.joinTo()}")
             ExportResult.Failure(t.message ?: "导出失败", t)
         }
         if (result is ExportResult.Success) {
