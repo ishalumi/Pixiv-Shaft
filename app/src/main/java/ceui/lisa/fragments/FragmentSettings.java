@@ -1401,7 +1401,6 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
             baseBind.useCustomDoubleTapZoom.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    boolean changed = isChecked != Shaft.sSettings.isUseCustomDoubleTapZoom();
                     Shaft.sSettings.setUseCustomDoubleTapZoom(isChecked);
                     Common.showToast(getString(R.string.string_428));
                     Local.setSettings(Shaft.sSettings);
@@ -1410,10 +1409,6 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                         TransitionManager.beginDelayedTransition(CustomLongPressGroup, new AutoTransition());
                     }
                     baseBind.useCustomLongPressResetGroup.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-                    if (changed) {
-                        Retro.refreshAppApi();
-                        Client.INSTANCE.reset();
-                    }
                 }
             });
 

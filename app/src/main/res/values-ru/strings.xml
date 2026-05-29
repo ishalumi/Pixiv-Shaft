@@ -1523,6 +1523,15 @@
     <string name="pinned_tags_cleared">Все закреплённые теги откреплены</string>
     <string name="unpin_tag_confirm_message">Открепить «%1$s»?</string>
     <string name="unpin_tag_success">Тег откреплён</string>
-    <string name="use_custom_double_tap_zoom">Инкрементное увеличение по двойному касанию (долгое нажатие — сброс)</string>
+    <string name="use_custom_double_tap_zoom">(Новое) Инкрементное / 3-уровневое увеличение по двойному касанию для большого изображения</string>
+    <string name="use_custom_long_press_reset">Включить сброс долгим нажатием (рекомендуется)</string>
+    <string name="use_custom_long_press_reset_link_text">После максимума не вернётся к минимуму</string>
     <string name="double_tap_zoom_max_reached">Достигнут максимум — удерживайте для сброса</string>
+    <string name="double_tap_zoom_max_reached2">Достигнут максимум. Двойное касание ещё раз — уменьшить до минимума</string>
+    <string name="custom_zoom_scale_title">Шаг увеличения</string>
+    <string name="custom_zoom_scale_link_text">По умолчанию 1.8. Неразумные значения (слишком большие или малые) ухудшают масштабирование</string>
+    <string name="custom_zoom_scale_decrease_desc">Уменьшить шаг увеличения</string>
+    <string name="custom_zoom_scale_increase_desc">Увеличить шаг увеличения</string>
+    <string name="use_three_level_zoom_title">Сменить инкрементное увеличение на 3-уровневое умное</string>
+    <string name="three_level_zoom_link_text">Размер второго уровня связан с шагом увеличения выше</string>
 </resources>

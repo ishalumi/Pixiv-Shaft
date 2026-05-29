@@ -1366,7 +1366,7 @@
                                 <TextView
                                     android:id="@+id/custom_zoom_scale_title"
                                     style="@style/setting_text_left"
-                                    android:text="缩放增量值" />
+                                    android:text="@string/custom_zoom_scale_title" />
 
                                 <TextView
                                     android:id="@+id/custom_zoom_scale_title_link"
@@ -1377,7 +1377,7 @@
                                     android:layout_marginBottom="@dimen/twelve_dp"
                                     android:ellipsize="start"
                                     android:singleLine="true"
-                                    android:text="默认1.8，数值不合理（过大或过小）会影响图片缩放体验"
+                                    android:text="@string/custom_zoom_scale_link_text"
                                     android:textColor="?attr/colorPrimary"
                                     android:textSize="12sp" />
 
@@ -1396,7 +1396,7 @@
                                         android:layout_height="40dp"
                                         android:background="?attr/selectableItemBackgroundBorderless"
                                         android:src="@android:drawable/ic_media_previous"
-                                        android:contentDescription="减少缩放增量" />
+                                        android:contentDescription="@string/custom_zoom_scale_decrease_desc" />
 
                                     <TextView
                                         android:id="@+id/custom_zoom_scale_display"
@@ -1414,7 +1414,7 @@
                                         android:layout_height="40dp"
                                         android:background="?attr/selectableItemBackgroundBorderless"
                                         android:src="@android:drawable/ic_media_next"
-                                        android:contentDescription="增加缩放增量" />
+                                        android:contentDescription="@string/custom_zoom_scale_increase_desc" />
 
                                 </LinearLayout>
 
@@ -1429,7 +1429,7 @@
                                     android:id="@+id/use_custom_three_level_zoom_title"
                                     style="@style/setting_text_left"
                                     android:layout_marginBottom="@dimen/six_dp"
-                                    android:text="增量缩放改为三级智能缩放模式" />
+                                    android:text="@string/use_three_level_zoom_title" />
 
                                 <TextView
                                     android:id="@+id/three_level_zoom_link"
@@ -1440,7 +1440,7 @@
                                     android:layout_marginBottom="@dimen/twelve_dp"
                                     android:ellipsize="start"
                                     android:singleLine="true"
-                                    android:text="第二级的缩放大小与上面的缩放增量有联"
+                                    android:text="@string/three_level_zoom_link_text"
                                     android:textColor="?attr/colorPrimary"
                                     android:textSize="12sp" />
 
