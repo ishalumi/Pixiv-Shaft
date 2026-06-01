@@ -56,8 +56,9 @@ abstract class BaseStripWidgetWorker(
             e.printStackTrace()
             null
         }
+        // API 瞬时失败：跳过渲染保留 widget 上已有的画面，交给 retry。
+        // 推 renderPlaceholder 会把已显示的三张图抹成空白占位格（与封面加载失败同类问题）
         if (illusts.isNullOrEmpty()) {
-            widgetIds.forEach { renderPlaceholder(manager, it) }
             return Result.retry()
         }
 

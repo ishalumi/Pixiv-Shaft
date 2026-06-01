@@ -59,10 +59,9 @@ class SpotlightWidgetWorker(
             null
         }
 
+        // API 瞬时失败：跳过渲染保留 widget 上已有的画面，交给 retry。
+        // 推 renderEmpty 会把已显示的图抹成错误卡（与封面加载失败同类问题）
         if (illust == null) {
-            widgetIds.forEach {
-                renderEmpty(manager, it, context.getString(R.string.v3_widget_failed))
-            }
             return Result.retry()
         }
 
