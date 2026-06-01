@@ -1630,4 +1630,26 @@
     <string name="custom_zoom_scale_increase_desc">ズーム増分を増やす</string>
     <string name="use_three_level_zoom_title">段階ズームを3段階スマートズームに変更</string>
     <string name="three_level_zoom_link_text">2段階目の拡大率は上の増分値と連動します</string>
+    <!-- aria2 リモートダウンロード (#692) -->
+    <string name="aria2_settings_title">aria2 リモートダウンロード</string>
+    <string name="aria2_settings_entry_desc">ダウンロードタスクを NAS / リモートサーバーの aria2 に送信</string>
+    <string name="aria2_status_enabled">有効 · %1$s</string>
+    <string name="aria2_intro_body">有効にすると、画像のダウンロードタスクは JSON-RPC 経由でリモートの aria2（NAS 上のインスタンスなど）に送信され、本機には保存されません。ファイル名とディレクトリ構造は「ダウンロードパス / ファイル名」の設定に従います。\n\nうごイラは元のフレーム zip アーカイブとして送信されます。</string>
+    <string name="aria2_enable_title">aria2 リモートダウンロードを有効化</string>
+    <string name="aria2_enable_desc">有効にすると画像のダウンロードはすべてリモートの aria2 に任せ、本機には保存しません</string>
+    <string name="aria2_rpc_url_label">RPC エンドポイント</string>
+    <string name="aria2_rpc_url_hint">http://192.168.1.5:6800/jsonrpc</string>
+    <string name="aria2_rpc_secret_label">RPC シークレット（--rpc-secret、任意）</string>
+    <string name="aria2_rpc_secret_hint">未設定の場合は空欄</string>
+    <string name="aria2_remote_dir_label">リモートダウンロードディレクトリ（任意）</string>
+    <string name="aria2_remote_dir_hint">空欄の場合は aria2 のグローバル設定を使用</string>
+    <string name="aria2_btn_save">保存</string>
+    <string name="aria2_btn_test">接続テスト</string>
+    <string name="aria2_saved">保存しました</string>
+    <string name="aria2_url_required">RPC エンドポイントを入力してください</string>
+    <string name="aria2_url_invalid">RPC エンドポイントは http:// または https:// で始まる必要があります</string>
+    <string name="aria2_test_success">接続成功、aria2 バージョン %1$s</string>
+    <string name="aria2_test_failed">接続失敗：%1$s</string>
+    <string name="aria2_task_sent">%1$s を aria2 に送信しました</string>
+    <string name="aria2_send_failed">aria2 への送信に失敗：%1$s</string>
 </resources>

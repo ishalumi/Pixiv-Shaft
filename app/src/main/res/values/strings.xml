@@ -2098,4 +2098,26 @@
     <string name="custom_zoom_scale_increase_desc">增加缩放增量</string>
     <string name="use_three_level_zoom_title">增量缩放改为三级智能缩放模式</string>
     <string name="three_level_zoom_link_text">第二级的缩放大小与上面的缩放增量值有关联</string>
+    <!-- aria2 远程下载 (#692) -->
+    <string name="aria2_settings_title">aria2 远程下载</string>
+    <string name="aria2_settings_entry_desc">把下载任务发送到 NAS / 远程服务器上的 aria2</string>
+    <string name="aria2_status_enabled">已启用 · %1$s</string>
+    <string name="aria2_intro_body">启用后，图片下载任务将通过 JSON-RPC 发送给远端 aria2（例如跑在 NAS 上的实例），由远端直接下载，不再保存到本机。文件名与目录结构沿用「下载路径 / 文件名」中的设置。\n\n动图（ugoira）将以原始帧 zip 压缩包的形式发送。</string>
+    <string name="aria2_enable_title">启用 aria2 远程下载</string>
+    <string name="aria2_enable_desc">启用后所有图片下载任务都交给远端 aria2，本机不再落盘</string>
+    <string name="aria2_rpc_url_label">RPC 地址</string>
+    <string name="aria2_rpc_url_hint">http://192.168.1.5:6800/jsonrpc</string>
+    <string name="aria2_rpc_secret_label">RPC 密钥（--rpc-secret，可选）</string>
+    <string name="aria2_rpc_secret_hint">未设置密钥可留空</string>
+    <string name="aria2_remote_dir_label">远端下载目录（可选）</string>
+    <string name="aria2_remote_dir_hint">留空使用 aria2 全局配置</string>
+    <string name="aria2_btn_save">保存</string>
+    <string name="aria2_btn_test">测试连接</string>
+    <string name="aria2_saved">已保存</string>
+    <string name="aria2_url_required">请填写 RPC 地址</string>
+    <string name="aria2_url_invalid">RPC 地址必须以 http:// 或 https:// 开头</string>
+    <string name="aria2_test_success">连接成功，aria2 版本 %1$s</string>
+    <string name="aria2_test_failed">连接失败：%1$s</string>
+    <string name="aria2_task_sent">%1$s 已发送到 aria2</string>
+    <string name="aria2_send_failed">发送到 aria2 失败：%1$s</string>
 </resources>

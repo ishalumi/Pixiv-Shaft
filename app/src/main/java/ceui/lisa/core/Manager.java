@@ -35,6 +35,7 @@ import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.DownloadLimitTypeUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
+import ceui.pixiv.download.aria2.Aria2Dispatcher;
 import ceui.pixiv.ui.task.TaskPool;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -507,6 +508,13 @@ public class Manager {
             return;
         }
 
+        // aria2 远程下载模式（#692）：任务转发给远端 aria2（NAS），不在本地建文件。
+        // 必须在 factory 创建之前拦截，否则会平白多出一条本地 MediaStore/SAF 行。
+        if (Aria2Dispatcher.isEnabled()) {
+            dispatchToAria2(downloadItem);
+            return;
+        }
+
         Common.showLog("Manager 下载单个 当前进度" + downloadItem.getNonius());
 
         // SAF factory 创建、文件查询、insert 全部在 IO 线程执行，
@@ -603,6 +611,64 @@ public class Manager {
             AndroidSchedulers.mainThread().scheduleDirect(() ->
                 startDownloadChain(context, downloadItem, factory, cachedFile, targetUri, dlUrl, passSize));
         });
+    }
+
+    /**
+     * aria2 远程下载（#692）：把 downloadItem 的 URL 通过 JSON-RPC 发给远端 aria2。
+     * RPC 成功 = 这条任务完成（实际下载由远端 aria2 执行）；失败按普通下载失败
+     * 处理（FAILED 留在列表里，用户可重试，重试会再次走到这里）。
+     *
+     * 结构刻意对齐 startDownloadChain：
+     *   - disposable 进 handles —— stopAll/stopOne 能取消还没发出去的 RPC，
+     *     resurrectIfStranded 也不会把 in-flight 的 RPC 误判成 stranded
+     *   - 成功后 content.remove 排主线程 —— QueueDownloadManager.awaitIllustSettled
+     *     靠"item 从 content 消失"判断 illust 完成，批量下载因此天然兼容
+     *   - 不插 DownloadEntity（已完成 tab）—— 文件不在本地，点开会找不到；
+     *     远端下载状态去 aria2 自己的前端（AriaNg 等）看
+     */
+    private void dispatchToAria2(DownloadItem downloadItem) {
+        final String itemUuid = downloadItem.getUuid();
+        Disposable d = io.reactivex.rxjava3.core.Observable.<String>create(emitter -> {
+            try {
+                String gid = Aria2Dispatcher.dispatch(downloadItem);
+                emitter.onNext(gid);
+                emitter.onComplete();
+            } catch (Exception e) {
+                if (!emitter.isDisposed()) {
+                    emitter.onError(e);
+                }
+            }
+        })
+        .subscribeOn(Schedulers.io())
+        .observeOn(Schedulers.io())
+        .doFinally(() -> {
+            handles.remove(itemUuid);
+            Common.showLog("[ARIA2] doFinally uuid=" + itemUuid);
+            AndroidSchedulers.mainThread().scheduleDirect(this::pumpAvailableSlots);
+        })
+        .subscribe(gid -> {
+            Common.showLog("[ARIA2] dispatched uuid=" + itemUuid + " gid=" + gid
+                    + " name=" + downloadItem.getName());
+            // 与本地下载成功路径一致：content.remove 第一时间排上主线程
+            AndroidSchedulers.mainThread().scheduleDirect(() -> {
+                synchronized (Manager.this) {
+                    content.remove(downloadItem);
+                }
+                ManagerReactive.invalidate();
+            });
+            try { complete(downloadItem, true); } catch (Throwable t) { Common.showLog("[ARIA2] complete(success) failed: " + t); }
+            if (Shaft.sSettings.isToastDownloadResult()) {
+                AndroidSchedulers.mainThread().scheduleDirect(() ->
+                        Common.showToast(mContext.getString(R.string.aria2_task_sent, downloadItem.getName())));
+            }
+        }, throwable -> {
+            Common.showLog("[ARIA2] dispatch failed: " + throwable);
+            if (Shaft.sSettings.isToastDownloadResult()) {
+                Common.showToast(mContext.getString(R.string.aria2_send_failed, String.valueOf(throwable.getMessage())));
+            }
+            complete(downloadItem, false);
+        });
+        handles.put(itemUuid, d);
     }
 
     private void startDownloadChain(Context context, DownloadItem downloadItem,

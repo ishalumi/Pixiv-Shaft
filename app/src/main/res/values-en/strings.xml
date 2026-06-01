@@ -1628,4 +1628,26 @@
     <string name="custom_zoom_scale_increase_desc">Increase zoom increment</string>
     <string name="use_three_level_zoom_title">Switch incremental zoom to 3-level smart zoom</string>
     <string name="three_level_zoom_link_text">The second level is linked to the zoom increment above</string>
+    <!-- aria2 remote download (#692) -->
+    <string name="aria2_settings_title">aria2 remote download</string>
+    <string name="aria2_settings_entry_desc">Send download tasks to aria2 on a NAS / remote server</string>
+    <string name="aria2_status_enabled">Enabled · %1$s</string>
+    <string name="aria2_intro_body">When enabled, image download tasks are sent via JSON-RPC to a remote aria2 instance (e.g. running on a NAS) and downloaded there instead of on this device. File names and directory structure follow the Download path / file name settings.\n\nUgoira (animated works) are sent as the original frame zip archive.</string>
+    <string name="aria2_enable_title">Enable aria2 remote download</string>
+    <string name="aria2_enable_desc">All image downloads are handed to the remote aria2; nothing is saved on this device</string>
+    <string name="aria2_rpc_url_label">RPC endpoint</string>
+    <string name="aria2_rpc_url_hint">http://192.168.1.5:6800/jsonrpc</string>
+    <string name="aria2_rpc_secret_label">RPC secret (--rpc-secret, optional)</string>
+    <string name="aria2_rpc_secret_hint">Leave empty if no secret is set</string>
+    <string name="aria2_remote_dir_label">Remote download directory (optional)</string>
+    <string name="aria2_remote_dir_hint">Leave empty to use the aria2 global config</string>
+    <string name="aria2_btn_save">Save</string>
+    <string name="aria2_btn_test">Test connection</string>
+    <string name="aria2_saved">Saved</string>
+    <string name="aria2_url_required">Please fill in the RPC endpoint</string>
+    <string name="aria2_url_invalid">RPC endpoint must start with http:// or https://</string>
+    <string name="aria2_test_success">Connected, aria2 version %1$s</string>
+    <string name="aria2_test_failed">Connection failed: %1$s</string>
+    <string name="aria2_task_sent">%1$s sent to aria2</string>
+    <string name="aria2_send_failed">Failed to send to aria2: %1$s</string>
 </resources>

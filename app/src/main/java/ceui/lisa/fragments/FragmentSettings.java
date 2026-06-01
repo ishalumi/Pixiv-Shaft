@@ -911,6 +911,17 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            // aria2 远程下载（#692）—— 把下载任务发给 NAS / 远程服务器上的 aria2
+            refreshAria2Label();
+            baseBind.aria2Rela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(mContext, TemplateActivity.class);
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "aria2远程下载");
+                    startActivity(intent);
+                }
+            });
+
             // 下载内容信息头 —— 可视化勾选 / 拖拽排序小说 TXT 的元信息块
             baseBind.novelHeaderRela.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -1877,6 +1888,18 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         // SAF picker 在 BaseActivity#onActivityResult 落库后，回到 fragment 时把 label 拉到现态。
         refreshStorageLabel();
         refreshOverwritePolicyRow();
+        // 从 aria2 设置子页返回时把开关状态同步到入口行。
+        refreshAria2Label();
+    }
+
+    /** aria2 远程下载入口行的状态文字：已启用时显示 RPC 地址，否则显示功能简介。 */
+    private void refreshAria2Label() {
+        if (baseBind == null) return;
+        if (Shaft.sSettings.isAria2Enabled() && !TextUtils.isEmpty(Shaft.sSettings.getAria2RpcUrl())) {
+            baseBind.aria2Desc.setText(getString(R.string.aria2_status_enabled, Shaft.sSettings.getAria2RpcUrl()));
+        } else {
+            baseBind.aria2Desc.setText(getString(R.string.aria2_settings_entry_desc));
+        }
     }
 
     private void updateModelStatus() {

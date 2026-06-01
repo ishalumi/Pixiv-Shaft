@@ -1534,4 +1534,26 @@
     <string name="custom_zoom_scale_increase_desc">Увеличить шаг увеличения</string>
     <string name="use_three_level_zoom_title">Сменить инкрементное увеличение на 3-уровневое умное</string>
     <string name="three_level_zoom_link_text">Размер второго уровня связан с шагом увеличения выше</string>
+    <!-- aria2 удалённая загрузка (#692) -->
+    <string name="aria2_settings_title">Удалённая загрузка aria2</string>
+    <string name="aria2_settings_entry_desc">Отправлять задачи загрузки в aria2 на NAS / удалённом сервере</string>
+    <string name="aria2_status_enabled">Включено · %1$s</string>
+    <string name="aria2_intro_body">Если включено, задачи загрузки изображений отправляются по JSON-RPC удалённому aria2 (например, на NAS) и скачиваются там, а не на этом устройстве. Имена файлов и структура каталогов берутся из настроек «Путь загрузки / имя файла».\n\nАнимации (угоира) отправляются как исходный zip-архив кадров.</string>
+    <string name="aria2_enable_title">Включить удалённую загрузку aria2</string>
+    <string name="aria2_enable_desc">Все загрузки изображений передаются удалённому aria2; на этом устройстве ничего не сохраняется</string>
+    <string name="aria2_rpc_url_label">Адрес RPC</string>
+    <string name="aria2_rpc_url_hint">http://192.168.1.5:6800/jsonrpc</string>
+    <string name="aria2_rpc_secret_label">Секрет RPC (--rpc-secret, необязательно)</string>
+    <string name="aria2_rpc_secret_hint">Оставьте пустым, если секрет не задан</string>
+    <string name="aria2_remote_dir_label">Удалённый каталог загрузки (необязательно)</string>
+    <string name="aria2_remote_dir_hint">Оставьте пустым для глобальной настройки aria2</string>
+    <string name="aria2_btn_save">Сохранить</string>
+    <string name="aria2_btn_test">Проверить соединение</string>
+    <string name="aria2_saved">Сохранено</string>
+    <string name="aria2_url_required">Укажите адрес RPC</string>
+    <string name="aria2_url_invalid">Адрес RPC должен начинаться с http:// или https://</string>
+    <string name="aria2_test_success">Соединение установлено, версия aria2 %1$s</string>
+    <string name="aria2_test_failed">Ошибка соединения: %1$s</string>
+    <string name="aria2_task_sent">%1$s отправлено в aria2</string>
+    <string name="aria2_send_failed">Не удалось отправить в aria2: %1$s</string>
 </resources>

@@ -1532,4 +1532,26 @@
     <string name="custom_zoom_scale_increase_desc">Yakınlaştırma artışını artır</string>
     <string name="use_three_level_zoom_title">Kademeli yakınlaştırmayı 3 seviyeli akıllı yakınlaştırmaya çevir</string>
     <string name="three_level_zoom_link_text">İkinci seviyenin boyutu yukarıdaki artış değerine bağlıdır</string>
+    <!-- aria2 uzaktan indirme (#692) -->
+    <string name="aria2_settings_title">aria2 uzaktan indirme</string>
+    <string name="aria2_settings_entry_desc">İndirme görevlerini NAS / uzak sunucudaki aria2 hizmetine gönder</string>
+    <string name="aria2_status_enabled">Etkin · %1$s</string>
+    <string name="aria2_intro_body">Etkinleştirildiğinde, görsel indirme görevleri JSON-RPC üzerinden uzaktaki aria2 örneğine (örn. NAS üzerinde çalışan) gönderilir ve bu cihaza kaydedilmez. Dosya adları ve dizin yapısı «İndirme yolu / dosya adı» ayarlarını izler.\n\nHareketli çizimler (ugoira) orijinal kare zip arşivi olarak gönderilir.</string>
+    <string name="aria2_enable_title">aria2 uzaktan indirmeyi etkinleştir</string>
+    <string name="aria2_enable_desc">Tüm görsel indirmeleri uzaktaki aria2 üstlenir; bu cihaza hiçbir şey kaydedilmez</string>
+    <string name="aria2_rpc_url_label">RPC adresi</string>
+    <string name="aria2_rpc_url_hint">http://192.168.1.5:6800/jsonrpc</string>
+    <string name="aria2_rpc_secret_label">RPC parolası (--rpc-secret, isteğe bağlı)</string>
+    <string name="aria2_rpc_secret_hint">Parola ayarlanmadıysa boş bırakın</string>
+    <string name="aria2_remote_dir_label">Uzak indirme dizini (isteğe bağlı)</string>
+    <string name="aria2_remote_dir_hint">Boş bırakılırsa aria2 genel yapılandırması kullanılır</string>
+    <string name="aria2_btn_save">Kaydet</string>
+    <string name="aria2_btn_test">Bağlantıyı test et</string>
+    <string name="aria2_saved">Kaydedildi</string>
+    <string name="aria2_url_required">Lütfen RPC adresini girin</string>
+    <string name="aria2_url_invalid">RPC adresi http:// veya https:// ile başlamalıdır</string>
+    <string name="aria2_test_success">Bağlantı başarılı, aria2 sürümü %1$s</string>
+    <string name="aria2_test_failed">Bağlantı başarısız: %1$s</string>
+    <string name="aria2_task_sent">%1$s aria2 hizmetine gönderildi</string>
+    <string name="aria2_send_failed">aria2 hizmetine gönderilemedi: %1$s</string>
 </resources>

@@ -245,6 +245,15 @@ public class Settings {
     /** 同时下载的最大任务数（1-5）。1 = 严格串行（旧默认行为）。 */
     private int maxConcurrentDownloads = 1;
 
+    // ===== aria2 远程下载（#692）：启用后图片下载任务通过 JSON-RPC 发给远端 aria2（如 NAS），不在本地落盘 =====
+    private boolean aria2Enabled = false;
+    /** aria2 JSON-RPC 端点，如 http://192.168.1.5:6800/jsonrpc */
+    private String aria2RpcUrl = "";
+    /** aria2 RPC 密钥（--rpc-secret），可空 */
+    private String aria2RpcSecret = "";
+    /** 远端下载目录（aria2 的 dir 选项），可空 = 使用 aria2 全局配置 */
+    private String aria2RemoteDir = "";
+
     /** 已完成 tab 的列表展示模式（0=横向列表，1=网格 2 列，2=紧凑缩图 4 列）。1 = 旧默认。 */
     private int doneListLayoutMode = 1;
 
@@ -752,6 +761,38 @@ public class Settings {
         if (n < 1) n = 1;
         if (n > 5) n = 5;
         this.maxConcurrentDownloads = n;
+    }
+
+    public boolean isAria2Enabled() {
+        return aria2Enabled;
+    }
+
+    public void setAria2Enabled(boolean aria2Enabled) {
+        this.aria2Enabled = aria2Enabled;
+    }
+
+    public String getAria2RpcUrl() {
+        return aria2RpcUrl == null ? "" : aria2RpcUrl;
+    }
+
+    public void setAria2RpcUrl(String aria2RpcUrl) {
+        this.aria2RpcUrl = aria2RpcUrl;
+    }
+
+    public String getAria2RpcSecret() {
+        return aria2RpcSecret == null ? "" : aria2RpcSecret;
+    }
+
+    public void setAria2RpcSecret(String aria2RpcSecret) {
+        this.aria2RpcSecret = aria2RpcSecret;
+    }
+
+    public String getAria2RemoteDir() {
+        return aria2RemoteDir == null ? "" : aria2RemoteDir;
+    }
+
+    public void setAria2RemoteDir(String aria2RemoteDir) {
+        this.aria2RemoteDir = aria2RemoteDir;
     }
 
     /** clamp 到 [0,2]，0=LIST, 1=GRID, 2=COMPACT */

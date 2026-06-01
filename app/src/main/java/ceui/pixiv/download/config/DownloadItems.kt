@@ -82,13 +82,23 @@ object DownloadItems {
      * Use this everywhere instead of the legacy `buildPixivWorksFileName`.
      */
     @JvmStatic
-    fun illustFileName(illust: IllustsBean, pageIndex: Int): String {
+    fun illustFileName(illust: IllustsBean, pageIndex: Int): String =
+        illustRelativePath(illust, pageIndex).filename
+
+    /**
+     * Full sanitized [RelativePath] (directory + filename) for a single illust
+     * page, rendered through the user's active naming template. Used by the
+     * aria2 remote dispatcher (#692) so files land on the NAS with the same
+     * directory structure / naming the user configured for local downloads.
+     */
+    @JvmStatic
+    fun illustRelativePath(illust: IllustsBean, pageIndex: Int): RelativePath {
         val item = illustPage(illust, pageIndex)
         val config = DownloadsRegistry.store.loadOrFallback()
         val resolved = config.resolve(item.bucket)
         val template = Template.compile(resolved.template)
         val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
-        return FsSanitizer.clean(rendered).filename
+        return FsSanitizer.clean(rendered)
     }
 
     /**
