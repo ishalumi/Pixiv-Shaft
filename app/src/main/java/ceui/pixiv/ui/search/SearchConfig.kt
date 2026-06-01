@@ -1,5 +1,7 @@
 package ceui.pixiv.ui.search
 
+import ceui.pixiv.ui.search.v3.R18Mode
+
 data class SearchConfig(
     val keyword: String,
     val sort: String = "date_desc",
@@ -36,4 +38,7 @@ data class SearchConfig(
     val wordCountMax: Int? = null,
     val readingTimeMin: Int? = null,
     val readingTimeMax: Int? = null,
+    // R-18 限制三档 —— 客户端按 x_restrict 过滤（不再拼 -R-18 / R-18 关键字），
+    // 由 DataSource 的 filter 钩子在 mapProtoItemsToHolders 时应用。
+    val r18Mode: R18Mode = R18Mode.All,
 )

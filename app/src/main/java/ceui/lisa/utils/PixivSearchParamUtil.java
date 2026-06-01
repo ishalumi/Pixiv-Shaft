@@ -20,7 +20,8 @@ public class PixivSearchParamUtil {
     public static final String[] ALL_SIZE_VALUE = new String[]{"", "500users入り", "1000users入り", "2000users入り",
             "5000users入り", "7500users入り", "10000users入り", "20000users入り", "50000users入り", "100000users入り"};
     public static final String[] SORT_TYPE_VALUE = new String[]{"date_desc", "date_asc", POPULAR_SORT_VALUE, TRENDING_BUILTIN_SORT_VALUE};
-    public static final String[] R18_RESTRICTION_VALUE = new String[]{"", "-R-18", "R-18"};
+    // 注：R18 三档已改为客户端按 x_restrict 过滤（见 Mapper.setSearchR18Restriction），
+    // 旧的 -R-18 / R-18 关键字 hack 表已删除——它匹配字面标签，会让全年龄和 R 混在一起。
 
     public static String[] TAG_MATCH_NAME = new String[]{
             resources.getString(R.string.string_284),

@@ -65,10 +65,9 @@ class SearchIllustRepo @JvmOverloads constructor(
         //    自动桶标签）
         // 两者来自 V3 sheet 的两个独立维度（bookmarkBucket / keywordUsersBucket），用户可同时设置。
         val keywordSuffix = if (TextUtils.isEmpty(starSize)) "" else " $starSize"
-        val assembledKeyword: String = (keyword + keywordSuffix + when (r18Restriction) {
-            null -> ""
-            else -> " ${PixivSearchParamUtil.R18_RESTRICTION_VALUE[r18Restriction!!]}"
-        }).trim()
+        // R18 三档不再拼 -R-18 / R-18 关键字（hack 匹配字面标签会让全年龄/R 混在一起）；
+        // 改由 FilterMapper.setSearchR18Restriction 按真实 x_restrict 客户端过滤（见 update()）。
+        val assembledKeyword: String = (keyword + keywordSuffix).trim()
 
         // 路由 sort：
         //  - popular_preview 是 popular-preview endpoint 专属——/v1/search/illust 收到会 400
@@ -186,6 +185,8 @@ class SearchIllustRepo @JvmOverloads constructor(
         searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
 
         this.filterMapper?.updateStarSizeLimit(this.getStarSizeLimit())
+        // R18 三档（0=不限/1=仅安全/2=仅R-18）→ 客户端按 x_restrict 过滤
+        this.filterMapper?.setSearchR18Restriction(r18Restriction ?: 0)
     }
 
     private fun getStarSizeLimit(): Int {

@@ -194,10 +194,26 @@ enum class DurationBucket {
     }
 }
 
-enum class R18Mode(val keywordSuffix: String) {
-    All(""),
-    SafeOnly("-R-18"),
-    R18Only("R-18"),
+/**
+ * R-18 限制三档。改为**客户端按真实年龄分级 `x_restrict` 过滤**（1=R-18、2=R-18G 都算 R18），
+ * 不再往 query 里拼 `-R-18` / `R-18` 关键字。
+ *
+ * 旧的关键字 hack 匹配的是字面 *标签*，而非 pixiv 真正的年龄分级字段：会把没打「R-18」标签的
+ * R18 作品漏过、把蹭「R-18」标签的全年龄作品混进来——Google Play 反馈「全年龄和 R 混在一起」
+ * 正是这个根因。能否看到 R18 实际由账号的内容浏览设置（账号 `x_restrict`）决定，关键字管不着。
+ *
+ * 判定只看 `x_restrict`、**不碰 `sanity_level`**，与 [ceui.lisa.models.IllustsBean.isR18File] 同口径，
+ * 避免把 sanity 4/6 但没有 R18 标记的普通（含轻微敏感）插画误删。
+ */
+enum class R18Mode {
+    All, SafeOnly, R18Only;
+
+    /** 该档是否接受这条作品；`x_restrict` 缺失（null）一律当全年龄(0)处理。 */
+    fun accepts(xRestrict: Int?): Boolean = when (this) {
+        All -> true
+        SafeOnly -> (xRestrict ?: 0) <= 0
+        R18Only -> (xRestrict ?: 0) > 0
+    }
 }
 
 /**

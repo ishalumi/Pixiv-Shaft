@@ -8,7 +8,6 @@ import ceui.loxia.ObjectType
 import ceui.loxia.Tag
 import ceui.pixiv.ui.search.v3.BodyLengthUnit
 import ceui.pixiv.ui.search.v3.IllustContentType
-import ceui.pixiv.ui.search.v3.R18Mode
 import ceui.pixiv.ui.search.v3.SearchFilterV3
 import ceui.pixiv.ui.search.v3.SearchOptionsResponse
 
@@ -93,21 +92,15 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
     /**
      * 用 V3 Filter + tagList 拼最终 SearchConfig。
      *
-     * - keyword：在原始 tagList 后追加 R18 后缀（兼容旧版 -R-18 / R-18 关键字 hack，
-     *   pixiv 服务端没有原生 r18 query 参数）
+     * - keyword：原始 tagList，不再追加任何 R18 后缀。R18 三档（全部/仅安全/仅R-18）改由
+     *   [SearchConfig.r18Mode] 带到 DataSource，按作品真实 `x_restrict` 客户端过滤——旧版
+     *   `-R-18` / `R-18` 关键字 hack 匹配字面标签，会让全年龄和 R 混在一起。
      * - usersYori 留空：V3 走 bookmark_num_min API 参数，不再追加「Xusers入り」关键字
      */
     fun buildSearchConfig(@Suppress("UNUSED_PARAMETER") usersYori: Int?, objectType: String): SearchConfig {
         val isNovel = objectType == ObjectType.NOVEL
         val filter = (if (isNovel) novelFilter.value else illustFilter.value) ?: SearchFilterV3()
-        val rawKeyword = tagList.value?.joinToString(separator = " ") { it.name ?: "" }.orEmpty()
-        val keyword = when (filter.r18Mode) {
-            R18Mode.All -> rawKeyword
-            R18Mode.SafeOnly, R18Mode.R18Only -> {
-                if (rawKeyword.isEmpty()) filter.r18Mode.keywordSuffix
-                else "$rawKeyword ${filter.r18Mode.keywordSuffix}"
-            }
-        }
+        val keyword = tagList.value?.joinToString(separator = " ") { it.name ?: "" }.orEmpty()
         // 投稿期间 3 选 1（互斥）：
         //   1) durationBucket 非空：当场用 today−N 算 start/end_date
         //   2) 否则用 filter.startDate/endDate（指定期间自定义）
@@ -151,6 +144,8 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
                 filter.bodyLength.min else null,
             readingTimeMax = if (isNovel && filter.bodyLength?.unit == BodyLengthUnit.ReadingTime)
                 filter.bodyLength.max else null,
+            // R18 三档带到 DataSource，按 x_restrict 客户端过滤
+            r18Mode = filter.r18Mode,
         )
     }
 }

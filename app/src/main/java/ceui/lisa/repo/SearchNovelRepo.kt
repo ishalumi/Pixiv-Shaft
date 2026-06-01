@@ -2,6 +2,7 @@ package ceui.lisa.repo
 
 import android.text.TextUtils
 import ceui.lisa.activities.Shaft
+import ceui.lisa.core.Mapper
 import ceui.lisa.core.RemoteRepo
 import ceui.lisa.http.Retro
 import ceui.lisa.model.ListNovel
@@ -10,6 +11,7 @@ import ceui.lisa.viewmodel.SearchModel
 import ceui.pixiv.ui.search.SortType
 import ceui.pixiv.ui.search.v3.DurationBucket
 import io.reactivex.Observable
+import io.reactivex.functions.Function
 import java.time.LocalDate
 
 class SearchNovelRepo @JvmOverloads constructor(
@@ -42,16 +44,27 @@ class SearchNovelRepo @JvmOverloads constructor(
     private var durationBucket: String? = null,
 ) : RemoteRepo<ListNovel>() {
 
+    private var filterMapper: Mapper<ListNovel>? = null
+
+    // 复用基类 Mapper（已含屏蔽 tag/ID/用户 + 全局 R18 过滤）；额外承载搜索「R-18 限制」三档。
+    // 注意：mapper() 由 RemoteRepo 构造器调用，早于本类属性初始化，故这里不读 r18Restriction，
+    // 实际档位在 update() 里推给 mapper（与 SearchIllustRepo 的 FilterMapper 同套路）。
+    override fun mapper(): Function<in ListNovel, ListNovel> {
+        if (filterMapper == null) {
+            filterMapper = Mapper()
+        }
+        return filterMapper!!
+    }
+
     override fun initApi(): Observable<ListNovel> {
         val useBookmarkQuery = (bookmarkMin ?: 0) > 0
         val keywordSuffix = if (useBookmarkQuery) "" else when {
             TextUtils.isEmpty(starSize) -> ""
             else -> " $starSize"
         }
-        val assembledKeyword: String = (keyword + keywordSuffix + when (r18Restriction) {
-            null -> ""
-            else -> " ${PixivSearchParamUtil.R18_RESTRICTION_VALUE[r18Restriction!!]}"
-        }).trim()
+        // R18 三档不再拼 -R-18 / R-18 关键字（hack 匹配字面标签会让全年龄/R 混在一起）；
+        // 改由 [mapper] 的 Mapper.setSearchR18Restriction 按真实 x_restrict 客户端过滤（见 update()）。
+        val assembledKeyword: String = (keyword + keywordSuffix).trim()
 
         // 路由 sort：popular_preview 是 popular-preview endpoint 专属，传给 /v1/search/novel 会 400；
         // popular_desc / trending_builtin 非 premium 用户也用 popular-preview（pixiv 旧约束）；
@@ -146,5 +159,7 @@ class SearchNovelRepo @JvmOverloads constructor(
         readingTimeMin = searchModel.readingTimeMin.value
         readingTimeMax = searchModel.readingTimeMax.value
         durationBucket = searchModel.durationBucket.value
+        // R18 三档（0=不限/1=仅安全/2=仅R-18）→ 客户端按 x_restrict 过滤
+        filterMapper?.setSearchR18Restriction(r18Restriction ?: 0)
     }
 }
