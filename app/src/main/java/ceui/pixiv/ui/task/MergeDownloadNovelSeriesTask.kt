@@ -73,7 +73,9 @@ object MergeDownloadNovelSeriesTask {
             try {
                 val wNovel = fetchChapterWebNovel(novel)
                 val chapter = MergedChapter(
-                    title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
+                    // 「第N章 标题」是各阅读 App 章节识别正则的最大公约数(#903):
+                    // 不截断、不加 • 分隔符、用「章」不用「篇」(Moon+ Reader 不认「篇」)。
+                    title = "第${cPos}章 ${novel.title.orEmpty()}",
                     text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
                     webNovel = wNovel,
                 )
@@ -191,10 +193,6 @@ object MergeDownloadNovelSeriesTask {
         val html = Client.appApi.getNovelText(novel.id).string()
         return WebNovelParser.parsePixivObject(html)?.novel
             ?: throw RuntimeException("invalid web novel: ${novel.id}")
-    }
-
-    private fun truncate(input: String, max: Int): String {
-        return if (input.length <= max) input else input.substring(0, max)
     }
 
     fun buildMergeFileName(detail: NovelSeriesDetail, format: ExportFormat): String {

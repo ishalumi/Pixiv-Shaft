@@ -103,7 +103,9 @@ private object MergedTxtWriter : MergedNovelWriter {
             }
             append('\n').append("----------------------\n\n\n")
             content.chapters.forEach { ch ->
-                append("\n\n<===== ").append(ch.title).append(" =====>\n\n")
+                // 章节头独占一行、不加装饰符号 —— 阅读 App 才能用「^第N章」正则
+                // 自动拆章(#903)。装饰版 <===== 标题 =====> 没有软件认。
+                append("\n\n").append(ch.title).append("\n\n")
                 append(ch.text)
                 append("\n\n")
             }

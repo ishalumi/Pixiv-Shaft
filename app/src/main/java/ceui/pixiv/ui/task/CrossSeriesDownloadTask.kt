@@ -164,7 +164,9 @@ object CrossSeriesDownloadTask {
                                 fetchChapterWebNovel(novel)
                             }
                             chapters += MergedChapter(
-                                title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
+                                // 同 MergeDownloadNovelSeriesTask:不截断 + 「第N章 」前缀,
+                                // 让阅读 App 的章节识别正则能匹配(#903)。
+                                title = "第${cPos}章 ${novel.title.orEmpty()}",
                                 text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
                                 webNovel = wNovel,
                             )
@@ -247,7 +249,8 @@ object CrossSeriesDownloadTask {
             try {
                 val wNovel = fetchChapterWebNovel(novel)
                 chapters += MergedChapter(
-                    title = "第${cPos}篇•" + truncate(novel.title.orEmpty(), 30),
+                    // 同 MergeDownloadNovelSeriesTask:不截断 + 「第N章 」前缀(#903)。
+                    title = "第${cPos}章 ${novel.title.orEmpty()}",
                     text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
                     webNovel = wNovel,
                 )
@@ -316,10 +319,6 @@ object CrossSeriesDownloadTask {
         val html = Client.appApi.getNovelText(novel.id).string()
         return WebNovelParser.parsePixivObject(html)?.novel
             ?: throw RuntimeException("invalid web novel: ${novel.id}")
-    }
-
-    private fun truncate(input: String, max: Int): String {
-        return if (input.length <= max) input else input.substring(0, max)
     }
 
     private fun buildPerSeriesFileName(
