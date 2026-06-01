@@ -116,6 +116,8 @@
   <string name="v3_widget_daily_rank_description">Pixiv デイリー・Top 3</string>
   <string name="v3_widget_recommend_strip_label">Pixiv おすすめ 3 枚</string>
   <string name="v3_widget_recommend_strip_description">Pixiv おすすめ・3 枚</string>
+  <string name="v3_widget_recommend_card_label">Pixiv おすすめ・カード</string>
+  <string name="v3_widget_recommend_card_description">ランダムにおすすめ作品を 1 枚表示（2×2 / 2×1）</string>
   <string name="novel_tag">小説のタグ</string>
   <string name="hot_tag">人気のタグ</string>  
   <string name="ranking_illust">ランキング</string>  

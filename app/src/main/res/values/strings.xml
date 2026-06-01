@@ -124,6 +124,8 @@
     <string name="v3_widget_daily_rank_description">Pixiv 日榜 · Top 3</string>
     <string name="v3_widget_recommend_strip_label">Pixiv 推荐 三张</string>
     <string name="v3_widget_recommend_strip_description">Pixiv 推荐 · 三张</string>
+    <string name="v3_widget_recommend_card_label">Pixiv 推荐 随机卡片</string>
+    <string name="v3_widget_recommend_card_description">随机一张推荐作品，可缩放为 2×2 / 2×1</string>
     <string name="novel_tag">小说标签</string>
     <string name="hot_tag">热门标签</string>
     <string name="ranking_illust">排行榜</string>

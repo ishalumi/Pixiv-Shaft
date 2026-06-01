@@ -116,6 +116,8 @@
   <string name="v3_widget_daily_rank_description">Pixiv Günlük · İlk 3</string>
   <string name="v3_widget_recommend_strip_label">Pixiv Öneri ×3</string>
   <string name="v3_widget_recommend_strip_description">Pixiv Öneri · 3 eser</string>
+  <string name="v3_widget_recommend_card_label">Pixiv Öneri · Kart</string>
+  <string name="v3_widget_recommend_card_description">Rastgele bir önerilen eser (2×2 / 2×1)</string>
   <string name="novel_tag">Roman Etiketleri</string>
   <string name="hot_tag">Popüler Etiketler</string>  
   <string name="ranking_illust">Popüler</string>  

@@ -1,0 +1,159 @@
+package ceui.pixiv.widget
+
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.widget.RemoteViews
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import ceui.lisa.R
+import ceui.lisa.activities.MainActivity
+import ceui.lisa.activities.VActivity
+import ceui.lisa.core.Container
+import ceui.lisa.core.PageData
+import ceui.lisa.http.Retro
+import ceui.lisa.models.IllustsBean
+import ceui.lisa.utils.GlideUtil
+import ceui.lisa.utils.Params
+import ceui.pixiv.session.SessionManager
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.bumptech.glide.request.RequestOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class RecommendCardWidgetWorker(
+    private val context: Context,
+    params: WorkerParameters
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val manager = AppWidgetManager.getInstance(context)
+        val widgetIds = manager.getAppWidgetIds(
+            ComponentName(context, RecommendCardWidgetProvider::class.java)
+        )
+        if (widgetIds.isEmpty()) return Result.success()
+
+        if (SessionManager.getBearerTokenOrEmpty().isEmpty()) {
+            widgetIds.forEach {
+                renderMessage(manager, it, context.getString(R.string.v3_widget_login_required))
+            }
+            return Result.success()
+        }
+
+        val illusts = try {
+            withContext(Dispatchers.IO) {
+                Retro.getAppApi().getRecmdIllust(true)
+                    .blockingFirst()
+                    ?.illusts
+                    ?.filter { !it.isR18File && !it.isSensitive }
+                    ?.shuffled()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+
+        if (illusts.isNullOrEmpty()) {
+            widgetIds.forEach {
+                renderMessage(manager, it, context.getString(R.string.v3_widget_failed))
+            }
+            return Result.retry()
+        }
+
+        // 老版行为：多个实例各自展示不同的随机作品
+        widgetIds.forEachIndexed { index, widgetId ->
+            renderIllust(manager, widgetId, illusts[index % illusts.size])
+        }
+        return Result.success()
+    }
+
+    private fun renderMessage(
+        manager: AppWidgetManager,
+        widgetId: Int,
+        message: String,
+    ) {
+        val views = RemoteViews(context.packageName, R.layout.widget_v3_recommend_card)
+        views.setViewVisibility(R.id.widget_message, android.view.View.VISIBLE)
+        views.setTextViewText(R.id.widget_message, message)
+
+        val openApp = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPi = PendingIntent.getActivity(
+            context, widgetId * 37 + 3, openApp,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_root, openPi)
+        views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent(widgetId))
+        manager.updateAppWidget(widgetId, views)
+    }
+
+    private suspend fun renderIllust(
+        manager: AppWidgetManager,
+        widgetId: Int,
+        illust: IllustsBean,
+    ) {
+        val opts = manager.getAppWidgetOptions(widgetId)
+        val density = context.resources.displayMetrics.density
+        val widthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 150)
+        val heightDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 150)
+        // Hard pixel cap: 2 MB IPC budget — 600×600 ARGB_8888 ≈ 1.44 MB.
+        val coverWidthPx = (widthDp * density).toInt().coerceIn(200, 600)
+        val coverHeightPx = (heightDp * density).toInt().coerceIn(200, 600)
+        // 整卡就是图片本身，圆角对齐 v3_widget_card_bg 的 28dp
+        val coverRadiusPx = (28 * density).toInt()
+
+        val cover = withContext(Dispatchers.IO) {
+            try {
+                Glide.with(context).asBitmap()
+                    .load(GlideUtil.getLargeImage(illust))
+                    .apply(
+                        RequestOptions().transform(
+                            CenterCrop(), RoundedCorners(coverRadiusPx)
+                        )
+                    )
+                    .submit(coverWidthPx, coverHeightPx)
+                    .get()
+            } catch (e: Exception) {
+                e.printStackTrace(); null
+            }
+        }
+
+        val views = RemoteViews(context.packageName, R.layout.widget_v3_recommend_card)
+        views.setViewVisibility(R.id.widget_message, android.view.View.GONE)
+        cover?.let { views.setImageViewBitmap(R.id.widget_cover, it) }
+
+        val openIntent = Intent(context, VActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            val pageData = PageData(listOf(illust))
+            Container.get().addPageToMap(pageData)
+            putExtra(Params.POSITION, 0)
+            putExtra(Params.PAGE_UUID, pageData.uuid)
+        }
+        val openPi = PendingIntent.getActivity(
+            context, widgetId * 37 + 2,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_root, openPi)
+        views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent(widgetId))
+
+        manager.updateAppWidget(widgetId, views)
+    }
+
+    /** 右下角刷新：广播 ACTION_APPWIDGET_UPDATE → provider onUpdate → 重新随机一张 */
+    private fun refreshPendingIntent(widgetId: Int): PendingIntent {
+        val refreshIntent = Intent(context, RecommendCardWidgetProvider::class.java).apply {
+            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(widgetId))
+        }
+        return PendingIntent.getBroadcast(
+            context, widgetId * 37 + 5, refreshIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+}

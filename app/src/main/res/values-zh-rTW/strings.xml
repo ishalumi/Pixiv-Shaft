@@ -107,6 +107,8 @@
   <string name="v3_widget_daily_rank_description">Pixiv 日榜 · Top 3</string>
   <string name="v3_widget_recommend_strip_label">Pixiv 推薦 三張</string>
   <string name="v3_widget_recommend_strip_description">Pixiv 推薦 · 三張</string>
+  <string name="v3_widget_recommend_card_label">Pixiv 推薦 隨機卡片</string>
+  <string name="v3_widget_recommend_card_description">隨機一張推薦作品，可縮放為 2×2 / 2×1</string>
 
   <string name="hot_tag">熱門標籤</string>
   <string name="ranking_illust">排行榜</string>

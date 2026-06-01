@@ -116,6 +116,8 @@
   <string name="v3_widget_daily_rank_description">Pixiv 일간 · Top 3</string>
   <string name="v3_widget_recommend_strip_label">Pixiv 추천 3장</string>
   <string name="v3_widget_recommend_strip_description">Pixiv 추천 · 3장</string>
+  <string name="v3_widget_recommend_card_label">Pixiv 추천 · 카드</string>
+  <string name="v3_widget_recommend_card_description">무작위 추천 작품 1장 (2×2 / 2×1)</string>
   <string name="novel_tag">소설 꼬리표</string>
   <string name="hot_tag">인기 태그</string>  
   <string name="ranking_illust">순위표</string>  
