@@ -270,6 +270,156 @@ class MapperAutoLoadIntegrationTest {
         assertTrue(fragment.showingEmptyHint)
     }
 
+    // ---------- 回归测试：筛选有结果 / 正常翻页，行为必须和修复前完全一致 ----------
+
+    /** 部分过滤的 Mapper：每页过滤掉 id 为偶数的作品，留下奇数 id（每页都有幸存者） */
+    private class EvenIdMapper : Mapper<ListIllust>() {
+        override fun apply(t: ListIllust): ListIllust {
+            t.list.removeAll(t.list.filter { it.id % 2 == 0 })
+            return t
+        }
+    }
+
+    /**
+     * 筛选有结果（部分过滤）：第一页 30 条过滤后剩 15 条 →
+     * 正常显示这 15 条，不自动翻页、不多发请求、不消耗自动加载预算。
+     */
+    @Test
+    fun `partial filter leaves results - shows them, no auto load, no budget consumed`() {
+        val repo = FakePagedRepo(
+            pages = listOf(
+                page(ids = 1..30, nextUrl = "https://next/page2"),
+                page(ids = 31..60, nextUrl = null),
+            ),
+            mapper = EvenIdMapper(),
+        )
+        val fragment = FakeNetListFragment(repo, enableAutoLoadFix = true)
+
+        fragment.fresh()
+
+        // 只发 1 次请求，显示第一页过滤后的 15 条奇数 id
+        assertEquals(1, repo.requestCount)
+        assertEquals((1..30 step 2).toList(), fragment.allItems.map { it.id })
+        assertTrue(fragment.recyclerViewVisible)
+        assertFalse(fragment.showingEmptyHint)
+        // 自动加载预算一点没动
+        assertEquals(0, fragment.policy.autoLoadCount)
+    }
+
+    /**
+     * 正常翻页全流程：第一页有结果 → 用户滑动触发 loadMore → 第二页（部分过滤）正常追加 →
+     * 翻到最后一页后再 loadMore 不发请求。
+     *
+     * 每一步都只发对应的 1 次请求，数据顺序正确，预算始终为 0。
+     */
+    @Test
+    fun `normal pagination - manual loadMore appends pages, last page stops cleanly`() {
+        val repo = FakePagedRepo(
+            pages = listOf(
+                page(ids = 1..30, nextUrl = "https://next/page2"),
+                page(ids = 31..60, nextUrl = "https://next/page3"),
+                page(ids = 61..90, nextUrl = null),  // 最后一页
+            ),
+            mapper = EvenIdMapper(),
+        )
+        val fragment = FakeNetListFragment(repo, enableAutoLoadFix = true)
+
+        // 第一页
+        fragment.fresh()
+        assertEquals(1, repo.requestCount)
+        assertEquals(15, fragment.allItems.size)
+
+        // 用户滑动翻第二页
+        fragment.loadMore()
+        assertEquals(2, repo.requestCount)
+        assertEquals(30, fragment.allItems.size)
+        // 顺序正确：第一页的奇数 id 在前，第二页的奇数 id 在后
+        assertEquals((1..60 step 2).toList(), fragment.allItems.map { it.id })
+
+        // 翻到最后一页
+        fragment.loadMore()
+        assertEquals(3, repo.requestCount)
+        assertEquals(45, fragment.allItems.size)
+
+        // 已经没有下一页了，再 loadMore 不发请求
+        fragment.loadMore()
+        assertEquals(3, repo.requestCount)
+
+        // 全程不消耗自动加载预算，列表始终可见
+        assertEquals(0, fragment.policy.autoLoadCount)
+        assertTrue(fragment.recyclerViewVisible)
+        assertFalse(fragment.showingEmptyHint)
+    }
+
+    /**
+     * 正常翻页之后下拉刷新：回到第一页重新开始，预算重置，行为和首次进入一致。
+     */
+    @Test
+    fun `normal pagination then refresh - starts over from page 1`() {
+        val repo = FakePagedRepo(
+            pages = listOf(
+                page(ids = 1..30, nextUrl = "https://next/page2"),
+                page(ids = 31..60, nextUrl = null),
+            ),
+            mapper = EvenIdMapper(),
+        )
+        val fragment = FakeNetListFragment(repo, enableAutoLoadFix = true)
+
+        // 翻完两页
+        fragment.fresh()
+        fragment.loadMore()
+        assertEquals(30, fragment.allItems.size)
+        assertEquals(2, repo.requestCount)
+
+        // 下拉刷新：清空重来，只显示第一页
+        fragment.fresh()
+        assertEquals(3, repo.requestCount)
+        assertEquals((1..30 step 2).toList(), fragment.allItems.map { it.id })
+        assertEquals(0, fragment.policy.autoLoadCount)
+    }
+
+    /**
+     * 完全不过滤（没屏蔽任何东西的用户）：跟修复前的行为完全一致 —
+     * 真实 Mapper 父类行为里"没有命中任何屏蔽规则"等价于原样放行。
+     */
+    @Test
+    fun `no filtering at all - identical to pre-fix behavior`() {
+        // 原样放行的 Mapper（什么都不过滤）
+        val passThroughMapper = object : Mapper<ListIllust>() {
+            override fun apply(t: ListIllust): ListIllust = t
+        }
+        val repo = FakePagedRepo(
+            pages = listOf(
+                page(ids = 1..30, nextUrl = "https://next/page2"),
+                page(ids = 31..60, nextUrl = null),
+            ),
+            mapper = passThroughMapper,
+        )
+        val fixedFragment = FakeNetListFragment(repo, enableAutoLoadFix = true)
+
+        fixedFragment.fresh()
+        fixedFragment.loadMore()
+
+        // 对照组：同样数据、关掉修复
+        val controlRepo = FakePagedRepo(
+            pages = listOf(
+                page(ids = 1..30, nextUrl = "https://next/page2"),
+                page(ids = 31..60, nextUrl = null),
+            ),
+            mapper = object : Mapper<ListIllust>() {
+                override fun apply(t: ListIllust): ListIllust = t
+            },
+        )
+        val controlFragment = FakeNetListFragment(controlRepo, enableAutoLoadFix = false)
+        controlFragment.fresh()
+        controlFragment.loadMore()
+
+        // 修复前后：请求次数、可见条目、顺序完全一致
+        assertEquals(controlRepo.requestCount, repo.requestCount)
+        assertEquals(controlFragment.allItems.map { it.id }, fixedFragment.allItems.map { it.id })
+        assertEquals(60, fixedFragment.allItems.size)
+    }
+
     /**
      * 连续每一页都被全过滤（Mapper 规则改成所有页 id > 0 都过滤）：
      * 自动翻页必须在 MAX_AUTO_LOAD_TIMES 次后停下，不能无限请求。
