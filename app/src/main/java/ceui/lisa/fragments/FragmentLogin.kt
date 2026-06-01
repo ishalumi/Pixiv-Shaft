@@ -24,6 +24,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import ceui.lisa.BuildConfig
 import ceui.lisa.R
 import ceui.lisa.activities.MainActivity
 import ceui.lisa.activities.Shaft
@@ -357,11 +358,18 @@ class FragmentLogin : BaseFragment<ActivityLoginBinding>() {
             }
         }
 
-        page.restoreFromEmail.setOnClickListener {
-            startActivity(Intent(mContext, TemplateActivity::class.java).apply {
-                putExtra(TemplateActivity.EXTRA_FRAGMENT, "邮箱备份")
-                putExtra("mode", "restore")
-            })
+        // Google Play 渠道合规：邮箱备份/恢复会把用户邮箱传到 pixshaft-api，而数据安全表单
+        // 未声明「电子邮件地址」收集（40760 被 Play 政策标记）。lite 渠道不提供该功能。
+        // 此入口无需登录即可触达，是 Play 自动化测试检测到邮箱外传的位置。
+        if (BuildConfig.IS_LITE) {
+            page.restoreFromEmail.visibility = View.GONE
+        } else {
+            page.restoreFromEmail.setOnClickListener {
+                startActivity(Intent(mContext, TemplateActivity::class.java).apply {
+                    putExtra(TemplateActivity.EXTRA_FRAGMENT, "邮箱备份")
+                    putExtra("mode", "restore")
+                })
+            }
         }
 
         setupTermsText(page.firstText)

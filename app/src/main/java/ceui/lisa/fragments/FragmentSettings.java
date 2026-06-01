@@ -129,15 +129,22 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
-            baseBind.accountBackup.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "邮箱备份");
-                    intent.putExtra("mode", "backup");
-                    startActivity(intent);
-                }
-            });
+            // Google Play 渠道合规：邮箱备份会把用户邮箱传到 pixshaft-api，而数据安全表单
+            // 未声明「电子邮件地址」收集（40760 被 Play 政策标记）。lite 渠道隐藏该入口。
+            if (ceui.lisa.BuildConfig.IS_LITE) {
+                baseBind.accountBackupDivider.setVisibility(View.GONE);
+                baseBind.accountBackup.setVisibility(View.GONE);
+            } else {
+                baseBind.accountBackup.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent intent = new Intent(mContext, TemplateActivity.class);
+                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "邮箱备份");
+                        intent.putExtra("mode", "backup");
+                        startActivity(intent);
+                    }
+                });
+            }
 
             baseBind.editFile.setOnClickListener(new View.OnClickListener() {
                 @Override
