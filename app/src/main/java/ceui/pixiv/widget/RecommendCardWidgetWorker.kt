@@ -24,6 +24,7 @@ import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 class RecommendCardWidgetWorker(
     private val context: Context,
@@ -65,10 +66,13 @@ class RecommendCardWidgetWorker(
         }
 
         // 老版行为：多个实例各自展示不同的随机作品
+        var anyFailed = false
         widgetIds.forEachIndexed { index, widgetId ->
-            renderIllust(manager, widgetId, illusts[index % illusts.size])
+            if (!renderIllust(manager, widgetId, illusts[index % illusts.size])) {
+                anyFailed = true
+            }
         }
-        return Result.success()
+        return if (anyFailed) Result.retry() else Result.success()
     }
 
     private fun renderMessage(
@@ -92,11 +96,12 @@ class RecommendCardWidgetWorker(
         manager.updateAppWidget(widgetId, views)
     }
 
+    /** @return false 表示封面加载失败，本次没有推送任何内容（保留 widget 上已有的画面） */
     private suspend fun renderIllust(
         manager: AppWidgetManager,
         widgetId: Int,
         illust: IllustsBean,
-    ) {
+    ): Boolean {
         val opts = manager.getAppWidgetOptions(widgetId)
         val density = context.resources.displayMetrics.density
         val widthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 150)
@@ -119,13 +124,18 @@ class RecommendCardWidgetWorker(
                     .submit(coverWidthPx, coverHeightPx)
                     .get()
             } catch (e: Exception) {
-                e.printStackTrace(); null
+                Timber.tag("RecommendCardWidget").w(e, "cover load failed, illust=%d", illust.id)
+                null
             }
         }
 
+        // 封面失败时直接跳过：推一个没有图的 RemoteViews 会把 widget 上
+        // 已经显示的画面抹成空卡（ColorOS 杀进程后台重跑时实测出现过）
+        if (cover == null) return false
+
         val views = RemoteViews(context.packageName, R.layout.widget_v3_recommend_card)
         views.setViewVisibility(R.id.widget_message, android.view.View.GONE)
-        cover?.let { views.setImageViewBitmap(R.id.widget_cover, it) }
+        views.setImageViewBitmap(R.id.widget_cover, cover)
 
         val openIntent = Intent(context, VActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -143,6 +153,7 @@ class RecommendCardWidgetWorker(
         views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent(widgetId))
 
         manager.updateAppWidget(widgetId, views)
+        return true
     }
 
     /** 右下角刷新：广播 ACTION_APPWIDGET_UPDATE → provider onUpdate → 重新随机一张 */

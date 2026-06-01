@@ -66,10 +66,13 @@ class SpotlightWidgetWorker(
             return Result.retry()
         }
 
+        var anyFailed = false
         for (widgetId in widgetIds) {
-            renderIllust(manager, widgetId, illust)
+            if (!renderIllust(manager, widgetId, illust)) {
+                anyFailed = true
+            }
         }
-        return Result.success()
+        return if (anyFailed) Result.retry() else Result.success()
     }
 
     private fun renderEmpty(
@@ -94,11 +97,12 @@ class SpotlightWidgetWorker(
         manager.updateAppWidget(widgetId, views)
     }
 
+    /** @return false 表示封面加载失败，本次没有推送任何内容（保留 widget 上已有的画面） */
     private suspend fun renderIllust(
         manager: AppWidgetManager,
         widgetId: Int,
         illust: IllustsBean,
-    ) {
+    ): Boolean {
         val opts = manager.getAppWidgetOptions(widgetId)
         val density = context.resources.displayMetrics.density
         val widthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 280)
@@ -132,6 +136,10 @@ class SpotlightWidgetWorker(
                 e.printStackTrace(); null
             }
         }
+        // 封面失败时直接跳过：推一个没有图的 RemoteViews 会把 widget 上
+        // 已经显示的画面抹成空卡（ColorOS 杀进程后台重跑时实测出现过）
+        if (cover == null) return false
+
         val avatarGlideUrl = illust.user?.let { GlideUtil.getHead(it) }
         val avatar = if (avatarGlideUrl != null) withContext(Dispatchers.IO) {
             try {
@@ -150,7 +158,7 @@ class SpotlightWidgetWorker(
         views.setTextViewText(R.id.widget_author_name, illust.user?.name.orEmpty())
         views.setTextViewText(R.id.widget_bookmark_count, formatCount(illust.total_bookmarks ?: 0))
         views.setTextViewText(R.id.widget_view_count, formatCount(illust.total_view ?: 0))
-        cover?.let { views.setImageViewBitmap(R.id.widget_cover, it) }
+        views.setImageViewBitmap(R.id.widget_cover, cover)
         avatar?.let { views.setImageViewBitmap(R.id.widget_author_avatar, it) }
 
         val openIntent = Intent(context, VActivity::class.java).apply {
@@ -168,6 +176,7 @@ class SpotlightWidgetWorker(
         views.setOnClickPendingIntent(R.id.widget_root, openPi)
 
         manager.updateAppWidget(widgetId, views)
+        return true
     }
 
     private fun formatCount(value: Int): String {

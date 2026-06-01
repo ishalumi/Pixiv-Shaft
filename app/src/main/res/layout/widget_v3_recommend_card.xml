@@ -26,11 +26,13 @@
 
     <ImageView
         android:id="@+id/widget_refresh"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:layout_gravity="bottom|end"
-        android:layout_margin="10dp"
-        android:alpha="0.7"
+        android:layout_margin="8dp"
+        android:background="@drawable/v3_widget_refresh_scrim"
         android:contentDescription="@null"
-        android:src="@drawable/ic_baseline_refresh_48" />
+        android:padding="6dp"
+        android:src="@drawable/ic_baseline_refresh_48"
+        android:tint="#E6FFFFFF" />
 </FrameLayout>

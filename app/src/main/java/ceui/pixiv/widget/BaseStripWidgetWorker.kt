@@ -61,10 +61,13 @@ abstract class BaseStripWidgetWorker(
             return Result.retry()
         }
 
+        var anyFailed = false
         for (widgetId in widgetIds) {
-            renderStrip(manager, widgetId, illusts.take(3))
+            if (!renderStrip(manager, widgetId, illusts.take(3))) {
+                anyFailed = true
+            }
         }
-        return Result.success()
+        return if (anyFailed) Result.retry() else Result.success()
     }
 
     private fun renderPlaceholder(manager: AppWidgetManager, widgetId: Int) {
@@ -80,11 +83,12 @@ abstract class BaseStripWidgetWorker(
         manager.updateAppWidget(widgetId, views)
     }
 
+    /** @return false 表示封面全部加载失败，本次没有推送任何内容（保留 widget 上已有的画面） */
     private suspend fun renderStrip(
         manager: AppWidgetManager,
         widgetId: Int,
         illusts: List<IllustsBean>,
-    ) {
+    ): Boolean {
         val opts = manager.getAppWidgetOptions(widgetId)
         val density = context.resources.displayMetrics.density
         val widthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 320)
@@ -102,6 +106,7 @@ abstract class BaseStripWidgetWorker(
 
         val views = RemoteViews(context.packageName, R.layout.widget_v3_strip)
         val slots = listOf(R.id.widget_cover_0, R.id.widget_cover_1, R.id.widget_cover_2)
+        var loadedCount = 0
 
         for (index in slots.indices) {
             val viewId = slots[index]
@@ -125,7 +130,10 @@ abstract class BaseStripWidgetWorker(
                     e.printStackTrace(); null
                 }
             }
-            bitmap?.let { views.setImageViewBitmap(viewId, it) }
+            bitmap?.let {
+                views.setImageViewBitmap(viewId, it)
+                loadedCount++
+            }
 
             val openIntent = Intent(context, VActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -142,6 +150,11 @@ abstract class BaseStripWidgetWorker(
             )
             views.setOnClickPendingIntent(viewId, pi)
         }
+        // 封面全军覆没时直接跳过：推一个没有图的 RemoteViews 会把 widget 上
+        // 已经显示的画面抹成空卡（ColorOS 杀进程后台重跑时实测出现过）
+        if (loadedCount == 0) return false
+
         manager.updateAppWidget(widgetId, views)
+        return true
     }
 }
