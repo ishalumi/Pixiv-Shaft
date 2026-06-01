@@ -328,6 +328,12 @@ public class Shaft extends Application implements ServicesProvider {
                     }
                 }
                 Timber.tag("ActivityTracker").d(sb.toString());
+                // [DEBUG-568] recreated=true 表示这个 Activity 是被销毁后重建的（issue #568 复现关键标记）
+                Timber.tag("DEBUG-568").w("CREATE %s@%s recreated=%s | %s",
+                        activity.getClass().getSimpleName(),
+                        Integer.toHexString(System.identityHashCode(activity)),
+                        savedInstanceState != null,
+                        memorySnapshot());
             }
 
             @Override
@@ -342,16 +348,92 @@ public class Shaft extends Application implements ServicesProvider {
             public void onActivityPaused(@NonNull Activity activity) {}
 
             @Override
-            public void onActivityStopped(@NonNull Activity activity) {}
+            public void onActivityStopped(@NonNull Activity activity) {
+                // [DEBUG-568] STOPPED 的后台 Activity 才是系统 releaseSomeActivities 的销毁候选
+                Timber.tag("DEBUG-568").w("STOP %s@%s",
+                        activity.getClass().getSimpleName(),
+                        Integer.toHexString(System.identityHashCode(activity)));
+            }
 
             @Override
-            public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {}
+            public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+                // [DEBUG-568] 系统准备销毁该 Activity（或进程）前会先保存状态
+                Timber.tag("DEBUG-568").w("SAVE_STATE %s@%s",
+                        activity.getClass().getSimpleName(),
+                        Integer.toHexString(System.identityHashCode(activity)));
+            }
 
             @Override
             public void onActivityDestroyed(@NonNull Activity activity) {
                 Timber.tag("ActivityTracker").d("DESTROY %s", activity.getClass().getSimpleName());
+                // [DEBUG-568] 三种销毁情形的区分（issue #568 的核心证据）：
+                //   isFinishing=true                                  → 用户正常返回/关闭
+                //   isFinishing=false + isChangingConfigurations=true → 配置变化（转屏等），ViewModel 存活，不会网络重载
+                //   isFinishing=false + isChangingConfigurations=false→ ★系统主动销毁（内存压力），ViewModel 被清，
+                //                                                        返回时必然触发网络重载 = issue #568 的症状
+                boolean systemKilled = !activity.isFinishing() && !activity.isChangingConfigurations();
+                Timber.tag("DEBUG-568").w("DESTROY %s@%s isFinishing=%s isChangingConfigurations=%s%s | %s",
+                        activity.getClass().getSimpleName(),
+                        Integer.toHexString(System.identityHashCode(activity)),
+                        activity.isFinishing(),
+                        activity.isChangingConfigurations(),
+                        systemKilled ? " ★★★系统销毁了后台Activity(issue#568触发点)★★★" : "",
+                        memorySnapshot());
             }
         });
+    }
+
+    /**
+     * [DEBUG-568] 内存快照：Java 堆 + native 堆 + 系统可用内存。
+     * 用于把"系统销毁后台 Activity"和"内存压力"在时间线上对齐。
+     */
+    private static String memorySnapshot() {
+        try {
+            Runtime rt = Runtime.getRuntime();
+            long javaUsedMb = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
+            long javaMaxMb = rt.maxMemory() / 1024 / 1024;
+            long nativeMb = android.os.Debug.getNativeHeapAllocatedSize() / 1024 / 1024;
+            android.app.ActivityManager am = (android.app.ActivityManager)
+                    sContext.getSystemService(Context.ACTIVITY_SERVICE);
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            return "mem[java=" + javaUsedMb + "/" + javaMaxMb + "MB native=" + nativeMb
+                    + "MB sysAvail=" + (mi.availMem / 1024 / 1024) + "MB lowMemory=" + mi.lowMemory + "]";
+        } catch (Throwable t) {
+            return "mem[unavailable]";
+        }
+    }
+
+    /**
+     * [DEBUG-568] 把 trim level 翻译成可读名称。
+     * RUNNING_CRITICAL(15) 是关键：收到它说明系统内存极度紧张，
+     * framework 会顺带销毁本进程的后台 Activity（= issue #568 的触发器）。
+     */
+    private static String trimLevelName(int level) {
+        switch (level) {
+            case TRIM_MEMORY_RUNNING_MODERATE: return "RUNNING_MODERATE(5)";
+            case TRIM_MEMORY_RUNNING_LOW: return "RUNNING_LOW(10)";
+            case TRIM_MEMORY_RUNNING_CRITICAL: return "RUNNING_CRITICAL(15)";
+            case TRIM_MEMORY_UI_HIDDEN: return "UI_HIDDEN(20)";
+            case TRIM_MEMORY_BACKGROUND: return "BACKGROUND(40)";
+            case TRIM_MEMORY_MODERATE: return "MODERATE(60)";
+            case TRIM_MEMORY_COMPLETE: return "COMPLETE(80)";
+            default: return "UNKNOWN(" + level + ")";
+        }
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        // [DEBUG-568] 内存压力回调时间线
+        Timber.tag("DEBUG-568").w("onTrimMemory %s | %s", trimLevelName(level), memorySnapshot());
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        // [DEBUG-568]
+        Timber.tag("DEBUG-568").w("onLowMemory | %s", memorySnapshot());
     }
 
     public OkHttpClient getOkHttpClient() {

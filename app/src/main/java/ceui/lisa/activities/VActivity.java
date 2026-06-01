@@ -54,6 +54,10 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
     @Override
     protected void initView() {
         PageData pageData = Container.get().getPage(pageUUID);
+        // [DEBUG-568] VActivity 重建时：PageData 还在 Container（进程级单例）→ 重建 ViewPager（fragment 全部重新加载）；
+        // PageData 不在（进程被杀过）→ 直接 finish()，用户会被多弹回一级
+        timber.log.Timber.tag("DEBUG-568").w("VActivity initView pageUUID=%s pageDataFound=%s",
+                pageUUID, pageData != null);
         if (pageData != null) {
             baseBind.viewPager.setAdapter(new FragmentStatePagerAdapter(getSupportFragmentManager(), 0) {
                 @NonNull

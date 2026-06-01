@@ -159,7 +159,15 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
         if (!isLazy()) {
             //进页面主动刷新
             if (autoRefresh() && !mModel.isLoaded()) {
+                // [DEBUG-568] 网络重载触发点：mModel(ViewModel) 是空的。
+                // 首次进页面这是正常路径；但如果同一个页面（用户已经看过内容）返回时又走到这里，
+                // 说明 Activity 被系统销毁过 → ViewModel 被清空 → 这就是 issue #568 用户看到的"重新加载"
+                Timber.tag("DEBUG-568").w("RELOAD-TRIGGER %s autoRefresh: ViewModel为空, 发起网络加载", className);
                 mRefreshLayout.autoRefresh();
+            } else if (autoRefresh() && mModel.isLoaded()) {
+                // [DEBUG-568] 对照组：ViewModel 还活着（数据还在），不需要网络重载
+                Timber.tag("DEBUG-568").w("NO-RELOAD %s ViewModel数据还在(%s条), 直接复用", className,
+                        allItems != null ? allItems.size() : 0);
             }
         }
     }
@@ -172,6 +180,8 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
     public void lazyData() {
         //进页面主动刷新
         if (autoRefresh() && !mModel.isLoaded()) {
+            // [DEBUG-568] 同 initView 里的 RELOAD-TRIGGER，lazy 路径
+            Timber.tag("DEBUG-568").w("RELOAD-TRIGGER(lazy) %s autoRefresh: ViewModel为空, 发起网络加载", className);
             mRefreshLayout.autoRefresh();
         }
     }
