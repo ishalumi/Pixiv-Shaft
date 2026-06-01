@@ -163,10 +163,9 @@ object CrossSeriesDownloadTask {
                             val wNovel = withContext(Dispatchers.IO) {
                                 fetchChapterWebNovel(novel)
                             }
-                            chapters += MergedChapter(
-                                // 同 MergeDownloadNovelSeriesTask:不截断 + 「第N章 」前缀,
-                                // 让阅读 App 的章节识别正则能匹配(#903)。
-                                title = "第${cPos}章 ${novel.title.orEmpty()}",
+                            chapters += MergedChapter.numbered(
+                                position = cPos,
+                                rawTitle = novel.title.orEmpty(),
                                 text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
                                 webNovel = wNovel,
                             )
@@ -248,9 +247,9 @@ object CrossSeriesDownloadTask {
             val cPos = index + 1
             try {
                 val wNovel = fetchChapterWebNovel(novel)
-                chapters += MergedChapter(
-                    // 同 MergeDownloadNovelSeriesTask:不截断 + 「第N章 」前缀(#903)。
-                    title = "第${cPos}章 ${novel.title.orEmpty()}",
+                chapters += MergedChapter.numbered(
+                    position = cPos,
+                    rawTitle = novel.title.orEmpty(),
                     text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
                     webNovel = wNovel,
                 )

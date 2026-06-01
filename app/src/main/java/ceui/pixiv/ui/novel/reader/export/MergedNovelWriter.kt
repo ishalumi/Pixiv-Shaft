@@ -68,7 +68,57 @@ data class MergedChapter(
     val title: String,
     val text: String,
     val webNovel: WebNovel? = null,
-)
+    /**
+     * TXT 输出的章节头行。阅读 App 的章节识别正则对「第N章」后的行长有上限
+     * （如 Legado 默认规则以 `.{0,30}$` 结尾），超长标题的头行必须截短才能被
+     * 自动拆章。与 [title] 不同时，TXT writer 会把完整 [title] 补在头行下一行
+     * （#903 报告者建议的方案）。MD/PDF/EPUB 有结构化章节标题，不受此限制，
+     * 始终用完整 [title]。
+     */
+    val txtHeaderLine: String = title,
+) {
+    companion object {
+        /**
+         * 「第N章 」之后标题部分的最大字符数。Legado 等阅读 App 的默认章节正则
+         * 要求「章」后（含空格）不超过 30 字符：1 空格 + 27 字 + 1 省略号 = 29，
+         * 卡在限制内。
+         */
+        private const val READER_LINE_TITLE_MAX = 28
+
+        private val WHITESPACE = Regex("\\s+")
+
+        /**
+         * 正文章节的统一构造入口（#903），三条合并下载路径（单系列 / 跨系列
+         * PerSeries / 跨系列 AllMergedOne）都走这里，保证格式不分叉：
+         *  - 标题统一「第N章 标题」格式——「章」是各阅读 App 章节识别正则的最大
+         *    公约数（「篇」Moon+ Reader 不认，「•」紧跟数字会破坏匹配）
+         *  - [title] 保留完整标题不截断；仅 TXT 头行超长时另给截短版
+         *  - 标题里的换行 / 连续空白折叠成单个空格，保证章节头行不会被拆成多行
+         */
+        fun numbered(
+            position: Int,
+            rawTitle: String,
+            text: String,
+            webNovel: WebNovel? = null,
+        ): MergedChapter {
+            val cleanTitle = WHITESPACE.replace(rawTitle, " ").trim()
+            val prefix = "第${position}章 "
+            val full = prefix + cleanTitle
+            val headerLine = if (cleanTitle.length > READER_LINE_TITLE_MAX) {
+                prefix + takeSafely(cleanTitle, READER_LINE_TITLE_MAX - 1) + "…"
+            } else {
+                full
+            }
+            return MergedChapter(title = full, text = text, webNovel = webNovel, txtHeaderLine = headerLine)
+        }
+
+        /** [String.take] 的不拆 surrogate pair 版：截断点落在 emoji 等非 BMP 字符中间时少取一个 char。 */
+        private fun takeSafely(s: String, n: Int): String {
+            val cut = s.take(n)
+            return if (cut.isNotEmpty() && cut.last().isHighSurrogate()) cut.dropLast(1) else cut
+        }
+    }
+}
 
 object MergedNovelWriters {
     private val writers: Map<ExportFormat, MergedNovelWriter> = mapOf(
@@ -105,7 +155,13 @@ private object MergedTxtWriter : MergedNovelWriter {
             content.chapters.forEach { ch ->
                 // 章节头独占一行、不加装饰符号 —— 阅读 App 才能用「^第N章」正则
                 // 自动拆章(#903)。装饰版 <===== 标题 =====> 没有软件认。
-                append("\n\n").append(ch.title).append("\n\n")
+                // 头行可能是截短版(见 MergedChapter.txtHeaderLine);截短过的把
+                // 完整标题补在头行下一行。
+                append("\n\n").append(ch.txtHeaderLine).append('\n')
+                if (ch.txtHeaderLine != ch.title) {
+                    append(ch.title).append('\n')
+                }
+                append('\n')
                 append(ch.text)
                 append("\n\n")
             }

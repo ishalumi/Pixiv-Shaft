@@ -72,10 +72,9 @@ object MergeDownloadNovelSeriesTask {
             val t0 = System.currentTimeMillis()
             try {
                 val wNovel = fetchChapterWebNovel(novel)
-                val chapter = MergedChapter(
-                    // 「第N章 标题」是各阅读 App 章节识别正则的最大公约数(#903):
-                    // 不截断、不加 • 分隔符、用「章」不用「篇」(Moon+ Reader 不认「篇」)。
-                    title = "第${cPos}章 ${novel.title.orEmpty()}",
+                val chapter = MergedChapter.numbered(
+                    position = cPos,
+                    rawTitle = novel.title.orEmpty(),
                     text = DownloadNovelTask.replaceBrWithNewLine(wNovel.text),
                     webNovel = wNovel,
                 )
