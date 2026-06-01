@@ -26,6 +26,7 @@ import ceui.lisa.adapters.NAdapter;
 import ceui.lisa.adapters.SimpleUserAdapter;
 import ceui.lisa.adapters.UAdapter;
 import ceui.lisa.adapters.UserHAdapter;
+import ceui.lisa.core.AutoLoadPolicy;
 import ceui.lisa.core.Container;
 import ceui.lisa.core.PageData;
 import ceui.lisa.core.RemoteRepo;
@@ -54,6 +55,7 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
     protected Response mResponse;//ListIllust
     protected BroadcastReceiver mReceiver = null, dataReceiver = null, scrollReceiver = null;
     protected boolean isLoading = false;
+    protected final AutoLoadPolicy mAutoLoadPolicy = new AutoLoadPolicy();
 
     /**
      * Fresh the page.
@@ -135,8 +137,13 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
 
         if (!mRemoteRepo.localData()) {
             emptyRela.setVisibility(View.INVISIBLE);
-            if(isLoading) return;
+            if(isLoading) {
+                //自动加载下一页进行中(#729)又触发下拉刷新时，结束刷新动画避免转圈卡死
+                mRefreshLayout.finishRefresh();
+                return;
+            }
             isLoading = true;
+            mAutoLoadPolicy.reset();//用户主动刷新，重置自动加载预算 (#729)
             //Get first data
             mRemoteRepo.getFirstData(new NullCtrl<Response>()
             {
@@ -197,6 +204,9 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                 public void must(boolean isSuccess) {
                     mRefreshLayout.finishRefresh(isSuccess);
                     isLoading = false;
+                    if (isSuccess) {
+                        autoLoadIfAllBlocked();
+                    }
                 }
 
                 @Override
@@ -243,6 +253,11 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                         allItems = mModel.getContent();
                         int afterLoadSize = getStartSize();
                         onNextLoaded(mResponseList);
+                        //首页被整页屏蔽时 fresh() 会隐藏列表，自动加载找回内容后恢复显示 (#729)
+                        if (mRecyclerView.getVisibility() != View.VISIBLE) {
+                            mRecyclerView.setVisibility(View.VISIBLE);
+                            emptyRela.setVisibility(View.INVISIBLE);
+                        }
                         mAdapter.notifyItemRangeInserted(beforeLoadSize, afterLoadSize - beforeLoadSize);
                     }
                     mRemoteRepo.setNextUrl(mResponse.getNextUrl());
@@ -258,6 +273,9 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                 public void must(boolean isSuccess) {
                     mRefreshLayout.finishLoadMore(isSuccess);
                     isLoading = false;
+                    if (isSuccess) {
+                        autoLoadIfAllBlocked();
+                    }
                 }
             });
         } else {
@@ -265,6 +283,19 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                 Common.showToast(getString(R.string.string_224));
             }
             mRefreshLayout.finishLoadMore();
+        }
+    }
+
+    /**
+     * 屏蔽过多时整页作品可能被 {@link ceui.lisa.core.Mapper} 全部过滤掉，
+     * 列表为空导致无法滑动，也就无法触发加载下一页 (#729)。
+     * 这里在每页加载成功后检查：列表仍为空且还有下一页时，自动加载下一页，
+     * 直到有内容显示或达到 {@link AutoLoadPolicy#MAX_AUTO_LOAD_TIMES} 次上限。
+     */
+    private void autoLoadIfAllBlocked() {
+        if (mAutoLoadPolicy.shouldAutoLoad(getCount(), mRemoteRepo.getNextUrl())) {
+            Common.showLog("autoLoadIfAllBlocked, auto load attempt " + mAutoLoadPolicy.getAutoLoadCount());
+            loadMore();
         }
     }
 
