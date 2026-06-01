@@ -1545,7 +1545,7 @@
     <string name="aria2_settings_title">aria2 원격 다운로드</string>
     <string name="aria2_settings_entry_desc">다운로드 작업을 NAS / 원격 서버의 aria2로 전송</string>
     <string name="aria2_status_enabled">사용 중 · %1$s</string>
-    <string name="aria2_intro_body">사용하면 이미지 다운로드 작업이 JSON-RPC를 통해 원격 aria2(예: NAS에서 실행 중인 인스턴스)로 전송되어 원격에서 다운로드되며, 이 기기에는 저장되지 않습니다. 파일 이름과 디렉터리 구조는 「다운로드 경로 / 파일 이름」 설정을 따릅니다.\n\n움직이는 일러스트(우고이라)는 원본 프레임 zip 압축 파일로 전송됩니다.</string>
+    <string name="aria2_intro_body">사용하면 이미지 다운로드 작업이 JSON-RPC를 통해 원격 aria2(예: NAS에서 실행 중인 인스턴스)로 전송되어 원격에서 다운로드되며, 이 기기에는 저장되지 않습니다. 파일 이름과 디렉터리 구조는 「다운로드 경로 / 파일 이름」 설정을 따릅니다.\n\n움직이는 일러스트(우고이라)는 GIF 합성이 이 기기에서 이루어지므로 계속 이 기기에 다운로드됩니다.</string>
     <string name="aria2_enable_title">aria2 원격 다운로드 사용</string>
     <string name="aria2_enable_desc">사용하면 모든 이미지 다운로드를 원격 aria2에 맡기고 이 기기에는 저장하지 않습니다</string>
     <string name="aria2_rpc_url_label">RPC 주소</string>

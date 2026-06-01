@@ -1632,7 +1632,7 @@
     <string name="aria2_settings_title">aria2 remote download</string>
     <string name="aria2_settings_entry_desc">Send download tasks to aria2 on a NAS / remote server</string>
     <string name="aria2_status_enabled">Enabled · %1$s</string>
-    <string name="aria2_intro_body">When enabled, image download tasks are sent via JSON-RPC to a remote aria2 instance (e.g. running on a NAS) and downloaded there instead of on this device. File names and directory structure follow the Download path / file name settings.\n\nUgoira (animated works) are sent as the original frame zip archive.</string>
+    <string name="aria2_intro_body">When enabled, image download tasks are sent via JSON-RPC to a remote aria2 instance (e.g. running on a NAS) and downloaded there instead of on this device. File names and directory structure follow the Download path / file name settings.\n\nUgoira (animated works) are still downloaded locally, since GIF synthesis happens on this device.</string>
     <string name="aria2_enable_title">Enable aria2 remote download</string>
     <string name="aria2_enable_desc">All image downloads are handed to the remote aria2; nothing is saved on this device</string>
     <string name="aria2_rpc_url_label">RPC endpoint</string>

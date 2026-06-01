@@ -1634,7 +1634,7 @@
     <string name="aria2_settings_title">aria2 リモートダウンロード</string>
     <string name="aria2_settings_entry_desc">ダウンロードタスクを NAS / リモートサーバーの aria2 に送信</string>
     <string name="aria2_status_enabled">有効 · %1$s</string>
-    <string name="aria2_intro_body">有効にすると、画像のダウンロードタスクは JSON-RPC 経由でリモートの aria2（NAS 上のインスタンスなど）に送信され、本機には保存されません。ファイル名とディレクトリ構造は「ダウンロードパス / ファイル名」の設定に従います。\n\nうごイラは元のフレーム zip アーカイブとして送信されます。</string>
+    <string name="aria2_intro_body">有効にすると、画像のダウンロードタスクは JSON-RPC 経由でリモートの aria2（NAS 上のインスタンスなど）に送信され、本機には保存されません。ファイル名とディレクトリ構造は「ダウンロードパス / ファイル名」の設定に従います。\n\nうごイラは GIF 合成を本機で行うため、引き続き本機にダウンロードされます。</string>
     <string name="aria2_enable_title">aria2 リモートダウンロードを有効化</string>
     <string name="aria2_enable_desc">有効にすると画像のダウンロードはすべてリモートの aria2 に任せ、本機には保存しません</string>
     <string name="aria2_rpc_url_label">RPC エンドポイント</string>

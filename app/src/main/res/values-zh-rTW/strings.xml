@@ -1648,7 +1648,7 @@
     <string name="aria2_settings_title">aria2 遠端下載</string>
     <string name="aria2_settings_entry_desc">把下載任務傳送到 NAS / 遠端伺服器上的 aria2</string>
     <string name="aria2_status_enabled">已啟用 · %1$s</string>
-    <string name="aria2_intro_body">啟用後，圖片下載任務將透過 JSON-RPC 傳送給遠端 aria2（例如跑在 NAS 上的實例），由遠端直接下載，不再儲存到本機。檔案名稱與目錄結構沿用「下載路徑 / 檔案名稱」中的設定。\n\n動圖（ugoira）將以原始影格 zip 壓縮檔的形式傳送。</string>
+    <string name="aria2_intro_body">啟用後，圖片下載任務將透過 JSON-RPC 傳送給遠端 aria2（例如跑在 NAS 上的實例），由遠端直接下載，不再儲存到本機。檔案名稱與目錄結構沿用「下載路徑 / 檔案名稱」中的設定。\n\n動圖（ugoira）因需要本機合成 GIF，仍會下載到本機。</string>
     <string name="aria2_enable_title">啟用 aria2 遠端下載</string>
     <string name="aria2_enable_desc">啟用後所有圖片下載任務都交給遠端 aria2，本機不再儲存</string>
     <string name="aria2_rpc_url_label">RPC 位址</string>

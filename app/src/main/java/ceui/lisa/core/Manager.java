@@ -510,7 +510,9 @@ public class Manager {
 
         // aria2 远程下载模式（#692）：任务转发给远端 aria2（NAS），不在本地建文件。
         // 必须在 factory 创建之前拦截，否则会平白多出一条本地 MediaStore/SAF 行。
-        if (Aria2Dispatcher.isEnabled()) {
+        // 动图（ugoira）不转发 —— zip 是本地播放/合成 GIF 的内部缓存下载，
+        // 详见 Aria2Dispatcher.shouldDispatch。
+        if (Aria2Dispatcher.shouldDispatch(downloadItem)) {
             dispatchToAria2(downloadItem);
             return;
         }
@@ -634,9 +636,11 @@ public class Manager {
                 emitter.onNext(gid);
                 emitter.onComplete();
             } catch (Exception e) {
-                if (!emitter.isDisposed()) {
-                    emitter.onError(e);
-                }
+                // tryOnError：disposed 后静默丢弃，不走 RxJavaPlugins.onError。
+                // 项目只给 RxJava 2 设了全局 error handler，RxJava 3 的
+                // UndeliverableException 会直接 crash —— isDisposed() 检查 + onError()
+                // 之间存在 TOCTOU 竞态，tryOnError 是为此设计的竞态安全 API。
+                emitter.tryOnError(e);
             }
         })
         .subscribeOn(Schedulers.io())

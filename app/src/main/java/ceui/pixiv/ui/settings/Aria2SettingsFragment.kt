@@ -15,6 +15,7 @@ import ceui.lisa.utils.Local
 import ceui.pixiv.download.aria2.Aria2Dispatcher
 import ceui.pixiv.ui.common.viewBinding
 import com.hjq.toast.ToastUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -106,20 +107,21 @@ class Aria2SettingsFragment : Fragment(R.layout.fragment_aria2_settings) {
 
         binding.aria2TestBtn.isEnabled = false
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
+            // CancellationException 必须重新抛出（用户在测试期间退出页面 → view 销毁 →
+            // scope 取消）：吞掉它会继续执行到 binding 访问，而此时 requireView() 必抛
+            // IllegalStateException 直接 crash。
+            try {
+                val version = withContext(Dispatchers.IO) {
                     Aria2Dispatcher.testConnection(rpcUrl, secret)
                 }
+                binding.aria2TestBtn.isEnabled = true
+                ToastUtils.show(getString(R.string.aria2_test_success, version))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                binding.aria2TestBtn.isEnabled = true
+                ToastUtils.show(getString(R.string.aria2_test_failed, e.message ?: e.toString()))
             }
-            binding.aria2TestBtn.isEnabled = true
-            result.fold(
-                onSuccess = { version ->
-                    ToastUtils.show(getString(R.string.aria2_test_success, version))
-                },
-                onFailure = { e ->
-                    ToastUtils.show(getString(R.string.aria2_test_failed, e.message ?: e.toString()))
-                },
-            )
         }
     }
 

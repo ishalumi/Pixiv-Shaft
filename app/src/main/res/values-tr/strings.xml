@@ -1536,7 +1536,7 @@
     <string name="aria2_settings_title">aria2 uzaktan indirme</string>
     <string name="aria2_settings_entry_desc">İndirme görevlerini NAS / uzak sunucudaki aria2 hizmetine gönder</string>
     <string name="aria2_status_enabled">Etkin · %1$s</string>
-    <string name="aria2_intro_body">Etkinleştirildiğinde, görsel indirme görevleri JSON-RPC üzerinden uzaktaki aria2 örneğine (örn. NAS üzerinde çalışan) gönderilir ve bu cihaza kaydedilmez. Dosya adları ve dizin yapısı «İndirme yolu / dosya adı» ayarlarını izler.\n\nHareketli çizimler (ugoira) orijinal kare zip arşivi olarak gönderilir.</string>
+    <string name="aria2_intro_body">Etkinleştirildiğinde, görsel indirme görevleri JSON-RPC üzerinden uzaktaki aria2 örneğine (örn. NAS üzerinde çalışan) gönderilir ve bu cihaza kaydedilmez. Dosya adları ve dizin yapısı «İndirme yolu / dosya adı» ayarlarını izler.\n\nHareketli çizimler (ugoira), GIF birleştirme bu cihazda yapıldığı için yine bu cihaza indirilir.</string>
     <string name="aria2_enable_title">aria2 uzaktan indirmeyi etkinleştir</string>
     <string name="aria2_enable_desc">Tüm görsel indirmeleri uzaktaki aria2 üstlenir; bu cihaza hiçbir şey kaydedilmez</string>
     <string name="aria2_rpc_url_label">RPC adresi</string>
