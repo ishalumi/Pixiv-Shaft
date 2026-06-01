@@ -2,6 +2,7 @@ package ceui.pixiv.ui.novel.reader.export
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,17 +13,25 @@ import org.junit.Test
  * 以 `.{0,30}$` 结尾，即「章」字之后最多 30 个字符。所以这两个诉求在长标题
  * 上是冲突的，解法是报告者建议的：TXT 头行用截短版（可识别），完整标题补在
  * 头行下一行；MD/PDF/EPUB 用完整标题。
+ *
+ * 副标题行（完整标题）必须**不带**「第N章」前缀——否则标题恰好 29 字时副标题
+ * 行也落在正则限制内，同一章被识别成两章（见「exactly one」回归测试）。
  */
 class MergedChapterTest {
 
     /** Legado 默认 TXT 章节识别正则的等价简化版：第N章 + 后续不超过 30 字符。 */
     private val legadoLikeRule = Regex("^第\\d+章.{0,30}$")
 
+    /** 模拟 MergedTxtWriter 输出的章节头行（头行 + 可选的副标题行）。 */
+    private fun txtHeadLines(ch: MergedChapter): List<String> =
+        listOfNotNull(ch.txtHeaderLine, ch.txtSubtitleLine)
+
     @Test
     fun `short title - header equals full title and matches reader rule`() {
         val ch = MergedChapter.numbered(1, "雨の日", "正文")
         assertEquals("第1章 雨の日", ch.title)
         assertEquals(ch.title, ch.txtHeaderLine)
+        assertNull(ch.txtSubtitleLine)
         assertTrue(legadoLikeRule.matches(ch.txtHeaderLine))
     }
 
@@ -43,6 +52,32 @@ class MergedChapterTest {
             "TXT 头行必须能被阅读 App 章节正则识别: '${ch.txtHeaderLine}'",
             legadoLikeRule.matches(ch.txtHeaderLine),
         )
+    }
+
+    @Test
+    fun `long title - subtitle line is full title without chapter prefix`() {
+        val longTitle = "这是一个超级长的标题".repeat(5) // 50 字
+        val ch = MergedChapter.numbered(3, longTitle, "正文")
+        // 副标题行 = 完整标题原文,不带「第N章」前缀
+        assertEquals(longTitle, ch.txtSubtitleLine)
+        // 不带前缀 → 不可能被章节正则误识别成新章节
+        assertFalse(legadoLikeRule.matches(ch.txtSubtitleLine!!))
+    }
+
+    @Test
+    fun `every title length produces exactly ONE reader-detectable head line`() {
+        // 回归(#903 边界 bug):标题恰好 29 字时,带「第N章」前缀的副标题行
+        // (章后正好 30 字符)也会匹配阅读 App 正则 → 同一章被拆成两章。
+        // 不变量:无论标题多长,章节头部分恰好有且只有 1 行可被识别。
+        for (len in 1..60) {
+            val ch = MergedChapter.numbered(7, "标".repeat(len), "正文")
+            val headLines = txtHeadLines(ch)
+            assertEquals(
+                "标题长度 $len 时章节头可识别行数应为 1: $headLines",
+                1,
+                headLines.count { legadoLikeRule.matches(it) },
+            )
+        }
     }
 
     @Test
@@ -80,8 +115,9 @@ class MergedChapterTest {
 
     @Test
     fun `default constructor keeps header equal to title for synthetic chapters`() {
-        // 跨系列 AllMergedOne 的「系列分隔头」走默认构造,头行 = 标题,不做任何加工
+        // 跨系列 AllMergedOne 的「系列分隔头」走默认构造,头行 = 标题,无副标题行
         val ch = MergedChapter(title = "<系列 1/3>《某系列》", text = "SeriesId: 1")
         assertEquals(ch.title, ch.txtHeaderLine)
+        assertNull(ch.txtSubtitleLine)
     }
 }

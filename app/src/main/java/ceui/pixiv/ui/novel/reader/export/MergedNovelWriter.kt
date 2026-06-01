@@ -71,11 +71,16 @@ data class MergedChapter(
     /**
      * TXT 输出的章节头行。阅读 App 的章节识别正则对「第N章」后的行长有上限
      * （如 Legado 默认规则以 `.{0,30}$` 结尾），超长标题的头行必须截短才能被
-     * 自动拆章。与 [title] 不同时，TXT writer 会把完整 [title] 补在头行下一行
-     * （#903 报告者建议的方案）。MD/PDF/EPUB 有结构化章节标题，不受此限制，
-     * 始终用完整 [title]。
+     * 自动拆章。MD/PDF/EPUB 有结构化章节标题，不受此限制，始终用完整 [title]。
      */
     val txtHeaderLine: String = title,
+    /**
+     * 头行被截短时，TXT writer 把完整标题作为这一行写在头行下面（#903 报告者
+     * 建议的方案）。注意这里**不带**「第N章」前缀——带前缀的话，标题恰好 29 字
+     * 时这一行（章后 30 字符）也落在阅读 App 的正则行长限制内，同一章会被识别
+     * 成两个章节。短标题 / 合成章节为 null，TXT 不写副标题行。
+     */
+    val txtSubtitleLine: String? = null,
 ) {
     companion object {
         /**
@@ -104,12 +109,19 @@ data class MergedChapter(
             val cleanTitle = WHITESPACE.replace(rawTitle, " ").trim()
             val prefix = "第${position}章 "
             val full = prefix + cleanTitle
-            val headerLine = if (cleanTitle.length > READER_LINE_TITLE_MAX) {
+            val truncated = cleanTitle.length > READER_LINE_TITLE_MAX
+            val headerLine = if (truncated) {
                 prefix + takeSafely(cleanTitle, READER_LINE_TITLE_MAX - 1) + "…"
             } else {
                 full
             }
-            return MergedChapter(title = full, text = text, webNovel = webNovel, txtHeaderLine = headerLine)
+            return MergedChapter(
+                title = full,
+                text = text,
+                webNovel = webNovel,
+                txtHeaderLine = headerLine,
+                txtSubtitleLine = if (truncated) cleanTitle else null,
+            )
         }
 
         /** [String.take] 的不拆 surrogate pair 版：截断点落在 emoji 等非 BMP 字符中间时少取一个 char。 */
@@ -156,11 +168,9 @@ private object MergedTxtWriter : MergedNovelWriter {
                 // 章节头独占一行、不加装饰符号 —— 阅读 App 才能用「^第N章」正则
                 // 自动拆章(#903)。装饰版 <===== 标题 =====> 没有软件认。
                 // 头行可能是截短版(见 MergedChapter.txtHeaderLine);截短过的把
-                // 完整标题补在头行下一行。
+                // 完整标题(不带「第N章」前缀,见 txtSubtitleLine)补在头行下一行。
                 append("\n\n").append(ch.txtHeaderLine).append('\n')
-                if (ch.txtHeaderLine != ch.title) {
-                    append(ch.title).append('\n')
-                }
+                ch.txtSubtitleLine?.let { append(it).append('\n') }
                 append('\n')
                 append(ch.text)
                 append("\n\n")
