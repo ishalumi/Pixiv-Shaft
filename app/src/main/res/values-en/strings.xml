@@ -1655,6 +1655,7 @@
 
     <!-- Synonym dictionary (issue #904) -->
     <string name="synonym_dict_title">Synonym Dictionary</string>
+    <string name="synonym_dict_enable">Enable synonym dictionary</string>
     <string name="synonym_add_as_synonym">Add as synonym tag</string>
     <string name="synonym_new_target">New target tag</string>
     <string name="synonym_new_target_hint">Bookmark tag name (no spaces)</string>

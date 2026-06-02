@@ -1568,6 +1568,7 @@
 
     <!-- 동의어 사전 (issue #904) -->
     <string name="synonym_dict_title">동의어 사전</string>
+    <string name="synonym_dict_enable">동의어 사전 사용</string>
     <string name="synonym_add_as_synonym">동의어 태그로 추가</string>
     <string name="synonym_new_target">새 대상 태그</string>
     <string name="synonym_new_target_hint">북마크 태그 이름 (공백 불가)</string>

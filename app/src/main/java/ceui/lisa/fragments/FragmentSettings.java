@@ -1308,7 +1308,34 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
-            // 同义词词典管理入口（issue #904 按标签收藏优化）
+            // 同义词词典功能总开关（issue #904），默认关闭。
+            // 关闭时所有相关 UI（详情页匹配框/长按菜单项/管理页入口/自动导入/自动勾选）完全隐藏。
+            baseBind.synonymDictEnable.setChecked(Shaft.sSettings.isSynonymDictEnabled());
+            baseBind.synonymDictEntryContainer.setVisibility(
+                    Shaft.sSettings.isSynonymDictEnabled() ? View.VISIBLE : View.GONE);
+            baseBind.synonymDictEnable.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setSynonymDictEnabled(isChecked);
+                    Local.setSettings(Shaft.sSettings);
+                    baseBind.synonymDictEntryContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+                    if (isChecked) {
+                        // 首次打开：后台静默导入内置词典（已导入过的设备跳过）
+                        final android.content.Context appContext = mContext.getApplicationContext();
+                        new Thread(() ->
+                                ceui.pixiv.ui.synonym.SynonymBuiltinDict.autoImportIfNeeded(appContext)
+                        ).start();
+                    }
+                }
+            });
+            baseBind.synonymDictEnableRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.synonymDictEnable.performClick();
+                }
+            });
+
+            // 同义词词典管理入口（仅开关打开时可见）
             baseBind.synonymDictRela.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {

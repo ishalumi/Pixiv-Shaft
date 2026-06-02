@@ -17,6 +17,7 @@ import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import ceui.lisa.R
 import ceui.lisa.activities.SearchActivity
+import ceui.lisa.activities.Shaft
 import ceui.lisa.models.TagsBean
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
@@ -270,12 +271,15 @@ class V3TagFlowView @JvmOverloads constructor(
             actions.add { pinHandler.invoke(name, translated, !pinned) }
         }
         // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文；
-        // host 提供了作品上下文时，新建目标标签会自动把作品收藏进同名收藏标签
-        labels.add(context.getString(R.string.synonym_add_as_synonym))
-        actions.add {
-            SynonymOperate.showAddAsSynonymDialog(
-                context, name, translated, synonymWorkId, synonymWorkType
-            )
+        // host 提供了作品上下文时，新建目标标签会自动把作品收藏进同名收藏标签。
+        // 功能总开关默认关闭，关闭时菜单与本功能存在之前完全一致。
+        if (Shaft.sSettings.isSynonymDictEnabled) {
+            labels.add(context.getString(R.string.synonym_add_as_synonym))
+            actions.add {
+                SynonymOperate.showAddAsSynonymDialog(
+                    context, name, translated, synonymWorkId, synonymWorkType
+                )
+            }
         }
         labels.add(context.getString(R.string.v3_tag_menu_mute))
         actions.add { muteTag(name, translated) }

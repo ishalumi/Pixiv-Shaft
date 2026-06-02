@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.models.TagsBean
@@ -77,6 +78,10 @@ class SynonymMatchView @JvmOverloads constructor(
             val name = t.name ?: return@mapNotNull null
             name to t.translated_name
         }
+        // 开关在页面已打开期间被打开 → rebind 时补挂 observer（attach 时开关还是关的没挂上）
+        if (isAttachedToWindow) {
+            startObservingIfEnabled()
+        }
         scheduleMatch()
     }
 
@@ -87,9 +92,7 @@ class SynonymMatchView @JvmOverloads constructor(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         if (isInEditMode) return
-        val live = AppDatabase.getAppDatabase(context).synonymDao().getAllWithSynonymsLive()
-        dictLive = live
-        live.observeForever(dictObserver)
+        startObservingIfEnabled()
     }
 
     override fun onDetachedFromWindow() {
@@ -98,11 +101,34 @@ class SynonymMatchView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
+    /**
+     * 功能总开关（issue #904）默认关闭：关闭时不 observe 词典、不渲染任何内容，
+     * 普通用户的详情页和本功能存在之前完全一致。这一处 gate 覆盖全部 4 个详情页。
+     * attach 和 setWorkTags 都会调用 —— 覆盖「页面打开期间用户才打开开关」的补挂场景。
+     */
+    private fun startObservingIfEnabled() {
+        if (isInEditMode || dictLive != null) return
+        if (!Shaft.sSettings.isSynonymDictEnabled) {
+            visibility = GONE
+            return
+        }
+        val live = AppDatabase.getAppDatabase(context).synonymDao().getAllWithSynonymsLive()
+        dictLive = live
+        live.observeForever(dictObserver)
+    }
+
     // ────────────────────────────────────────────────────────────────
     // 匹配（后台线程）→ 渲染（主线程）
     // ────────────────────────────────────────────────────────────────
 
     private fun scheduleMatch() {
+        // 开关关闭（含 ON→OFF 切换后 rebind 的场景）→ 清空并隐藏，即时生效
+        if (!Shaft.sSettings.isSynonymDictEnabled) {
+            renderSeq++
+            removeAllViews()
+            visibility = GONE
+            return
+        }
         val tags = workTagPairs
         val dict = dictionary
         renderSeq++

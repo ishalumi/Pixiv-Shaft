@@ -75,6 +75,10 @@ class SelectTagRepo(
      * 用户收藏标签列表里已有同名目标标签 → 勾选；没有 → 作为新标签插到列表顶部并勾选。
      */
     private fun applySynonymMatching(tags: MutableList<TagsBean>) {
+        // 功能总开关（issue #904）默认关闭：关闭时按标签收藏页与本功能存在之前完全一致
+        if (!Shaft.sSettings.isSynonymDictEnabled) {
+            return
+        }
         if (tagNames.isEmpty()) {
             return
         }

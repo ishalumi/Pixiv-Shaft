@@ -413,7 +413,7 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
                 String tagName = tagBean.getName();
                 SearchEntity searchEntity = PixivOperate.getSearchHistory(tagName, SEARCH_TYPE_DB_KEYWORD);
                 boolean isPinned = searchEntity != null && searchEntity.isPinned();
-                new QMUIDialog.MessageDialogBuilder(mContext)
+                QMUIDialog.MessageDialogBuilder tagMenuBuilder = new QMUIDialog.MessageDialogBuilder(mContext)
                         .setTitle(tagName)
                         .setSkinManager(QMUISkinManager.defaultInstance(mContext))
                         .addAction(isPinned ? getString(R.string.string_443) : getString(R.string.string_442), new QMUIDialogAction.ActionListener() {
@@ -430,19 +430,20 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
                                 Common.copy(mContext, tagName);
                                 dialog.dismiss();
                             }
-                        })
-                        .addAction(getString(R.string.synonym_add_as_synonym), new QMUIDialogAction.ActionListener() {
-                            @Override
-                            public void onClick(QMUIDialog dialog, int index) {
-                                // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文；
-                                // 带上作品上下文 → 新建目标标签时自动把本作品收藏进同名收藏标签
-                                SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name(),
-                                        illust.getId(), Params.TYPE_ILLUST);
-                                dialog.dismiss();
-                            }
-                        })
-                        .create()
-                        .show();
+                        });
+                // 同义词词典（issue #904）功能总开关：默认关闭，关闭时菜单与本功能存在之前完全一致
+                if (Shaft.sSettings.isSynonymDictEnabled()) {
+                    tagMenuBuilder.addAction(getString(R.string.synonym_add_as_synonym), new QMUIDialogAction.ActionListener() {
+                        @Override
+                        public void onClick(QMUIDialog dialog, int index) {
+                            // 长按标签加入词典，备注自动填译文；带作品上下文 → 新建目标标签时自动收藏本作品
+                            SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name(),
+                                    illust.getId(), Params.TYPE_ILLUST);
+                            dialog.dismiss();
+                        }
+                    });
+                }
+                tagMenuBuilder.create().show();
                 return true;
             }
         });

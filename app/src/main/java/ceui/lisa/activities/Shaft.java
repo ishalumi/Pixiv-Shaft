@@ -259,8 +259,10 @@ public class Shaft extends Application implements ServicesProvider {
 
         // 同义词词典内置数据自动导入（issue #904）：启动 15 秒后后台静默导入，只导一次
         // （flag 记 MMKV 设备本地，不随 Settings 同步）。合并导入不覆盖用户已有词典。
-        // 外层先查 flag：已导入过的设备（绝大多数启动）不排定时任务、不起线程。
-        if (!ceui.pixiv.ui.synonym.SynonymBuiltinDict.isImported()) {
+        // 双重前置条件：功能总开关打开（默认关闭，普通用户无感知）且本设备未导入过 ——
+        // 覆盖「设备 A 打开开关 → Settings 同步到设备 B → B 下次启动自动导入」的多设备场景。
+        if (sSettings.isSynonymDictEnabled()
+                && !ceui.pixiv.ui.synonym.SynonymBuiltinDict.isImported()) {
             new Handler(Looper.getMainLooper()).postDelayed(() ->
                     new Thread(() ->
                             ceui.pixiv.ui.synonym.SynonymBuiltinDict.autoImportIfNeeded(this)

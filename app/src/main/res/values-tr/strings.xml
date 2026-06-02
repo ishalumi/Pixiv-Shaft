@@ -1559,6 +1559,7 @@
 
     <!-- Eş Anlamlılar Sözlüğü (issue #904) -->
     <string name="synonym_dict_title">Eş Anlamlılar Sözlüğü</string>
+    <string name="synonym_dict_enable">Eş anlamlılar sözlüğünü etkinleştir</string>
     <string name="synonym_add_as_synonym">Eş anlamlı etiket olarak ekle</string>
     <string name="synonym_new_target">Yeni hedef etiket</string>
     <string name="synonym_new_target_hint">Yer imi etiket adı (boşluk olamaz)</string>

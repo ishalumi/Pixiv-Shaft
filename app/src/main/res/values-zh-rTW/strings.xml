@@ -1671,6 +1671,7 @@
 
     <!-- 同義詞詞典 (issue #904) -->
     <string name="synonym_dict_title">同義詞詞典</string>
+    <string name="synonym_dict_enable">啟用同義詞詞典</string>
     <string name="synonym_add_as_synonym">新增為同義詞標籤</string>
     <string name="synonym_new_target">新建目標標籤</string>
     <string name="synonym_new_target_hint">收藏標籤名（不能含空格）</string>

@@ -262,6 +262,10 @@ public class Settings {
     // 收藏夹过滤已失效作品（已删除/不可见），默认不过滤
     private boolean filterInvalidBookmarks = false;
 
+    // 同义词词典功能总开关（issue #904），默认关闭。
+    // 关闭时所有相关 UI（详情页匹配框/长按菜单项/管理页入口/自动导入/自动勾选）完全隐藏
+    private boolean synonymDictEnabled = false;
+
     /** @deprecated legacy display-name language；仅供 AppLocalesBootstrap 一次性迁移读取，请使用 {@link ceui.pixiv.i18n.AppLocales}。 */
     @Deprecated
     public String getAppLanguage() {
@@ -838,6 +842,14 @@ public class Settings {
 
     public void setFilterInvalidBookmarks(boolean filterInvalidBookmarks) {
         this.filterInvalidBookmarks = filterInvalidBookmarks;
+    }
+
+    public boolean isSynonymDictEnabled() {
+        return synonymDictEnabled;
+    }
+
+    public void setSynonymDictEnabled(boolean synonymDictEnabled) {
+        this.synonymDictEnabled = synonymDictEnabled;
     }
 
     // 插画二级详情：双击放大模式（false=ZoomImage 默认双击缩放，true=自定义增量双击+长按归位 PR#900）

@@ -1277,16 +1277,41 @@
 
                         <View style="@style/half_divider" />
 
-                        <!-- 同义词词典管理入口（issue #904 按标签收藏优化） -->
+                        <!-- 同义词词典功能总开关（issue #904），默认关闭 -->
                         <RelativeLayout
-                            android:id="@+id/synonym_dict_rela"
+                            android:id="@+id/synonym_dict_enable_rela"
                             style="@style/ripple_rela">
 
                             <TextView
                                 style="@style/setting_text_left_and_center"
-                                android:text="@string/synonym_dict_title" />
+                                android:text="@string/synonym_dict_enable" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/synonym_dict_enable"
+                                style="@style/setting_right_switch" />
 
                         </RelativeLayout>
+
+                        <!-- 同义词词典管理入口：仅开关打开时可见（含分隔线一起显隐） -->
+                        <LinearLayout
+                            android:id="@+id/synonym_dict_entry_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <View style="@style/half_divider" />
+
+                            <RelativeLayout
+                                android:id="@+id/synonym_dict_rela"
+                                style="@style/ripple_rela">
+
+                                <TextView
+                                    style="@style/setting_text_left_and_center"
+                                    android:text="@string/synonym_dict_title" />
+
+                            </RelativeLayout>
+                        </LinearLayout>
 
                         <View style="@style/half_divider" />
 

@@ -232,10 +232,15 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
                     return false;
                 }
             });
-            // 小说页此前没有标签长按菜单，为同义词词典补一个：复制 / 添加为同义词（issue #904 要求考虑小说场景）
+            // 同义词词典（issue #904）：小说页此前没有标签长按菜单，整个菜单都是本功能加的。
+            // 监听器始终注册、开关检查放在回调内部 —— 开关切换即时生效（与插画页行为一致）；
+            // 开关关闭时回调返回 false，视觉效果等同于没有长按菜单（功能存在之前的原状）。
             baseBind.hotTags.setOnTagLongClickListener(new TagFlowLayout.OnTagLongClickListener() {
                 @Override
                 public boolean onTagLongClick(View view, int position, FlowLayout parent) {
+                    if (!Shaft.sSettings.isSynonymDictEnabled()) {
+                        return false;
+                    }
                     TagsBean tagBean = mNovelBean.getTags().get(position);
                     String tagName = tagBean.getName();
                     new QMUIDialog.MessageDialogBuilder(mContext)
