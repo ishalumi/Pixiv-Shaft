@@ -79,6 +79,7 @@ import ceui.pixiv.ui.novel.reader.ui.SearchHitSheetCallback
 import ceui.pixiv.ui.novel.reader.ui.SearchHitsSheet
 import ceui.pixiv.ui.novel.reader.ui.SeriesListSheet
 import ceui.pixiv.ui.novel.reader.ui.SeriesNavCallback
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -545,8 +546,11 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         val novelId = resolveNovelId()
         if (novelId == 0L) return
         viewLifecycleOwner.lifecycleScope.launch {
+            // CancellationException 必须重新抛出，否则 null 分支的 requireContext() 会在
+            // fragment detach 后 crash（同 tryJumpSeriesNeighbor）。
             val novel = ObjectPool.get<Novel>(novelId).value
                 ?: runCatching { Client.appApi.getNovel(novelId).novel?.also { ObjectPool.update(it) } }
+                    .onFailure { if (it is CancellationException) throw it }
                     .getOrNull()
             if (novel == null) {
                 Toast.makeText(requireContext(), getString(R.string.msg_novel_loading), Toast.LENGTH_SHORT).show()
@@ -886,6 +890,9 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         if (novelId == 0L) return false
         val seriesId = ObjectPool.get<Novel>(novelId).value?.series?.id ?: return false
         viewLifecycleOwner.lifecycleScope.launch {
+            // CancellationException 必须重新抛出（用户在请求期间退出 reader → view 销毁 →
+            // scope 取消）：runCatching 吞掉它会继续执行到下面 neighbor == null 分支的
+            // requireContext()，而此时 fragment 已 detach，必抛 IllegalStateException crash。
             val neighbor = runCatching {
                 val all = mutableListOf<Novel>()
                 var lastOrder: Int? = null
@@ -898,7 +905,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 val idx = all.indexOfFirst { it.id == novelId }
                 if (idx < 0) return@runCatching null
                 if (forward) all.getOrNull(idx + 1) else all.getOrNull(idx - 1)
-            }.getOrNull()
+            }.onFailure { if (it is CancellationException) throw it }.getOrNull()
             if (neighbor == null) {
                 Toast.makeText(
                     requireContext(),
