@@ -23,6 +23,7 @@ import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.SearchTypeUtil
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Tag
+import ceui.pixiv.ui.synonym.SynonymOperate
 import ceui.pixiv.utils.ppppx
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexboxLayout
@@ -70,6 +71,13 @@ class V3TagFlowView @JvmOverloads constructor(
      * 非空时长按菜单会多一条「固定/取消固定」项。
      */
     var onPinTag: ((name: String, translated: String?, newPinned: Boolean) -> Unit)? = null
+
+    /**
+     * 同义词词典（issue #904）自动收藏需要的作品上下文；host（详情页）bind 时赋值。
+     * workId > 0 时，「添加为同义词」→ 新建目标标签 会自动把该作品收藏进同名收藏标签。
+     */
+    var synonymWorkId: Long = 0
+    var synonymWorkType: String? = null
 
     /** Show a trailing × icon on each chip — for editable/removable chip rows. */
     var showRemoveIcon: Boolean = false
@@ -242,7 +250,7 @@ class V3TagFlowView @JvmOverloads constructor(
 
     private fun showTagActionMenu(name: String, translated: String?) {
         val hasTranslation = !translated.isNullOrBlank()
-        // 顺序：原文 / 译文（可选）/ 固定（host 提供 onPinTag 才有）/ 屏蔽
+        // 顺序：原文 / 译文（可选）/ 固定（host 提供 onPinTag 才有）/ 添加为同义词 / 屏蔽
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
         labels.add(context.getString(R.string.v3_tag_menu_copy_original))
@@ -260,6 +268,14 @@ class V3TagFlowView @JvmOverloads constructor(
                 context.getString(if (pinned) R.string.string_443 else R.string.string_442)
             )
             actions.add { pinHandler.invoke(name, translated, !pinned) }
+        }
+        // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文；
+        // host 提供了作品上下文时，新建目标标签会自动把作品收藏进同名收藏标签
+        labels.add(context.getString(R.string.synonym_add_as_synonym))
+        actions.add {
+            SynonymOperate.showAddAsSynonymDialog(
+                context, name, translated, synonymWorkId, synonymWorkType
+            )
         }
         labels.add(context.getString(R.string.v3_tag_menu_mute))
         actions.add { muteTag(name, translated) }

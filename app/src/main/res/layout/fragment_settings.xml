@@ -1277,6 +1277,19 @@
 
                         <View style="@style/half_divider" />
 
+                        <!-- 同义词词典管理入口（issue #904 按标签收藏优化） -->
+                        <RelativeLayout
+                            android:id="@+id/synonym_dict_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/synonym_dict_title" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
                         <RelativeLayout
                             android:id="@+id/transform_type_rela"
                             style="@style/ripple_rela">

@@ -60,6 +60,7 @@ import ceui.lisa.utils.ShareIllust;
 import ceui.lisa.view.LinearItemDecorationNoLRTB;
 import ceui.lisa.view.ScrollChange;
 import ceui.lisa.viewmodel.AppLevelViewModel;
+import ceui.pixiv.ui.synonym.SynonymOperate;
 import jp.wasabeef.glide.transformations.BlurTransformation;
 
 import static ceui.lisa.utils.SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD;
@@ -379,6 +380,8 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
         // 默认 ?android:textColorPrimary,light/dark 都保证对比度。
         baseBind.illustPx.setText(getString(R.string.string_193, illust.getWidth(), illust.getHeight()));
 
+        // 同义词词典「标签匹配关系」框（issue #904）
+        baseBind.synonymMatch.setWorkTags(illust.getTags());
         baseBind.illustTag.setAdapter(new TagAdapter<TagsBean>(illust.getTags()) {
             @Override
             public View getView(FlowLayout parent, int position, TagsBean s) {
@@ -405,8 +408,9 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
         baseBind.illustTag.setOnTagLongClickListener(new TagFlowLayout.OnTagLongClickListener() {
             @Override
             public boolean onTagLongClick(View view, int position, FlowLayout parent) {
-                // 弹出菜单：固定+复制
-                String tagName = illust.getTags().get(position).getName();
+                // 弹出菜单：固定+复制+添加为同义词
+                TagsBean tagBean = illust.getTags().get(position);
+                String tagName = tagBean.getName();
                 SearchEntity searchEntity = PixivOperate.getSearchHistory(tagName, SEARCH_TYPE_DB_KEYWORD);
                 boolean isPinned = searchEntity != null && searchEntity.isPinned();
                 new QMUIDialog.MessageDialogBuilder(mContext)
@@ -424,6 +428,16 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
                             @Override
                             public void onClick(QMUIDialog dialog, int index) {
                                 Common.copy(mContext, tagName);
+                                dialog.dismiss();
+                            }
+                        })
+                        .addAction(getString(R.string.synonym_add_as_synonym), new QMUIDialogAction.ActionListener() {
+                            @Override
+                            public void onClick(QMUIDialog dialog, int index) {
+                                // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文；
+                                // 带上作品上下文 → 新建目标标签时自动把本作品收藏进同名收藏标签
+                                SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name(),
+                                        illust.getId(), Params.TYPE_ILLUST);
                                 dialog.dismiss();
                             }
                         })

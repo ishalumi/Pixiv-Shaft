@@ -1654,4 +1654,46 @@
     <string name="aria2_test_failed">接続失敗：%1$s</string>
     <string name="aria2_task_sent">%1$s を aria2 に送信しました</string>
     <string name="aria2_send_failed">aria2 への送信に失敗：%1$s</string>
+
+    <!-- 同義語辞書 (issue #904) -->
+    <string name="synonym_dict_title">同義語辞書</string>
+    <string name="synonym_add_as_synonym">同義語タグとして追加</string>
+    <string name="synonym_new_target">ターゲットタグを新規作成</string>
+    <string name="synonym_new_target_hint">ブックマークタグ名（スペース不可）</string>
+    <string name="synonym_target_name_invalid">ターゲットタグ名は空またはスペースを含むことはできません</string>
+    <string name="synonym_target_exists">このターゲットタグは既に存在します</string>
+    <string name="synonym_added_to">「%1$s」に追加しました</string>
+    <string name="synonym_already_in_target">この同義語は既にこのターゲットタグに存在します</string>
+    <string name="synonym_in_other_target_confirm">「%1$s」は既にターゲットタグ「%2$s」で使用されています。「%3$s」にも追加しますか？</string>
+    <string name="synonym_force_add">追加する</string>
+    <string name="synonym_rename">名前を変更</string>
+    <string name="synonym_rename_target_title">ターゲットタグ「%1$s」の名前を変更</string>
+    <string name="synonym_delete_target_confirm">ターゲットタグ「%1$s」とその %2$d 個の同義語を削除しますか？\nPixiv 上のブックマークタグには影響しません。</string>
+    <string name="synonym_add_synonym">同義語タグを追加</string>
+    <string name="synonym_synonym_name_hint">同義語タグ名（作品タグの原文）</string>
+    <string name="synonym_synonym_name_invalid">同義語タグ名は空にできません</string>
+    <string name="synonym_rename_synonym_title">同義語「%1$s」の名前を変更</string>
+    <string name="synonym_delete_synonym_confirm">同義語「%1$s」を削除しますか？</string>
+    <string name="synonym_edit_remark">メモを編集</string>
+    <string name="synonym_remark_hint">メモ（マッチングには使われません、通常は訳語）</string>
+    <string name="synonym_remark_to_synonym">メモを同義語として追加</string>
+    <string name="synonym_match_relation">タグマッチング</string>
+    <string name="synonym_manage_dict">辞書を管理</string>
+    <string name="synonym_dict_empty">辞書は空です。作品ページでタグを長押しして「同義語タグとして追加」を選ぶか、ツールバーメニューからターゲットタグを作成してください。</string>
+    <string name="synonym_search_hint">ターゲットタグ / 同義語 / メモを検索</string>
+    <string name="synonym_export">辞書をエクスポート</string>
+    <string name="synonym_import">辞書をインポート</string>
+    <string name="synonym_export_success">%1$d 個のターゲットタグをエクスポートしました</string>
+    <string name="synonym_more_unmatched">他 %1$d 個のターゲットタグは未マッチ ›</string>
+    <string name="synonym_pick_target_by_name">ターゲットタグ名を入力…</string>
+    <string name="synonym_target_not_found">ターゲットタグ「%1$s」が見つかりません</string>
+    <string name="synonym_search_remark">メモで検索</string>
+    <string name="synonym_auto_bookmarked">この作品を「%1$s」にブックマークしました</string>
+    <string name="synonym_import_success">%1$d 個のターゲットタグと %2$d 個の同義語をインポートしました</string>
+    <string name="synonym_import_failed">インポート失敗：%1$s</string>
+    <string name="synonym_target_count">ターゲットタグ %1$d 個</string>
+    <string name="synonym_synonym_count">同義語 %1$d 個</string>
+    <string name="synonym_delete">削除</string>
+    <string name="synonym_jump_type_illust">イラスト/マンガ</string>
+    <string name="synonym_jump_type_novel">小説</string>
 </resources>

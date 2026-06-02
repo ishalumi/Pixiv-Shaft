@@ -17,6 +17,9 @@ import ceui.pixiv.db.GeneralEntity;
 import ceui.pixiv.db.RemoteKey;
 import ceui.pixiv.db.queue.DownloadQueueDao;
 import ceui.pixiv.db.queue.DownloadQueueEntity;
+import ceui.pixiv.db.synonym.SynonymDao;
+import ceui.pixiv.db.synonym.SynonymTagEntity;
+import ceui.pixiv.db.synonym.SynonymTargetEntity;
 
 @Database(
         entities = {
@@ -42,8 +45,10 @@ import ceui.pixiv.db.queue.DownloadQueueEntity;
                 ComicBookmarkEntity.class, // V3 漫画阅读器书签
                 ComicReadingStatsEntity.class, // V3 漫画阅读器累计统计
                 DownloadQueueEntity.class, // 批量下载队列（v33）
+                SynonymTargetEntity.class, // 同义词词典-目标标签（v36, issue #904）
+                SynonymTagEntity.class, // 同义词词典-同义词（v36, issue #904）
         },
-        version = 35,
+        version = 36,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -298,10 +303,38 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("ALTER TABLE search_table ADD COLUMN previewIllustsJson TEXT");
         }
     };
+    // 迁移 35 -> 36：同义词词典两张表（issue #904 按标签收藏优化）
+    // 目标标签（收藏夹标签）<- 1:N -> 同义词标签（作品标签别名，备注不参与匹配）
+    private static final Migration MIGRATION_35_36 = new Migration(35, 36) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS synonym_target_table (" +
+                            "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+                            "name TEXT NOT NULL, " +
+                            "createdAt INTEGER NOT NULL" +
+                            ")"
+            );
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_synonym_target_table_name ON synonym_target_table(name)");
+            database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS synonym_tag_table (" +
+                            "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+                            "targetId INTEGER NOT NULL, " +
+                            "name TEXT NOT NULL, " +
+                            "remark TEXT, " +
+                            "createdAt INTEGER NOT NULL" +
+                            ")"
+            );
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_synonym_tag_table_targetId ON synonym_tag_table(targetId)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_synonym_tag_table_name ON synonym_tag_table(name)");
+        }
+    };
 
     private static AppDatabase INSTANCE;
 
-    public static AppDatabase getAppDatabase(Context context) {
+    // synchronized：同义词词典（issue #904）让 Rx 后台线程（SelectTagRepo.mapper）也会触发
+    // 首次初始化，与主线程并发 check-then-act 会 double-build 两个 RoomDatabase 实例写同一文件。
+    public static synchronized AppDatabase getAppDatabase(Context context) {
         if (INSTANCE == null) {
             INSTANCE =
                     Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, DATABASE_NAME)
@@ -321,6 +354,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_32_33) // 注册 32 -> 33 迁移 (批量下载队列)
                             .addMigrations(MIGRATION_33_34) // 注册 33 -> 34 迁移 (download_queue.illustGson)
                             .addMigrations(MIGRATION_34_35) // 注册 34 -> 35 迁移 (search_table.previewIllustsJson)
+                            .addMigrations(MIGRATION_35_36) // 注册 35 -> 36 迁移 (同义词词典两张表)
                             .build();
         }
         return INSTANCE;
@@ -357,6 +391,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract ComicReadingStatsDao comicReadingStatsDao();
 
     public abstract DownloadQueueDao downloadQueueDao();
+
+    public abstract SynonymDao synonymDao();
 
 }
 

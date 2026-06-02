@@ -23,4 +23,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:flexWrap="wrap" />
+
+    <!-- 同义词词典「标签匹配关系」框（issue #904），词典为空时自动 GONE。
+         view 自带 12dp 横向 padding，与父布局 paddingHorizontal 叠加会双倍缩进，用负 margin 抵消 -->
+    <ceui.pixiv.ui.synonym.SynonymMatchView
+        android:id="@+id/synonym_match"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="-12dp"
+        android:layout_marginEnd="-12dp"
+        android:layout_marginTop="10dp" />
 </LinearLayout>

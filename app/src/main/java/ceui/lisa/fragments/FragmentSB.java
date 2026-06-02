@@ -219,6 +219,7 @@ public class FragmentSB extends NetListFragment<FragmentSelectTagBinding,
                 }
             }
         }
+        // 同义词词典自动勾选（issue #904）在 SelectTagRepo.mapper() 里做 —— 跑在 Rx 后台线程，不阻塞 UI
     }
 
     @Override

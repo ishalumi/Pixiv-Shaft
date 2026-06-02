@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  同义词词典管理页（issue #904），承载于 TemplateActivity「同义词词典」。
+  Toolbar 与标签热度导出页同款：colorPrimary 底 + 白色居中标题 + 返回箭头；状态栏 inset 走
+  runtime updatePadding(top=BarUtils.getStatusBarHeight())，不用 fitsSystemWindows
+  （BaseActivity 开了 EdgeToEdge 会双重 inset）。颜色全取 v3_*（带 values-night）白天黑夜自适配。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/v3_bg"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:elevation="@dimen/six_dp"
+        android:theme="@style/AppTheme.AppBarOverlay"
+        app:popupTheme="@style/AppTheme.PopupOverlay"
+        app:title=" "
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="@drawable/ic_arrow_back_white_shadow">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/synonym_dict_title"
+            android:textColor="@color/white"
+            android:textSize="18sp" />
+    </androidx.appcompat.widget.Toolbar>
+
+    <!-- 搜索框 -->
+    <EditText
+        android:id="@+id/search_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_v3_surface"
+        android:hint="@string/synonym_search_hint"
+        android:inputType="text"
+        android:maxLines="1"
+        android:imeOptions="actionSearch"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp"
+        android:textColor="@color/v3_text_1"
+        android:textColorHint="@color/v3_text_3"
+        android:textSize="14sp"
+        tools:ignore="Autofill" />
+
+    <!-- 跳转目标切换（issue：决定单击目标标签跳去插画收藏还是小说收藏、公开还是私人） -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/toggle_work_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_v3_chip"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="7dp"
+            android:text="@string/synonym_jump_type_illust"
+            android:textColor="@color/v3_text_2"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/toggle_star_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_v3_chip"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="7dp"
+            android:text="@string/string_391"
+            android:textColor="@color/v3_text_2"
+            android:textSize="13sp" />
+
+        <!-- 统计：N 个目标标签 · M 个同义词 -->
+        <TextView
+            android:id="@+id/count_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:textColor="@color/v3_text_3"
+            android:textSize="12sp"
+            tools:text="12 个目标标签 · 87 个同义词" />
+    </LinearLayout>
+
+    <!-- 树形列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="10dp"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="24dp" />
+
+    <!-- 空状态 -->
+    <TextView
+        android:id="@+id/empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginTop="48dp"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:text="@string/synonym_dict_empty"
+        android:textColor="@color/v3_text_3"
+        android:textSize="14sp"
+        android:visibility="gone" />
+</LinearLayout>

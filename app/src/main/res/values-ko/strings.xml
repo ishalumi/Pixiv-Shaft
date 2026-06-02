@@ -1565,4 +1565,46 @@
     <string name="aria2_test_failed">연결 실패: %1$s</string>
     <string name="aria2_task_sent">%1$s aria2로 전송됨</string>
     <string name="aria2_send_failed">aria2 전송 실패: %1$s</string>
+
+    <!-- 동의어 사전 (issue #904) -->
+    <string name="synonym_dict_title">동의어 사전</string>
+    <string name="synonym_add_as_synonym">동의어 태그로 추가</string>
+    <string name="synonym_new_target">새 대상 태그</string>
+    <string name="synonym_new_target_hint">북마크 태그 이름 (공백 불가)</string>
+    <string name="synonym_target_name_invalid">대상 태그 이름은 비어 있거나 공백을 포함할 수 없습니다</string>
+    <string name="synonym_target_exists">이 대상 태그는 이미 존재합니다</string>
+    <string name="synonym_added_to">"%1$s"에 추가됨</string>
+    <string name="synonym_already_in_target">이 동의어는 이미 이 대상 태그에 있습니다</string>
+    <string name="synonym_in_other_target_confirm">"%1$s"은(는) 이미 대상 태그 "%2$s"에서 사용 중입니다. 그래도 "%3$s"에 추가하시겠습니까?</string>
+    <string name="synonym_force_add">추가</string>
+    <string name="synonym_rename">이름 변경</string>
+    <string name="synonym_rename_target_title">대상 태그 "%1$s" 이름 변경</string>
+    <string name="synonym_delete_target_confirm">대상 태그 "%1$s"와(과) %2$d개의 동의어를 삭제하시겠습니까?\nPixiv의 북마크 태그에는 영향을 주지 않습니다.</string>
+    <string name="synonym_add_synonym">동의어 태그 추가</string>
+    <string name="synonym_synonym_name_hint">동의어 태그 이름 (작품 태그 원문)</string>
+    <string name="synonym_synonym_name_invalid">동의어 태그 이름은 비워둘 수 없습니다</string>
+    <string name="synonym_rename_synonym_title">동의어 "%1$s" 이름 변경</string>
+    <string name="synonym_delete_synonym_confirm">동의어 "%1$s"을(를) 삭제하시겠습니까?</string>
+    <string name="synonym_edit_remark">메모 편집</string>
+    <string name="synonym_remark_hint">메모 (매칭에 사용되지 않음, 보통 번역)</string>
+    <string name="synonym_remark_to_synonym">메모를 동의어로 추가</string>
+    <string name="synonym_match_relation">태그 매칭</string>
+    <string name="synonym_manage_dict">사전 관리</string>
+    <string name="synonym_dict_empty">사전이 비어 있습니다. 작품 페이지에서 태그를 길게 눌러 "동의어 태그로 추가"를 선택하거나, 툴바 메뉴에서 대상 태그를 만드세요.</string>
+    <string name="synonym_search_hint">대상 태그 / 동의어 / 메모 검색</string>
+    <string name="synonym_export">사전 내보내기</string>
+    <string name="synonym_import">사전 가져오기</string>
+    <string name="synonym_export_success">대상 태그 %1$d개 내보냄</string>
+    <string name="synonym_more_unmatched">그 외 %1$d개의 대상 태그 매칭 없음 ›</string>
+    <string name="synonym_pick_target_by_name">대상 태그 이름 입력…</string>
+    <string name="synonym_target_not_found">대상 태그 \"%1$s\"을(를) 찾을 수 없습니다</string>
+    <string name="synonym_search_remark">메모로 검색</string>
+    <string name="synonym_auto_bookmarked">이 작품을 \"%1$s\"에 북마크했습니다</string>
+    <string name="synonym_import_success">대상 태그 %1$d개, 동의어 %2$d개 가져옴</string>
+    <string name="synonym_import_failed">가져오기 실패: %1$s</string>
+    <string name="synonym_target_count">대상 태그 %1$d개</string>
+    <string name="synonym_synonym_count">동의어 %1$d개</string>
+    <string name="synonym_delete">삭제</string>
+    <string name="synonym_jump_type_illust">일러스트/만화</string>
+    <string name="synonym_jump_type_novel">소설</string>
 </resources>

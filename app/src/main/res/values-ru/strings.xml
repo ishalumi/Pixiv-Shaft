@@ -1558,4 +1558,46 @@
     <string name="aria2_test_failed">Ошибка соединения: %1$s</string>
     <string name="aria2_task_sent">%1$s отправлено в aria2</string>
     <string name="aria2_send_failed">Не удалось отправить в aria2: %1$s</string>
+
+    <!-- Словарь синонимов (issue #904) -->
+    <string name="synonym_dict_title">Словарь синонимов</string>
+    <string name="synonym_add_as_synonym">Добавить как тег-синоним</string>
+    <string name="synonym_new_target">Новый целевой тег</string>
+    <string name="synonym_new_target_hint">Имя тега закладки (без пробелов)</string>
+    <string name="synonym_target_name_invalid">Имя целевого тега не может быть пустым или содержать пробелы</string>
+    <string name="synonym_target_exists">Такой целевой тег уже существует</string>
+    <string name="synonym_added_to">Добавлено в «%1$s»</string>
+    <string name="synonym_already_in_target">Этот синоним уже есть в данном целевом теге</string>
+    <string name="synonym_in_other_target_confirm">«%1$s» уже используется целевым тегом «%2$s». Всё равно добавить в «%3$s»?</string>
+    <string name="synonym_force_add">Всё равно добавить</string>
+    <string name="synonym_rename">Переименовать</string>
+    <string name="synonym_rename_target_title">Переименовать целевой тег «%1$s»</string>
+    <string name="synonym_delete_target_confirm">Удалить целевой тег «%1$s» и его синонимы (%2$d)?\nТеги закладок на Pixiv не будут затронуты.</string>
+    <string name="synonym_add_synonym">Добавить тег-синоним</string>
+    <string name="synonym_synonym_name_hint">Имя тега-синонима (оригинальный тег работы)</string>
+    <string name="synonym_synonym_name_invalid">Имя тега-синонима не может быть пустым</string>
+    <string name="synonym_rename_synonym_title">Переименовать синоним «%1$s»</string>
+    <string name="synonym_delete_synonym_confirm">Удалить синоним «%1$s»?</string>
+    <string name="synonym_edit_remark">Изменить заметку</string>
+    <string name="synonym_remark_hint">Заметка (не участвует в сопоставлении, обычно перевод)</string>
+    <string name="synonym_remark_to_synonym">Добавить заметку как синоним</string>
+    <string name="synonym_match_relation">Сопоставление тегов</string>
+    <string name="synonym_manage_dict">Управление словарём</string>
+    <string name="synonym_dict_empty">Словарь пуст. Долго нажмите на тег на странице работы и выберите «Добавить как тег-синоним», или создайте целевой тег через меню.</string>
+    <string name="synonym_search_hint">Поиск целевых тегов / синонимов / заметок</string>
+    <string name="synonym_export">Экспорт словаря</string>
+    <string name="synonym_import">Импорт словаря</string>
+    <string name="synonym_export_success">Экспортировано целевых тегов: %1$d</string>
+    <string name="synonym_more_unmatched">Ещё %1$d целевых тегов без совпадений ›</string>
+    <string name="synonym_pick_target_by_name">Ввести имя целевого тега…</string>
+    <string name="synonym_target_not_found">Целевой тег «%1$s» не найден</string>
+    <string name="synonym_search_remark">Искать по заметке</string>
+    <string name="synonym_auto_bookmarked">Работа добавлена в закладки «%1$s»</string>
+    <string name="synonym_import_success">Импортировано целевых тегов: %1$d, синонимов: %2$d</string>
+    <string name="synonym_import_failed">Ошибка импорта: %1$s</string>
+    <string name="synonym_target_count">Целевых тегов: %1$d</string>
+    <string name="synonym_synonym_count">Синонимов: %1$d</string>
+    <string name="synonym_delete">Удалить</string>
+    <string name="synonym_jump_type_illust">Иллюстрации/Манга</string>
+    <string name="synonym_jump_type_novel">Романы</string>
 </resources>

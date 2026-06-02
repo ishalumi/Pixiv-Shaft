@@ -1308,6 +1308,16 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            // 同义词词典管理入口（issue #904 按标签收藏优化）
+            baseBind.synonymDictRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(mContext, TemplateActivity.class);
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "同义词词典");
+                    startActivity(intent);
+                }
+            });
+
             String[] transformerNames = PageTransformerHelper.getTransformerNames();
             baseBind.transformType.setText(transformerNames[PageTransformerHelper.getCurrentTransformerIndex()]);
             baseBind.transformTypeRela.setOnClickListener(new View.OnClickListener(){

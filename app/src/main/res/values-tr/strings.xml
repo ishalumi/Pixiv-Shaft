@@ -1556,4 +1556,46 @@
     <string name="aria2_test_failed">Bağlantı başarısız: %1$s</string>
     <string name="aria2_task_sent">%1$s aria2 hizmetine gönderildi</string>
     <string name="aria2_send_failed">aria2 hizmetine gönderilemedi: %1$s</string>
+
+    <!-- Eş Anlamlılar Sözlüğü (issue #904) -->
+    <string name="synonym_dict_title">Eş Anlamlılar Sözlüğü</string>
+    <string name="synonym_add_as_synonym">Eş anlamlı etiket olarak ekle</string>
+    <string name="synonym_new_target">Yeni hedef etiket</string>
+    <string name="synonym_new_target_hint">Yer imi etiket adı (boşluk olamaz)</string>
+    <string name="synonym_target_name_invalid">Hedef etiket adı boş olamaz veya boşluk içeremez</string>
+    <string name="synonym_target_exists">Bu hedef etiket zaten mevcut</string>
+    <string name="synonym_added_to">"%1$s" içine eklendi</string>
+    <string name="synonym_already_in_target">Bu eş anlamlı zaten bu hedef etikette mevcut</string>
+    <string name="synonym_in_other_target_confirm">"%1$s" zaten "%2$s" hedef etiketi tarafından kullanılıyor. Yine de "%3$s" içine eklensin mi?</string>
+    <string name="synonym_force_add">Yine de ekle</string>
+    <string name="synonym_rename">Yeniden adlandır</string>
+    <string name="synonym_rename_target_title">"%1$s" hedef etiketini yeniden adlandır</string>
+    <string name="synonym_delete_target_confirm">"%1$s" hedef etiketi ve %2$d eş anlamlısı silinsin mi?\nPixiv\'deki yer imi etiketleri etkilenmez.</string>
+    <string name="synonym_add_synonym">Eş anlamlı etiket ekle</string>
+    <string name="synonym_synonym_name_hint">Eş anlamlı etiket adı (eserin orijinal etiketi)</string>
+    <string name="synonym_synonym_name_invalid">Eş anlamlı etiket adı boş olamaz</string>
+    <string name="synonym_rename_synonym_title">"%1$s" eş anlamlısını yeniden adlandır</string>
+    <string name="synonym_delete_synonym_confirm">"%1$s" eş anlamlısı silinsin mi?</string>
+    <string name="synonym_edit_remark">Notu düzenle</string>
+    <string name="synonym_remark_hint">Not (eşleştirmede kullanılmaz, genellikle çeviri)</string>
+    <string name="synonym_remark_to_synonym">Notu eş anlamlı olarak ekle</string>
+    <string name="synonym_match_relation">Etiket eşleştirme</string>
+    <string name="synonym_manage_dict">Sözlüğü yönet</string>
+    <string name="synonym_dict_empty">Sözlük boş. Eser sayfasında bir etikete uzun basıp "Eş anlamlı etiket olarak ekle"yi seçin veya menüden hedef etiket oluşturun.</string>
+    <string name="synonym_search_hint">Hedef etiket / eş anlamlı / not ara</string>
+    <string name="synonym_export">Sözlüğü dışa aktar</string>
+    <string name="synonym_import">Sözlüğü içe aktar</string>
+    <string name="synonym_export_success">%1$d hedef etiket dışa aktarıldı</string>
+    <string name="synonym_more_unmatched">%1$d hedef etiket daha eşleşmedi ›</string>
+    <string name="synonym_pick_target_by_name">Hedef etiket adını girin…</string>
+    <string name="synonym_target_not_found">\"%1$s\" hedef etiketi bulunamadı</string>
+    <string name="synonym_search_remark">Notla ara</string>
+    <string name="synonym_auto_bookmarked">Bu eser \"%1$s\" yer imine eklendi</string>
+    <string name="synonym_import_success">%1$d hedef etiket ve %2$d eş anlamlı içe aktarıldı</string>
+    <string name="synonym_import_failed">İçe aktarma başarısız: %1$s</string>
+    <string name="synonym_target_count">%1$d hedef etiket</string>
+    <string name="synonym_synonym_count">%1$d eş anlamlı</string>
+    <string name="synonym_delete">Sil</string>
+    <string name="synonym_jump_type_illust">İllüstrasyon/Manga</string>
+    <string name="synonym_jump_type_novel">Roman</string>
 </resources>

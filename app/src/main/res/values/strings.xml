@@ -2122,4 +2122,46 @@
     <string name="aria2_test_failed">连接失败：%1$s</string>
     <string name="aria2_task_sent">%1$s 已发送到 aria2</string>
     <string name="aria2_send_failed">发送到 aria2 失败：%1$s</string>
+
+    <!-- 同义词词典（issue #904 按标签收藏优化）ceui.pixiv.db.synonym / ceui.pixiv.ui.synonym -->
+    <string name="synonym_dict_title">同义词词典</string>
+    <string name="synonym_add_as_synonym">添加为同义词标签</string>
+    <string name="synonym_new_target">新建目标标签</string>
+    <string name="synonym_new_target_hint">收藏标签名（不能含空格）</string>
+    <string name="synonym_target_name_invalid">目标标签名不能为空、不能含空格</string>
+    <string name="synonym_target_exists">该目标标签已存在</string>
+    <string name="synonym_added_to">已添加到「%1$s」</string>
+    <string name="synonym_already_in_target">该同义词已在此目标标签下</string>
+    <string name="synonym_in_other_target_confirm">「%1$s」已被目标标签「%2$s」使用，仍要添加到「%3$s」吗？</string>
+    <string name="synonym_force_add">仍然添加</string>
+    <string name="synonym_rename">重命名</string>
+    <string name="synonym_rename_target_title">重命名目标标签「%1$s」</string>
+    <string name="synonym_delete_target_confirm">删除目标标签「%1$s」及其 %2$d 个同义词？\n不会影响 Pixiv 上已收藏的标签。</string>
+    <string name="synonym_add_synonym">添加同义词标签</string>
+    <string name="synonym_synonym_name_hint">同义词标签名（作品标签原文）</string>
+    <string name="synonym_synonym_name_invalid">同义词标签名不能为空</string>
+    <string name="synonym_rename_synonym_title">重命名同义词「%1$s」</string>
+    <string name="synonym_delete_synonym_confirm">删除同义词「%1$s」？</string>
+    <string name="synonym_edit_remark">编辑备注</string>
+    <string name="synonym_remark_hint">备注（不参与匹配，通常填译文）</string>
+    <string name="synonym_remark_to_synonym">将备注添加为同义词</string>
+    <string name="synonym_match_relation">标签匹配关系</string>
+    <string name="synonym_manage_dict">管理词典</string>
+    <string name="synonym_dict_empty">词典为空。在作品详情页长按标签「添加为同义词标签」，或通过右上角菜单新建目标标签。</string>
+    <string name="synonym_search_hint">搜索目标标签 / 同义词 / 备注</string>
+    <string name="synonym_export">导出词典</string>
+    <string name="synonym_import">导入词典</string>
+    <string name="synonym_export_success">已导出 %1$d 个目标标签</string>
+    <string name="synonym_more_unmatched">另有 %1$d 个目标标签未匹配 ›</string>
+    <string name="synonym_pick_target_by_name">手动输入目标标签名…</string>
+    <string name="synonym_target_not_found">目标标签「%1$s」不存在</string>
+    <string name="synonym_search_remark">搜索备注</string>
+    <string name="synonym_auto_bookmarked">已将当前作品收藏到「%1$s」</string>
+    <string name="synonym_import_success">已导入 %1$d 个目标标签、%2$d 个同义词</string>
+    <string name="synonym_import_failed">导入失败：%1$s</string>
+    <string name="synonym_target_count">%1$d 个目标标签</string>
+    <string name="synonym_synonym_count">%1$d 个同义词</string>
+    <string name="synonym_delete">删除</string>
+    <string name="synonym_jump_type_illust">插画/漫画</string>
+    <string name="synonym_jump_type_novel">小说</string>
 </resources>

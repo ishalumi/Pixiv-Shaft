@@ -72,6 +72,7 @@ import ceui.loxia.WebNovel;
 import ceui.pixiv.ui.common.CommonAdapter;
 import ceui.pixiv.ui.common.ListItemHolder;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
+import ceui.pixiv.ui.synonym.SynonymOperate;
 import gdut.bsx.share2.Share2;
 import gdut.bsx.share2.ShareContentType;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -208,6 +209,8 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
             baseBind.novelSeries.setVisibility(View.GONE);
         }
         if (mNovelBean.getTags() != null && mNovelBean.getTags().size() != 0) {
+            // 同义词词典「标签匹配关系」框（issue #904）
+            baseBind.synonymMatch.setWorkTags(mNovelBean.getTags());
             baseBind.hotTags.setAdapter(new TagAdapter<TagsBean>(
                     mNovelBean.getTags()) {
                 @Override
@@ -227,6 +230,36 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
                     intent.putExtra(Params.INDEX, 1);
                     startActivity(intent);
                     return false;
+                }
+            });
+            // 小说页此前没有标签长按菜单，为同义词词典补一个：复制 / 添加为同义词（issue #904 要求考虑小说场景）
+            baseBind.hotTags.setOnTagLongClickListener(new TagFlowLayout.OnTagLongClickListener() {
+                @Override
+                public boolean onTagLongClick(View view, int position, FlowLayout parent) {
+                    TagsBean tagBean = mNovelBean.getTags().get(position);
+                    String tagName = tagBean.getName();
+                    new QMUIDialog.MessageDialogBuilder(mContext)
+                            .setTitle(tagName)
+                            .setSkinManager(com.qmuiteam.qmui.skin.QMUISkinManager.defaultInstance(mContext))
+                            .addAction(getString(R.string.string_120), new QMUIDialogAction.ActionListener() {
+                                @Override
+                                public void onClick(QMUIDialog dialog, int index) {
+                                    Common.copy(mContext, tagName);
+                                    dialog.dismiss();
+                                }
+                            })
+                            .addAction(getString(R.string.synonym_add_as_synonym), new QMUIDialogAction.ActionListener() {
+                                @Override
+                                public void onClick(QMUIDialog dialog, int index) {
+                                    // 带上作品上下文 → 新建目标标签时自动把本小说收藏进同名收藏标签
+                                    SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name(),
+                                            mNovelBean.getId(), Params.TYPE_NOVEL);
+                                    dialog.dismiss();
+                                }
+                            })
+                            .create()
+                            .show();
+                    return true;
                 }
             });
         }

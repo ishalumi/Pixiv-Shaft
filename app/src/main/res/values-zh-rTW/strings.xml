@@ -1668,4 +1668,46 @@
     <string name="aria2_test_failed">連線失敗：%1$s</string>
     <string name="aria2_task_sent">%1$s 已傳送到 aria2</string>
     <string name="aria2_send_failed">傳送到 aria2 失敗：%1$s</string>
+
+    <!-- 同義詞詞典 (issue #904) -->
+    <string name="synonym_dict_title">同義詞詞典</string>
+    <string name="synonym_add_as_synonym">新增為同義詞標籤</string>
+    <string name="synonym_new_target">新建目標標籤</string>
+    <string name="synonym_new_target_hint">收藏標籤名（不能含空格）</string>
+    <string name="synonym_target_name_invalid">目標標籤名不能為空、不能含空格</string>
+    <string name="synonym_target_exists">該目標標籤已存在</string>
+    <string name="synonym_added_to">已新增到「%1$s」</string>
+    <string name="synonym_already_in_target">該同義詞已在此目標標籤下</string>
+    <string name="synonym_in_other_target_confirm">「%1$s」已被目標標籤「%2$s」使用，仍要新增到「%3$s」嗎？</string>
+    <string name="synonym_force_add">仍然新增</string>
+    <string name="synonym_rename">重新命名</string>
+    <string name="synonym_rename_target_title">重新命名目標標籤「%1$s」</string>
+    <string name="synonym_delete_target_confirm">刪除目標標籤「%1$s」及其 %2$d 個同義詞？\n不會影響 Pixiv 上已收藏的標籤。</string>
+    <string name="synonym_add_synonym">新增同義詞標籤</string>
+    <string name="synonym_synonym_name_hint">同義詞標籤名（作品標籤原文）</string>
+    <string name="synonym_synonym_name_invalid">同義詞標籤名不能為空</string>
+    <string name="synonym_rename_synonym_title">重新命名同義詞「%1$s」</string>
+    <string name="synonym_delete_synonym_confirm">刪除同義詞「%1$s」？</string>
+    <string name="synonym_edit_remark">編輯備註</string>
+    <string name="synonym_remark_hint">備註（不參與匹配，通常填譯文）</string>
+    <string name="synonym_remark_to_synonym">將備註新增為同義詞</string>
+    <string name="synonym_match_relation">標籤匹配關係</string>
+    <string name="synonym_manage_dict">管理詞典</string>
+    <string name="synonym_dict_empty">詞典為空。在作品詳情頁長按標籤「新增為同義詞標籤」，或透過右上角選單新建目標標籤。</string>
+    <string name="synonym_search_hint">搜尋目標標籤 / 同義詞 / 備註</string>
+    <string name="synonym_export">匯出詞典</string>
+    <string name="synonym_import">匯入詞典</string>
+    <string name="synonym_export_success">已匯出 %1$d 個目標標籤</string>
+    <string name="synonym_more_unmatched">另有 %1$d 個目標標籤未匹配 ›</string>
+    <string name="synonym_pick_target_by_name">手動輸入目標標籤名…</string>
+    <string name="synonym_target_not_found">目標標籤「%1$s」不存在</string>
+    <string name="synonym_search_remark">搜尋備註</string>
+    <string name="synonym_auto_bookmarked">已將當前作品收藏到「%1$s」</string>
+    <string name="synonym_import_success">已匯入 %1$d 個目標標籤、%2$d 個同義詞</string>
+    <string name="synonym_import_failed">匯入失敗：%1$s</string>
+    <string name="synonym_target_count">%1$d 個目標標籤</string>
+    <string name="synonym_synonym_count">%1$d 個同義詞</string>
+    <string name="synonym_delete">刪除</string>
+    <string name="synonym_jump_type_illust">插畫/漫畫</string>
+    <string name="synonym_jump_type_novel">小說</string>
 </resources>

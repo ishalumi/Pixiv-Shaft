@@ -118,6 +118,18 @@ public class FragmentBookedTag extends NetListFragment<FragmentBookedTagBinding,
     }
 
     @Override
+    public void initToolbar(androidx.appcompat.widget.Toolbar toolbar) {
+        super.initToolbar(toolbar);
+        // 同义词词典管理入口（issue #904）
+        toolbar.getMenu().add(getString(R.string.synonym_dict_title)).setOnMenuItemClickListener(item -> {
+            Intent intent = new Intent(mContext, ceui.lisa.activities.TemplateActivity.class);
+            intent.putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "同义词词典");
+            startActivity(intent);
+            return true;
+        });
+    }
+
+    @Override
     public void initRecyclerView() {
         baseBind.recyclerView.setLayoutManager(new LinearLayoutManager(mContext));
         baseBind.recyclerView.addItemDecoration(new LinearItemDecoration(DensityUtil.dp2px(16.0f)));

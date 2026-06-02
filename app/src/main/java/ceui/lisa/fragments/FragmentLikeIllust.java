@@ -47,10 +47,21 @@ public class FragmentLikeIllust extends NetListFragment<FragmentBaseListBinding,
 
     public static FragmentLikeIllust newInstance(int userID, String starType,
                                                  boolean paramShowToolbar) {
+        return newInstance(userID, starType, paramShowToolbar, null);
+    }
+
+    /**
+     * @param initialTag 初始按标签过滤（同义词词典管理页跳转用，issue #904），null/空 = 不过滤
+     */
+    public static FragmentLikeIllust newInstance(int userID, String starType,
+                                                 boolean paramShowToolbar, String initialTag) {
         Bundle args = new Bundle();
         args.putInt(Params.USER_ID, userID);
         args.putString(Params.STAR_TYPE, starType);
         args.putBoolean(Params.FLAG, paramShowToolbar);
+        if (initialTag != null && !initialTag.isEmpty()) {
+            args.putString(Params.KEY_WORD, initialTag);
+        }
         FragmentLikeIllust fragment = new FragmentLikeIllust();
         fragment.setArguments(args);
         return fragment;
@@ -86,6 +97,7 @@ public class FragmentLikeIllust extends NetListFragment<FragmentBaseListBinding,
         userID = bundle.getInt(Params.USER_ID);
         starType = bundle.getString(Params.STAR_TYPE);
         showToolbar = bundle.getBoolean(Params.FLAG);
+        tag = bundle.getString(Params.KEY_WORD, "");
     }
 
     @Override

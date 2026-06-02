@@ -304,6 +304,10 @@ class ArtworkDetailAdapter(
         fun bind(illust: IllustsBean) {
             b.tagsFlow.searchIndex = 0 // illust tab
             b.tagsFlow.setJavaTags(illust.tags.orEmpty())
+            // 同义词词典（issue #904）：匹配框 + 长按菜单的作品上下文（自动收藏闭环用）
+            b.tagsFlow.synonymWorkId = illust.id.toLong()
+            b.tagsFlow.synonymWorkType = Params.TYPE_ILLUST
+            b.synonymMatch.setWorkTags(illust.tags.orEmpty())
             // 长按菜单接「固定 tag」：写 search_table，pinned=true 时 previewIllustsJson
             // 存当前 illust（shape 对齐 PrimeTagResult）；和 FragmentIllust 行为一致。
             b.tagsFlow.onPinTag = { name, translated, newPinned ->

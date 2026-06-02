@@ -57,6 +57,7 @@ import ceui.loxia.combineLatest
 import ceui.loxia.flag.FlagDescFragment
 import ceui.loxia.threadSafeArgs
 import ceui.pixiv.ui.share.shareFirstImage
+import ceui.pixiv.ui.synonym.SynonymOperate
 import ceui.pixiv.ui.upscale.IllustAiHelper
 import ceui.pixiv.utils.buildPinnedTagPreviewJson
 import ceui.pixiv.utils.setOnClick
@@ -375,6 +376,8 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
     }
 
     private fun setupTags(illust: IllustsBean) {
+        // 同义词词典「标签匹配关系」框（issue #904）
+        baseBind.synonymMatch.setWorkTags(illust.tags)
         baseBind.illustTag.adapter = object : TagAdapter<TagsBean>(illust.tags) {
             override fun getView(parent: FlowLayout, position: Int, s: TagsBean): View {
                 val tv = LayoutInflater.from(mContext).inflate(
@@ -416,6 +419,15 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 }
                 .addAction(getString(R.string.string_120)) { dialog, index ->
                     Common.copy(mContext, tagName)
+                    dialog.dismiss()
+                }
+                .addAction(getString(R.string.synonym_add_as_synonym)) { dialog, index ->
+                    // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文；
+                    // 带上作品上下文 → 新建目标标签时自动把本作品收藏进同名收藏标签
+                    SynonymOperate.showAddAsSynonymDialog(
+                        mContext, tagName, tagBean.translated_name,
+                        illust.id.toLong(), Params.TYPE_ILLUST
+                    )
                     dialog.dismiss()
                 }
                 .create()

@@ -1652,4 +1652,46 @@
     <string name="aria2_test_failed">Connection failed: %1$s</string>
     <string name="aria2_task_sent">%1$s sent to aria2</string>
     <string name="aria2_send_failed">Failed to send to aria2: %1$s</string>
+
+    <!-- Synonym dictionary (issue #904) -->
+    <string name="synonym_dict_title">Synonym Dictionary</string>
+    <string name="synonym_add_as_synonym">Add as synonym tag</string>
+    <string name="synonym_new_target">New target tag</string>
+    <string name="synonym_new_target_hint">Bookmark tag name (no spaces)</string>
+    <string name="synonym_target_name_invalid">Target tag name cannot be empty or contain spaces</string>
+    <string name="synonym_target_exists">This target tag already exists</string>
+    <string name="synonym_added_to">Added to "%1$s"</string>
+    <string name="synonym_already_in_target">This synonym already exists under this target tag</string>
+    <string name="synonym_in_other_target_confirm">"%1$s" is already used by target tag "%2$s". Add to "%3$s" anyway?</string>
+    <string name="synonym_force_add">Add anyway</string>
+    <string name="synonym_rename">Rename</string>
+    <string name="synonym_rename_target_title">Rename target tag "%1$s"</string>
+    <string name="synonym_delete_target_confirm">Delete target tag "%1$s" and its %2$d synonyms?\nBookmark tags on Pixiv will not be affected.</string>
+    <string name="synonym_add_synonym">Add synonym tag</string>
+    <string name="synonym_synonym_name_hint">Synonym tag name (original work tag)</string>
+    <string name="synonym_synonym_name_invalid">Synonym tag name cannot be empty</string>
+    <string name="synonym_rename_synonym_title">Rename synonym "%1$s"</string>
+    <string name="synonym_delete_synonym_confirm">Delete synonym "%1$s"?</string>
+    <string name="synonym_edit_remark">Edit note</string>
+    <string name="synonym_remark_hint">Note (not used for matching, usually the translation)</string>
+    <string name="synonym_remark_to_synonym">Add note as synonym</string>
+    <string name="synonym_match_relation">Tag matching</string>
+    <string name="synonym_manage_dict">Manage dictionary</string>
+    <string name="synonym_dict_empty">Dictionary is empty. Long-press a tag on an artwork page and choose "Add as synonym tag", or use the toolbar menu to create a target tag.</string>
+    <string name="synonym_search_hint">Search target tags / synonyms / notes</string>
+    <string name="synonym_export">Export dictionary</string>
+    <string name="synonym_import">Import dictionary</string>
+    <string name="synonym_export_success">Exported %1$d target tags</string>
+    <string name="synonym_more_unmatched">%1$d more target tags not matched ›</string>
+    <string name="synonym_pick_target_by_name">Enter target tag name…</string>
+    <string name="synonym_target_not_found">Target tag \"%1$s\" not found</string>
+    <string name="synonym_search_remark">Search note</string>
+    <string name="synonym_auto_bookmarked">Bookmarked this work to \"%1$s\"</string>
+    <string name="synonym_import_success">Imported %1$d target tags and %2$d synonyms</string>
+    <string name="synonym_import_failed">Import failed: %1$s</string>
+    <string name="synonym_target_count">%1$d target tags</string>
+    <string name="synonym_synonym_count">%1$d synonyms</string>
+    <string name="synonym_delete">Delete</string>
+    <string name="synonym_jump_type_illust">Illustrations/Manga</string>
+    <string name="synonym_jump_type_novel">Novels</string>
 </resources>

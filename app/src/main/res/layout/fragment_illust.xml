@@ -384,6 +384,13 @@
 
                             </com.zhy.view.flowlayout.TagFlowLayout>
 
+                            <!-- 同义词词典「标签匹配关系」框（issue #904），词典为空时自动 GONE -->
+                            <ceui.pixiv.ui.synonym.SynonymMatchView
+                                android:id="@+id/synonym_match"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/six_dp" />
+
                             <org.sufficientlysecure.htmltextview.HtmlTextView
                                 android:id="@+id/description"
                                 android:layout_width="match_parent"

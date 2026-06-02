@@ -212,9 +212,13 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return FragmentUserManga.newInstance(intent.getIntExtra(Params.USER_ID, 0),
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),
                             intent.getStringExtra(Params.TARGET_DATE));
-                case "插画/漫画收藏":
+                case "插画/漫画收藏": {
+                    // STAR_TYPE / KEY_WORD 可选：同义词词典管理页跳转时带上（issue #904）
+                    String starType = intent.getStringExtra(Params.STAR_TYPE);
                     return FragmentLikeIllust.newInstance(intent.getIntExtra(Params.USER_ID, 0),
-                            Params.TYPE_PUBLIC, true);
+                            starType != null ? starType : Params.TYPE_PUBLIC, true,
+                            intent.getStringExtra(Params.KEY_WORD));
+                }
                 case "下载管理":
                     return new ceui.pixiv.ui.download.DownloadManagerV3Fragment();
                 case "推荐漫画":
@@ -223,9 +227,13 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return FragmentPopularNovel.newInstance(intent.getStringExtra(Params.KEY_WORD));
                 case "推荐小说":
                     return new FragmentNewNovel();
-                case "小说收藏":
+                case "小说收藏": {
+                    // STAR_TYPE / KEY_WORD 可选：同义词词典管理页跳转时带上（issue #904）
+                    String novelStarType = intent.getStringExtra(Params.STAR_TYPE);
                     return FragmentLikeNovel.newInstance(intent.getIntExtra(Params.USER_ID, 0),
-                            Params.TYPE_PUBLIC, true);
+                            novelStarType != null ? novelStarType : Params.TYPE_PUBLIC, true,
+                            intent.getStringExtra(Params.KEY_WORD));
+                }
                 case "小说作品":
                     return FragmentUserNovel.newInstance(intent.getIntExtra(Params.USER_ID, 0));
                 case "小说详情": {
@@ -403,6 +411,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new ceui.pixiv.ui.debug.NetworkTestFragment();
                 case "标签热度导出":
                     return new ceui.pixiv.ui.debug.PopularTagExportFragment();
+                case "同义词词典":
+                    // 同义词词典管理页（issue #904 按标签收藏优化）
+                    return new ceui.pixiv.ui.synonym.SynonymDictFragment();
                 case "聊天室": {
                     // peer_uid > 0 → 1v1 with that pixiv user; otherwise →
                     // conversation LIST (global + any 1v1 the user has touched
