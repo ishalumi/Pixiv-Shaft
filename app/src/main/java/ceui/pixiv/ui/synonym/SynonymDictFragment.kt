@@ -27,6 +27,7 @@ import ceui.lisa.R
 import ceui.lisa.activities.BaseActivity
 import ceui.lisa.activities.SearchActivity
 import ceui.lisa.activities.TemplateActivity
+import ceui.lisa.database.AppDatabase
 import ceui.lisa.download.IllustDownload
 import ceui.lisa.interfaces.Callback
 import ceui.lisa.utils.Common
@@ -34,6 +35,8 @@ import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.pixiv.session.SessionManager
 import com.blankj.utilcode.util.BarUtils
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,15 +72,21 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
             // EdgeToEdge host：状态栏 inset 走 runtime padding，不用 fitsSystemWindows。
             updatePadding(top = BarUtils.getStatusBarHeight())
             setNavigationOnClickListener { activity?.finish() }
-            // 菜单：新建目标标签 / 导出 / 导入
+            // 菜单：新建目标标签 / 导入内置词典 / 导出 / 导入 / 清空词典
             menu.add(getString(R.string.synonym_new_target)).setOnMenuItemClickListener {
                 SynonymOperate.showCreateTargetDialog(requireContext()); true
+            }
+            menu.add(getString(R.string.synonym_import_builtin)).setOnMenuItemClickListener {
+                confirmImportBuiltinDict(); true
             }
             menu.add(getString(R.string.synonym_export)).setOnMenuItemClickListener {
                 exportDict(); true
             }
             menu.add(getString(R.string.synonym_import)).setOnMenuItemClickListener {
                 pickImportFile(); true
+            }
+            menu.add(getString(R.string.synonym_clear_all)).setOnMenuItemClickListener {
+                confirmClearAll(); true
             }
         }
 
@@ -163,6 +172,76 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
             putExtra(Params.INDEX, if (toNovel) 1 else 0)
         }
         startActivity(intent)
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 内置词典
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * 导入内置词典（issue #904）：assets 里预生成的多语言同义词组
+     * （从 34 万作品标签统计 + LLM 分类合并产出，内容按渠道差异化）。
+     * 合并导入：不会覆盖用户已有的词典内容。
+     */
+    private fun confirmImportBuiltinDict() {
+        QMUIDialog.MessageDialogBuilder(requireContext())
+            .setTitle(getString(R.string.synonym_import_builtin))
+            .setSkinManager(QMUISkinManager.defaultInstance(requireContext()))
+            .setMessage(getString(R.string.synonym_import_builtin_confirm))
+            .addAction(getString(R.string.cancel)) { d, _ -> d.dismiss() }
+            .addAction(getString(R.string.sure)) { d, _ ->
+                d.dismiss()
+                doImportBuiltinDict()
+            }
+            .create()
+            .show()
+    }
+
+    private fun doImportBuiltinDict() {
+        // 协程外先捕获 application context —— IO 块执行期间 Fragment 可能已 detach，
+        // 届时块内 requireContext() 会抛 IllegalStateException
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val (targets, synonyms) = withContext(Dispatchers.IO) {
+                    SynonymBuiltinDict.importNow(appContext)
+                }
+                Common.showToast(getString(R.string.synonym_import_success, targets, synonyms))
+            } catch (e: Exception) {
+                Timber.e(e, "builtin synonym dict import failed")
+                Common.showToast(getString(R.string.synonym_import_failed, e.message ?: ""))
+            }
+        }
+    }
+
+    /** 清空词典（退路）：用户不想要内置词典/想重新开始时一键清空。清空后不会再自动导入。 */
+    private fun confirmClearAll() {
+        val appContext = requireContext().applicationContext
+        // 同步 COUNT（毫秒级，本库允许主线程查询）：不依赖 totalCount LiveData 的发射时序，
+        // 避免数据未加载完时弹出「清空 0 个目标标签」的误导文案
+        val targetCount = AppDatabase.getAppDatabase(appContext).synonymDao().countTargets()
+        if (targetCount == 0) {
+            Common.showToast(getString(R.string.synonym_dict_empty))
+            return
+        }
+        QMUIDialog.MessageDialogBuilder(requireContext())
+            .setTitle(getString(R.string.synonym_clear_all))
+            .setSkinManager(QMUISkinManager.defaultInstance(requireContext()))
+            .setMessage(getString(R.string.synonym_clear_all_confirm, targetCount))
+            .addAction(getString(R.string.cancel)) { d, _ -> d.dismiss() }
+            .addAction(getString(R.string.synonym_delete)) { d, _ ->
+                d.dismiss()
+                viewLifecycleOwner.lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        AppDatabase.getAppDatabase(appContext).synonymDao().clearAll()
+                        // 清空后保持「已导入」标记 —— 这是用户的主动选择，不要在下次启动时偷偷导回来
+                        SynonymBuiltinDict.markImported()
+                    }
+                    Common.showToast(getString(R.string.operate_success))
+                }
+            }
+            .create()
+            .show()
     }
 
     // ────────────────────────────────────────────────────────────────

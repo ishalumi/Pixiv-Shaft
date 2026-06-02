@@ -257,6 +257,16 @@ public class Shaft extends Application implements ServicesProvider {
             }
         }).start();
 
+        // 同义词词典内置数据自动导入（issue #904）：启动 15 秒后后台静默导入，只导一次
+        // （flag 记 MMKV 设备本地，不随 Settings 同步）。合并导入不覆盖用户已有词典。
+        // 外层先查 flag：已导入过的设备（绝大多数启动）不排定时任务、不起线程。
+        if (!ceui.pixiv.ui.synonym.SynonymBuiltinDict.isImported()) {
+            new Handler(Looper.getMainLooper()).postDelayed(() ->
+                    new Thread(() ->
+                            ceui.pixiv.ui.synonym.SynonymBuiltinDict.autoImportIfNeeded(this)
+                    ).start(), 15_000);
+        }
+
         updateTheme();
 
         ThemeHelper.applyTheme(null, sSettings.getThemeType());

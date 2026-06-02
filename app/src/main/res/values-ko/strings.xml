@@ -1600,6 +1600,10 @@
     <string name="synonym_target_not_found">대상 태그 \"%1$s\"을(를) 찾을 수 없습니다</string>
     <string name="synonym_search_remark">메모로 검색</string>
     <string name="synonym_auto_bookmarked">이 작품을 \"%1$s\"에 북마크했습니다</string>
+    <string name="synonym_import_builtin">내장 사전 가져오기</string>
+    <string name="synonym_import_builtin_confirm">내장 사전에는 인기 작품/캐릭터/테마 태그의 다국어 동의어 그룹이 포함되어 있습니다(대규모 태그 통계에서 생성). 기존 사전 내용을 덮어쓰지 않고 병합되며 언제든지 편집/삭제할 수 있습니다. 가져오시겠습니까?</string>
+    <string name="synonym_clear_all">사전 비우기</string>
+    <string name="synonym_clear_all_confirm">전체 사전(대상 태그 %1$d개와 모든 동의어)을 비우시겠습니까?\n이 작업은 취소할 수 없습니다. 내장 사전은 다시 자동으로 가져오지 않지만 메뉴에서 수동으로 가져올 수 있습니다.</string>
     <string name="synonym_import_success">대상 태그 %1$d개, 동의어 %2$d개 가져옴</string>
     <string name="synonym_import_failed">가져오기 실패: %1$s</string>
     <string name="synonym_target_count">대상 태그 %1$d개</string>

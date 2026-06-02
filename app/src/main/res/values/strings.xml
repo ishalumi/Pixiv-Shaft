@@ -2157,6 +2157,10 @@
     <string name="synonym_target_not_found">目标标签「%1$s」不存在</string>
     <string name="synonym_search_remark">搜索备注</string>
     <string name="synonym_auto_bookmarked">已将当前作品收藏到「%1$s」</string>
+    <string name="synonym_import_builtin">导入内置词典</string>
+    <string name="synonym_import_builtin_confirm">内置词典包含常见作品 / 角色 / 题材标签的多语言同义词组（从大规模作品标签统计生成）。合并导入，不影响已有词典内容，导入后可随时编辑删除。是否导入？</string>
+    <string name="synonym_clear_all">清空词典</string>
+    <string name="synonym_clear_all_confirm">确定清空整个词典（%1$d 个目标标签及其全部同义词）？\n此操作不可撤销；清空后不会再自动导入内置词典，可通过菜单手动导入。</string>
     <string name="synonym_import_success">已导入 %1$d 个目标标签、%2$d 个同义词</string>
     <string name="synonym_import_failed">导入失败：%1$s</string>
     <string name="synonym_target_count">%1$d 个目标标签</string>

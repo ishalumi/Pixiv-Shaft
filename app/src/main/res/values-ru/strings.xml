@@ -1593,6 +1593,10 @@
     <string name="synonym_target_not_found">Целевой тег «%1$s» не найден</string>
     <string name="synonym_search_remark">Искать по заметке</string>
     <string name="synonym_auto_bookmarked">Работа добавлена в закладки «%1$s»</string>
+    <string name="synonym_import_builtin">Импорт встроенного словаря</string>
+    <string name="synonym_import_builtin_confirm">Встроенный словарь содержит многоязычные группы синонимов популярных произведений, персонажей и тем (создан на основе статистики тегов). Он объединяется с вашим словарём без перезаписи, и его можно редактировать в любое время. Импортировать?</string>
+    <string name="synonym_clear_all">Очистить словарь</string>
+    <string name="synonym_clear_all_confirm">Очистить весь словарь (%1$d целевых тегов и все их синонимы)?\nЭто действие нельзя отменить. Встроенный словарь не будет импортирован автоматически снова, но его можно импортировать вручную через меню.</string>
     <string name="synonym_import_success">Импортировано целевых тегов: %1$d, синонимов: %2$d</string>
     <string name="synonym_import_failed">Ошибка импорта: %1$s</string>
     <string name="synonym_target_count">Целевых тегов: %1$d</string>

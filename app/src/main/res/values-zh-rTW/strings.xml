@@ -1703,6 +1703,10 @@
     <string name="synonym_target_not_found">目標標籤「%1$s」不存在</string>
     <string name="synonym_search_remark">搜尋備註</string>
     <string name="synonym_auto_bookmarked">已將當前作品收藏到「%1$s」</string>
+    <string name="synonym_import_builtin">匯入內建詞典</string>
+    <string name="synonym_import_builtin_confirm">內建詞典包含常見作品 / 角色 / 題材標籤的多語言同義詞組（從大規模作品標籤統計生成）。合併匯入，不影響已有詞典內容，匯入後可隨時編輯刪除。是否匯入？</string>
+    <string name="synonym_clear_all">清空詞典</string>
+    <string name="synonym_clear_all_confirm">確定清空整個詞典（%1$d 個目標標籤及其全部同義詞）？\n此操作不可撤銷；清空後不會再自動匯入內建詞典，可透過選單手動匯入。</string>
     <string name="synonym_import_success">已匯入 %1$d 個目標標籤、%2$d 個同義詞</string>
     <string name="synonym_import_failed">匯入失敗：%1$s</string>
     <string name="synonym_target_count">%1$d 個目標標籤</string>

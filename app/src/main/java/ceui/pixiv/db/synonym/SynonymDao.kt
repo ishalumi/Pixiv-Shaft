@@ -45,6 +45,10 @@ interface SynonymDao {
     @Query("SELECT * FROM synonym_target_table ORDER BY createdAt DESC LIMIT :limit")
     fun getRecentTargets(limit: Int): List<SynonymTargetEntity>
 
+    /** 目标标签总数 —— 清空词典确认框用（同步查询，COUNT 毫秒级） */
+    @Query("SELECT COUNT(*) FROM synonym_target_table")
+    fun countTargets(): Int
+
     // ---------- 目标标签 ----------
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -79,4 +83,18 @@ interface SynonymDao {
 
     @Query("DELETE FROM synonym_tag_table WHERE id = :id")
     fun deleteSynonymById(id: Long)
+
+    // ---------- 清空词典（管理页退路：用户不想要内置词典时一键清掉） ----------
+
+    @Query("DELETE FROM synonym_target_table")
+    fun deleteAllTargets()
+
+    @Query("DELETE FROM synonym_tag_table")
+    fun deleteAllSynonyms()
+
+    @Transaction
+    fun clearAll() {
+        deleteAllSynonyms()
+        deleteAllTargets()
+    }
 }

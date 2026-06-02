@@ -1687,6 +1687,10 @@
     <string name="synonym_target_not_found">Target tag \"%1$s\" not found</string>
     <string name="synonym_search_remark">Search note</string>
     <string name="synonym_auto_bookmarked">Bookmarked this work to \"%1$s\"</string>
+    <string name="synonym_import_builtin">Import built-in dictionary</string>
+    <string name="synonym_import_builtin_confirm">The built-in dictionary contains multilingual synonym groups for popular works, characters and themes (generated from large-scale tag statistics). It merges into your dictionary without overwriting existing entries, and can be edited or removed anytime. Import now?</string>
+    <string name="synonym_clear_all">Clear dictionary</string>
+    <string name="synonym_clear_all_confirm">Clear the entire dictionary (%1$d target tags and all their synonyms)?\nThis cannot be undone. The built-in dictionary will not be auto-imported again, but you can re-import it manually from the menu.</string>
     <string name="synonym_import_success">Imported %1$d target tags and %2$d synonyms</string>
     <string name="synonym_import_failed">Import failed: %1$s</string>
     <string name="synonym_target_count">%1$d target tags</string>

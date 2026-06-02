@@ -1591,6 +1591,10 @@
     <string name="synonym_target_not_found">\"%1$s\" hedef etiketi bulunamadı</string>
     <string name="synonym_search_remark">Notla ara</string>
     <string name="synonym_auto_bookmarked">Bu eser \"%1$s\" yer imine eklendi</string>
+    <string name="synonym_import_builtin">Yerleşik sözlüğü içe aktar</string>
+    <string name="synonym_import_builtin_confirm">Yerleşik sözlük, popüler eser, karakter ve tema etiketlerinin çok dilli eş anlamlı gruplarını içerir (büyük ölçekli etiket istatistiklerinden oluşturulmuştur). Mevcut sözlüğünüzün üzerine yazmadan birleştirilir ve istediğiniz zaman düzenlenebilir. İçe aktarılsın mı?</string>
+    <string name="synonym_clear_all">Sözlüğü temizle</string>
+    <string name="synonym_clear_all_confirm">Tüm sözlük (%1$d hedef etiket ve tüm eş anlamlıları) temizlensin mi?\nBu işlem geri alınamaz. Yerleşik sözlük tekrar otomatik olarak içe aktarılmaz, ancak menüden el ile içe aktarabilirsiniz.</string>
     <string name="synonym_import_success">%1$d hedef etiket ve %2$d eş anlamlı içe aktarıldı</string>
     <string name="synonym_import_failed">İçe aktarma başarısız: %1$s</string>
     <string name="synonym_target_count">%1$d hedef etiket</string>
