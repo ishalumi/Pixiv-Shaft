@@ -1588,6 +1588,7 @@
     <string name="synonym_import">Sözlüğü içe aktar</string>
     <string name="synonym_export_success">%1$d hedef etiket dışa aktarıldı</string>
     <string name="synonym_more_unmatched">%1$d hedef etiket daha eşleşmedi ›</string>
+    <string name="synonym_more_unmatched_synonyms">%1$d eş anlamlı daha eşleşmedi</string>
     <string name="synonym_pick_target_by_name">Hedef etiket adını girin…</string>
     <string name="synonym_target_not_found">\"%1$s\" hedef etiketi bulunamadı</string>
     <string name="synonym_search_remark">Notla ara</string>

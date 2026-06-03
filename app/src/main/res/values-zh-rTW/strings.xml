@@ -1700,6 +1700,7 @@
     <string name="synonym_import">匯入詞典</string>
     <string name="synonym_export_success">已匯出 %1$d 個目標標籤</string>
     <string name="synonym_more_unmatched">另有 %1$d 個目標標籤未匹配 ›</string>
+    <string name="synonym_more_unmatched_synonyms">另有 %1$d 個同義詞未命中</string>
     <string name="synonym_pick_target_by_name">手動輸入目標標籤名…</string>
     <string name="synonym_target_not_found">目標標籤「%1$s」不存在</string>
     <string name="synonym_search_remark">搜尋備註</string>

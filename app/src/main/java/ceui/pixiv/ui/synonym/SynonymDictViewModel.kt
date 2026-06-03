@@ -12,7 +12,7 @@ import java.util.concurrent.Executors
 /**
  * 同义词词典管理页 ViewModel（issue #904）。
  *
- * 数据全部在这里：词典 LiveData、搜索词、跳转目标开关；Fragment 只渲染 + 转发点击。
+ * 数据全部在这里：词典 LiveData、搜索词、展开状态、跳转目标开关；Fragment 只渲染 + 转发点击。
  *
  * 线程模型：词典/搜索词变化（主线程回调）→ 过滤+扁平化丢到 [rebuildExecutor]（导入预生成
  * 词典后可达数万条，主线程全量扫描会卡顿）→ postValue 回主线程；代次守卫丢弃过期结果。
@@ -36,12 +36,22 @@ class SynonymDictViewModel(application: Application) : AndroidViewModel(applicat
     /** 单击跳转目标：false=公开收藏，true=私人收藏 */
     val jumpToPrivate = MutableLiveData(false)
 
+    /** 已展开的目标标签 id（issue #905：默认折叠，导入内置词典后全量平铺有数万行） */
+    private val expandedTargetIds = MutableLiveData<Set<Long>>(emptySet())
+
     private val allEntries = dao.getAllWithSynonymsLive()
 
-    /** 扁平化后的树形列表（目标行 + 缩进同义词行），随词典 / 搜索词变化自动重建 */
+    /** 扁平化后的树形列表（目标行 + 缩进同义词行），随词典 / 搜索词 / 展开状态变化自动重建 */
     val displayItems = MediatorLiveData<List<DictItem>>().apply {
         addSource(allEntries) { rebuild() }
         addSource(searchQuery) { rebuild() }
+        addSource(expandedTargetIds) { rebuild() }
+    }
+
+    /** 展开 ↔ 折叠某个目标标签 */
+    fun toggleExpanded(targetId: Long) {
+        val current = expandedTargetIds.value.orEmpty()
+        expandedTargetIds.value = if (targetId in current) current - targetId else current + targetId
     }
 
     /** 总数统计（目标标签数 to 同义词数），过滤前的全量 */
@@ -60,24 +70,31 @@ class SynonymDictViewModel(application: Application) : AndroidViewModel(applicat
         // 主线程只做快照，全量过滤+扁平化丢后台
         val query = searchQuery.value?.trim().orEmpty()
         val entries = allEntries.value.orEmpty()
+        val expanded = expandedTargetIds.value.orEmpty()
         rebuildSeq++
         val seq = rebuildSeq
         rebuildExecutor.execute {
             if (seq != rebuildSeq) return@execute
             val items = ArrayList<DictItem>()
             entries.forEach { entry ->
-                val targetHit = query.isEmpty() || entry.target.name.contains(query, ignoreCase = true)
-                val hitSynonyms = if (query.isEmpty()) {
-                    entry.synonyms
-                } else {
-                    entry.synonyms.filter {
-                        it.name.contains(query, ignoreCase = true) ||
-                                it.remark?.contains(query, ignoreCase = true) == true
+                if (query.isEmpty()) {
+                    // 无搜索词：目标行默认折叠，点击展开（issue #905 —— 内置词典数千组全量平铺不可读）
+                    val isExpanded = entry.target.id in expanded
+                    items.add(DictItem.Target(entry.target, entry.synonyms.size, isExpanded))
+                    if (isExpanded) {
+                        entry.synonyms.forEach { items.add(DictItem.Synonym(it)) }
                     }
+                    return@forEach
                 }
-                // issue 搜索规则：无关结果隐藏，但保持从属关系与缩进
+
+                val targetHit = entry.target.name.contains(query, ignoreCase = true)
+                val hitSynonyms = entry.synonyms.filter {
+                    it.name.contains(query, ignoreCase = true) ||
+                            it.remark?.contains(query, ignoreCase = true) == true
+                }
+                // issue 搜索规则：无关结果隐藏，但保持从属关系与缩进；命中项自动展开（折叠会让结果不可见）
                 if (targetHit || hitSynonyms.isNotEmpty()) {
-                    items.add(DictItem.Target(entry.target, entry.synonyms.size))
+                    items.add(DictItem.Target(entry.target, entry.synonyms.size, expanded = true))
                     // 目标自身命中 → 展示其全部同义词；只有同义词命中 → 只展示命中的
                     val toShow = if (targetHit) entry.synonyms else hitSynonyms
                     toShow.forEach { items.add(DictItem.Synonym(it)) }
@@ -91,7 +108,12 @@ class SynonymDictViewModel(application: Application) : AndroidViewModel(applicat
 
     /** 树形列表的两种行 */
     sealed class DictItem {
-        data class Target(val entity: SynonymTargetEntity, val synonymCount: Int) : DictItem()
+        data class Target(
+            val entity: SynonymTargetEntity,
+            val synonymCount: Int,
+            val expanded: Boolean,
+        ) : DictItem()
+
         data class Synonym(val entity: SynonymTagEntity) : DictItem()
     }
 }

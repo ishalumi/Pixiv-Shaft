@@ -2154,6 +2154,7 @@
     <string name="synonym_import">导入词典</string>
     <string name="synonym_export_success">已导出 %1$d 个目标标签</string>
     <string name="synonym_more_unmatched">另有 %1$d 个目标标签未匹配 ›</string>
+    <string name="synonym_more_unmatched_synonyms">另有 %1$d 个同义词未命中</string>
     <string name="synonym_pick_target_by_name">手动输入目标标签名…</string>
     <string name="synonym_target_not_found">目标标签「%1$s」不存在</string>
     <string name="synonym_search_remark">搜索备注</string>

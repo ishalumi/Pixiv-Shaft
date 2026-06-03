@@ -33,8 +33,8 @@ import java.util.concurrent.Executors
  * 弹窗一律挂 [QMUISkinManager.defaultInstance] 跟随日夜皮肤。
  * DB 写入后由 Room LiveData 驱动各处 UI 自动刷新，不需要手动回调链。
  *
- * 线程模型：全表级查询（getRecentTargets）放 [dbExecutor]；单行索引查询（getTargetByName /
- * getSynonymInTarget 等，毫秒级）沿用项目 PixivOperate 的主线程同步模式。
+ * 线程模型：全表级查询（getRecentTargets）放 [dbExecutor]；单目标索引查询（getTargetByName /
+ * getSynonymsOfTarget 等，毫秒级）沿用项目 PixivOperate 的主线程同步模式。
  */
 object SynonymOperate {
 
@@ -478,6 +478,9 @@ object SynonymOperate {
      * issue 重复检测要求：
      * - 同一目标下已存在 → toast 提示
      * - 同一同义词已被其他目标标签使用 → 提示，但给出按钮允许强制添加
+     *
+     * 重复检测大小写不敏感（issue #905）：匹配引擎 lowercase 归一，"Genshin" 与 "genshin"
+     * 是同一词条；与目标标签自身同名的也视为已存在（目标标签名自身参与匹配）。
      */
     private fun addSynonymChecked(
         context: Context,
@@ -487,7 +490,10 @@ object SynonymOperate {
         onDone: (() -> Unit)?,
     ) {
         val dao = dao(context)
-        if (dao.getSynonymInTarget(target.id, name) != null) {
+        val norm = name.trim().lowercase()
+        val alreadyCovered = norm == target.name.trim().lowercase() ||
+                dao.getSynonymsOfTarget(target.id).any { it.name.trim().lowercase() == norm }
+        if (alreadyCovered) {
             Common.showToast(context.getString(R.string.synonym_already_in_target))
             return
         }

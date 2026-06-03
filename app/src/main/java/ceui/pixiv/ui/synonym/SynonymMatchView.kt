@@ -28,8 +28,9 @@ import java.util.concurrent.Executors
  * 「标签匹配关系」框（issue #904）—— 作品详情页 tags 区下方的预期收藏夹匹配展示。
  *
  * 展示规则：
- * - 匹配到的目标标签：展示其下全部同义词，命中的（accent 色）在上组、未命中的（灰色）在下组，
- *   命中组内按作品自带标签的显示顺序排列
+ * - 匹配到的目标标签：只展示命中的同义词（accent 色），按作品自带标签的显示顺序排列；
+ *   未命中的折叠成一行「另有 N 个同义词未命中」，点击原地展开成灰色 chip
+ *   （issue #905：内置词典单个目标可达 10+ 个同义词，全量渲染挤占版面）
  * - 未匹配的目标标签：折叠成一行「另有 N 个目标标签未匹配 ›」，点击跳转管理页
  *   （issue 原文要求全部显示，但导入预生成词典后目标可达数千个，全量渲染会 ANR/OOM，
  *   故未匹配项只显示计数 —— 与用户确认过的方案）
@@ -203,7 +204,7 @@ class SynonymMatchView @JvmOverloads constructor(
         addView(row)
     }
 
-    /** 匹配到的目标标签：标题 + 命中 chips（上） + 未命中 chips（下） */
+    /** 匹配到的目标标签：标题 + 命中 chips；未命中折叠成计数行，点击原地展开（issue #905） */
     private fun addMatchedTarget(result: SynonymMatcher.TargetResult) {
         val synonymCount = result.matchedSynonyms.size + result.unmatchedSynonyms.size
         // 目标标签标题行
@@ -226,10 +227,27 @@ class SynonymMatchView @JvmOverloads constructor(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { bottomMargin = 6.ppppx }
         }
-        // 命中组在上（accent），未命中组在下（灰）
         result.matchedSynonyms.forEach { item -> flow.addView(buildChip(item, matched = true)) }
-        result.unmatchedSynonyms.forEach { item -> flow.addView(buildChip(item, matched = false)) }
         addView(flow)
+
+        // 未命中的同义词不直接渲染（内置词典单目标可达 10+ 个，挤占版面），
+        // 折叠成计数行；点击在原 flow 里补出灰色 chip（保留长按编辑入口）
+        if (result.unmatchedSynonyms.isNotEmpty()) {
+            addView(TextView(context).apply {
+                text = context.getString(
+                    R.string.synonym_more_unmatched_synonyms, result.unmatchedSynonyms.size
+                )
+                textSize = 13f
+                setTextColor(ContextCompat.getColor(context, R.color.v3_text_3))
+                setPaddingRelative(0, 0, 0, 6.ppppx)
+                setOnClickListener {
+                    result.unmatchedSynonyms.forEach { item ->
+                        flow.addView(buildChip(item, matched = false))
+                    }
+                    this@SynonymMatchView.removeView(this)
+                }
+            })
+        }
     }
 
     /** 未匹配目标折叠行：「另有 N 个目标标签未匹配 ›」→ 点击进管理页 */

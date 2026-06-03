@@ -259,14 +259,18 @@ public class Shaft extends Application implements ServicesProvider {
 
         // 同义词词典内置数据自动导入（issue #904）：启动 15 秒后后台静默导入，只导一次
         // （flag 记 MMKV 设备本地，不随 Settings 同步）。合并导入不覆盖用户已有词典。
-        // 双重前置条件：功能总开关打开（默认关闭，普通用户无感知）且本设备未导入过 ——
-        // 覆盖「设备 A 打开开关 → Settings 同步到设备 B → B 下次启动自动导入」的多设备场景。
+        // 一次性去重清理（issue #905）：已导入旧版冗余词典的设备，清掉大小写重复/与目标同名的同义词。
+        // 双重前置条件：功能总开关打开（默认关闭，普通用户无感知）且本设备有待办（未导入/未清理）——
+        // 两个 flag 都已置位的设备不排任务不起线程，保持零开销。
         if (sSettings.isSynonymDictEnabled()
-                && !ceui.pixiv.ui.synonym.SynonymBuiltinDict.isImported()) {
+                && (!ceui.pixiv.ui.synonym.SynonymBuiltinDict.isImported()
+                        || !ceui.pixiv.ui.synonym.SynonymBuiltinDict.isDeduped())) {
             new Handler(Looper.getMainLooper()).postDelayed(() ->
-                    new Thread(() ->
-                            ceui.pixiv.ui.synonym.SynonymBuiltinDict.autoImportIfNeeded(this)
-                    ).start(), 15_000);
+                    new Thread(() -> {
+                        // 先导入后去重：保证旧设备「导入冗余版 → 清理」一次启动内完成
+                        ceui.pixiv.ui.synonym.SynonymBuiltinDict.autoImportIfNeeded(this);
+                        ceui.pixiv.ui.synonym.SynonymBuiltinDict.dedupeIfNeeded(this);
+                    }).start(), 15_000);
         }
 
         updateTheme();

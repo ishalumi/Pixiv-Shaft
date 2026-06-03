@@ -45,8 +45,9 @@ import timber.log.Timber
 /**
  * 同义词词典管理页（issue #904），承载于 TemplateActivity「同义词词典」。
  *
- * - 树形列表：目标标签行 + 缩进同义词行（含备注）
- * - 搜索：同时匹配目标标签 / 同义词 / 备注，命中词高亮，保持从属缩进
+ * - 树形列表：目标标签行 + 缩进同义词行（含备注），默认折叠（issue #905），
+ *   点目标行右侧「▸ N 个同义词」展开/收起
+ * - 搜索：同时匹配目标标签 / 同义词 / 备注，命中词高亮，保持从属缩进，命中项自动展开
  * - 长按：目标标签 / 同义词的增删改（走 [SynonymOperate] 共享 QMUI 弹窗）
  * - 单击跳转：目标标签 → 我的收藏（按同名标签过滤）；同义词 → 搜索页
  * - 顶部切换：插画/小说 + 公开/私人，决定目标标签的跳转目的地
@@ -378,7 +379,11 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
 
             fun bind(item: SynonymDictViewModel.DictItem.Target) {
                 nameView.text = highlight(item.entity.name)
-                countView.text = getString(R.string.synonym_synonym_count, item.synonymCount)
+                // issue #905：默认折叠。右侧「▸/▾ N 个同义词」是展开/收起的点击区域，
+                // 行主体单击仍然跳转收藏页（保持 #904 行为）
+                val chevron = if (item.expanded) "▾ " else "▸ "
+                countView.text = chevron + getString(R.string.synonym_synonym_count, item.synonymCount)
+                countView.setOnClickListener { viewModel.toggleExpanded(item.entity.id) }
                 itemView.setOnClickListener { jumpToCollection(item.entity.name) }
                 itemView.setOnLongClickListener {
                     SynonymOperate.showTargetMenu(requireContext(), item.entity, item.synonymCount)

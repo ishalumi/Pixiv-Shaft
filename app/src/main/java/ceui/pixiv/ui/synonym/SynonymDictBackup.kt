@@ -46,6 +46,10 @@ object SynonymDictBackup {
     /**
      * 合并导入：同名目标标签合并同义词、跳过已存在的同义词，不会清掉已有数据。
      *
+     * 重复检测大小写不敏感（issue #905）：匹配引擎本身 lowercase 归一，
+     * "Genshin" 与 "genshin" 是同一个词条，存两份只会撑大列表没有任何匹配收益；
+     * 同理跳过与目标标签同名的同义词（目标标签名自身已参与匹配）。
+     *
      * 整个导入包在单个事务里 —— 预生成词典可能有数千组/数万条同义词，
      * 逐条独立事务（每条 fsync）会慢 1-2 个数量级。
      *
@@ -80,10 +84,18 @@ object SynonymDictBackup {
                     targetId = id
                 }
 
+                // 该目标下已有同义词的归一名集合（一次查询），导入中新增的也加入，
+                // 同时挡住「与 DB 已有项重复」和「导入包内部自重复」两种情况
+                val seenNorms = dao.getSynonymsOfTarget(targetId)
+                    .mapTo(HashSet()) { it.name.trim().lowercase() }
+                val targetNorm = name.lowercase()
+
                 targetJson.synonyms.orEmpty().forEach synonymLoop@{ synJson ->
                     val synName = synJson.name?.trim().orEmpty()
                     if (synName.isEmpty()) return@synonymLoop
-                    if (dao.getSynonymInTarget(targetId, synName) != null) return@synonymLoop
+                    val norm = synName.lowercase()
+                    if (norm == targetNorm) return@synonymLoop
+                    if (!seenNorms.add(norm)) return@synonymLoop
                     dao.insertSynonym(
                         SynonymTagEntity(
                             targetId = targetId,

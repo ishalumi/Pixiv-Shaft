@@ -38,8 +38,9 @@ interface SynonymDao {
     @Query("SELECT * FROM synonym_tag_table WHERE name = :name")
     fun getSynonymsByName(name: String): List<SynonymTagEntity>
 
-    @Query("SELECT * FROM synonym_tag_table WHERE targetId = :targetId AND name = :name LIMIT 1")
-    fun getSynonymInTarget(targetId: Long, name: String): SynonymTagEntity?
+    /** 某目标下全部同义词 —— 导入/添加时做大小写不敏感的重复检测（issue #905） */
+    @Query("SELECT * FROM synonym_tag_table WHERE targetId = :targetId ORDER BY createdAt ASC")
+    fun getSynonymsOfTarget(targetId: Long): List<SynonymTagEntity>
 
     /** 最近创建的 N 个目标标签 ——「添加为同义词」菜单用（词典可能数千个目标，菜单只列最近的） */
     @Query("SELECT * FROM synonym_target_table ORDER BY createdAt DESC LIMIT :limit")
@@ -83,6 +84,10 @@ interface SynonymDao {
 
     @Query("DELETE FROM synonym_tag_table WHERE id = :id")
     fun deleteSynonymById(id: Long)
+
+    /** 批量删除冗余同义词 —— 一次性去重清理用（issue #905） */
+    @Query("DELETE FROM synonym_tag_table WHERE id IN (:ids)")
+    fun deleteSynonymsByIds(ids: List<Long>)
 
     // ---------- 清空词典（管理页退路：用户不想要内置词典时一键清掉） ----------
 

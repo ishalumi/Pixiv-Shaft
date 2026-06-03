@@ -1,6 +1,7 @@
 package ceui.pixiv.ui.synonym
 
 import android.content.Context
+import ceui.lisa.database.AppDatabase
 import com.google.gson.JsonSyntaxException
 import com.tencent.mmkv.MMKV
 import timber.log.Timber
@@ -27,6 +28,12 @@ object SynonymBuiltinDict {
 
     /** 设备本地标记（MMKV），不随 Settings 跨设备同步。命名遵循项目 snake_case 惯例 */
     private const val KEY_IMPORTED = "builtin_synonym_dict_imported"
+
+    /** 一次性去重清理标记（issue #905），同样记 MMKV 设备本地 */
+    private const val KEY_DEDUPED = "synonym_dict_deduped"
+
+    /** deleteSynonymsByIds 的分批大小 —— SQLite IN 子句变量数上限 999，留余量 */
+    private const val DELETE_CHUNK_SIZE = 500
 
     // 注意：依赖 Shaft.onCreate 里 MMKV.initialize() 先执行（实际上 SessionManager.initialize
     // 已在更早的位置触碰过 defaultMMKV，这里只是 lazy 兜底）。不要在 Application 初始化前调用本类。
@@ -59,6 +66,60 @@ object SynonymBuiltinDict {
         val result = SynonymDictBackup.importFromJson(context, json)
         markImported()
         return result
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 一次性去重清理（issue #905）
+    // ────────────────────────────────────────────────────────────────
+
+    /** 是否已做过去重清理。给 Shaft 启动时做外层判断，已清理的设备零开销 */
+    @JvmStatic
+    fun isDeduped(): Boolean = store.decodeBool(KEY_DEDUPED, false)
+
+    /**
+     * 已导入旧版内置词典的设备，DB 里存着匹配引擎视角下的冗余数据
+     * （大小写变体 + 与目标标签同名的同义词，约占内置词典的 32%），一次性清掉。
+     *
+     * 冗余的判定与 [ceui.pixiv.db.synonym.SynonymMatcher.normalize] 一致（trim + lowercase）：
+     * - 同义词归一名 == 目标标签归一名 → 删（目标标签名自身参与匹配）
+     * - 同一目标下归一名重复 → 留一个删其余（优先留带备注的，其次留最早创建的）
+     *
+     * 必须在后台线程调用。瞬时失败不记 flag，下次启动重试。
+     */
+    @JvmStatic
+    fun dedupeIfNeeded(context: Context) {
+        try {
+            if (isDeduped()) {
+                return
+            }
+            val dao = AppDatabase.getAppDatabase(context).synonymDao()
+            val redundantIds = ArrayList<Long>()
+            dao.getAllWithSynonyms().forEach { entry ->
+                val targetNorm = entry.target.name.trim().lowercase()
+                entry.synonyms
+                    .groupBy { it.name.trim().lowercase() }
+                    .forEach { (norm, group) ->
+                        if (norm == targetNorm) {
+                            group.mapTo(redundantIds) { it.id }
+                        } else if (group.size > 1) {
+                            // 优先留带备注的（备注可能是用户手动编辑的），其次留最早创建的
+                            val keep = group.sortedWith(
+                                compareBy({ it.remark.isNullOrBlank() }, { it.id })
+                            ).first()
+                            group.filter { it.id != keep.id }.mapTo(redundantIds) { it.id }
+                        }
+                    }
+            }
+            redundantIds.chunked(DELETE_CHUNK_SIZE).forEach { chunk ->
+                dao.deleteSynonymsByIds(chunk)
+            }
+            store.encode(KEY_DEDUPED, true)
+            if (redundantIds.isNotEmpty()) {
+                Timber.d("Synonym dict deduped: removed %d redundant synonyms", redundantIds.size)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Synonym dict dedupe failed, will retry next launch")
+        }
     }
 
     /** 启动自动导入（只导一次，全程静默）。必须在后台线程调用。 */

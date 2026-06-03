@@ -1590,6 +1590,7 @@
     <string name="synonym_import">Импорт словаря</string>
     <string name="synonym_export_success">Экспортировано целевых тегов: %1$d</string>
     <string name="synonym_more_unmatched">Ещё %1$d целевых тегов без совпадений ›</string>
+    <string name="synonym_more_unmatched_synonyms">Ещё %1$d синонимов без совпадений</string>
     <string name="synonym_pick_target_by_name">Ввести имя целевого тега…</string>
     <string name="synonym_target_not_found">Целевой тег «%1$s» не найден</string>
     <string name="synonym_search_remark">Искать по заметке</string>

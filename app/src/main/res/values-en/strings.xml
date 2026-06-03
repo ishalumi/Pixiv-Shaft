@@ -1684,6 +1684,7 @@
     <string name="synonym_import">Import dictionary</string>
     <string name="synonym_export_success">Exported %1$d target tags</string>
     <string name="synonym_more_unmatched">%1$d more target tags not matched ›</string>
+    <string name="synonym_more_unmatched_synonyms">%1$d more synonyms not matched</string>
     <string name="synonym_pick_target_by_name">Enter target tag name…</string>
     <string name="synonym_target_not_found">Target tag \"%1$s\" not found</string>
     <string name="synonym_search_remark">Search note</string>
