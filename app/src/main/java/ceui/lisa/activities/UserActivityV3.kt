@@ -41,6 +41,7 @@ import ceui.pixiv.utils.setOnClick
 import com.bumptech.glide.Glide
 import com.google.android.material.tabs.TabLayoutMediator
 import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.scwang.smart.refresh.header.MaterialHeader
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog.MenuDialogBuilder
 import com.zhy.view.flowlayout.FlowLayout
 import com.zhy.view.flowlayout.TagAdapter
@@ -145,6 +146,45 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         })
 
         setupViewPager()
+        setupRefresh()
+    }
+
+    /**
+     * 手动下拉刷新:只重新请求用户详情 API 本身(头像/banner/名字/统计/导航标签等)。
+     * 关注详情、Web 补充信息、插画/漫画作品 tab 一律不动。
+     */
+    private fun setupRefresh() {
+        baseBind.refreshLayout.setRefreshHeader(MaterialHeader(this).apply {
+            setColorSchemeColors(palette.textAccent)
+        })
+        // 转圈圈从 toolbar 之下开始,不顶着透明状态栏
+        baseBind.toolbar.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            baseBind.refreshLayout.setHeaderInsetStartPx(v.height)
+        }
+        // CoordinatorLayout 套下拉刷新的官方解法:只在 AppBar 完全展开时 enable,
+        // 否则 SmartRefreshLayout 会拦截掉 AppBar 的展开手势。
+        baseBind.appBar.addOnOffsetChangedListener { _, verticalOffset ->
+            baseBind.refreshLayout.setEnableRefresh(verticalOffset >= 0)
+        }
+        baseBind.refreshLayout.setOnRefreshListener { refreshUserDetail() }
+    }
+
+    private fun refreshUserDetail() {
+        Retro.getAppApi().getUserDetail(userId)
+            .subscribeOn(Schedulers.newThread())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(object : NullCtrl<UserDetailResponse>() {
+                override fun success(userResponse: UserDetailResponse) {
+                    // UserBean 池更新 → updateFollowState 重绑关注按钮;
+                    // user LiveData 更新 → displayUser 重绑 header UI(幂等)。
+                    ObjectPool.updateUser(userResponse.user)
+                    mUserViewModel.user.value = userResponse
+                }
+
+                override fun must() {
+                    baseBind.refreshLayout.finishRefresh()
+                }
+            })
     }
 
     override fun initData() {
