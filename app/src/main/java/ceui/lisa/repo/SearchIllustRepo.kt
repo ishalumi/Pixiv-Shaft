@@ -13,6 +13,7 @@ import ceui.lisa.viewmodel.SearchModel
 import ceui.pixiv.ui.prime.PrimeIllustLoader
 import ceui.pixiv.ui.search.SortType
 import ceui.pixiv.ui.search.v3.DurationBucket
+import ceui.pixiv.ui.search.v3.SearchTarget
 import io.reactivex.Observable
 import io.reactivex.functions.Function
 import java.time.LocalDate
@@ -86,12 +87,16 @@ class SearchIllustRepo @JvmOverloads constructor(
         // bucket 为空时回落到自定义起止日期
         val (effectiveStartDate, effectiveEndDate) = resolveDateRange()
 
+        // 默认档「标签部分一致」不传 search_target，让标题命中也能搜到（#906）——
+        // 见 [SearchTarget.toQueryValue] 注释。
+        val effectiveSearchTarget = SearchTarget.toQueryValue(searchType)
+
         return if (usePopularPreview) {
             Retro.getAppApi().popularPreview(
                 assembledKeyword,
                 effectiveStartDate,
                 effectiveEndDate,
-                searchType,
+                effectiveSearchTarget,
                 bookmarkMin,
                 tool,
                 lang,
@@ -109,7 +114,7 @@ class SearchIllustRepo @JvmOverloads constructor(
                 sortType,
                 effectiveStartDate,
                 effectiveEndDate,
-                searchType,
+                effectiveSearchTarget,
                 bookmarkMin,
                 tool,
                 lang,
@@ -155,7 +160,8 @@ class SearchIllustRepo @JvmOverloads constructor(
         }
         val (effectiveStartDate, effectiveEndDate) = resolveDateRange()
         return Retro.getAppApi().popularPreview(
-            keyword ?: "", effectiveStartDate, effectiveEndDate, searchType,
+            keyword ?: "", effectiveStartDate, effectiveEndDate,
+            SearchTarget.toQueryValue(searchType),
             bookmarkMin, tool, lang, searchAiType, ratioPattern, contentType,
             widthMin, widthMax, heightMin, heightMax,
         )

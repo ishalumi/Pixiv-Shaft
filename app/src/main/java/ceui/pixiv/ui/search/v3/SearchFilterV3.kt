@@ -122,6 +122,19 @@ enum class SearchTarget(val apiValue: String) {
 
         fun forNovel(): List<SearchTarget> =
             listOf(PartialMatchForTags, ExactMatchForTags, NovelText, NovelKeyword)
+
+        /**
+         * 实际发给 pixiv 的 search_target query 值：默认档「标签部分一致」返回 null（整个参数不传）。
+         *
+         * 显式传 partial_match_for_tags 时 pixiv 做严格 tag 匹配，并忽略 merge_plain_keyword_results
+         * ——关键字只出现在标题里的作品（如 #906「淫神空间」系列小说，tag 里没这个词）就搜不到。
+         * 不传时服务端把 tag 命中与标题/关键词命中合并返回（PixEz 默认即此行为）；纯 tag 搜索的
+         * 结果集不受影响（实测 玄幻/百合/初音ミク 首页 ID 集合一致），只会多出标题命中。
+         * 其余档位（标签完全一致/正文/关键词/标题简介）是用户显式选择，原样传。
+         */
+        @JvmStatic
+        fun toQueryValue(apiValue: String?): String? =
+            apiValue?.takeUnless { it == PartialMatchForTags.apiValue }
     }
 }
 

@@ -5,6 +5,7 @@ import ceui.loxia.Novel
 import ceui.loxia.NovelResponse
 import ceui.pixiv.ui.common.DataSource
 import ceui.pixiv.ui.common.NovelCardHolder
+import ceui.pixiv.ui.search.v3.SearchTarget
 
 class SearchNovelDataSource(
     private val provider: () -> SearchConfig
@@ -16,7 +17,8 @@ class SearchNovelDataSource(
             Client.appApi.popularPreviewNovel(
                 word = config.keyword,
                 sort = config.sort,
-                search_target = config.search_target,
+                // 默认档不传 search_target，让标题命中也能搜到（#906）
+                search_target = SearchTarget.toQueryValue(config.search_target),
                 merge_plain_keyword_results = config.merge_plain_keyword_results,
                 include_translated_tag_results = config.include_translated_tag_results,
                 search_ai_type = config.searchAiType,
@@ -38,7 +40,7 @@ class SearchNovelDataSource(
             Client.appApi.searchNovel(
                 word = config.keyword,
                 sort = config.sort,
-                search_target = config.search_target,
+                search_target = SearchTarget.toQueryValue(config.search_target),
                 merge_plain_keyword_results = config.merge_plain_keyword_results,
                 include_translated_tag_results = config.include_translated_tag_results,
                 search_ai_type = config.searchAiType,

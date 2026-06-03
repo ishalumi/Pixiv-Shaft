@@ -6,6 +6,7 @@ import ceui.loxia.IllustResponse
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.DataSource
 import ceui.pixiv.ui.common.IllustCardHolder
+import ceui.pixiv.ui.search.v3.SearchTarget
 
 class SearchIllustMangaDataSource(
     private val provider: () -> SearchConfig
@@ -19,7 +20,8 @@ class SearchIllustMangaDataSource(
             Client.appApi.popularPreview(
                 word = config.keyword,
                 sort = config.sort,
-                search_target = config.search_target,
+                // 默认档不传 search_target，让标题命中也能搜到（#906）
+                search_target = SearchTarget.toQueryValue(config.search_target),
                 merge_plain_keyword_results = config.merge_plain_keyword_results,
                 include_translated_tag_results = config.include_translated_tag_results,
                 search_ai_type = config.searchAiType,
@@ -39,7 +41,7 @@ class SearchIllustMangaDataSource(
             Client.appApi.searchIllustManga(
                 word = config.keyword,
                 sort = config.sort,
-                search_target = config.search_target,
+                search_target = SearchTarget.toQueryValue(config.search_target),
                 merge_plain_keyword_results = config.merge_plain_keyword_results,
                 include_translated_tag_results = config.include_translated_tag_results,
                 search_ai_type = config.searchAiType,
