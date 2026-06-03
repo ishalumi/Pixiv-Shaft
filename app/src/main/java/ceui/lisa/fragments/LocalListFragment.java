@@ -30,8 +30,8 @@ public abstract class LocalListFragment<Layout extends ViewDataBinding, Item>
             emptyRela.setVisibility(View.INVISIBLE);
             mAdapter.notifyItemRangeInserted(getStartSize(), firstList.size());
         } else {
-            mRecyclerView.setVisibility(View.INVISIBLE);
-            emptyRela.setVisibility(View.VISIBLE);
+            //确实没有数据：用 showEmptyState() 重置上一次失败可能残留的错误文案
+            showEmptyState();
         }
         mRefreshLayout.finishRefresh(true);
     }

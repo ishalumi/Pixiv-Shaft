@@ -29,6 +29,7 @@ import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Local;
 import ceui.lisa.utils.Params;
+import ceui.loxia.RefreshStateKt;
 
 import ceui.pixiv.session.SessionManager;
 
@@ -83,6 +84,16 @@ public class FragmentLocalUsers extends BaseFragment<FragmentLocalUserBinding> {
                         bindData(userModels.get(i));
                     }
                 }
+            }
+
+            @Override
+            public void error(Throwable e) {
+                //本地账号读取/解析失败要让用户知道，不能静默显示空账号列表
+                //（NullCtrl 默认只处理 HttpException，非 HTTP 错误会被吞掉）
+                if (!isAdded()) {
+                    return;
+                }
+                Common.showToast(RefreshStateKt.getHumanReadableMessage(e, mContext));
             }
         });
     }
