@@ -422,6 +422,7 @@
   <string name="string_241">расплывчатые миниатюры последних задач</string>  
   <string name="string_242">Настройка номенклатуры (длинная кнопка перетаскивания)</string>  
   <string name="string_243">Здесь ничего нет.</string>  
+  <string name="list_load_failed_tap_retry">Не удалось загрузить. Нажмите, чтобы повторить.</string>
   <string name="string_244">сортировка по меткам</string>  
   <string name="string_245">коллекция в 精华</string>  
   <string name="string_246">иллюстрация</string>

@@ -51,6 +51,7 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
     protected RefreshLayout mRefreshLayout;
     protected ImageView noData;
     protected RelativeLayout emptyRela;
+    protected TextView noDataText, noDataErrorDetail;
     protected BaseAdapter<?, ? extends ViewDataBinding> mAdapter;
     protected List<Item> allItems = null;
     protected BaseModel<Item> mModel;
@@ -100,6 +101,8 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
         mRefreshLayout.setHeaderMaxDragRate(1.5f); // 最大下拉位置
         noData = rootView.findViewById(R.id.no_data);
         emptyRela = rootView.findViewById(R.id.no_data_rela);
+        noDataText = rootView.findViewById(R.id.no_data_text);
+        noDataErrorDetail = rootView.findViewById(R.id.no_data_error_detail);
         emptyRela.setOnClickListener(v -> {
             emptyRela.setVisibility(View.INVISIBLE);
             mRefreshLayout.autoRefresh();
@@ -337,11 +340,39 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
         return allItems == null ? 0 : allItems.size();
     }
 
-    protected void showError(Exception e) {
+    /**
+     * 请求失败时把错误暴露给用户，而不是吞掉：
+     * 列表为空 → 错误信息直接显示在页面中央（替代"这里什么都没有呢"），点击空状态区域可重试；
+     * 列表已有内容 → Toast 提示，不遮挡已有内容。
+     */
+    protected void showError(Throwable e) {
         String message = RefreshStateKt.getHumanReadableMessage(e, mContext);
-        Common.showToast(message);
-        if (allItems == null || allItems.isEmpty()) {
+        if (getCount() == 0) {
+            if (noDataText != null) {
+                noDataText.setText(R.string.list_load_failed_tap_retry);
+            }
+            if (noDataErrorDetail != null) {
+                noDataErrorDetail.setText(message);
+                noDataErrorDetail.setVisibility(View.VISIBLE);
+            }
+            mRecyclerView.setVisibility(View.INVISIBLE);
             emptyRela.setVisibility(View.VISIBLE);
+        } else {
+            Common.showToast(message);
         }
+    }
+
+    /**
+     * 请求成功但确实没有数据：显示"这里什么都没有呢"，并清掉上一次可能残留的错误信息
+     */
+    protected void showEmptyState() {
+        if (noDataText != null) {
+            noDataText.setText(R.string.string_243);
+        }
+        if (noDataErrorDetail != null) {
+            noDataErrorDetail.setVisibility(View.GONE);
+        }
+        mRecyclerView.setVisibility(View.INVISIBLE);
+        emptyRela.setVisibility(View.VISIBLE);
     }
 }

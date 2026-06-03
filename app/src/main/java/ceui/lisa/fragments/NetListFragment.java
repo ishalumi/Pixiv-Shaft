@@ -185,8 +185,7 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                         Common.showLog("trace 777 " + mAdapter.getItemCount() + " allItems.size():" + allItems.size() + " modelSize:" + mModel.getContent().size());
                     } else {
                         Common.showLog("trace 333");
-                        mRecyclerView.setVisibility(View.INVISIBLE);
-                        emptyRela.setVisibility(View.VISIBLE);
+                        showEmptyState();
                     }
                     Common.showLog("trace 444");
                     mRemoteRepo.setNextUrl(mResponse.getNextUrl());
@@ -210,10 +209,16 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                 }
 
                 @Override
-                public void onError(Throwable e) {
-                    super.onError(e);
-                    mRecyclerView.setVisibility(View.INVISIBLE);
-                    emptyRela.setVisibility(View.VISIBLE);
+                public void error(Throwable e) {
+                    //不调 super.error()：ErrorCtrl 只处理 HttpException，断网/超时/DNS 失败等
+                    //IOException 会被静默吞掉；且 errorBody 只能读一次，留给 getHumanReadableMessage 解析
+                    Timber.e(e, "NetListFragment fresh failed");
+                    must(false);
+                    if (!isAdded()) {
+                        return;
+                    }
+                    //把错误暴露在页面中央，而不是误导性的"这里什么都没有呢"
+                    showError(e);
                 }
             }
             );
@@ -276,6 +281,17 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                     if (isSuccess) {
                         autoLoadIfAllBlocked();
                     }
+                }
+
+                @Override
+                public void error(Throwable e) {
+                    //同 fresh()：不走 ErrorCtrl，把错误暴露给用户（列表已有内容时 Toast，为空时显示在页面中央）
+                    Timber.e(e, "NetListFragment loadMore failed");
+                    must(false);
+                    if (!isAdded()) {
+                        return;
+                    }
+                    showError(e);
                 }
             });
         } else {
