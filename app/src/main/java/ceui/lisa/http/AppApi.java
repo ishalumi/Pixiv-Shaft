@@ -117,8 +117,9 @@ public interface AppApi {
                                         @Query("search_target") String search_target);
 
     /** V3 filter ext —— bookmark_num_min/max + tool + lang + duration + search_ai_type + ratio_pattern + 分辨率档位 4 项，nullable 自动跳过。
-     *  与 [ceui.loxia.API.searchIllustManga] 对齐：默认 include_potential_violation_works=false（iOS 默认）。 */
-    @GET("v1/search/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+     *  不传 include_potential_violation_works——传 false 会让 pixiv 隐藏被自动标记为「疑似违规」的作品，
+     *  部分关键字会因此搜不到任何结果（#906）；不传 = 服务端默认包含，与 4.6.6 之前行为一致。 */
+    @GET("v1/search/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
     Observable<ListIllust> searchIllust(@Query("word") String word,
                                         @Query("sort") String sort,
                                         @Query("start_date") String startDate,
@@ -147,7 +148,7 @@ public interface AppApi {
 
     /** V3 filter ext for novel —— 多了 genre / is_original_only / is_replaceable_only 而非 tool。
      *  正文长度 3 单位（text_length_* / word_count_* / reading_time_*）iOS 8.6.6 抓包确认。 */
-    @GET("v1/search/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    @GET("v1/search/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
     Observable<ListNovel> searchNovel(@Query("word") String word,
                                       @Query("sort") String sort,
                                       @Query("start_date") String startDate,
@@ -341,7 +342,7 @@ public interface AppApi {
                                           @Query("search_target") String search_target);
 
     /** V3 filter ext for popular illust preview。 */
-    @GET("v1/search/popular-preview/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    @GET("v1/search/popular-preview/illust?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
     Observable<ListIllust> popularPreview(@Query("word") String word,
                                           @Query("start_date") String startDate,
                                           @Query("end_date") String endDate,
@@ -365,7 +366,7 @@ public interface AppApi {
 
     /** V3 filter ext for popular novel preview。
      *  正文长度 3 单位（text_length_* / word_count_* / reading_time_*）iOS 8.6.6 抓包确认。 */
-    @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true&include_potential_violation_works=false")
+    @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
     Observable<ListNovel> popularNovelPreview(@Query("word") String word,
                                           @Query("start_date") String startDate,
                                           @Query("end_date") String endDate,

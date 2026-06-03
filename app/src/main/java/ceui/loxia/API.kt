@@ -176,8 +176,9 @@ interface API {
 
     // 对齐 pixiv iOS app 8.6.5 实际调用——
     //   - 不再带 ?filter=for_ios（app-os: ios header 已经表态；image_urls 实测一致）
-    //   - 默认 include_potential_violation_works=false（iOS 默认行为：屏蔽潜在违规作品）
-    @GET("/v1/search/popular-preview/illust?include_potential_violation_works=false")
+    //   - 不传 include_potential_violation_works（iOS 默认 false 会让 pixiv 隐藏被自动标记为
+    //     「疑似违规」的作品，部分关键字会因此搜不到任何结果——#906；不传 = 服务端默认包含）
+    @GET("/v1/search/popular-preview/illust")
     suspend fun popularPreview(
         @Query("word") word: String,
         @Query("sort") sort: String,
@@ -198,7 +199,7 @@ interface API {
         @Query("height_max") height_max: Int? = null,
     ): IllustResponse
 
-    @GET("/v1/search/popular-preview/novel?include_potential_violation_works=false")
+    @GET("/v1/search/popular-preview/novel")
     suspend fun popularPreviewNovel(
         @Query("word") word: String,
         @Query("sort") sort: String,
@@ -227,7 +228,7 @@ interface API {
         @Query("category") category: String,
     ): ArticlesResponse
 
-    @GET("/v1/search/illust?include_potential_violation_works=false")
+    @GET("/v1/search/illust")
     suspend fun searchIllustManga(
         @Query("word") word: String,
         @Query("sort") sort: String,
@@ -248,7 +249,7 @@ interface API {
         @Query("height_max") height_max: Int? = null,
     ): IllustResponse
 
-    @GET("/v1/search/novel?include_potential_violation_works=false")
+    @GET("/v1/search/novel")
     suspend fun searchNovel(
         @Query("word") word: String,
         @Query("sort") sort: String,
