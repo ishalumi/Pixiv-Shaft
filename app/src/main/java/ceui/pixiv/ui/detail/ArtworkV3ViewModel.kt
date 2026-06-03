@@ -66,6 +66,10 @@ class ArtworkV3ViewModel(
     private val _isBookmarked = MutableLiveData<Boolean>()
     val isBookmarked: LiveData<Boolean> = _isBookmarked
 
+    // ── 手动下拉刷新(只刷 illust 详情本身) ──
+    private val _isRefreshingDetail = MutableLiveData(false)
+    val isRefreshingDetail: LiveData<Boolean> = _isRefreshingDetail
+
     var relatedNextUrl: String? = null
         private set
     private val _isLoadingRelated = MutableLiveData(false)
@@ -348,6 +352,35 @@ class ArtworkV3ViewModel(
                 }
             } catch (e: Exception) {
                 Timber.tag("V3MultiP").e(e, "[ViewModel.loadData] EXCEPTION")
+            }
+        }
+    }
+
+    /**
+     * 手动下拉刷新:只重新请求 v1/illust/detail 并发布到 ObjectPool,
+     * illustBeanObserver 收到新数据后自动重建 header(标题/标签/收藏数等)。
+     * 评论 / 作者其他作品 / 相关作品等懒加载区块一律不动。
+     */
+    fun refreshIllustDetail() {
+        if (_isRefreshingDetail.value == true) return
+        _isRefreshingDetail.value = true
+        viewModelScope.launch {
+            try {
+                val fresh = withContext(Dispatchers.IO) {
+                    ceui.lisa.http.Retro.getAppApi().getIllustByID(illustId).awaitFirst().illust
+                }
+                // 作品被删除/设为非公开时服务端返回空壳对象,不要让它覆盖页面上已有的完整数据
+                if (fresh != null && fresh.id != 0 && fresh.isVisible) {
+                    // 详情接口返回的是完整版本,整体覆盖(isFullVersion)而非 merge,
+                    // 这样标签删除、简介清空等"变少"的修改也能反映出来
+                    ObjectPool.update(fresh, isFullVersion = true)
+                    // 内嵌 user 是精简版,走默认 merge,不降级池里更完整的 UserBean
+                    fresh.user?.let { ObjectPool.update(it) }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "[refreshIllustDetail] failed, illustId=$illustId")
+            } finally {
+                _isRefreshingDetail.value = false
             }
         }
     }

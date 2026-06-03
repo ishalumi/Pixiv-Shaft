@@ -7,11 +7,20 @@
         android:layout_height="match_parent"
         android:background="@color/v3_bg">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_view"
+        <!-- 手动下拉刷新:只重新拉取 illust 详情本身,懒加载区块(评论/作者其他作品/相关作品)不动。
+             加载更多由 RecyclerView 的滚动监听负责,这里关掉 SmartRefreshLayout 自带的 footer 手势。 -->
+        <com.scwang.smart.refresh.layout.SmartRefreshLayout
+            android:id="@+id/refresh_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:overScrollMode="never" />
+            app:srlEnableLoadMore="false">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:overScrollMode="never" />
+        </com.scwang.smart.refresh.layout.SmartRefreshLayout>
 
         <LinearLayout
             android:id="@+id/top_overlay_column"

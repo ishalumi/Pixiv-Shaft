@@ -44,6 +44,7 @@ import ceui.pixiv.ui.task.renderImageLoadStatusBanner
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.scwang.smart.refresh.header.MaterialHeader
 import timber.log.Timber
 
 class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
@@ -157,6 +158,18 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 if (dy > 8) hideFabBar() else if (dy < -8) showFabBar()
             }
         })
+
+        // 手动下拉刷新:只重新拉取 illust 详情本身(标题/标签/收藏数等),
+        // 评论、作者其他作品、相关作品等区块不动。Header 跟随 V3 主题色。
+        baseBind.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()).apply {
+            setColorSchemeColors(headerAdapter.palette.textAccent)
+        })
+        baseBind.refreshLayout.setOnRefreshListener { viewModel.refreshIllustDetail() }
+        viewModel.isRefreshingDetail.observe(viewLifecycleOwner) { refreshing ->
+            if (refreshing == false) {
+                baseBind.refreshLayout.finishRefresh()
+            }
+        }
 
         setupNavBar(illustId)
         handleSystemInsets()
@@ -426,6 +439,9 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 lp.topMargin = target
                 pill.layoutParams = lp
             }
+            // 下拉刷新的转圈圈也从 toolbar(+重试横幅)之下开始,
+            // 不顶着透明状态栏/toolbar 区域。
+            baseBind.refreshLayout.setHeaderInsetStartPx(bottom)
         }
     }
 
