@@ -10,6 +10,14 @@ import okhttp3.Response
 
 class HeaderInterceptor : Interceptor {
 
+    companion object {
+        // 对齐 Pixiv iOS 官方客户端抓包（8.6.10 / iOS 26.5 / iPhone16,2），改版本号只改这里
+        const val APP_VERSION = "8.6.10"
+        const val APP_OS_VERSION = "26.5"
+        const val DEVICE_MODEL = "iPhone16,2"
+        const val USER_AGENT = "PixivIOSApp/$APP_VERSION (iOS $APP_OS_VERSION; $DEVICE_MODEL)"
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         return chain.proceed(
             addHeader(
@@ -25,11 +33,13 @@ class HeaderInterceptor : Interceptor {
             before.addHeader(ClientManager.HEADER_AUTH, SessionManager.getBearerToken())
         }
         before.addHeader("accept-language", LanguageHelper.getRequestHeaderAcceptLanguageFromAppLanguage())
+            .addHeader("app-accept-language", LanguageHelper.getRequestHeaderAppAcceptLanguageFromAppLanguage())
             .addHeader("app-os", "ios")
-            .addHeader("app-version", "7.13.4")
+            .addHeader("app-os-version", APP_OS_VERSION)
+            .addHeader("app-version", APP_VERSION)
             .addHeader("x-client-time", requestNonce.xClientTime)
             .addHeader("x-client-hash", requestNonce.xClientHash)
-        before.addHeader("user-agent", "PixivIOSApp/7.13.4 (iOS 16.0.3; iPhone13,3)")
+        before.addHeader("user-agent", USER_AGENT)
         return before
     }
 }

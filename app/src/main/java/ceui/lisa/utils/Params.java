@@ -1,5 +1,7 @@
 package ceui.lisa.utils;
 
+import ceui.loxia.HeaderInterceptor;
+
 public class Params {
 
     public static final String ID            = "simple id";
@@ -72,7 +74,8 @@ public class Params {
     public static final String MAP_KEY_SMALL = "referer";
     public static final String IMAGE_REFERER = "https://app-api.pixiv.net/";
     public static final String USER_AGENT = "User-Agent";
-    public static final String PHONE_MODEL = "PixivIOSApp/5.8.0";
+    // 图片 CDN (i.pximg.net) 请求 UA，跟 API 请求保持同一套 iOS 客户端身份
+    public static final String PHONE_MODEL = HeaderInterceptor.USER_AGENT;
     public static final String HOST = "Host";
     public static final String CLOUD_DNS = "cloud dns";
     public static final String HOST_NAME = "i.pximg.net";
