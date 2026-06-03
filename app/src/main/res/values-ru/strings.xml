@@ -1591,6 +1591,11 @@
     <string name="synonym_export_success">Экспортировано целевых тегов: %1$d</string>
     <string name="synonym_more_unmatched">Ещё %1$d целевых тегов без совпадений ›</string>
     <string name="synonym_more_unmatched_synonyms">Ещё %1$d синонимов без совпадений</string>
+    <string name="synonym_move_to_target">Переместить в другой целевой тег</string>
+    <string name="synonym_moved_to">Перемещено в «%1$s»</string>
+    <string name="synonym_merge">Объединить</string>
+    <string name="synonym_merge_confirm">Целевой тег «%1$s» уже существует. При объединении все синонимы «%2$s» перейдут в «%1$s», а сам «%2$s» станет его синонимом.</string>
+    <string name="synonym_merged_into">«%1$s» объединён с «%2$s»</string>
     <string name="synonym_pick_target_by_name">Ввести имя целевого тега…</string>
     <string name="synonym_target_not_found">Целевой тег «%1$s» не найден</string>
     <string name="synonym_search_remark">Искать по заметке</string>

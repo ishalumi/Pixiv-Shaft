@@ -82,6 +82,10 @@ interface SynonymDao {
     @Query("UPDATE synonym_tag_table SET remark = :remark WHERE id = :id")
     fun updateSynonymRemark(id: Long, remark: String?)
 
+    /** 移动同义词到另一个目标标签（issue #905：同义词移动 / 目标标签合并共用） */
+    @Query("UPDATE synonym_tag_table SET targetId = :newTargetId WHERE id = :id")
+    fun moveSynonymToTarget(id: Long, newTargetId: Long)
+
     @Query("DELETE FROM synonym_tag_table WHERE id = :id")
     fun deleteSynonymById(id: Long)
 

@@ -1598,6 +1598,11 @@
     <string name="synonym_export_success">대상 태그 %1$d개 내보냄</string>
     <string name="synonym_more_unmatched">그 외 %1$d개의 대상 태그 매칭 없음 ›</string>
     <string name="synonym_more_unmatched_synonyms">그 외 %1$d개의 동의어 매칭 없음</string>
+    <string name="synonym_move_to_target">다른 대상 태그로 이동</string>
+    <string name="synonym_moved_to">"%1$s"(으)로 이동됨</string>
+    <string name="synonym_merge">병합</string>
+    <string name="synonym_merge_confirm">대상 태그 "%1$s"이(가) 이미 존재합니다. 병합하면 "%2$s"의 모든 동의어가 "%1$s"(으)로 이동하고, "%2$s" 자체도 동의어가 됩니다.</string>
+    <string name="synonym_merged_into">"%1$s"을(를) "%2$s"에 병합함</string>
     <string name="synonym_pick_target_by_name">대상 태그 이름 입력…</string>
     <string name="synonym_target_not_found">대상 태그 \"%1$s\"을(를) 찾을 수 없습니다</string>
     <string name="synonym_search_remark">메모로 검색</string>

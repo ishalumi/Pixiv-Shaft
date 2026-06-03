@@ -1685,6 +1685,11 @@
     <string name="synonym_export_success">Exported %1$d target tags</string>
     <string name="synonym_more_unmatched">%1$d more target tags not matched ›</string>
     <string name="synonym_more_unmatched_synonyms">%1$d more synonyms not matched</string>
+    <string name="synonym_move_to_target">Move to another target tag</string>
+    <string name="synonym_moved_to">Moved to "%1$s"</string>
+    <string name="synonym_merge">Merge</string>
+    <string name="synonym_merge_confirm">Target tag "%1$s" already exists. Merging moves all synonyms of "%2$s" into "%1$s", and "%2$s" itself becomes one of its synonyms.</string>
+    <string name="synonym_merged_into">Merged "%1$s" into "%2$s"</string>
     <string name="synonym_pick_target_by_name">Enter target tag name…</string>
     <string name="synonym_target_not_found">Target tag \"%1$s\" not found</string>
     <string name="synonym_search_remark">Search note</string>

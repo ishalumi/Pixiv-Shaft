@@ -1589,6 +1589,11 @@
     <string name="synonym_export_success">%1$d hedef etiket dışa aktarıldı</string>
     <string name="synonym_more_unmatched">%1$d hedef etiket daha eşleşmedi ›</string>
     <string name="synonym_more_unmatched_synonyms">%1$d eş anlamlı daha eşleşmedi</string>
+    <string name="synonym_move_to_target">Başka bir hedef etikete taşı</string>
+    <string name="synonym_moved_to">"%1$s" hedefine taşındı</string>
+    <string name="synonym_merge">Birleştir</string>
+    <string name="synonym_merge_confirm">"%1$s" hedef etiketi zaten mevcut. Birleştirme, "%2$s" etiketinin tüm eş anlamlılarını "%1$s" hedefine taşır ve "%2$s" de onun eş anlamlısı olur.</string>
+    <string name="synonym_merged_into">"%1$s", "%2$s" ile birleştirildi</string>
     <string name="synonym_pick_target_by_name">Hedef etiket adını girin…</string>
     <string name="synonym_target_not_found">\"%1$s\" hedef etiketi bulunamadı</string>
     <string name="synonym_search_remark">Notla ara</string>

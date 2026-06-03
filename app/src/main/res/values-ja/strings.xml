@@ -1687,6 +1687,11 @@
     <string name="synonym_export_success">%1$d 個のターゲットタグをエクスポートしました</string>
     <string name="synonym_more_unmatched">他 %1$d 個のターゲットタグは未マッチ ›</string>
     <string name="synonym_more_unmatched_synonyms">他 %1$d 個の同義語は未マッチ</string>
+    <string name="synonym_move_to_target">別のターゲットタグへ移動</string>
+    <string name="synonym_moved_to">「%1$s」へ移動しました</string>
+    <string name="synonym_merge">マージ</string>
+    <string name="synonym_merge_confirm">ターゲットタグ「%1$s」は既に存在します。マージすると「%2$s」の全ての同義語が「%1$s」に移動し、「%2$s」自体もその同義語になります。</string>
+    <string name="synonym_merged_into">「%1$s」を「%2$s」にマージしました</string>
     <string name="synonym_pick_target_by_name">ターゲットタグ名を入力…</string>
     <string name="synonym_target_not_found">ターゲットタグ「%1$s」が見つかりません</string>
     <string name="synonym_search_remark">メモで検索</string>

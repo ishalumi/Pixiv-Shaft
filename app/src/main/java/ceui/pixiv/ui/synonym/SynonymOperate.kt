@@ -256,7 +256,7 @@ object SynonymOperate {
             .show()
     }
 
-    /** 重命名目标标签 */
+    /** 重命名目标标签。重命名为已存在的目标标签名 → 合并两者（issue #905） */
     @JvmStatic
     fun showRenameTargetDialog(context: Context, target: SynonymTargetEntity) {
         val builder = QMUIDialog.EditTextDialogBuilder(context)
@@ -274,7 +274,10 @@ object SynonymOperate {
                 }
                 val existing = dao(context).getTargetByName(name)
                 if (existing != null && existing.id != target.id) {
-                    Common.showToast(context.getString(R.string.synonym_target_exists))
+                    // issue #905：与已有目标同名 → 不再报错阻止，转为二次确认后合并
+                    //（典型场景：用户自建 "Genshin" 与内置词典导入的 "原神" 并存，想合并成一个）
+                    dialog.dismiss()
+                    showMergeTargetDialog(context, source = target, dest = existing)
                     return@addAction
                 }
                 dao(context).renameTarget(target.id, name)
@@ -282,6 +285,60 @@ object SynonymOperate {
                 dialog.dismiss()
             }
             .show()
+    }
+
+    /** 合并确认框：把 [source] 并入 [dest]（issue #905） */
+    private fun showMergeTargetDialog(
+        context: Context,
+        source: SynonymTargetEntity,
+        dest: SynonymTargetEntity,
+    ) {
+        QMUIDialog.MessageDialogBuilder(context)
+            .setTitle(source.name + " → " + dest.name)
+            .setSkinManager(skin(context))
+            .setMessage(context.getString(R.string.synonym_merge_confirm, dest.name, source.name))
+            .addAction(context.getString(R.string.cancel)) { dialog, _ -> dialog.dismiss() }
+            .addAction(context.getString(R.string.synonym_merge)) { dialog, _ ->
+                mergeTargets(context, source, dest)
+                dialog.dismiss()
+            }
+            .create()
+            .show()
+    }
+
+    /**
+     * 合并两个目标标签（issue #905）：
+     * - source 的同义词全部并入 dest（大小写不敏感去重，dest 已覆盖的丢弃）
+     * - source 的名字自身转为 dest 的同义词 —— 目标标签名参与匹配，合并后不能丢，
+     *   否则只带 source 名字标签的作品会从匹配结果里消失
+     * - 删除 source 目标标签
+     */
+    private fun mergeTargets(
+        context: Context,
+        source: SynonymTargetEntity,
+        dest: SynonymTargetEntity,
+    ) {
+        val db = AppDatabase.getAppDatabase(context)
+        val dao = db.synonymDao()
+        db.runInTransaction {
+            val destNorm = dest.name.trim().lowercase()
+            val seenNorms = dao.getSynonymsOfTarget(dest.id)
+                .mapTo(HashSet()) { it.name.trim().lowercase() }
+            dao.getSynonymsOfTarget(source.id).forEach { syn ->
+                val norm = syn.name.trim().lowercase()
+                if (norm == destNorm || !seenNorms.add(norm)) {
+                    dao.deleteSynonymById(syn.id)
+                } else {
+                    dao.moveSynonymToTarget(syn.id, dest.id)
+                }
+            }
+            val sourceNorm = source.name.trim().lowercase()
+            if (sourceNorm != destNorm && seenNorms.add(sourceNorm)) {
+                dao.insertSynonym(SynonymTagEntity(targetId = dest.id, name = source.name))
+            }
+            dao.deleteTargetOnly(source.id)
+        }
+        Common.showToast(context.getString(R.string.synonym_merged_into, source.name, dest.name))
     }
 
     /** 删除目标标签（issue：删除要有二次确认；不同步删除用户已收藏的标签） */
@@ -368,8 +425,8 @@ object SynonymOperate {
     @JvmStatic
     fun showSynonymMenu(context: Context, synonym: SynonymTagEntity) {
         val hasRemark = !synonym.remark.isNullOrBlank()
-        val labels = ArrayList<String>(5)
-        val actions = ArrayList<() -> Unit>(5)
+        val labels = ArrayList<String>(6)
+        val actions = ArrayList<() -> Unit>(6)
 
         labels.add(context.getString(R.string.synonym_rename))
         actions.add { showRenameSynonymDialog(context, synonym) }
@@ -396,6 +453,10 @@ object SynonymOperate {
             }
         }
 
+        // issue #905：移动到其他目标标签（导入内置词典后重新归类用）
+        labels.add(context.getString(R.string.synonym_move_to_target))
+        actions.add { showMoveSynonymDialog(context, synonym) }
+
         labels.add(context.getString(R.string.synonym_delete))
         actions.add { showDeleteSynonymDialog(context, synonym) }
 
@@ -406,6 +467,78 @@ object SynonymOperate {
                 actions[which].invoke()
             }
             .show()
+    }
+
+    /**
+     * 移动同义词到其他目标标签（issue #905）。
+     * 目标列表复用「添加为同义词」的姿势：最近 [MENU_TARGET_LIMIT] 个 + 手动输入兜底。
+     */
+    @JvmStatic
+    fun showMoveSynonymDialog(context: Context, synonym: SynonymTagEntity) {
+        dbExecutor.execute {
+            val targets = dao(context).getRecentTargets(MENU_TARGET_LIMIT)
+                .filter { it.id != synonym.targetId }
+            mainHandler.post {
+                if (!canShowDialog(context)) return@post
+                val labels = ArrayList<String>(targets.size + 1)
+                targets.forEach { labels.add(it.name) }
+                labels.add(context.getString(R.string.synonym_pick_target_by_name))
+                QMUIDialog.MenuDialogBuilder(context)
+                    .setSkinManager(skin(context))
+                    .addItems(labels.toTypedArray()) { dialog, which ->
+                        dialog.dismiss()
+                        if (which == labels.size - 1) {
+                            showMoveSynonymByNameDialog(context, synonym)
+                        } else {
+                            doMoveSynonym(context, synonym, targets[which])
+                        }
+                    }
+                    .show()
+            }
+        }
+    }
+
+    /** 手动输入目标标签名移动（不在最近列表里的旧目标） */
+    private fun showMoveSynonymByNameDialog(context: Context, synonym: SynonymTagEntity) {
+        val builder = QMUIDialog.EditTextDialogBuilder(context)
+        builder.setTitle(R.string.synonym_pick_target_by_name)
+            .setSkinManager(skin(context))
+            .setPlaceholder(context.getString(R.string.synonym_new_target_hint))
+            .setInputType(InputType.TYPE_CLASS_TEXT)
+            .addAction(context.getString(R.string.cancel)) { dialog, _ -> dialog.dismiss() }
+            .addAction(context.getString(R.string.sure)) { dialog, _ ->
+                val name = builder.editText.text?.toString()?.trim().orEmpty()
+                val target = dao(context).getTargetByName(name)
+                if (target == null) {
+                    Common.showToast(context.getString(R.string.synonym_target_not_found, name))
+                    return@addAction
+                }
+                dialog.dismiss()
+                doMoveSynonym(context, synonym, target)
+            }
+            .show()
+    }
+
+    /**
+     * 执行移动。目的地已覆盖该同义词（大小写变体已存在 / 与目的地目标同名）时，
+     * 直接从原处删除 —— 移动的语义目的（该词归属目的地）已经达成，保留只会产生冗余。
+     */
+    private fun doMoveSynonym(
+        context: Context,
+        synonym: SynonymTagEntity,
+        dest: SynonymTargetEntity,
+    ) {
+        if (dest.id == synonym.targetId) return
+        val dao = dao(context)
+        val norm = synonym.name.trim().lowercase()
+        val covered = norm == dest.name.trim().lowercase() ||
+                dao.getSynonymsOfTarget(dest.id).any { it.name.trim().lowercase() == norm }
+        if (covered) {
+            dao.deleteSynonymById(synonym.id)
+        } else {
+            dao.moveSynonymToTarget(synonym.id, dest.id)
+        }
+        Common.showToast(context.getString(R.string.synonym_moved_to, dest.name))
     }
 
     /** 重命名同义词（issue：重命名时一定要显示原本的同义词；备注输入框默认值填入已有备注） */

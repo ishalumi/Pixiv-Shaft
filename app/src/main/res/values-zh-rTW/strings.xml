@@ -1701,6 +1701,11 @@
     <string name="synonym_export_success">已匯出 %1$d 個目標標籤</string>
     <string name="synonym_more_unmatched">另有 %1$d 個目標標籤未匹配 ›</string>
     <string name="synonym_more_unmatched_synonyms">另有 %1$d 個同義詞未命中</string>
+    <string name="synonym_move_to_target">移動到其他目標標籤</string>
+    <string name="synonym_moved_to">已移動到「%1$s」</string>
+    <string name="synonym_merge">合併</string>
+    <string name="synonym_merge_confirm">目標標籤「%1$s」已存在。合併後「%2$s」的全部同義詞併入「%1$s」，「%2$s」自身也成為其同義詞。</string>
+    <string name="synonym_merged_into">已將「%1$s」合併到「%2$s」</string>
     <string name="synonym_pick_target_by_name">手動輸入目標標籤名…</string>
     <string name="synonym_target_not_found">目標標籤「%1$s」不存在</string>
     <string name="synonym_search_remark">搜尋備註</string>

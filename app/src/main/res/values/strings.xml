@@ -2155,6 +2155,11 @@
     <string name="synonym_export_success">已导出 %1$d 个目标标签</string>
     <string name="synonym_more_unmatched">另有 %1$d 个目标标签未匹配 ›</string>
     <string name="synonym_more_unmatched_synonyms">另有 %1$d 个同义词未命中</string>
+    <string name="synonym_move_to_target">移动到其他目标标签</string>
+    <string name="synonym_moved_to">已移动到「%1$s」</string>
+    <string name="synonym_merge">合并</string>
+    <string name="synonym_merge_confirm">目标标签「%1$s」已存在。合并后「%2$s」的全部同义词并入「%1$s」，「%2$s」自身也成为其同义词。</string>
+    <string name="synonym_merged_into">已将「%1$s」合并到「%2$s」</string>
     <string name="synonym_pick_target_by_name">手动输入目标标签名…</string>
     <string name="synonym_target_not_found">目标标签「%1$s」不存在</string>
     <string name="synonym_search_remark">搜索备注</string>
