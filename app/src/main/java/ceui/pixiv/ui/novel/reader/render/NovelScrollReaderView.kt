@@ -7,9 +7,7 @@ import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
 import android.text.style.ClickableSpan
-import android.text.style.ForegroundColorSpan
 import android.text.style.LeadingMarginSpan
-import android.text.style.UnderlineSpan
 import android.util.TypedValue
 import android.view.ActionMode
 import android.view.GestureDetector
@@ -17,45 +15,45 @@ import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatTextView
-import androidx.core.view.GestureDetectorCompat
-import androidx.core.widget.NestedScrollView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.utils.GlideUrlChild
 import ceui.pixiv.ui.novel.reader.model.ContentToken
+import ceui.pixiv.ui.novel.reader.model.PageElement
 import ceui.pixiv.ui.novel.reader.model.PageGeometry
 import ceui.pixiv.ui.novel.reader.paginate.InlineSpan
 import ceui.pixiv.ui.novel.reader.paginate.InlineTag
 import ceui.pixiv.ui.novel.reader.paginate.TextMeasurer
 import ceui.pixiv.ui.novel.reader.paginate.TypeStyle
 import com.bumptech.glide.Glide
+import kotlin.math.roundToInt
 
 /**
- * Vertical infinite-scroll reader — no pagination, all tokens laid out
- * sequentially in a [LinearLayout] inside a [NestedScrollView].
+ * Vertical infinite-scroll reader. Tokens are streamed through a
+ * [RecyclerView] so only the on-screen (plus a small cache of) views exist at
+ * any time — earlier this view inflated *every* paragraph of the whole novel
+ * into a single [android.widget.LinearLayout], which made every frame's child
+ * iteration and any child `requestLayout` O(total-length); a 15万字 novel
+ * dropped frames in direct proportion to its word count. Recycling makes the
+ * per-frame cost O(visible) regardless of novel length.
  *
- * Replaces [NovelReaderView] when [ceui.pixiv.ui.novel.reader.model.FlipMode.Scroll]
- * is active. Supports center-tap for chrome toggle, image tap, and scroll
- * position tracking for reading progress persistence.
+ * Replaces [NovelReaderView] when [ceui.pixiv.ui.novel.reader.model.FlipMode]
+ * vertical reading is active. Supports center-tap for chrome toggle, image
+ * tap, and scroll-position tracking for reading-progress persistence.
  */
-class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
+class NovelScrollReaderView(context: Context) : RecyclerView(context) {
 
-    private val container = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-    }
-
-    /** charStart → child view, for scroll-to-position and position reporting. */
-    private val charAnchors = mutableListOf<CharAnchor>()
-
-    /** Extra top offset (e.g. search overlay height) so centering avoids
-     *  the covered region. Set by the host fragment when the overlay opens. */
+    /** Extra top offset (e.g. search overlay height) so position restores
+     *  land below the covered region. Set by the host fragment. */
     var topInset: Int = 0
 
     var onCenterTap: (() -> Unit)? = null
-    var onImageTap: ((ceui.pixiv.ui.novel.reader.model.PageElement.Image) -> Unit)? = null
+    var onImageTap: ((PageElement.Image) -> Unit)? = null
     var onJumpTap: ((target: Int) -> Unit)? = null
     var onCharIndexChanged: ((Int) -> Unit)? = null
     /** Fraction of total scrollable range consumed, in [0f, 1f]. */
@@ -68,7 +66,10 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
     var selectionMenuEntries: List<Pair<Int, String>> = emptyList()
     var onSelectionMenuAction: ((id: Int) -> Unit)? = null
 
-    private val gestureDetector = GestureDetectorCompat(context, object : GestureDetector.SimpleOnGestureListener() {
+    private val lm = LinearLayoutManager(context)
+    private var contentAdapter: ContentAdapter? = null
+
+    private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
             val w = width.toFloat()
             val third = w / 3f
@@ -81,13 +82,22 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
     })
 
     init {
-        addView(container, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        layoutManager = lm
         isVerticalScrollBarEnabled = true
-        isFillViewport = false
-        setOnScrollChangeListener { _, _, _, _, _ ->
-            reportVisibleCharIndex()
-            reportScrollProgress()
-        }
+        // Off-screen text/image views are cheap to rebuild, but keeping a few
+        // around either side of the viewport avoids inflate churn on flings.
+        setItemViewCacheSize(6)
+        addOnScrollListener(object : OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                reportScrollProgress()
+            }
+
+            override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    onCharIndexChanged?.invoke(currentCharIndex())
+                }
+            }
+        })
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -103,87 +113,195 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
         geometry: PageGeometry,
         imageResolver: (ContentToken) -> String?,
     ) {
-        container.removeAllViews()
-        charAnchors.clear()
         setBackgroundColor(style.backgroundColor)
-        container.setPadding(
+        // Side padding = text margins (applies to every item); top/bottom
+        // padding = end breathing room. clipToPadding=false lets content
+        // scroll through the padded region instead of being clipped.
+        setPadding(
             geometry.paddingLeft.toInt(),
             geometry.paddingTop.toInt(),
             geometry.paddingRight.toInt(),
             geometry.paddingBottom.toInt(),
         )
-        val contentWidth = geometry.contentWidth
-        for (token in tokens) {
-            val child = when (token) {
-                is ContentToken.Paragraph -> createParagraph(token, style)
-                is ContentToken.Chapter -> createChapter(token, style)
-                is ContentToken.BlankLine -> createSpacer(style)
-                is ContentToken.PageBreak -> createDivider(style, contentWidth)
-                is ContentToken.PixivImage -> createImage(token, style, imageResolver)
-                is ContentToken.UploadedImage -> createImage(token, style, imageResolver)
-                is ContentToken.Jump -> createJumpButton(token, style)
-            }
-            container.addView(child)
-            val anchorStart = if (token is ContentToken.Paragraph) token.textSourceStart else token.sourceStart
-            charAnchors += CharAnchor(anchorStart, child)
-        }
+        clipToPadding = false
+        val adapter = ContentAdapter(tokens, style, geometry, imageResolver)
+        contentAdapter = adapter
+        setAdapter(adapter)
     }
 
     fun scrollToCharIndex(charIndex: Int) {
-        val target = charAnchors.lastOrNull { it.charStart <= charIndex }?.view ?: return
+        val pos = positionForCharIndex(charIndex) ?: return
         post {
-            val visibleHeight = height - topInset
-            val y = (target.top - topInset - visibleHeight / 2 + target.height / 2).coerceAtLeast(0)
-            smoothScrollTo(0, y)
+            val first = lm.findFirstVisibleItemPosition()
+            // Smooth-scroll only for nearby targets — LinearSmoothScroller
+            // animates item-by-item, so a far chapter jump would crawl through
+            // (and lay out) thousands of items. Far jumps teleport instead.
+            if (first != RecyclerView.NO_POSITION && kotlin.math.abs(pos - first) <= SMOOTH_SCROLL_MAX_ITEMS) {
+                smoothScrollToPosition(pos)
+            } else {
+                lm.scrollToPositionWithOffset(pos, topInset)
+            }
         }
     }
 
     fun jumpToCharIndex(charIndex: Int) {
-        val target = charAnchors.lastOrNull { it.charStart <= charIndex }?.view ?: return
-        post {
-            val visibleHeight = height - topInset
-            val y = (target.top - topInset - visibleHeight / 2 + target.height / 2).coerceAtLeast(0)
-            scrollTo(0, y)
-        }
+        val pos = positionForCharIndex(charIndex) ?: return
+        post { lm.scrollToPositionWithOffset(pos, topInset) }
     }
 
     fun currentCharIndex(): Int {
-        val scrollTop = scrollY
-        return charAnchors.lastOrNull { it.view.top <= scrollTop + height / 4 }?.charStart ?: 0
+        val toks = contentAdapter?.tokens ?: return 0
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION) return 0
+        return anchorCharOf(toks[pos.coerceIn(0, toks.lastIndex)])
     }
 
-    /**
-     * Jump to [fraction] of the total scroll range (0f = top, 1f = bottom).
-     * Used by the bottom seekbar's drag handler in vertical-scroll mode.
-     */
     fun scrollByPage(forward: Boolean) {
         val distance = (height * 0.9f).toInt()
         smoothScrollBy(0, if (forward) distance else -distance)
     }
 
+    /**
+     * Jump to [fraction] of the book (0f = first item, 1f = last). Maps to an
+     * item position and teleports via the layout manager — `scrollBy` over a
+     * large pixel delta makes `LinearLayoutManager.fill()` lay out every
+     * intervening item (O(N)), the exact cost virtualization removes. Position
+     * teleport is O(1). The bottom-bar progress (pixel-estimated) may settle a
+     * hair off the dragged value; that's expected for a variable-height list.
+     */
     fun scrollToFraction(fraction: Float) {
-        val clamped = fraction.coerceIn(0f, 1f)
-        post {
-            val range = computeVerticalScrollRange() - computeVerticalScrollExtent()
-            if (range <= 0) return@post
-            scrollTo(0, (clamped * range).toInt())
+        val count = contentAdapter?.itemCount ?: return
+        if (count <= 0) return
+        val pos = (fraction.coerceIn(0f, 1f) * (count - 1)).roundToInt()
+        post { lm.scrollToPositionWithOffset(pos, 0) }
+    }
+
+    /**
+     * Force a scroll-progress callback emission. Used right after entering
+     * vertical-scroll mode so the bottom-bar SeekBar picks up the current
+     * scroll fraction even if no scroll event has fired yet.
+     */
+    fun pushScrollProgressNow() {
+        post { reportScrollProgress() }
+    }
+
+    fun applySearchHighlights(hits: List<HighlightRange>) {
+        contentAdapter?.searchHits = hits
+        // Re-apply to the paragraph views currently attached; freshly bound
+        // ones pick the hits up from the adapter in onBind.
+        for (i in 0 until childCount) {
+            val holder = getChildViewHolder(getChildAt(i)) as? ParagraphHolder ?: continue
+            holder.applyHighlights(hits)
         }
     }
 
-    // ---- View factories -----------------------------------------------------
+    // ---- Position helpers --------------------------------------------------
 
-    private fun createParagraph(token: ContentToken.Paragraph, style: TypeStyle): AppCompatTextView {
-        val sourceStart = token.sourceStart
-        return AppCompatTextView(context).apply {
-            TextMeasurer.applyLayoutSettings(this)
-            setTextSize(TypedValue.COMPLEX_UNIT_PX, style.textPaint.textSize)
-            typeface = style.textPaint.typeface
-            setTextColor(style.textPaint.color)
-            letterSpacing = style.textPaint.letterSpacing
-            setLineSpacing(style.lineSpacingExtra, style.lineSpacingMultiplier)
-            setBackgroundColor(Color.TRANSPARENT)
-            highlightColor = style.selectionColor
+    private fun anchorCharOf(token: ContentToken): Int =
+        if (token is ContentToken.Paragraph) token.textSourceStart else token.sourceStart
 
+    /** Last token whose anchor char is <= [charIndex]. Anchors are monotonic
+     *  in source order, so we can stop at the first one that overshoots. */
+    private fun positionForCharIndex(charIndex: Int): Int? {
+        val toks = contentAdapter?.tokens ?: return null
+        if (toks.isEmpty()) return null
+        var target = 0
+        for (i in toks.indices) {
+            if (anchorCharOf(toks[i]) <= charIndex) target = i else break
+        }
+        return target
+    }
+
+    private fun reportScrollProgress() {
+        val cb = onScrollProgressChanged ?: return
+        val range = computeVerticalScrollRange() - computeVerticalScrollExtent()
+        val progress = if (range > 0) computeVerticalScrollOffset().toFloat() / range else 0f
+        cb.invoke(progress.coerceIn(0f, 1f))
+    }
+
+    // ---- Adapter -----------------------------------------------------------
+
+    private inner class ContentAdapter(
+        val tokens: List<ContentToken>,
+        val style: TypeStyle,
+        val geometry: PageGeometry,
+        val imageResolver: (ContentToken) -> String?,
+    ) : Adapter<ViewHolder>() {
+
+        var searchHits: List<HighlightRange> = emptyList()
+
+        override fun getItemCount(): Int = tokens.size
+
+        override fun getItemViewType(position: Int): Int = when (tokens[position]) {
+            is ContentToken.Paragraph -> TYPE_PARAGRAPH
+            is ContentToken.Chapter -> TYPE_CHAPTER
+            is ContentToken.BlankLine -> TYPE_SPACER
+            is ContentToken.PageBreak -> TYPE_DIVIDER
+            is ContentToken.PixivImage -> TYPE_IMAGE
+            is ContentToken.UploadedImage -> TYPE_IMAGE
+            is ContentToken.Jump -> TYPE_JUMP
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder = when (viewType) {
+            TYPE_PARAGRAPH -> ParagraphHolder(buildParagraphView(style))
+            TYPE_CHAPTER -> SimpleHolder(buildChapterView(style))
+            TYPE_SPACER -> SimpleHolder(buildSpacerView(style))
+            TYPE_DIVIDER -> SimpleHolder(buildDividerView(style, geometry.contentWidth))
+            TYPE_IMAGE -> ImageHolder(context, style.paragraphSpacingPx.toInt())
+            else -> JumpHolder(buildJumpView(style))
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            when (val token = tokens[position]) {
+                is ContentToken.Paragraph -> (holder as ParagraphHolder).bind(token, style, searchHits)
+                is ContentToken.Chapter -> bindChapter(holder.itemView as AppCompatTextView, token, style)
+                is ContentToken.BlankLine -> Unit
+                is ContentToken.PageBreak -> Unit
+                is ContentToken.PixivImage -> (holder as ImageHolder).bind(token, style, imageResolver(token))
+                is ContentToken.UploadedImage -> (holder as ImageHolder).bind(token, style, imageResolver(token))
+                is ContentToken.Jump -> (holder as JumpHolder).bind(token, style)
+            }
+        }
+
+        override fun onViewRecycled(holder: ViewHolder) {
+            if (holder is ParagraphHolder) holder.clearSelection()
+        }
+    }
+
+    private class SimpleHolder(view: View) : ViewHolder(view)
+
+    private inner class ParagraphHolder(val tv: AppCompatTextView) : ViewHolder(tv) {
+        private var boundSourceStart: Int = 0
+
+        init {
+            tv.customSelectionActionModeCallback = object : ActionMode.Callback {
+                override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+                    populateMenu(menu)
+                    notifyTvSelection(tv, boundSourceStart, onSelectionStarted)
+                    return true
+                }
+
+                override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+                    populateMenu(menu)
+                    notifyTvSelection(tv, boundSourceStart, onSelectionChanged)
+                    return true
+                }
+
+                override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+                    notifyTvSelection(tv, boundSourceStart, onSelectionChanged)
+                    onSelectionMenuAction?.invoke(item.itemId)
+                    mode.finish()
+                    return true
+                }
+
+                override fun onDestroyActionMode(mode: ActionMode) {
+                    onSelectionEnded?.invoke()
+                }
+            }
+        }
+
+        fun bind(token: ContentToken.Paragraph, style: TypeStyle, hits: List<HighlightRange>) {
+            boundSourceStart = token.sourceStart
             val spannable = SpannableString(token.text)
             val indent = style.firstLineIndentPx.toInt()
             if (indent > 0 && token.text.isNotEmpty()) {
@@ -195,72 +313,98 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
             applyInlineSpans(spannable, token.inlineSpans, style)
             // LinkMovementMethod must be set BEFORE setTextIsSelectable,
             // otherwise ArrowKeyMovementMethod overwrites it.
-            if (token.inlineSpans.any { it.tag is InlineTag.Link }) {
-                movementMethod = android.text.method.LinkMovementMethod.getInstance()
+            tv.movementMethod = if (token.inlineSpans.any { it.tag is InlineTag.Link }) {
+                android.text.method.LinkMovementMethod.getInstance()
+            } else {
+                null
             }
-            setTextIsSelectable(true)
-            text = spannable
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                bottomMargin = style.paragraphSpacingPx.toInt()
-            }
+            tv.setTextIsSelectable(true)
+            tv.text = spannable
+            applyHighlights(hits)
+        }
 
-            customSelectionActionModeCallback = buildSelectionCallback(this, sourceStart)
+        fun applyHighlights(hits: List<HighlightRange>) {
+            val spannable = tv.text as? Spannable ?: return
+            spannable.getSpans(0, spannable.length, ScrollSearchSpan::class.java)
+                .forEach { spannable.removeSpan(it) }
+            if (hits.isEmpty()) return
+            val anchorStart = boundSourceStart
+            val anchorEnd = anchorStart + spannable.length
+            for (hit in hits) {
+                val s = maxOf(hit.absoluteStart, anchorStart)
+                val e = minOf(hit.absoluteEnd, anchorEnd)
+                if (e <= s) continue
+                spannable.setSpan(
+                    ScrollSearchSpan(hit.color),
+                    s - anchorStart, e - anchorStart,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+        }
+
+        fun clearSelection() {
+            val spannable = tv.text as? Spannable ?: return
+            android.text.Selection.removeSelection(spannable)
         }
     }
 
-    private fun buildSelectionCallback(tv: AppCompatTextView, sourceStart: Int): ActionMode.Callback {
-        return object : ActionMode.Callback {
-            override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-                populateMenu(menu)
-                notifySelection(tv, sourceStart, onSelectionStarted)
-                return true
-            }
-
-            override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-                populateMenu(menu)
-                notifySelection(tv, sourceStart, onSelectionChanged)
-                return true
-            }
-
-            override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-                notifySelection(tv, sourceStart, onSelectionChanged)
-                onSelectionMenuAction?.invoke(item.itemId)
-                mode.finish()
-                return true
-            }
-
-            override fun onDestroyActionMode(mode: ActionMode) {
-                onSelectionEnded?.invoke()
-            }
-        }
-    }
-
-    private fun populateMenu(menu: Menu) {
-        menu.clear()
-        selectionMenuEntries.forEachIndexed { index, (id, title) ->
-            menu.add(Menu.NONE, id, index, title)
-                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-    }
-
-    private fun notifySelection(
-        tv: AppCompatTextView,
-        sourceStart: Int,
-        cb: ((Int, Int, String) -> Unit)?,
+    /** Hosts one (recycled) inline image. A margin-carrying FrameLayout keeps
+     *  the paragraph-spacing gap regardless of which image it currently shows. */
+    private inner class ImageHolder(context: Context, gap: Int) : ViewHolder(
+        android.widget.FrameLayout(context).apply {
+            layoutParams = itemParams(topMargin = gap, bottomMargin = gap)
+        },
     ) {
-        if (cb == null) return
-        val s = tv.selectionStart.coerceAtLeast(0)
-        val e = tv.selectionEnd.coerceAtLeast(s)
-        if (e <= s || e > tv.text.length) return
-        val sliced = tv.text.subSequence(s, e).toString()
-        cb(sourceStart + s, sourceStart + e, sliced)
+        private val host = itemView as ViewGroup
+
+        fun bind(token: ContentToken, style: TypeStyle, url: String?) {
+            host.removeAllViews()
+            host.addView(buildImageView(token, style, url))
+        }
     }
 
-    private fun createChapter(token: ContentToken.Chapter, style: TypeStyle): AppCompatTextView {
-        return AppCompatTextView(context).apply {
+    private inner class JumpHolder(val tv: AppCompatTextView) : ViewHolder(tv) {
+        fun bind(token: ContentToken.Jump, style: TypeStyle) {
+            tv.text = context.getString(ceui.lisa.R.string.reader_jump_button, token.target)
+            val target = token.target
+            tv.setOnClickListener { onJumpTap?.invoke(target) }
+        }
+    }
+
+    // ---- View factories -----------------------------------------------------
+
+    private fun itemParams(
+        height: Int = ViewGroup.LayoutParams.WRAP_CONTENT,
+        topMargin: Int = 0,
+        bottomMargin: Int = 0,
+        leftMargin: Int = 0,
+        rightMargin: Int = 0,
+    ): LayoutParams = LayoutParams(LayoutParams.MATCH_PARENT, height).apply {
+        this.topMargin = topMargin
+        this.bottomMargin = bottomMargin
+        this.leftMargin = leftMargin
+        this.rightMargin = rightMargin
+    }
+
+    private fun buildParagraphView(style: TypeStyle): AppCompatTextView =
+        AppCompatTextView(context).apply {
+            TextMeasurer.applyLayoutSettings(this)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, style.textPaint.textSize)
+            typeface = style.textPaint.typeface
+            setTextColor(style.textPaint.color)
+            letterSpacing = style.textPaint.letterSpacing
+            setLineSpacing(style.lineSpacingExtra, style.lineSpacingMultiplier)
+            setBackgroundColor(Color.TRANSPARENT)
+            highlightColor = style.selectionColor
+            layoutParams = itemParams(bottomMargin = style.paragraphSpacingPx.toInt())
+        }
+
+    private fun bindChapter(tv: AppCompatTextView, token: ContentToken.Chapter, style: TypeStyle) {
+        tv.text = token.title
+    }
+
+    private fun buildChapterView(style: TypeStyle): AppCompatTextView =
+        AppCompatTextView(context).apply {
             TextMeasurer.applyLayoutSettings(this)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, style.chapterPaint.textSize)
             typeface = style.chapterPaint.typeface
@@ -268,39 +412,43 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
             paint.isFakeBoldText = style.chapterPaint.isFakeBoldText
             gravity = Gravity.CENTER
             setBackgroundColor(Color.TRANSPARENT)
-            text = token.title
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                topMargin = style.chapterTopGapPx.toInt()
-                bottomMargin = style.chapterBottomGapPx.toInt()
-            }
+            layoutParams = itemParams(
+                topMargin = style.chapterTopGapPx.toInt(),
+                bottomMargin = style.chapterBottomGapPx.toInt(),
+            )
         }
-    }
 
-    private fun createSpacer(style: TypeStyle): android.view.View {
-        val height = style.paragraphSpacingPx.coerceAtLeast(
+    private fun buildSpacerView(style: TypeStyle): View {
+        val h = style.paragraphSpacingPx.coerceAtLeast(
             style.textPaint.fontMetrics.bottom - style.textPaint.fontMetrics.top,
         )
-        return android.view.View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                height.toInt(),
+        return View(context).apply { layoutParams = itemParams(height = h.toInt()) }
+    }
+
+    private fun buildDividerView(style: TypeStyle, contentWidth: Float): View {
+        val hInset = (contentWidth * 0.25f).toInt().coerceAtLeast(0)
+        val vGap = (style.chapterTopGapPx * 0.8f).toInt()
+        return View(context).apply {
+            setBackgroundColor(style.dividerColor)
+            layoutParams = itemParams(
+                height = (1.5f * resources.displayMetrics.density).toInt().coerceAtLeast(1),
+                topMargin = vGap,
+                bottomMargin = vGap,
+                leftMargin = hInset,
+                rightMargin = hInset,
             )
         }
     }
 
-    private fun createJumpButton(token: ContentToken.Jump, style: TypeStyle): android.view.View {
-        val density = context.resources.displayMetrics.density
+    private fun buildJumpView(style: TypeStyle): AppCompatTextView {
+        val density = resources.displayMetrics.density
         val drawable = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.RECTANGLE
             cornerRadius = style.textPaint.textSize * 1.2f
             setStroke((2 * density).toInt(), style.linkColor)
-            setColor(android.graphics.Color.TRANSPARENT)
+            setColor(Color.TRANSPARENT)
         }
         return AppCompatTextView(context).apply {
-            text = context.getString(ceui.lisa.R.string.reader_jump_button, token.target)
             setTextSize(TypedValue.COMPLEX_UNIT_PX, style.textPaint.textSize)
             typeface = style.textPaint.typeface
             setTextColor(style.linkColor)
@@ -314,84 +462,55 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
             val padV = (style.textPaint.textSize * 0.5f).toInt()
             val padH = (style.textPaint.textSize * 1f).toInt()
             setPadding(padH, padV, padH, padV)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                topMargin = style.paragraphSpacingPx.toInt()
-                bottomMargin = style.paragraphSpacingPx.toInt()
-                val side = (style.textPaint.textSize * 2f).toInt()
-                leftMargin = side
-                rightMargin = side
-            }
-            val target = token.target
-            setOnClickListener { onJumpTap?.invoke(target) }
+            val side = (style.textPaint.textSize * 2f).toInt()
+            layoutParams = itemParams(
+                topMargin = style.paragraphSpacingPx.toInt(),
+                bottomMargin = style.paragraphSpacingPx.toInt(),
+                leftMargin = side,
+                rightMargin = side,
+            )
         }
     }
 
-    private fun createDivider(style: TypeStyle, contentWidth: Float): android.view.View {
-        return android.view.View(context).apply {
-            setBackgroundColor(style.dividerColor)
-            val hInset = (contentWidth * 0.25f).toInt().coerceAtLeast(0)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                (1.5f * context.resources.displayMetrics.density).toInt().coerceAtLeast(1),
-            ).apply {
-                val vGap = (style.chapterTopGapPx * 0.8f).toInt()
-                topMargin = vGap
-                bottomMargin = vGap
-                leftMargin = hInset
-                rightMargin = hInset
-            }
-        }
-    }
-
-    private fun createImage(
+    private fun buildImageView(
         token: ContentToken,
         style: TypeStyle,
-        imageResolver: (ContentToken) -> String?,
-    ): android.view.View {
-        val url = imageResolver(token)
+        url: String?,
+    ): View {
         if (url == null) {
             return TextView(context).apply {
                 text = context.getString(ceui.lisa.R.string.reader_image_placeholder)
                 setTextColor(style.secondaryTextColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, style.textPaint.textSize)
                 gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply {
-                    topMargin = style.paragraphSpacingPx.toInt()
-                    bottomMargin = style.paragraphSpacingPx.toInt()
-                }
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                )
             }
         }
         return ImageView(context).apply {
             adjustViewBounds = true
             scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                topMargin = style.paragraphSpacingPx.toInt()
-                bottomMargin = style.paragraphSpacingPx.toInt()
-            }
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
             Glide.with(context.applicationContext)
                 .load(GlideUrlChild(url))
                 .into(this)
 
             val imageElement = when (token) {
-                is ContentToken.UploadedImage -> ceui.pixiv.ui.novel.reader.model.PageElement.Image(
+                is ContentToken.UploadedImage -> PageElement.Image(
                     top = 0f, bottom = 0f,
                     absoluteCharStart = token.sourceStart, absoluteCharEnd = token.sourceEnd,
-                    imageType = ceui.pixiv.ui.novel.reader.model.PageElement.Image.ImageType.UploadedImage,
+                    imageType = PageElement.Image.ImageType.UploadedImage,
                     resourceId = token.imageId, pageIndexInIllust = 0, imageUrl = url,
                 )
-                is ContentToken.PixivImage -> ceui.pixiv.ui.novel.reader.model.PageElement.Image(
+                is ContentToken.PixivImage -> PageElement.Image(
                     top = 0f, bottom = 0f,
                     absoluteCharStart = token.sourceStart, absoluteCharEnd = token.sourceEnd,
-                    imageType = ceui.pixiv.ui.novel.reader.model.PageElement.Image.ImageType.PixivImage,
+                    imageType = PageElement.Image.ImageType.PixivImage,
                     resourceId = token.illustId, pageIndexInIllust = token.pageIndex, imageUrl = url,
                 )
                 else -> null
@@ -400,6 +519,29 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
                 setOnClickListener { onImageTap?.invoke(imageElement) }
             }
         }
+    }
+
+    // ---- Selection helpers (paragraph TextViews) ---------------------------
+
+    private fun populateMenu(menu: Menu) {
+        menu.clear()
+        selectionMenuEntries.forEachIndexed { index, (id, title) ->
+            menu.add(Menu.NONE, id, index, title)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+    }
+
+    private fun notifyTvSelection(
+        tv: AppCompatTextView,
+        sourceStart: Int,
+        cb: ((Int, Int, String) -> Unit)?,
+    ) {
+        if (cb == null) return
+        val s = tv.selectionStart.coerceAtLeast(0)
+        val e = tv.selectionEnd.coerceAtLeast(s)
+        if (e <= s || e > tv.text.length) return
+        val sliced = tv.text.subSequence(s, e).toString()
+        cb(sourceStart + s, sourceStart + e, sliced)
     }
 
     // ---- Inline markup spans ------------------------------------------------
@@ -416,7 +558,7 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
                     val linkColor = style.linkColor
                     spannable.setSpan(
                         object : ClickableSpan() {
-                            override fun onClick(widget: android.view.View) {
+                            override fun onClick(widget: View) {
                                 try {
                                     val intent = android.content.Intent(
                                         android.content.Intent.ACTION_VIEW,
@@ -448,75 +590,18 @@ class NovelScrollReaderView(context: Context) : NestedScrollView(context) {
         }
     }
 
-    // ---- Search highlights ---------------------------------------------------
-
     private class ScrollSearchSpan(color: Int) : BackgroundColorSpan(color)
 
-    fun applySearchHighlights(hits: List<HighlightRange>) {
-        for (anchor in charAnchors) {
-            val tv = anchor.view as? AppCompatTextView ?: continue
-            val spannable = tv.text as? Spannable ?: continue
-            // Remove old search spans
-            spannable.getSpans(0, spannable.length, ScrollSearchSpan::class.java)
-                .forEach { spannable.removeSpan(it) }
-        }
-        if (hits.isEmpty()) return
-        for (hit in hits) {
-            for (anchor in charAnchors) {
-                val tv = anchor.view as? AppCompatTextView ?: continue
-                val spannable = tv.text as? Spannable ?: continue
-                val anchorEnd = anchor.charStart + spannable.length
-                val s = maxOf(hit.absoluteStart, anchor.charStart)
-                val e = minOf(hit.absoluteEnd, anchorEnd)
-                if (e <= s) continue
-                val localStart = s - anchor.charStart
-                val localEnd = e - anchor.charStart
-                spannable.setSpan(
-                    ScrollSearchSpan(hit.color),
-                    localStart, localEnd,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-                )
-            }
-        }
+    private companion object {
+        /** Above this gap (in items) a chapter jump teleports instead of
+         *  animating — keeps far jumps O(1) rather than item-by-item. */
+        const val SMOOTH_SCROLL_MAX_ITEMS = 40
+
+        const val TYPE_PARAGRAPH = 0
+        const val TYPE_CHAPTER = 1
+        const val TYPE_SPACER = 2
+        const val TYPE_DIVIDER = 3
+        const val TYPE_IMAGE = 4
+        const val TYPE_JUMP = 5
     }
-
-    // ---- Position tracking --------------------------------------------------
-
-    private var pendingReport: Runnable? = null
-
-    private fun reportVisibleCharIndex() {
-        if (pendingReport != null) return // already scheduled
-        val runnable = Runnable {
-            pendingReport = null
-            val scrollTop = scrollY
-            val anchor = charAnchors.lastOrNull { it.view.top <= scrollTop + height / 4 }
-            anchor?.let { onCharIndexChanged?.invoke(it.charStart) }
-        }
-        pendingReport = runnable
-        postDelayed(runnable, 500L)
-    }
-
-    private fun reportScrollProgress() {
-        val cb = onScrollProgressChanged ?: return
-        val range = computeVerticalScrollRange() - computeVerticalScrollExtent()
-        val progress = if (range > 0) scrollY.toFloat() / range else 0f
-        cb.invoke(progress.coerceIn(0f, 1f))
-    }
-
-    /**
-     * Force a scroll-progress callback emission. Used right after entering
-     * vertical-scroll mode so the bottom-bar SeekBar picks up the current
-     * scroll fraction even if no scroll event has fired yet.
-     */
-    fun pushScrollProgressNow() {
-        post { reportScrollProgress() }
-    }
-
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        pendingReport?.let { removeCallbacks(it) }
-        pendingReport = null
-    }
-
-    private data class CharAnchor(val charStart: Int, val view: android.view.View)
 }
