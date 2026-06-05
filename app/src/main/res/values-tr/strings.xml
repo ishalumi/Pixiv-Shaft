@@ -753,6 +753,7 @@
   <string name="v3_label_following">Takip</string>
   <string name="v3_label_mypixiv">My Pixiv</string>
   <string name="v3_label_navigate">Gezinti</string>
+  <string name="v3_label_illust_tags">İllüstrasyon Etiketleri</string>
   <string name="v3_label_profile_details">Profil Detayları</string>
   <string name="v3_label_workspace">Çalışma Alanı</string>
   <string name="v3_label_social">Sosyal</string>

@@ -21,6 +21,8 @@ import ceui.lisa.fragments.FragmentUserManga
 import ceui.lisa.helper.UserIllustJumpHelper
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.http.Retro
+import ceui.lisa.core.Mapper
+import ceui.lisa.model.ListIllust
 import ceui.lisa.models.UserBean
 import ceui.lisa.models.UserDetailResponse
 import ceui.lisa.models.UserFollowDetail
@@ -51,6 +53,7 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
 private const val KEY_HAS_MANGA_TAB = "user_v3_has_manga_tab"
+private const val MAX_ILLUST_TAG_CHIPS = 20 // issue #569: 高频 tag 药丸最多展示数
 
 class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
 
@@ -388,6 +391,8 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
 
         // Navigation tags
         setupNavTags(data, isSelf)
+        // issue #569: 按 Tag 筛选画师插画
+        setupIllustTags(data)
     }
 
     private fun displayWebUserDetail(detail: WebUserDetail) {
@@ -436,6 +441,16 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 intent.putExtra(TemplateActivity.EXTRA_CHAT_PEER_UID, userId.toLong())
                 startActivity(intent)
             }
+        }
+    }
+
+    /** 导航区 / 插画标签 共用的药丸背景(主题描边)。issue #569 前是两处内联拷贝。 */
+    private fun navChipPill(dp: Float): android.graphics.drawable.GradientDrawable {
+        return android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 999f * dp
+            setColor(0x08FFFFFF)
+            setStroke((1 * dp).toInt(), palette.alpha20)
         }
     }
 
@@ -498,12 +513,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                     binding.tagName.text = item?.first ?: ""
                     // Themed pill border
                     val dp = resources.displayMetrics.density
-                    binding.root.background = android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                        cornerRadius = 999f * dp
-                        setColor(0x08FFFFFF)
-                        setStroke((1 * dp).toInt(), palette.alpha20)
-                    }
+                    binding.root.background = navChipPill(dp)
                     val count = counts.getOrNull(position) ?: 0
                     if (count > 0) {
                         binding.tagCount.visibility = View.VISIBLE
@@ -521,6 +531,68 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 startActivity(intent)
                 true
             }
+        }
+    }
+
+    /**
+     * issue #569: 按 Tag 筛选画师插画。拉首页插画聚合出高频 tag,以导航区同款药丸展示;
+     * 点击打开网页 ajax 驱动的筛选页(跨全部作品)。tag 数据本就在每条作品里,只需一次 app-api。
+     */
+    private fun setupIllustTags(data: UserDetailResponse) {
+        if (data.profile == null || data.profile.total_illusts <= 0) return
+        val userId = data.user.id
+        Retro.getAppApi().getUserSubmitIllust(userId, Params.TYPE_ILLUST)
+            .subscribeOn(Schedulers.newThread())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(object : NullCtrl<ListIllust>() {
+                override fun success(resp: ListIllust) {
+                    if (baseBind == null) return
+                    // 跟全局列表一致地过滤被屏蔽的作品/tag(用户设置必须全局适配):含屏蔽 tag 的作品
+                    // 会被整条移除,其 tag 自然不进聚合,屏蔽 tag 不会冒出来当 chip。
+                    Mapper<ListIllust>().apply(resp)
+                    val illusts = resp.illusts ?: return
+                    // name -> (展示名, 计数);展示名优先翻译,筛选仍用原始 name
+                    val freq = LinkedHashMap<String, Pair<String, Int>>()
+                    for (ill in illusts) {
+                        val tags = ill.tags ?: continue
+                        for (t in tags) {
+                            val name = t.name ?: continue
+                            if (name.isBlank()) continue
+                            val disp = t.translated_name?.takeIf { it.isNotBlank() } ?: name
+                            val prev = freq[name]
+                            freq[name] = disp to ((prev?.second ?: 0) + 1)
+                        }
+                    }
+                    if (freq.isEmpty()) return
+                    val top = freq.entries
+                        .sortedByDescending { it.value.second }
+                        .take(MAX_ILLUST_TAG_CHIPS)
+                        .map { it.value.first to it.key } // (展示名, 原始 name)
+                    renderIllustTagChips(top, userId)
+                }
+            })
+    }
+
+    private fun renderIllustTagChips(chips: List<Pair<String, String>>, userId: Int) {
+        if (chips.isEmpty()) return
+        baseBind.illustTagLabel.visibility = View.VISIBLE
+        baseBind.illustTagFlow.visibility = View.VISIBLE
+        baseBind.illustTagFlow.adapter = object : TagAdapter<Pair<String, String>>(chips) {
+            override fun getView(parent: FlowLayout, position: Int, item: Pair<String, String>?): View {
+                val binding = ItemV3NavTagBinding.inflate(LayoutInflater.from(mContext), parent, false)
+                binding.tagName.text = item?.first ?: ""
+                val dp = resources.displayMetrics.density
+                binding.root.background = navChipPill(dp)
+                return binding.root
+            }
+        }
+        baseBind.illustTagFlow.setOnTagClickListener { _, position, _ ->
+            val intent = Intent(mContext, TemplateActivity::class.java)
+            intent.putExtra(Params.USER_ID, userId)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "插画标签作品")
+            intent.putExtra(Params.KEY_WORD, chips[position].second)
+            startActivity(intent)
+            true
         }
     }
 

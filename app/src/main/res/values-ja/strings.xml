@@ -859,6 +859,7 @@
   <string name="v3_label_following">フォロー中</string>
   <string name="v3_label_mypixiv">マイピク</string>
   <string name="v3_label_navigate">ナビゲート</string>
+  <string name="v3_label_illust_tags">イラストタグ</string>
   <string name="v3_label_profile_details">プロフィール詳細</string>
   <string name="v3_label_workspace">作業環境</string>
   <string name="v3_label_social">ソーシャル</string>

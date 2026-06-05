@@ -30,10 +30,17 @@ import ceui.lisa.file.SAFile;
 import ceui.lisa.http.ErrorCtrl;
 import ceui.lisa.interfaces.Callback;
 import ceui.lisa.interfaces.FeedBack;
+import ceui.lisa.http.NullCtrl;
+import ceui.lisa.http.Retro;
 import ceui.lisa.models.GifResponse;
+import ceui.lisa.models.IllustSearchResponse;
 import ceui.lisa.models.IllustsBean;
 import ceui.lisa.models.ImageUrlsBean;
+import ceui.lisa.models.MetaPagesBean;
 import ceui.lisa.models.NovelBean;
+import ceui.loxia.ObjectPool;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
 import ceui.lisa.models.NovelDetail;
 import ceui.lisa.models.NovelSeriesItem;
 import ceui.lisa.utils.Common;
@@ -124,6 +131,17 @@ public class IllustDownload {
     }
 
     public static void downloadIllustAllPages(IllustsBean illust) {
+        // issue #569: 精简/网页来源的 bean(如「按 Tag 筛选」列表项)没有 meta_pages/meta_single_page,
+        // 直接下载多图只会拿到封面、原图也取不到。先回 v1/illust/detail 拉完整版再下;
+        // 拉取失败则降级用现有数据(已加空值兜底,不会崩)。
+        if (needsFullData(illust)) {
+            ensureFullThenRun(illust, IllustDownload::doDownloadAllPages);
+            return;
+        }
+        doDownloadAllPages(illust);
+    }
+
+    private static void doDownloadAllPages(IllustsBean illust) {
         if (illust.isGif()){
             downloadGif(illust);
         } else if (illust.getPage_count() == 1) {
@@ -137,6 +155,46 @@ public class IllustDownload {
             Common.showToast(tempList.size() + Shaft.getContext().getString(R.string.has_been_added));
             Manager.get().addTasks(tempList);
         }
+    }
+
+    /** 详情/下载所需的分页信息是否缺失(精简来源的 bean 会缺,需回 API 补全)。 */
+    private static boolean needsFullData(IllustsBean illust) {
+        if (illust == null) {
+            return false;
+        }
+        if (illust.getPage_count() <= 1) {
+            return illust.getMeta_single_page() == null
+                    || TextUtils.isEmpty(illust.getMeta_single_page().getOriginal_image_url());
+        }
+        List<MetaPagesBean> mp = illust.getMeta_pages();
+        return mp == null || mp.size() < illust.getPage_count();
+    }
+
+    /**
+     * 回 v1/illust/detail 拉完整版后用完整 bean 执行 action;失败/已删则用原 bean 降级执行
+     * (action 应是不再触发本守卫的「裸」下载实现,避免无限重拉)。
+     */
+    private static void ensureFullThenRun(IllustsBean illust, java.util.function.Consumer<IllustsBean> action) {
+        Retro.getAppApi().getIllustByID(illust.getId())
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new NullCtrl<IllustSearchResponse>() {
+                    @Override
+                    public void success(IllustSearchResponse resp) {
+                        IllustsBean fresh = resp.getIllust();
+                        if (fresh != null && fresh.getId() != 0 && fresh.isVisible()) {
+                            ObjectPool.INSTANCE.updateIllust(fresh);
+                            action.accept(fresh);
+                        } else {
+                            action.accept(illust);
+                        }
+                    }
+
+                    @Override
+                    public void error(Throwable e) {
+                        action.accept(illust);
+                    }
+                });
     }
 
 
@@ -351,21 +409,19 @@ public class IllustDownload {
 
     private static ImageUrlsBean getImageUrlsBean(IllustsBean illust, int index, String imageResolution) {
         if (illust.getPage_count() == 1) {
-            return imageResolution.equals(Params.IMAGE_RESOLUTION_ORIGINAL) ? illust.getMeta_single_page() : illust.getImage_urls();
-        } else {
-            // Diagnostic only — log if meta_pages looks malformed but still let the
-            // original behavior (NPE / IOOB on .get(index)) propagate so we don't
-            // mask the bug. Once the root cause is confirmed we can revisit fallback.
-            java.util.List<ceui.lisa.models.MetaPagesBean> mp = illust.getMeta_pages();
-            if (mp == null || mp.isEmpty() || index < 0 || index >= mp.size()) {
-                timber.log.Timber.tag("V3MultiP").w(
-                    "[IllustDownload.getImageUrlsBean] SUSPECT: illustId=%d page_count=%d index=%d " +
-                        "meta_pages=%s — about to throw on .get(index)",
-                    illust.getId(), illust.getPage_count(), index,
-                    mp == null ? "null" : ("size=" + mp.size())
-                );
+            if (imageResolution.equals(Params.IMAGE_RESOLUTION_ORIGINAL)) {
+                // 精简/网页来源缺 meta_single_page → 降级到 image_urls,避免 NPE(issue #569)。
+                // 正常情况下载前会先 ensureFullThenRun 拉完整版,这里只是最后兜底。
+                return illust.getMeta_single_page() != null ? illust.getMeta_single_page() : illust.getImage_urls();
             }
-            return illust.getMeta_pages().get(index).getImage_urls();
+            return illust.getImage_urls();
+        } else {
+            List<MetaPagesBean> mp = illust.getMeta_pages();
+            if (mp == null || index < 0 || index >= mp.size()) {
+                // 多图但无 meta_pages(精简/网页来源)→ 降级到封面 image_urls,避免 NPE(issue #569)
+                return illust.getImage_urls();
+            }
+            return mp.get(index).getImage_urls();
         }
     }
 
@@ -373,9 +429,15 @@ public class IllustDownload {
         // 下载管理列表只显示 64dp 缩略图,square_medium (~360px) 比 medium (~540px)
         // 体积小一截,且本身就是方形裁切,跟下载卡片的方形 thumb 视觉吻合。
         // square_medium 缺时按 medium → large 兜底。
-        ImageUrlsBean urls = illust.getPage_count() == 1
-                ? illust.getImage_urls()
-                : illust.getMeta_pages().get(index).getImage_urls();
+        ImageUrlsBean urls;
+        if (illust.getPage_count() == 1) {
+            urls = illust.getImage_urls();
+        } else {
+            List<MetaPagesBean> mp = illust.getMeta_pages();
+            urls = (mp == null || index < 0 || index >= mp.size())
+                    ? illust.getImage_urls()
+                    : mp.get(index).getImage_urls();
+        }
         if (urls == null) return null;
         if (!TextUtils.isEmpty(urls.getSquare_medium())) return urls.getSquare_medium();
         if (!TextUtils.isEmpty(urls.getMedium())) return urls.getMedium();

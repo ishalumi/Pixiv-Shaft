@@ -66,6 +66,7 @@ import ceui.lisa.fragments.FragmentSearchUser;
 import ceui.lisa.fragments.FragmentSettings;
 import ceui.lisa.fragments.FragmentStorage;
 import ceui.lisa.fragments.FragmentUserIllust;
+import ceui.lisa.fragments.FragmentUserIllustByTag;
 import ceui.lisa.fragments.FragmentUserInfo;
 import ceui.lisa.fragments.FragmentUserManga;
 import ceui.lisa.fragments.FragmentUserNovel;
@@ -208,6 +209,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return FragmentUserIllust.newInstance(intent.getIntExtra(Params.USER_ID, 0),
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),
                             intent.getStringExtra(Params.TARGET_DATE));
+                case "插画标签作品": // issue #569: 按 Tag 筛选画师插画
+                    return FragmentUserIllustByTag.newInstance(intent.getIntExtra(Params.USER_ID, 0),
+                            intent.getStringExtra(Params.KEY_WORD));
                 case "漫画作品":
                     return FragmentUserManga.newInstance(intent.getIntExtra(Params.USER_ID, 0),
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),

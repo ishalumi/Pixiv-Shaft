@@ -755,6 +755,7 @@
   <string name="v3_label_following">Подписки</string>
   <string name="v3_label_mypixiv">Мой Pixiv</string>
   <string name="v3_label_navigate">Навигация</string>
+  <string name="v3_label_illust_tags">Теги иллюстраций</string>
   <string name="v3_label_profile_details">Профиль</string>
   <string name="v3_label_workspace">Рабочее место</string>
   <string name="v3_label_social">Соцсети</string>

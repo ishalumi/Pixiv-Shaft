@@ -20,6 +20,8 @@ import ceui.loxia.Client
 import ceui.loxia.Comment
 import ceui.loxia.Illust
 import ceui.loxia.ObjectPool
+import ceui.loxia.fetchFullIllustDetail
+import ceui.loxia.isFullDetail
 import ceui.lisa.download.IllustDownload
 import ceui.pixiv.db.RecordType
 import com.google.gson.Gson
@@ -43,6 +45,8 @@ class ArtworkV3ViewModel(
     private var commentsLoadTriggered = false
     private var authorWorksLoadTriggered = false
     private var relatedLoadTriggered = false
+    // 详情数据不完整时只回 API 拉一次完整版,避免 observer 反复 fire 触发重复请求
+    private var fullDetailFetchTriggered = false
 
     // ── output: header sections ──
     private val _headerItems = MutableLiveData<List<ArtworkDetailItem>>()
@@ -66,9 +70,13 @@ class ArtworkV3ViewModel(
     private val _isBookmarked = MutableLiveData<Boolean>()
     val isBookmarked: LiveData<Boolean> = _isBookmarked
 
-    // ── 手动下拉刷新(只刷 illust 详情本身) ──
+    // ── 手动下拉刷新(只刷 illust 详情本身);数据不完整时的自动拉取也复用它 ──
     private val _isRefreshingDetail = MutableLiveData(false)
     val isRefreshingDetail: LiveData<Boolean> = _isRefreshingDetail
+
+    // ── 拉完整版失败/作品已删:置位后改用现有(精简)数据降级渲染,避免永久空白(issue #569) ──
+    private val _detailFetchFailed = MutableLiveData(false)
+    val detailFetchFailed: LiveData<Boolean> = _detailFetchFailed
 
     var relatedNextUrl: String? = null
         private set
@@ -97,10 +105,15 @@ class ArtworkV3ViewModel(
                     "meta_pages=$mpInfo, prevIllustBeanWasNull=${illustBean == null}"
             )
             illustBean = bean
-            _isBookmarked.value = bean.isIs_bookmarked
-            attachArtistFollowObserver(bean.user?.id?.toLong() ?: 0L)
-            buildHeaderItems()
-            setupDownloadFab(bean)
+            // 精简/网页来源的 bean 缺分页图等必要字段,用它建多图分页会残缺。先回 API 拉完整版
+            // (页面转圈圈),拉到后整体覆盖 ObjectPool,observer 带完整数据再次 fire 时正常渲染。
+            // 拉取失败/作品已删时 detailFetchFailed 置位,改用现有数据降级渲染(已加兜底,不会崩)。
+            if (!bean.isFullDetail() && _detailFetchFailed.value != true) {
+                Timber.tag("V3MultiP").d("[ViewModel.illustBeanObserver] incomplete bean, fetch full from API")
+                ensureFullDetailFetched()
+                return@Observer
+            }
+            renderBean(bean)
         } else {
             Timber.tag("V3MultiP").w("[ViewModel.illustBeanObserver] FIRE illustId=$illustId, bean=NULL")
         }
@@ -309,6 +322,21 @@ class ArtworkV3ViewModel(
         _headerItems.value = list
     }
 
+    /** 用给定 bean 渲染 header / 收藏态 / 关注态 / 下载 FAB。完整版与降级(精简)版共用。 */
+    private fun renderBean(bean: IllustsBean) {
+        _isBookmarked.value = bean.isIs_bookmarked
+        attachArtistFollowObserver(bean.user?.id?.toLong() ?: 0L)
+        buildHeaderItems()
+        setupDownloadFab(bean)
+    }
+
+    /** 回 v1/illust/detail 拉完整版并整体覆盖进 ObjectPool(只触发一次)。复用下拉刷新的转圈圈。 */
+    private fun ensureFullDetailFetched() {
+        if (fullDetailFetchTriggered) return
+        fullDetailFetchTriggered = true
+        refreshIllustDetail()
+    }
+
     // ── data loading (deep-link fallback) ──
     private fun loadData() {
         // IllustsBean is normally already in ObjectPool from the list page.
@@ -365,23 +393,18 @@ class ArtworkV3ViewModel(
         if (_isRefreshingDetail.value == true) return
         _isRefreshingDetail.value = true
         viewModelScope.launch {
-            try {
-                val fresh = withContext(Dispatchers.IO) {
-                    ceui.lisa.http.Retro.getAppApi().getIllustByID(illustId).awaitFirst().illust
-                }
-                // 作品被删除/设为非公开时服务端返回空壳对象,不要让它覆盖页面上已有的完整数据
-                if (fresh != null && fresh.id != 0 && fresh.isVisible) {
-                    // 详情接口返回的是完整版本,整体覆盖(isFullVersion)而非 merge,
-                    // 这样标签删除、简介清空等"变少"的修改也能反映出来
-                    ObjectPool.update(fresh, isFullVersion = true)
-                    // 内嵌 user 是精简版,走默认 merge,不降级池里更完整的 UserBean
-                    fresh.user?.let { ObjectPool.update(it) }
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "[refreshIllustDetail] failed, illustId=$illustId")
-            } finally {
-                _isRefreshingDetail.value = false
+            // 成功:fetchFullIllustDetail 已整体覆盖(isFullVersion)ObjectPool,observer 会带完整数据
+            // 再次 fire 并渲染。失败/已删返回 null:不覆盖已有数据,标记失败并用现有(精简)数据降级渲染,
+            // 避免从「按 Tag 筛选」等精简来源进来、又拉不到完整版时永久空白(issue #569)。
+            val fresh = fetchFullIllustDetail(illustId)
+            if (fresh == null) {
+                // 失败/已删:置位后重新发布现有(精简)bean —— VM 与 Fragment 两个 observer 都会再次
+                // fire,此时 detailFetchFailed 已置位,门都放行,用现有数据降级渲染(header + 封面),
+                // 避免整页空白(issue #569)。
+                _detailFetchFailed.value = true
+                illustBean?.let { ObjectPool.updateIllust(it) }
             }
+            _isRefreshingDetail.value = false
         }
     }
 
@@ -490,16 +513,13 @@ class ArtworkV3ViewModel(
     }
 }
 
-/**
- * Bridge Rx2 Observable to a suspend function without pulling in kotlinx-coroutines-rx2.
- * Runs the subscription on Schedulers.io so the calling coroutine thread is freed while waiting.
- */
 sealed interface DownloadFab {
     data object Idle : DownloadFab
     data class Downloading(val percent: Int) : DownloadFab
     data object Done : DownloadFab
 }
 
+/** Bridge Rx2 Observable to a suspend function without pulling in kotlinx-coroutines-rx2. */
 private suspend fun <T : Any> Observable<T>.awaitFirst(): T = suspendCancellableCoroutine { cont ->
     val disposable = subscribeOn(Schedulers.io())
         .firstOrError()

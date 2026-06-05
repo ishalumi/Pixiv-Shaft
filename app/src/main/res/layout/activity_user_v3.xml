@@ -360,6 +360,27 @@
                             android:layout_marginTop="12dp"
                             android:visibility="gone" />
 
+                        <!-- issue #569: 按 Tag 筛选该画师插画作品 -->
+                        <TextView
+                            android:id="@+id/illust_tag_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:letterSpacing="0.12"
+                            android:text="@string/v3_label_illust_tags"
+                            android:textAllCaps="true"
+                            android:textColor="@color/v3_text_3"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
+
+                        <com.zhy.view.flowlayout.TagFlowLayout
+                            android:id="@+id/illust_tag_flow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:visibility="gone" />
+
                     </LinearLayout>
 
                 </LinearLayout>

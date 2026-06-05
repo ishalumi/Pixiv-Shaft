@@ -617,6 +617,30 @@ data class WebResponse<T> (
     val body: T? = null,
 ) : Serializable
 
+// issue #569: 网页版「按 Tag 筛选画师作品」接口 /ajax/user/{id}/illusts/tag 的响应体。
+// works 里是精简 work 对象(方图 url + 字符串 tags + 宽高),由 UserIllustTagRepo 映射成 IllustsBean。
+data class UserTagIllustBody(
+    val works: List<UserTagIllust>? = null,
+    val total: Int = 0,
+) : Serializable
+
+data class UserTagIllust(
+    val id: Long = 0L,
+    val title: String? = null,
+    val illustType: Int = 0,
+    val xRestrict: Int = 0,
+    val aiType: Int = 0,
+    val url: String? = null,
+    val tags: List<String>? = null,
+    val userId: Long = 0L,
+    val userName: String? = null,
+    val width: Int = 0,
+    val height: Int = 0,
+    val pageCount: Int = 0,
+    val createDate: String? = null,
+    val profileImageUrl: String? = null,
+) : Serializable
+
 data class RelatedUserBody (
     val thumbnails: List<WebIllust>? = null,
     val users: List<WebUser>? = null,

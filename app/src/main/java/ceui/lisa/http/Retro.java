@@ -42,6 +42,15 @@ public class Retro {
         return get().create(LofterApi.class);
     }
 
+    /**
+     * issue #569: www.pixiv.net 网页 ajax 的 RxJava 客户端。带 {@link ceui.loxia.WebHeaderInterceptor}
+     * 注入已同步的网页 cookie(没同步则匿名,公开作品仍可拿)。Retrofit/OkHttpClient 缓存为单例,
+     * 翻页时复用连接池(cookie 在拦截器里按请求实时读取,单例不影响其新鲜度)。
+     */
+    public static WebApi getWebApi() {
+        return WebHolder.webRetrofit.create(WebApi.class);
+    }
+
     public static void refreshAppApi() {
         Holder.appRetrofit = buildRetrofit(API_BASE_URL);
     }
@@ -129,6 +138,31 @@ public class Retro {
                 .addConverterFactory(GsonConverterFactory.create(gson))
                 .baseUrl(baseUrl)
                 .build();
+    }
+
+    /**
+     * issue #569: 网页 ajax 专用 Retrofit —— www.pixiv.net + cookie 注入 + RxJava 适配器。
+     * 不挂 app-api 的 Authorization/x-client-hash 那套(网页接口认 cookie 不认 OAuth)。
+     */
+    private static Retrofit buildWebRetrofit() {
+        OkHttpClient.Builder builder = getLogClient();
+        builder.addInterceptor(new ceui.loxia.WebHeaderInterceptor());
+        applyDirectConnect(builder, true);
+        HttpLoggingInterceptor l = new HttpLoggingInterceptor(message -> Timber.i(message));
+        l.setLevel(HttpLoggingInterceptor.Level.BODY);
+        builder.addInterceptor(l);
+        OkHttpClient client = builder.build();
+        Gson gson = new GsonBuilder().setLenient().create();
+        return new Retrofit.Builder()
+                .client(client)
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .baseUrl(ceui.loxia.ClientManager.WEB_API_HOST + "/")
+                .build();
+    }
+
+    private static class WebHolder {
+        private static final Retrofit webRetrofit = buildWebRetrofit();
     }
 
     private static Retrofit buildPlainRetrofit(String baseUrl) {

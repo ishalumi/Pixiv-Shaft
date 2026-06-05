@@ -194,6 +194,17 @@
 
         </LinearLayout>
 
+        <!-- issue #569: 详情数据不完整(网页精简来源)时回 API 拉完整版,期间居中转圈圈 -->
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/loading_full_detail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorSize="44dp"
+            app:trackThickness="4dp" />
+
     </FrameLayout>
 
 </layout>

@@ -823,6 +823,7 @@
   <string name="v3_label_following">Following</string>
   <string name="v3_label_mypixiv">My Pixiv</string>
   <string name="v3_label_navigate">Navigate</string>
+  <string name="v3_label_illust_tags">Illust Tags</string>
   <string name="v3_label_profile_details">Profile Details</string>
   <string name="v3_label_workspace">Workspace</string>
   <string name="v3_label_social">Social</string>

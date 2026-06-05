@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
+import androidx.core.view.isVisible
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModel
@@ -32,6 +33,7 @@ import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.ShareIllust
 import ceui.loxia.ObjectPool
+import ceui.loxia.isFullDetail
 import ceui.loxia.requireNetworkStateManager
 import ceui.loxia.threadSafeArgs
 import android.content.res.ColorStateList
@@ -165,10 +167,15 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             setColorSchemeColors(headerAdapter.palette.textAccent)
         })
         baseBind.refreshLayout.setOnRefreshListener { viewModel.refreshIllustDetail() }
+        baseBind.loadingFullDetail.setIndicatorColor(headerAdapter.palette.textAccent)
         viewModel.isRefreshingDetail.observe(viewLifecycleOwner) { refreshing ->
             if (refreshing == false) {
                 baseBind.refreshLayout.finishRefresh()
             }
+            // 居中转圈圈只在「还没有内容」时显示——即数据不完整、VM 正回 API 拉完整版的初始阶段。
+            // 手动下拉刷新时内容已在(illustAdapter != null),只走 SmartRefreshLayout 自带的下拉转圈,
+            // 不再叠一个居中圈。用 SmartRefreshLayout 程序化 autoRefresh 会导致转圈停不下来,故弃用。
+            baseBind.loadingFullDetail.isVisible = refreshing == true && illustAdapter == null
         }
 
         setupNavBar(illustId)
@@ -190,6 +197,13 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             observerEmissionCount++
             if (illust == null) {
                 Timber.tag("V3MultiP").w("[Fragment.observe] emission #$observerEmissionCount: illust=NULL, illustId=$illustId")
+                return@observe
+            }
+            // 精简/网页来源 bean 缺分页图(meta_pages/meta_single_page),建多图分页会残缺。
+            // 等 VM 回 API 拉到完整版再次 fire 时才建;拉取失败/已删时(detailFetchFailed)放行,
+            // 用现有数据降级建封面,避免整页空白。(issue #569)
+            if (!illust.isFullDetail() && viewModel.detailFetchFailed.value != true) {
+                Timber.tag("V3MultiP").d("[Fragment.observe] incomplete bean, wait for full detail (illustId=$illustId)")
                 return@observe
             }
             val metaPagesInfo = try {
