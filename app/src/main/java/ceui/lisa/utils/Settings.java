@@ -259,6 +259,9 @@ public class Settings {
 
     private boolean illustDetailKeepScreenOn = false; //插画二级详情保持屏幕常亮
 
+    // 看图时为状态栏(刘海/挖孔)留出顶部空间，避免多图/竖图铺满顶部被遮挡（issue #724）。默认关闭，保持原沉浸式铺满。
+    private boolean keepStatusBarWhenViewImage = false;
+
     // 收藏夹过滤已失效作品（已删除/不可见），默认不过滤
     private boolean filterInvalidBookmarks = false;
 
@@ -834,6 +837,14 @@ public class Settings {
 
     public void setIllustDetailKeepScreenOn(boolean illustDetailKeepScreenOn) {
         this.illustDetailKeepScreenOn = illustDetailKeepScreenOn;
+    }
+
+    public boolean isKeepStatusBarWhenViewImage() {
+        return keepStatusBarWhenViewImage;
+    }
+
+    public void setKeepStatusBarWhenViewImage(boolean keepStatusBarWhenViewImage) {
+        this.keepStatusBarWhenViewImage = keepStatusBarWhenViewImage;
     }
 
     public boolean isFilterInvalidBookmarks() {

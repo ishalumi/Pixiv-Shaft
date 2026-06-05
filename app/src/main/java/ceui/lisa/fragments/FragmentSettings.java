@@ -1308,6 +1308,23 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            // 看图时保留状态栏(刘海/挖孔)区域（issue #724），默认关闭。
+            baseBind.keepStatusBarWhenViewImage.setChecked(Shaft.sSettings.isKeepStatusBarWhenViewImage());
+            baseBind.keepStatusBarWhenViewImage.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setKeepStatusBarWhenViewImage(isChecked);
+                    Common.showToast(getString(R.string.string_428));
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.keepStatusBarWhenViewImageRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.keepStatusBarWhenViewImage.performClick();
+                }
+            });
+
             // 同义词词典功能总开关（issue #904），默认关闭。
             // 关闭时所有相关 UI（详情页匹配框/长按菜单项/管理页入口/自动导入/自动勾选）完全隐藏。
             baseBind.synonymDictEnable.setChecked(Shaft.sSettings.isSynonymDictEnabled());

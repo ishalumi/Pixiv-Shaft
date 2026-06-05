@@ -1277,6 +1277,23 @@
 
                         <View style="@style/half_divider" />
 
+                        <!-- 看图时保留状态栏(刘海/挖孔)区域（issue #724），默认关闭 -->
+                        <RelativeLayout
+                            android:id="@+id/keep_status_bar_when_view_image_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                style="@style/setting_text_left_and_center"
+                                android:text="@string/keep_status_bar_when_view_image" />
+
+                            <androidx.appcompat.widget.SwitchCompat
+                                android:id="@+id/keep_status_bar_when_view_image"
+                                style="@style/setting_right_switch" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
                         <!-- 同义词词典功能总开关（issue #904），默认关闭 -->
                         <RelativeLayout
                             android:id="@+id/synonym_dict_enable_rela"

@@ -41,6 +41,7 @@ import ceui.pixiv.ui.upscale.UpscaleTaskPool
 import ceui.pixiv.ui.works.ToggleToolnarViewModel
 import ceui.pixiv.utils.animateFadeInQuickly
 import ceui.pixiv.utils.animateFadeOutQuickly
+import com.blankj.utilcode.util.BarUtils
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -74,6 +75,12 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
         observeTranslationStatus()
         val dataType = intent.getStringExtra("dataType")
         baseBind!!.viewPager.setPageTransformer(true, PageTransformerHelper.getCurrentTransformer())
+        // issue #724: 个性化「看图时保留状态栏区域」开启时，给 ViewPager 顶部留出状态栏高度，
+        // 让图片渲染在刘海/挖孔下方而不是铺满顶部被遮挡。用固定状态栏高度（而非 statusBars inset）
+        // 是为了在双击进入沉浸/隐藏系统栏后顶部留白依旧保持。默认关闭，体验与原来完全一致。
+        if (Shaft.sSettings.isKeepStatusBarWhenViewImage) {
+            baseBind!!.viewPager.setPadding(0, BarUtils.getStatusBarHeight(), 0, 0)
+        }
         val windowInsetsController = WindowInsetsControllerCompat(
             window,
             window.decorView
