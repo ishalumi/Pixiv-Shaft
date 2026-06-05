@@ -648,6 +648,10 @@
   <string name="rate_dialog_never">Bir daha sorma</string>
   <string name="string_ai_upscale">AI Kalite Artırma (2x)</string>
   <string name="string_ai_manga_translate_inline">Manga çevirisi</string>
+  <string name="string_ai_manga_translate_manual">Seçerek çevir</string>
+  <string name="string_ai_manga_translate_manual_hint">Çevrilecek metni sürükleyerek seçin</string>
+  <string name="string_ai_manga_manual_recognizing">Seçim tanınıyor…</string>
+  <string name="string_ai_manga_manual_too_small">Seçim çok küçük, lütfen tekrar seçin</string>
   <string name="manga_translate_prep_title">Manga Çevirisi · İlk Kurulum</string>
   <string name="manga_translate_prep_subtitle">Yaklaşık %1$s çevrimdışı model bir kez indirilir, sonrası tek dokunuş</string>
   <string name="manga_translate_prep_cta">İndir ve Çevir</string>

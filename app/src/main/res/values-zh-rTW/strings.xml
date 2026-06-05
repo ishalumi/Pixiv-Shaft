@@ -766,6 +766,10 @@
   <string name="rate_dialog_never">不再提醒</string>
   <string name="string_ai_upscale">畫質增強 (2x)</string>
   <string name="string_ai_manga_translate_inline">翻譯漫畫</string>
+  <string name="string_ai_manga_translate_manual">圈選翻譯</string>
+  <string name="string_ai_manga_translate_manual_hint">拖曳框選要翻譯的文字，放開即翻譯</string>
+  <string name="string_ai_manga_manual_recognizing">辨識選取文字…</string>
+  <string name="string_ai_manga_manual_too_small">選取範圍太小，請重新框選</string>
   <string name="manga_translate_prep_title">翻譯漫畫 · 首次準備</string>
   <string name="manga_translate_prep_subtitle">需要下載約 %1$s 的離線模型，之後即點即翻</string>
   <string name="manga_translate_prep_cta">下載並翻譯</string>

@@ -1,6 +1,7 @@
 package ceui.lisa.fragments
 
 import android.annotation.SuppressLint
+import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
@@ -24,6 +25,7 @@ import ceui.pixiv.ui.common.saveImageToGallery
 import ceui.pixiv.ui.common.setUpWithTaskStatus
 import ceui.pixiv.ui.task.NamedUrl
 import ceui.pixiv.ui.task.TaskPool
+import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.works.ToggleToolnarViewModel
 import ceui.pixiv.utils.setOnClick
 import com.github.panpf.sketch.loadImage
@@ -299,6 +301,80 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
                 baseBind.image.loadImage(f)
             }
         }
+        // 「圈选翻译」请求:命中本页 index 才进圈选模式,进完立刻消费防重复触发
+        translationViewModel.manualSelectionRequest.observe(viewLifecycleOwner) { req ->
+            if (req != null && req == index) {
+                translationViewModel.consumeManualSelectionRequest()
+                enterManualSelection()
+            }
+        }
+    }
+
+    /** 进圈选模式:亮出框选层接管触摸,画完一框就退出并交给 VM 翻译。 */
+    private fun enterManualSelection() {
+        if (translationViewModel.running.value == true) {
+            Toast.makeText(requireContext(), R.string.string_ai_translate_in_progress, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val box = baseBind.selectionBoxView
+        box.reset()
+        box.onSelected = { rect ->
+            exitManualSelection()
+            handleSelectedBox(rect)
+        }
+        box.onCancelled = { exitManualSelection() }
+        baseBind.manualSelectionCancel.setOnClick { exitManualSelection() }
+        val overlay = baseBind.manualSelectionOverlay
+        overlay.alpha = 0f
+        overlay.visibility = View.VISIBLE
+        overlay.animate().alpha(1f).setDuration(200).start()
+    }
+
+    private fun exitManualSelection() {
+        val overlay = baseBind.manualSelectionOverlay
+        if (overlay.visibility != View.VISIBLE) return
+        overlay.animate().alpha(0f).setDuration(200).withEndAction {
+            overlay.visibility = View.GONE
+        }.start()
+    }
+
+    /**
+     * 把框选层吐回的「View 坐标系矩形」用 zoomimage 的 transform 换算成「内容坐标」,
+     * 再除以 contentSize 归一化到 [0,1] —— 这样与显示图实际分辨率、当前缩放都无关,
+     * VM 拿到归一化矩形按底图分辨率还原即可。最后解析原图 File 交给 VM 翻译。
+     */
+    private fun handleSelectedBox(screenRect: RectF) {
+        val illust = mIllustsBean ?: return
+        val zoomable = baseBind.image.zoomable
+        val size = zoomable.contentSizeState.value
+        if (size.width <= 0 || size.height <= 0) {
+            Toast.makeText(requireContext(), R.string.string_ai_manga_translate_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        // 选区太小(细长误触)直接拦下,免得 OCR 拿到一条线
+        val minPx = 16f * resources.displayMetrics.density
+        if (screenRect.width() < minPx || screenRect.height() < minPx) {
+            Toast.makeText(requireContext(), R.string.string_ai_manga_manual_too_small, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val tl = zoomable.touchPointToContentPointF(OffsetCompat(screenRect.left, screenRect.top))
+        val br = zoomable.touchPointToContentPointF(OffsetCompat(screenRect.right, screenRect.bottom))
+        val l = (minOf(tl.x, br.x) / size.width).coerceIn(0f, 1f)
+        val t = (minOf(tl.y, br.y) / size.height).coerceIn(0f, 1f)
+        val r = (maxOf(tl.x, br.x) / size.width).coerceIn(0f, 1f)
+        val b = (maxOf(tl.y, br.y) / size.height).coerceIn(0f, 1f)
+
+        val imageUrl = IllustDownload.getUrl(illust, index, Params.IMAGE_RESOLUTION_ORIGINAL)
+            ?: IllustDownload.getUrl(illust, index, Params.IMAGE_RESOLUTION_LARGE) ?: return
+        // 只读已加载好的原图,不要 autoStart 触发多余下载(图已显示,正常都是命中)
+        val file = TaskPool.getLoadTask(NamedUrl("", imageUrl), autoStart = false).result.value
+        if (file == null) {
+            Toast.makeText(requireContext(), R.string.string_ai_ocr_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        translationViewModel.startManualRegion(
+            requireContext().applicationContext, file, index, l, t, r, b, MangaOcrModel.MANGA_OCR_BASE
+        )
     }
 
     private fun loadImage() {

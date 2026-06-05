@@ -60,6 +60,23 @@ class ImageTranslationViewModel : ViewModel() {
     val translatedPaths: LiveData<Map<Int, String>> get() = _translatedPaths.asLiveData()
 
     /**
+     * 「圈选翻译」请求事件:Activity 菜单点了之后塞进目标 pageIndex,对应那页的
+     * [ceui.lisa.fragments.FragmentImageDetail] 观察到自己 index 命中就进圈选模式,
+     * 进完立刻 [consumeManualSelectionRequest] 置空防止旋转/重订阅重复触发。
+     * 用 activity-scoped VM 单一来源派发,避免 Activity 直接持 Fragment 引用。
+     */
+    private val _manualSelectionRequest = MutableLiveData<Int?>(null)
+    val manualSelectionRequest: LiveData<Int?> get() = _manualSelectionRequest.asLiveData()
+
+    fun requestManualSelection(pageIndex: Int) {
+        _manualSelectionRequest.value = pageIndex
+    }
+
+    fun consumeManualSelectionRequest() {
+        _manualSelectionRequest.value = null
+    }
+
+    /**
      * 启动 pipeline。已在跑就直接 return false,UI 自己决定要不要 toast。
      */
     fun start(
@@ -158,6 +175,223 @@ class ImageTranslationViewModel : ViewModel() {
 
         // 5. 发布新译图路径,并清掉同 page 的旧产物
         publishTranslated(pageIndex, outFile.absolutePath)
+    }
+
+    /**
+     * 「圈选翻译」入口(issue #891):用户手动框一块区域,只翻这一块。补自动检测漏掉的
+     * 无气泡文本。坐标是相对**当前显示图**的归一化 [0,1] 矩形(由 Fragment 用 zoomimage
+     * 的 contentSize 换算好),与显示图分辨率无关。
+     *
+     * 与自动流水线的关键差异:
+     * - 不跑 CTD 检测,直接 crop 用户框 → manga-ocr 单框识别,所以只需 OCR 模型。
+     * - **叠加而非覆盖**:若本页已有译图(自动翻译产物或上一次圈选产物),就在那张图上继续
+     *   擦字回填,这样多次圈选 + 自动翻译能累积到同一张图;否则落在原图上。
+     * - 不做气泡扩展:用户框多大就在多大区域内排版,所见即所得。
+     */
+    fun startManualRegion(
+        context: Context,
+        originalFile: File,
+        pageIndex: Int,
+        normLeft: Float,
+        normTop: Float,
+        normRight: Float,
+        normBottom: Float,
+        ocrModel: MangaOcrModel,
+    ): Boolean {
+        if (_running.value == true) return false
+        _running.value = true
+        val app = context.applicationContext
+        viewModelScope.launch {
+            try {
+                runManualPipeline(app, originalFile, pageIndex, normLeft, normTop, normRight, normBottom, ocrModel)
+            } catch (e: Exception) {
+                Timber.e(e, "ImageTranslationVM: manual pipeline failed")
+                Common.showToast(R.string.string_ai_manga_translate_failed)
+            } finally {
+                _status.postValue(null)
+                _running.postValue(false)
+            }
+        }
+        return true
+    }
+
+    private suspend fun runManualPipeline(
+        app: Context,
+        originalFile: File,
+        pageIndex: Int,
+        l: Float, t: Float, r: Float, b: Float,
+        ocrModel: MangaOcrModel,
+    ) {
+        // 1. 只需 manga-ocr 模型(CTD 仅自动检测用),按需加载
+        if (!MangaOcrRecognizer.isLoaded) {
+            _status.postValue(Status(app.getString(R.string.string_ai_ocr_loading_model)))
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { MangaOcrRecognizer.loadModel(app, ocrModel) }
+                    .onFailure { Timber.e(it, "manual: loadModel failed") }.isSuccess
+            }
+            if (!ok) {
+                Common.showToast(R.string.string_ai_ocr_failed)
+                return
+            }
+        }
+
+        // 2. 选底图:已有译图就在它上面继续叠,否则落原图。Fragment 也是按 translatedPaths
+        //    决定当前显示哪张,两边口径一致 → 归一化坐标必然对齐。
+        val baseFile = _translatedPaths.value?.get(pageIndex)
+            ?.let { File(it) }?.takeIf { it.exists() } ?: originalFile
+
+        // 3. 解码底图 + crop 选区 + 单框 OCR(全在 IO)
+        _status.postValue(Status(app.getString(R.string.string_ai_manga_manual_recognizing)))
+        val ocr = withContext(Dispatchers.IO) {
+            runCatching { recognizeManualRegion(baseFile, l, t, r, b) }
+                .onFailure { Timber.e(it, "manual: recognize failed") }.getOrNull()
+        }
+        if (ocr == null) {
+            Common.showToast(R.string.string_ai_manga_translate_failed)
+            return
+        }
+        try {
+            if (ocr.text.isBlank()) {
+                Common.showToast(R.string.string_ai_ocr_empty)
+                return
+            }
+
+            // 4. 翻译(单条)
+            _status.postValue(Status(app.getString(R.string.ocr_translating)))
+            val zh = try {
+                translateSingle(ocr.text)
+            } catch (e: Exception) {
+                Timber.e(e, "manual: translate failed")
+                promptProxyNeededIfPossible()
+                return
+            }
+            if (zh.isBlank()) {
+                promptProxyNeededIfPossible()
+                return
+            }
+
+            // 5. 擦字 + 回填到底图,产出新 PNG
+            _status.postValue(Status(app.getString(R.string.ocr_writeback_running)))
+            val outFile = withContext(Dispatchers.IO) {
+                runCatching { renderManualOnto(app, ocr.base, pageIndex, ocr.region.copy(text = ocr.text), zh) }
+                    .onFailure { Timber.e(it, "manual: render failed") }.getOrNull()
+            }
+            if (outFile == null) {
+                Common.showToast(R.string.string_ai_manga_translate_failed)
+                return
+            }
+            publishTranslated(pageIndex, outFile.absolutePath)
+        } finally {
+            ocr.base.recycle()
+        }
+    }
+
+    /** 圈选 OCR 的中间产物:[base] 是解码出的底图(调用方负责 recycle)。 */
+    private class ManualOcr(val base: Bitmap, val region: OcrTextRegion, val text: String)
+
+    /**
+     * 解码底图(短边降采样到 [MAX_RENDER_SHORT_SIDE] 防 OOM)→ 把归一化矩形换算成像素框 →
+     * crop 出来喂 manga-ocr。region 直接构造在「底图像素坐标系」下,后续擦/填都在这套坐标里,
+     * 不再有 sample 还原那一层。框太小 / 解码失败返回 null。
+     */
+    private fun recognizeManualRegion(file: File, l: Float, t: Float, r: Float, b: Float): ManualOcr? {
+        val base = decodeSampled(file, MAX_RENDER_SHORT_SIDE) ?: return null
+        var keep = false
+        try {
+            val w = base.width
+            val h = base.height
+            val x0 = (l * w).toInt().coerceIn(0, w - 1)
+            val y0 = (t * h).toInt().coerceIn(0, h - 1)
+            val x1 = (r * w).toInt().coerceIn(x0 + 1, w)
+            val y1 = (b * h).toInt().coerceIn(y0 + 1, h)
+            val rw = x1 - x0
+            val rh = y1 - y0
+            if (rw < MIN_MANUAL_REGION_PX || rh < MIN_MANUAL_REGION_PX) return null
+
+            // createBitmap 在「子区域==整图且 base 不可变」时会直接返回 base 本身;
+            // 此时绝不能 recycle,否则把底图也回收了,后续 eraseText 直接挂。
+            val crop = Bitmap.createBitmap(base, x0, y0, rw, rh)
+            val result = try {
+                MangaOcrRecognizer.recognize(crop)
+            } finally {
+                if (crop !== base) crop.recycle()
+            }
+            val region = OcrTextRegion(
+                text = result.text,
+                cx = x0 + rw / 2f,
+                cy = y0 + rh / 2f,
+                width = rw.toFloat(),
+                height = rh.toFloat(),
+                angle = 0f,
+                orientation = 0,
+                prob = 1f,
+                corners = listOf(
+                    x0.toFloat() to y0.toFloat(),
+                    x1.toFloat() to y0.toFloat(),
+                    x1.toFloat() to y1.toFloat(),
+                    x0.toFloat() to y1.toFloat(),
+                ),
+                recogConfidence = result.confidence,
+            )
+            keep = true
+            return ManualOcr(base, region, result.text.trim())
+        } finally {
+            if (!keep) base.recycle()
+        }
+    }
+
+    private suspend fun translateSingle(text: String): String {
+        var out = ""
+        GoogleWebTranslator.translateBatch(
+            inputs = listOf(text),
+            outputLang = "zh-CN",
+            onItem = { _, zh -> out = zh },
+        )
+        return out
+    }
+
+    /**
+     * 在底图上擦掉选区原文(无 mask,走颜色阈值兜底)再把译文排进**用户框定的区域**,
+     * 存成新 PNG。不做气泡扩展 —— 圈选场景所见即所得。
+     */
+    private fun renderManualOnto(
+        app: Context,
+        base: Bitmap,
+        pageIndex: Int,
+        region: OcrTextRegion,
+        zh: String,
+    ): File {
+        val erased = TextEraser.eraseText(base, listOf(region), null)
+        try {
+            val canvas = Canvas(erased)
+            TextRenderer.renderTranslations(canvas, listOf(region), mapOf(0 to zh))
+            val out = File(
+                app.cacheDir,
+                "manga_translated_p${pageIndex}_${System.currentTimeMillis()}.png"
+            )
+            FileOutputStream(out).use { erased.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            Timber.d("ManualWriteBack: saved → %s", out.absolutePath)
+            return out
+        } finally {
+            erased.recycle()
+        }
+    }
+
+    /** 短边降采样解码,短边压到 [maxShort] 以内防 OOM。与自动流水线同口径。 */
+    private fun decodeSampled(file: File, maxShort: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val shortSide = minOf(bounds.outWidth, bounds.outHeight)
+        var sample = 1
+        while (shortSide / sample > maxShort) sample *= 2
+        return BitmapFactory.decodeFile(
+            file.absolutePath,
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+        )
     }
 
     /**
@@ -292,6 +526,9 @@ class ImageTranslationViewModel : ViewModel() {
     companion object {
         /** 回填渲染时图像短边的上限,2400 对齐 [MangaOcr.MAX_INPUT_SHORT_SIDE]。 */
         private const val MAX_RENDER_SHORT_SIDE = 2400
+
+        /** 圈选框换算到底图像素后的最小边长,低于此判为误触/空框。 */
+        private const val MIN_MANUAL_REGION_PX = 8
     }
 }
 

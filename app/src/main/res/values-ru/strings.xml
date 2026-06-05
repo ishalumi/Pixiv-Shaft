@@ -650,6 +650,10 @@
   <string name="rate_dialog_never">Больше не спрашивать</string>
   <string name="string_ai_upscale">AI улучшение (2x)</string>
   <string name="string_ai_manga_translate_inline">Перевод манги</string>
+  <string name="string_ai_manga_translate_manual">Перевод по выделению</string>
+  <string name="string_ai_manga_translate_manual_hint">Выделите перетаскиванием текст для перевода</string>
+  <string name="string_ai_manga_manual_recognizing">Распознавание выделения…</string>
+  <string name="string_ai_manga_manual_too_small">Выделение слишком маленькое, выделите ещё раз</string>
   <string name="manga_translate_prep_title">Перевод манги · Первая настройка</string>
   <string name="manga_translate_prep_subtitle">Около %1$s офлайн-моделей, загружается один раз для мгновенного перевода</string>
   <string name="manga_translate_prep_cta">Загрузить и перевести</string>

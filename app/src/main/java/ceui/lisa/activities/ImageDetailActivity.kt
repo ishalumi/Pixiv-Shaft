@@ -118,7 +118,8 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                 val titles = arrayOf<CharSequence>(
                     getString(R.string.string_ai_upscale),
                     getString(R.string.string_ai_rembg),
-                    getString(R.string.string_ai_manga_translate_inline)
+                    getString(R.string.string_ai_manga_translate_inline),
+                    getString(R.string.string_ai_manga_translate_manual)
                 )
                 QMUIMenuPopup.show(this, anchor, titles) { index, _ ->
                     val illust = mIllustsBean ?: return@show
@@ -131,6 +132,7 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                             performAiRembg(illust, pageIndex, model)
                         }
                         2 -> performAiMangaTranslateInline(illust, pageIndex)
+                        3 -> performAiMangaTranslateManual(illust, pageIndex)
                     }
                 }
             }
@@ -368,6 +370,30 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             }
             translationViewModel.start(applicationContext, file, pageIndex, ocrModel, ctdModel)
         }
+    }
+
+    /**
+     * AI 菜单「圈选翻译」入口(issue #891)。模型就绪检查复用「翻译漫画」那套(同一 prep
+     * sheet,本机只下一次),通过后只往 VM 投一个圈选请求,真正的框选 + 流水线由当前页
+     * [FragmentImageDetail] 接管 —— Activity 不直接持 Fragment 引用,也不碰图片触摸。
+     */
+    private fun performAiMangaTranslateManual(illust: IllustsBean, pageIndex: Int) {
+        val ocrModel = MangaOcrModel.MANGA_OCR_BASE
+        val ctdModel = ComicTextDetectorModel.CTD_BASE
+        val ocrReady = MangaOcrModelManager.isModelReady(this, ocrModel)
+        val ctdReady = ComicTextDetectorModelManager.isModelReady(this, ctdModel)
+        if (!ocrReady || !ctdReady) {
+            if (supportFragmentManager.findFragmentByTag(MangaTranslatePrepSheet.TAG) != null) return
+            val sheet = MangaTranslatePrepSheet()
+            sheet.setOnReady { performAiMangaTranslateManual(illust, pageIndex) }
+            sheet.show(supportFragmentManager, MangaTranslatePrepSheet.TAG)
+            return
+        }
+        if (translationViewModel.running.value == true) {
+            Common.showToast(R.string.string_ai_translate_in_progress)
+            return
+        }
+        translationViewModel.requestManualSelection(pageIndex)
     }
 
     /**

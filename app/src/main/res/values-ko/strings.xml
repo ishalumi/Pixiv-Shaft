@@ -657,6 +657,10 @@
   <string name="rate_dialog_never">다시 묻지 않기</string>
   <string name="string_ai_upscale">AI 화질 향상 (2x)</string>
   <string name="string_ai_manga_translate_inline">만화 번역</string>
+  <string name="string_ai_manga_translate_manual">영역 선택 번역</string>
+  <string name="string_ai_manga_translate_manual_hint">번역할 텍스트를 드래그하여 선택하세요</string>
+  <string name="string_ai_manga_manual_recognizing">선택 영역 인식 중…</string>
+  <string name="string_ai_manga_manual_too_small">선택 영역이 너무 작습니다. 다시 선택하세요</string>
   <string name="manga_translate_prep_title">만화 번역 · 첫 설정</string>
   <string name="manga_translate_prep_subtitle">약 %1$s 의 오프라인 모델 다운로드, 이후엔 한 번에 번역</string>
   <string name="manga_translate_prep_cta">다운로드 후 번역</string>

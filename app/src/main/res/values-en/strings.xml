@@ -713,6 +713,10 @@
   <string name="rate_dialog_never">Don\'t ask again</string>
   <string name="string_ai_upscale">AI Enhance (2x)</string>
   <string name="string_ai_manga_translate_inline">Translate Manga</string>
+  <string name="string_ai_manga_translate_manual">Select &amp; Translate</string>
+  <string name="string_ai_manga_translate_manual_hint">Drag to select the text you want translated</string>
+  <string name="string_ai_manga_manual_recognizing">Recognizing selected text…</string>
+  <string name="string_ai_manga_manual_too_small">Selection too small, please draw again</string>
   <string name="manga_translate_prep_title">Translate Manga · First-Time Setup</string>
   <string name="manga_translate_prep_subtitle">~%1$s of offline models, downloaded once for instant translation</string>
   <string name="manga_translate_prep_cta">Download &amp; Translate</string>

@@ -752,6 +752,10 @@
   <string name="rate_dialog_never">今後表示しない</string>
   <string name="string_ai_upscale">AI 高画質化 (2x)</string>
   <string name="string_ai_manga_translate_inline">マンガ翻訳</string>
+  <string name="string_ai_manga_translate_manual">範囲選択して翻訳</string>
+  <string name="string_ai_manga_translate_manual_hint">翻訳したい文字をドラッグで囲んでください</string>
+  <string name="string_ai_manga_manual_recognizing">選択範囲を認識中…</string>
+  <string name="string_ai_manga_manual_too_small">選択範囲が小さすぎます。もう一度囲んでください</string>
   <string name="manga_translate_prep_title">マンガ翻訳 · 初回準備</string>
   <string name="manga_translate_prep_subtitle">約 %1$s のオフラインモデルをダウンロード、以降はワンタップで翻訳</string>
   <string name="manga_translate_prep_cta">ダウンロードして翻訳</string>

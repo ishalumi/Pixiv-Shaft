@@ -724,6 +724,10 @@
     <string name="string_translate_failed">翻译失败</string>
     <string name="string_translate_model_loading">正在加载翻译模型…</string>
     <string name="string_ai_manga_translate_inline">翻译漫画</string>
+    <string name="string_ai_manga_translate_manual">圈选翻译</string>
+    <string name="string_ai_manga_translate_manual_hint">拖动框选要翻译的文字，松手即翻译</string>
+    <string name="string_ai_manga_manual_recognizing">识别选区文字…</string>
+    <string name="string_ai_manga_manual_too_small">选区太小，请重新框选</string>
     <string name="manga_translate_prep_title">翻译漫画 · 首次准备</string>
     <string name="manga_translate_prep_subtitle">需要下载约 %1$s 的离线模型，之后即点即翻</string>
     <string name="manga_translate_prep_cta">下载并翻译</string>
