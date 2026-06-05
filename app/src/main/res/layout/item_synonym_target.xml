@@ -1,37 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 同义词词典管理页 —— 目标标签行（issue #904）。v3_* 色值日夜自适配 -->
-<!-- 垂直 padding 放在子 View 上（而不是父容器）：让右侧展开/收起计数区域（issue #905）
-     的点击热区覆盖整行高度，视觉效果与父容器统一 padding 完全一致 -->
+<!--
+  同义词词典管理页 —— 目标标签行（issue #904 / #905）。V3 设计：圆角玻璃卡片 + 左侧主题色强调条
+  + 右侧主题色计数徽章 + 旋转箭头。v3_* 色值 + V3Palette 主题强调色，白天黑夜自适配。
+
+  强调条颜色 / 计数徽章底色与文字 / 箭头 tint / 展开态卡片底色都在 SynonymDictFragment 的
+  TargetVH.bind() 里 runtime 给（依赖主题 colorPrimary，XML 静态色给不了）。
+
+  toggle_zone（计数+箭头）是展开/收起的点击热区，match_parent 高度覆盖整行（issue #905）；
+  卡片主体单击仍跳转收藏页、长按进编辑菜单（保持 #904 行为）。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="14dp"
+    android:layout_marginTop="12dp"
     android:background="@drawable/v3_glass_surface"
+    android:foreground="@drawable/v3_glass_surface_ripple"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="16dp"
+    android:paddingStart="0dp"
     android:paddingEnd="0dp">
+
+    <!-- 左侧主题色强调条（runtime 上色 + 展开态加亮） -->
+    <View
+        android:id="@+id/accent_bar"
+        android:layout_width="3dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="14dp" />
 
     <TextView
         android:id="@+id/target_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:paddingVertical="12dp"
+        android:layout_marginStart="14dp"
+        android:paddingVertical="15dp"
         android:textColor="@color/v3_text_1"
-        android:textSize="15sp"
+        android:textSize="16sp"
         android:textStyle="bold"
-        tools:text="EVA" />
+        tools:text="碧蓝档案" />
 
-    <TextView
-        android:id="@+id/synonym_count"
+    <!-- 展开/收起点击热区：计数徽章 + 旋转箭头，覆盖整行高度 -->
+    <LinearLayout
+        android:id="@+id/toggle_zone"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingVertical="12dp"
-        android:textColor="@color/v3_text_3"
-        android:textSize="12sp"
-        tools:text="▸ 5 个同义词" />
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="13dp">
+
+        <TextView
+            android:id="@+id/synonym_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textSize="12sp"
+            tools:text="9 个同义词" />
+
+        <ImageView
+            android:id="@+id/expand_chevron"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="5dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_v3_chevron_24" />
+    </LinearLayout>
 </LinearLayout>

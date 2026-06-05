@@ -34,7 +34,7 @@
             android:textSize="18sp" />
     </androidx.appcompat.widget.Toolbar>
 
-    <!-- 搜索框 -->
+    <!-- 搜索框：圆角玻璃面 + 前置放大镜，drawableTint 走 v3_text_3 日夜自适配（minSdk 24 支持） -->
     <EditText
         android:id="@+id/search_input"
         android:layout_width="match_parent"
@@ -42,12 +42,15 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="14dp"
         android:background="@drawable/bg_v3_surface"
+        android:drawableStart="@drawable/ic_search_black_24dp"
+        android:drawablePadding="10dp"
+        android:drawableTint="@color/v3_text_3"
         android:hint="@string/synonym_search_hint"
         android:inputType="text"
         android:maxLines="1"
         android:imeOptions="actionSearch"
-        android:paddingHorizontal="14dp"
-        android:paddingVertical="12dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="13dp"
         android:textColor="@color/v3_text_1"
         android:textColorHint="@color/v3_text_3"
         android:textSize="14sp"

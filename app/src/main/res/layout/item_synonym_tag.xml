@@ -1,35 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 同义词词典管理页 —— 同义词行（缩进于目标标签下，issue #904）。v3_* 色值日夜自适配 -->
+<!--
+  同义词词典管理页 —— 同义词行（缩进于目标标签下，issue #904）。V3 设计：左侧主题色细导轨把
+  同一目标下的同义词串成一条竖线，右侧圆角玻璃胶囊承载词名 + 灰色备注。
+
+  导轨颜色 / 胶囊 ripple 都在 SynonymDictFragment 的 SynonymVH.bind() 里 runtime 给。
+  v3_* 色值带 values-night，日夜自适配。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="20dp"
+    android:layout_marginStart="22dp"
     android:layout_marginTop="6dp"
-    android:background="@drawable/bg_v3_surface"
     android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingHorizontal="14dp"
-    android:paddingVertical="10dp">
+    android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/synonym_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@color/v3_text_1"
-        android:textSize="14sp"
-        tools:text="新世紀エヴァンゲリオン" />
+    <!-- 树状缩进导轨：主题色细线，runtime 上色，把同义词归拢到目标标签下 -->
+    <View
+        android:id="@+id/synonym_rail"
+        android:layout_width="3dp"
+        android:layout_height="match_parent" />
 
-    <!-- 备注（不参与匹配，灰色弱化显示） -->
-    <TextView
-        android:id="@+id/synonym_remark"
+    <LinearLayout
+        android:id="@+id/synonym_pill"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
         android:layout_weight="1"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textColor="@color/v3_text_3"
-        android:textSize="12sp"
-        tools:text="新世纪福音战士" />
+        android:layout_marginStart="12dp"
+        android:background="@drawable/bg_v3_surface"
+        android:foreground="@drawable/v3_glass_surface_ripple"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="11dp">
+
+        <TextView
+            android:id="@+id/synonym_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/v3_text_1"
+            android:textSize="14sp"
+            tools:text="新世紀エヴァンゲリオン" />
+
+        <!-- 备注（不参与匹配，灰色弱化显示） -->
+        <TextView
+            android:id="@+id/synonym_remark"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="@color/v3_text_3"
+            android:textSize="12sp"
+            tools:text="新世纪福音战士" />
+    </LinearLayout>
 </LinearLayout>

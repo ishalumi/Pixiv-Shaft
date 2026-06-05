@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  同义词词典目标行的展开/折叠箭头（issue #905）。无内建 tint：颜色由 ImageView.imageTintList
+  在 runtime 给（折叠=v3_text_3，展开=主题强调色）。折叠时指向右「›」，展开时旋转 90° 朝下「⌄」，
+  rotation 动画由 Fragment 驱动。path 大致以 viewport 中心对称，默认中心轴旋转即可。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.29,6.71a1,1 0,0 0,0 1.41L13.17,12l-3.88,3.88a1,1 0,1 0,1.42 1.41l4.59,-4.59a1,1 0,0 0,0 -1.41L10.71,6.71a1,1 0,0 0,-1.42 0z" />
+</vector>

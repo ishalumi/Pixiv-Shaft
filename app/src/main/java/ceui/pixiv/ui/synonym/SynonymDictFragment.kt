@@ -2,6 +2,8 @@ package ceui.pixiv.ui.synonym
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,8 +16,11 @@ import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.OvershootInterpolator
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
@@ -329,6 +334,32 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
 
         private var items: List<SynonymDictViewModel.DictItem> = emptyList()
         private val palette by lazy { V3Palette.from(requireContext()) }
+        /** 折叠态箭头 / 备注的中性灰，从 v3_text_3 取（日夜自适配） */
+        private val textMuted by lazy {
+            ContextCompat.getColor(requireContext(), R.color.v3_text_3)
+        }
+
+        /** 圆角主题色强调条（目标行左侧条 / 同义词行导轨共用） */
+        private fun accentPill(): GradientDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 999f
+            setColor(palette.textAccent)
+        }
+
+        /** 计数徽章底：主题色淡胶囊（alpha15，比 tagCountBg 稍强，展开态卡片底上也能拎出胶囊感） */
+        private fun countBadgeBg(): GradientDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 999f
+            setColor(palette.alpha15)
+        }
+
+        /** 展开态卡片底色：淡主题色填充 + 主题色细描边，圆角对齐 v3_glass_surface(20dp) */
+        private fun expandedCardBg(): GradientDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 20f * resources.displayMetrics.density
+            setColor(palette.alpha08)
+            setStroke(1, palette.alpha15)
+        }
 
         fun submit(newItems: List<SynonymDictViewModel.DictItem>) {
             items = newItems
@@ -374,16 +405,56 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
         }
 
         private inner class TargetVH(view: View) : RecyclerView.ViewHolder(view) {
+            private val accentBar = view.findViewById<View>(R.id.accent_bar)
             private val nameView = view.findViewById<TextView>(R.id.target_name)
             private val countView = view.findViewById<TextView>(R.id.synonym_count)
+            private val chevron = view.findViewById<ImageView>(R.id.expand_chevron)
+            private val toggleZone = view.findViewById<View>(R.id.toggle_zone)
+
+            /** 上一次绑定的目标 id：同一行重绑（= 用户点了展开/收起）才给箭头转场动画，
+             *  回收复用到别的行则直接定位，避免滚动时无意义旋转 */
+            private var boundTargetId: Long = -1L
 
             fun bind(item: SynonymDictViewModel.DictItem.Target) {
+                val sameRow = boundTargetId == item.entity.id
+                boundTargetId = item.entity.id
+                val expanded = item.expanded
+
                 nameView.text = highlight(item.entity.name)
-                // issue #905：默认折叠。右侧「▸/▾ N 个同义词」是展开/收起的点击区域，
-                // 行主体单击仍然跳转收藏页（保持 #904 行为）
-                val chevron = if (item.expanded) "▾ " else "▸ "
-                countView.text = chevron + getString(R.string.synonym_synonym_count, item.synonymCount)
-                countView.setOnClickListener { viewModel.toggleExpanded(item.entity.id) }
+
+                // 计数徽章：主题色淡底胶囊 + 主题色文字
+                countView.text = getString(R.string.synonym_synonym_count, item.synonymCount)
+                countView.background = countBadgeBg()
+                countView.setTextColor(palette.textAccent)
+
+                // 左侧强调条：折叠淡、展开亮
+                accentBar.background = accentPill()
+                accentBar.alpha = if (expanded) 1f else 0.5f
+
+                // 展开态：卡片淡主题色高亮；折叠态：中性玻璃面
+                if (expanded) {
+                    itemView.background = expandedCardBg()
+                } else {
+                    itemView.setBackgroundResource(R.drawable.v3_glass_surface)
+                }
+
+                // 箭头：折叠指向右「›」，展开旋转 90° 朝下「⌄」；展开态染主题色
+                chevron.imageTintList =
+                    ColorStateList.valueOf(if (expanded) palette.textAccent else textMuted)
+                val targetRotation = if (expanded) 90f else 0f
+                chevron.animate().cancel()
+                if (sameRow && chevron.rotation != targetRotation) {
+                    chevron.animate()
+                        .rotation(targetRotation)
+                        .setDuration(260)
+                        .setInterpolator(OvershootInterpolator(1.4f))
+                        .start()
+                } else {
+                    chevron.rotation = targetRotation
+                }
+
+                // issue #905：右侧计数+箭头是展开/收起热区；行主体单击跳收藏页（保持 #904 行为）
+                toggleZone.setOnClickListener { viewModel.toggleExpanded(item.entity.id) }
                 itemView.setOnClickListener { jumpToCollection(item.entity.name) }
                 itemView.setOnLongClickListener {
                     SynonymOperate.showTargetMenu(requireContext(), item.entity, item.synonymCount)
@@ -393,6 +464,8 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
         }
 
         private inner class SynonymVH(view: View) : RecyclerView.ViewHolder(view) {
+            private val rail = view.findViewById<View>(R.id.synonym_rail)
+            private val pill = view.findViewById<View>(R.id.synonym_pill)
             private val nameView = view.findViewById<TextView>(R.id.synonym_name)
             private val remarkView = view.findViewById<TextView>(R.id.synonym_remark)
 
@@ -404,8 +477,11 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
                 } else {
                     remarkView.text = highlight(remark)
                 }
-                itemView.setOnClickListener { jumpToSearch(item.entity.name) }
-                itemView.setOnLongClickListener {
+                // 主题色细导轨，低透明把同一目标下的同义词串成一条竖线
+                rail.background = accentPill()
+                rail.alpha = 0.35f
+                pill.setOnClickListener { jumpToSearch(item.entity.name) }
+                pill.setOnLongClickListener {
                     SynonymOperate.showSynonymMenu(requireContext(), item.entity)
                     true
                 }
