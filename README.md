@@ -23,6 +23,16 @@
 [<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" width="200">](https://play.google.com/store/apps/details?id=ceui.pixiv.pshaft)
 &nbsp;&nbsp;
 [<img src="https://img.shields.io/badge/GitHub-Releases-181717?style=for-the-badge&logo=github" alt="GitHub Releases">](https://github.com/CeuiLiSA/Pixiv-Shaft/releases/latest)
+&nbsp;&nbsp;
+[<img src="https://img.shields.io/badge/🌐_Website-pixshaft.com-7c5cff?style=for-the-badge" alt="Website">](https://pixshaft.com)
+
+<br>
+
+<a href="https://pixshaft.com" title="Visit pixshaft.com — the Shaft website">
+  <img src="snap/website.jpg" alt="Shaft — pixshaft.com" width="820">
+</a>
+
+<sub>🌐 <b><a href="https://pixshaft.com">pixshaft.com</a></b> — click the banner to open the live site</sub>
 
 ---
 
