@@ -175,6 +175,9 @@ class SynonymMatchView @JvmOverloads constructor(
             addMatchedTarget(result, showTopDivider = index > 0)
         }
         if (unmatchedCount > 0) {
+            // 末组的「另有 N 个同义词未命中」与下面这行「另有 N 个目标标签未匹配」都是灰色计数行，
+            // 紧挨着会看串，中间也补一条分隔线（issue #910）
+            addGroupDivider()
             addUnmatchedSummary(unmatchedCount)
         }
     }
