@@ -424,11 +424,8 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
             // 同义词词典（issue #904）功能总开关：默认关闭，关闭时菜单与本功能存在之前完全一致
             if (Shaft.sSettings.isSynonymDictEnabled) {
                 tagMenuBuilder.addAction(getString(R.string.synonym_add_as_synonym)) { dialog, index ->
-                    // 长按标签加入词典，备注自动填译文；带作品上下文 → 新建目标标签时自动收藏本作品
-                    SynonymOperate.showAddAsSynonymDialog(
-                        mContext, tagName, tagBean.translated_name,
-                        illust.id.toLong(), Params.TYPE_ILLUST
-                    )
+                    // 长按标签加入词典，备注自动填译文
+                    SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.translated_name)
                     dialog.dismiss()
                 }
             }

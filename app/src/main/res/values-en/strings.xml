@@ -1716,4 +1716,17 @@
     <string name="synonym_delete">Delete</string>
     <string name="synonym_jump_type_illust">Illustrations/Manga</string>
     <string name="synonym_jump_type_novel">Novels</string>
+    <!-- issue #910 synonym dictionary improvements -->
+    <string name="synonym_copy_target">Copy target tag</string>
+    <string name="synonym_copy_synonym">Copy synonym tag</string>
+    <string name="synonym_copy_remark">Copy remark</string>
+    <string name="synonym_export_builtin_raw">Export built-in dictionary file</string>
+    <string name="synonym_export_builtin_raw_success">Built-in dictionary file exported</string>
+    <string name="synonym_collapse_synonyms">Collapse %1$d synonyms</string>
+    <string name="synonym_edit">Edit</string>
+    <string name="synonym_edit_synonym_title">Edit synonym</string>
+    <string name="synonym_remark_filled">Added remark to “%1$s”</string>
+    <string name="synonym_rename_target_confirm">Rename target tag “%1$s” to “%2$s”?</string>
+    <string name="synonym_field_name">Tag name</string>
+    <string name="synonym_field_remark">Remark</string>
 </resources>

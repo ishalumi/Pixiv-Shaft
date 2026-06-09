@@ -2186,4 +2186,17 @@
     <string name="synonym_delete">删除</string>
     <string name="synonym_jump_type_illust">插画/漫画</string>
     <string name="synonym_jump_type_novel">小说</string>
+    <!-- issue #910 同义词词典优化 -->
+    <string name="synonym_copy_target">复制目标标签</string>
+    <string name="synonym_copy_synonym">复制同义词标签</string>
+    <string name="synonym_copy_remark">复制备注</string>
+    <string name="synonym_export_builtin_raw">导出内置词典原件</string>
+    <string name="synonym_export_builtin_raw_success">已导出内置词典原件</string>
+    <string name="synonym_collapse_synonyms">收起 %1$d 个同义词</string>
+    <string name="synonym_edit">编辑</string>
+    <string name="synonym_edit_synonym_title">编辑同义词</string>
+    <string name="synonym_remark_filled">已为「%1$s」补充备注</string>
+    <string name="synonym_rename_target_confirm">将目标标签「%1$s」重命名为「%2$s」？</string>
+    <string name="synonym_field_name">标签名</string>
+    <string name="synonym_field_remark">备注</string>
 </resources>

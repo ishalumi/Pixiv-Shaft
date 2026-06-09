@@ -2,26 +2,25 @@ package ceui.pixiv.ui.synonym
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.content.ContextCompat
 import ceui.lisa.R
-import ceui.lisa.activities.Shaft
 import ceui.lisa.database.AppDatabase
-import ceui.lisa.http.ErrorCtrl
-import ceui.lisa.http.Retro
-import ceui.lisa.models.NullResponse
+import ceui.lisa.utils.ClipBoardUtils
 import ceui.lisa.utils.Common
-import ceui.lisa.utils.Params
 import ceui.pixiv.db.synonym.SynonymDao
 import ceui.pixiv.db.synonym.SynonymTagEntity
 import ceui.pixiv.db.synonym.SynonymTargetEntity
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogView
 import java.util.concurrent.Executors
 
 /**
@@ -74,8 +73,8 @@ object SynonymOperate {
      * 不论如何选择，长按标签存在 tag 译文时，备注自动填入译文。
      * 目标过多时只列最近 [MENU_TARGET_LIMIT] 个（全量在管理页里）。
      *
-     * @param workId 当前作品 id（>0 时新建目标标签会自动把该作品收藏进同名收藏标签，issue 要求的闭环）
-     * @param workType [Params.TYPE_ILLUST] / [Params.TYPE_NOVEL]，与 workId 配套
+     * issue #910：去掉了「新建目标标签自动把作品收藏进同名收藏标签」的闭环 ——
+     * 每次都得再手动取消收藏，没有实际意义（最初设计想多了）。
      */
     @JvmStatic
     @JvmOverloads
@@ -83,15 +82,13 @@ object SynonymOperate {
         context: Context,
         tagName: String,
         translatedName: String?,
-        workId: Long = 0,
-        workType: String? = null,
         onDone: (() -> Unit)? = null,
     ) {
         dbExecutor.execute {
             val targets = dao(context).getRecentTargets(MENU_TARGET_LIMIT)
             mainHandler.post {
                 if (!canShowDialog(context)) return@post
-                showAddAsSynonymMenu(context, tagName, translatedName, targets, workId, workType, onDone)
+                showAddAsSynonymMenu(context, tagName, translatedName, targets, onDone)
             }
         }
     }
@@ -101,8 +98,6 @@ object SynonymOperate {
         tagName: String,
         translatedName: String?,
         targets: List<SynonymTargetEntity>,
-        workId: Long,
-        workType: String?,
         onDone: (() -> Unit)?,
     ) {
         // 菜单结构：[新建目标标签] + 最近 N 个目标 + [手动输入目标标签名…]
@@ -118,13 +113,9 @@ object SynonymOperate {
                 dialog.dismiss()
                 when (which) {
                     0 -> {
-                        // 新建目标标签，建好后把当前长按标签挂进去；
-                        // issue：新建目标标签时默认把该作品收藏进同名收藏标签
+                        // 新建目标标签，建好后把当前长按标签挂进去
                         showCreateTargetDialog(context) { target ->
                             addSynonymChecked(context, target, tagName, translatedName, onDone)
-                            if (workId > 0 && workType != null) {
-                                autoBookmarkWork(context, workId, workType, target.name)
-                            }
                         }
                     }
                     labels.size - 1 -> {
@@ -137,56 +128,6 @@ object SynonymOperate {
                 }
             }
             .show()
-    }
-
-    /**
-     * issue 闭环：新建目标标签时，把当前作品收藏进同名收藏标签。
-     *
-     * v2/xxx/bookmark/add 是全量覆盖 tags —— 必须先查作品现有收藏标签做合并，
-     * 否则已收藏作品的旧标签会被清掉。
-     */
-    private fun autoBookmarkWork(
-        context: Context,
-        workId: Long,
-        workType: String,
-        targetName: String,
-    ) {
-        val isNovel = workType == Params.TYPE_NOVEL
-        val defaultRestrict = if (Shaft.sSettings.isPrivateStar) Params.TYPE_PRIVATE else Params.TYPE_PUBLIC
-        val detailApi = if (isNovel) {
-            Retro.getAppApi().getNovelBookmarkTags(workId.toInt())
-        } else {
-            Retro.getAppApi().getIllustBookmarkTags(workId.toInt())
-        }
-
-        detailApi
-            .subscribeOn(Schedulers.newThread())
-            .flatMap { detail ->
-                // 合并已注册标签 + 新目标标签
-                val registered = detail.bookmark_detail?.tags
-                    ?.filter { it.isIs_registered }
-                    ?.mapNotNull { it.name }
-                    .orEmpty()
-                val merged = (registered + targetName).distinct().toTypedArray()
-                val restrict = detail.bookmark_detail?.restrict ?: defaultRestrict
-                if (isNovel) {
-                    Retro.getAppApi().postLikeNovelWithTags(workId.toInt(), restrict, *merged)
-                } else {
-                    Retro.getAppApi().postLikeIllustWithTags(workId.toInt(), restrict, *merged)
-                }
-            }
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(object : ErrorCtrl<NullResponse>() {
-                override fun next(response: NullResponse) {
-                    Common.showToast(context.getString(R.string.synonym_auto_bookmarked, targetName))
-                    // 通知列表页刷新该作品的收藏状态（与 FragmentSB.setFollowed 同款广播）
-                    val action = if (isNovel) Params.LIKED_NOVEL else Params.LIKED_ILLUST
-                    val intent = Intent(action)
-                    intent.putExtra(Params.ID, workId.toInt())
-                    intent.putExtra(Params.IS_LIKED, true)
-                    LocalBroadcastManager.getInstance(context.applicationContext).sendBroadcast(intent)
-                }
-            })
     }
 
     /** 输入已有目标标签名，把当前标签挂进去（目标数超过菜单上限时的兜底入口） */
@@ -280,10 +221,35 @@ object SynonymOperate {
                     showMergeTargetDialog(context, source = target, dest = existing)
                     return@addAction
                 }
-                dao(context).renameTarget(target.id, name)
+                if (name == target.name) {
+                    // 没改动 → 直接关掉，不弹无意义的确认
+                    dialog.dismiss()
+                    return@addAction
+                }
+                // issue #910：普通重命名也二次确认 —— 没删干净就粘贴/打错字时给个拦截点
+                dialog.dismiss()
+                showRenameTargetConfirm(context, target, name)
+            }
+            .show()
+    }
+
+    /** 普通重命名的二次确认（issue #910） */
+    private fun showRenameTargetConfirm(
+        context: Context,
+        target: SynonymTargetEntity,
+        newName: String,
+    ) {
+        QMUIDialog.MessageDialogBuilder(context)
+            .setTitle(target.name)
+            .setSkinManager(skin(context))
+            .setMessage(context.getString(R.string.synonym_rename_target_confirm, target.name, newName))
+            .addAction(context.getString(R.string.cancel)) { dialog, _ -> dialog.dismiss() }
+            .addAction(context.getString(R.string.sure)) { dialog, _ ->
+                dao(context).renameTarget(target.id, newName)
                 Common.showToast(context.getString(R.string.operate_success))
                 dialog.dismiss()
             }
+            .create()
             .show()
     }
 
@@ -336,6 +302,8 @@ object SynonymOperate {
             if (sourceNorm != destNorm && seenNorms.add(sourceNorm)) {
                 dao.insertSynonym(SynonymTagEntity(targetId = dest.id, name = source.name))
             }
+            // issue #910：被合并入的目标冒泡到「最近」顶部
+            dao.touchTarget(dest.id, System.currentTimeMillis())
             dao.deleteTargetOnly(source.id)
         }
         Common.showToast(context.getString(R.string.synonym_merged_into, source.name, dest.name))
@@ -365,6 +333,7 @@ object SynonymOperate {
     fun showTargetMenu(context: Context, target: SynonymTargetEntity, synonymCount: Int) {
         val labels = arrayOf(
             context.getString(R.string.synonym_add_synonym),
+            context.getString(R.string.synonym_copy_target),
             context.getString(R.string.synonym_rename),
             context.getString(R.string.synonym_delete),
             context.getString(R.string.synonym_new_target),
@@ -375,9 +344,10 @@ object SynonymOperate {
                 dialog.dismiss()
                 when (which) {
                     0 -> showAddSynonymToTargetDialog(context, target)
-                    1 -> showRenameTargetDialog(context, target)
-                    2 -> showDeleteTargetDialog(context, target, synonymCount)
-                    3 -> showCreateTargetDialog(context)
+                    1 -> ClipBoardUtils.putTextIntoClipboard(context, target.name)
+                    2 -> showRenameTargetDialog(context, target)
+                    3 -> showDeleteTargetDialog(context, target, synonymCount)
+                    4 -> showCreateTargetDialog(context)
                 }
             }
             .show()
@@ -428,13 +398,18 @@ object SynonymOperate {
         val labels = ArrayList<String>(6)
         val actions = ArrayList<() -> Unit>(6)
 
-        labels.add(context.getString(R.string.synonym_rename))
-        actions.add { showRenameSynonymDialog(context, synonym) }
+        // issue #910：重命名 + 编辑备注 合并成一个两输入框弹窗
+        labels.add(context.getString(R.string.synonym_edit))
+        actions.add { showEditSynonymDialog(context, synonym) }
 
-        labels.add(context.getString(R.string.synonym_edit_remark))
-        actions.add { showEditRemarkDialog(context, synonym) }
+        labels.add(context.getString(R.string.synonym_copy_synonym))
+        actions.add { ClipBoardUtils.putTextIntoClipboard(context, synonym.name) }
 
         if (hasRemark) {
+            // issue #910：复制备注
+            labels.add(context.getString(R.string.synonym_copy_remark))
+            actions.add { ClipBoardUtils.putTextIntoClipboard(context, synonym.remark!!.trim()) }
+
             // issue：将备注添加为同义词（在该同义词所属的目标标签下）
             labels.add(context.getString(R.string.synonym_remark_to_synonym))
             actions.add {
@@ -538,51 +513,70 @@ object SynonymOperate {
         } else {
             dao.moveSynonymToTarget(synonym.id, dest.id)
         }
+        // issue #910：被移入的目标冒泡到「最近」顶部
+        dao.touchTarget(dest.id, System.currentTimeMillis())
         Common.showToast(context.getString(R.string.synonym_moved_to, dest.name))
     }
 
-    /** 重命名同义词（issue：重命名时一定要显示原本的同义词；备注输入框默认值填入已有备注） */
+    /**
+     * 编辑同义词（issue #910）：把「重命名」+「编辑备注」合并成一个两输入框弹窗，
+     * 省去先选哪个菜单项的纠结。上：标签名（必填）；下：备注（可空，清空即删备注）。
+     * 内置词典的同义词备注大多为空，常见操作就是补一条备注，单弹窗一次改完。
+     */
     @JvmStatic
-    fun showRenameSynonymDialog(context: Context, synonym: SynonymTagEntity) {
-        val builder = QMUIDialog.EditTextDialogBuilder(context)
-        builder.setTitle(context.getString(R.string.synonym_rename_synonym_title, synonym.name))
+    fun showEditSynonymDialog(context: Context, synonym: SynonymTagEntity) {
+        val density = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        fun label(textRes: Int, topGap: Int) = TextView(context).apply {
+            setText(textRes)
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(context, R.color.v3_text_3))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(topGap) }
+        }
+        fun field(prefill: String?, hintRes: Int) = EditText(context).apply {
+            setText(prefill)
+            setHint(hintRes)
+            inputType = InputType.TYPE_CLASS_TEXT
+            textSize = 15f
+            setTextColor(ContextCompat.getColor(context, R.color.v3_text_1))
+            setHintTextColor(ContextCompat.getColor(context, R.color.v3_text_3))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        val nameEdit = field(synonym.name, R.string.synonym_synonym_name_hint)
+        val remarkEdit = field(synonym.remark?.takeIf { it.isNotBlank() }, R.string.synonym_remark_hint)
+        container.addView(label(R.string.synonym_field_name, 0))
+        container.addView(nameEdit)
+        container.addView(label(R.string.synonym_field_remark, 12))
+        container.addView(remarkEdit)
+
+        object : QMUIDialog.CustomDialogBuilder(context) {
+            override fun onCreateContent(dialog: QMUIDialog, parent: QMUIDialogView, ctx: Context): View {
+                return container
+            }
+        }
+            .setTitle(context.getString(R.string.synonym_edit_synonym_title))
             .setSkinManager(skin(context))
-            .setPlaceholder(context.getString(R.string.synonym_synonym_name_hint))
-            .setDefaultText(synonym.name)
-            .setInputType(InputType.TYPE_CLASS_TEXT)
             .addAction(context.getString(R.string.cancel)) { dialog, _ -> dialog.dismiss() }
             .addAction(context.getString(R.string.sure)) { dialog, _ ->
-                val name = builder.editText.text?.toString()?.trim().orEmpty()
-                if (name.isEmpty()) {
+                val newName = nameEdit.text?.toString()?.trim().orEmpty()
+                if (newName.isEmpty()) {
                     Common.showToast(context.getString(R.string.synonym_synonym_name_invalid))
                     return@addAction
                 }
-                dao(context).updateSynonym(synonym.id, name, synonym.remark)
+                val newRemark = remarkEdit.text?.toString()?.trim()?.ifEmpty { null }
+                dao(context).updateSynonym(synonym.id, newName, newRemark)
                 Common.showToast(context.getString(R.string.operate_success))
                 dialog.dismiss()
             }
-            .show()
-    }
-
-    /** 编辑备注（增 / 改 / 清空即删） */
-    @JvmStatic
-    fun showEditRemarkDialog(context: Context, synonym: SynonymTagEntity) {
-        val builder = QMUIDialog.EditTextDialogBuilder(context)
-        builder.setTitle(synonym.name)
-            .setSkinManager(skin(context))
-            .setPlaceholder(context.getString(R.string.synonym_remark_hint))
-            .setInputType(InputType.TYPE_CLASS_TEXT)
-        if (!synonym.remark.isNullOrBlank()) {
-            builder.setDefaultText(synonym.remark)
-        }
-        builder
-            .addAction(context.getString(R.string.cancel)) { dialog, _ -> dialog.dismiss() }
-            .addAction(context.getString(R.string.sure)) { dialog, _ ->
-                val remark = builder.editText.text?.toString()?.trim()?.ifEmpty { null }
-                dao(context).updateSynonymRemark(synonym.id, remark)
-                Common.showToast(context.getString(R.string.operate_success))
-                dialog.dismiss()
-            }
+            .create()
             .show()
     }
 
@@ -624,9 +618,24 @@ object SynonymOperate {
     ) {
         val dao = dao(context)
         val norm = name.trim().lowercase()
-        val alreadyCovered = norm == target.name.trim().lowercase() ||
-                dao.getSynonymsOfTarget(target.id).any { it.name.trim().lowercase() == norm }
-        if (alreadyCovered) {
+        if (norm == target.name.trim().lowercase()) {
+            // 与目标标签自身同名（目标名已参与匹配），没有备注可补 → 维持原行为
+            Common.showToast(context.getString(R.string.synonym_already_in_target))
+            return
+        }
+        val existingInTarget = dao.getSynonymsOfTarget(target.id)
+            .firstOrNull { it.name.trim().lowercase() == norm }
+        if (existingInTarget != null) {
+            // issue #910「完全更优时覆盖」：新词带备注、旧词无备注、名字归一相同 → 补全备注，不再驳回。
+            // 内置词典同义词备注大多为空，把作品标签连译文加进来时直接补上，省去手动改的纠结。
+            val newRemark = remark?.trim()?.ifEmpty { null }
+            if (newRemark != null && existingInTarget.remark.isNullOrBlank()) {
+                dao.updateSynonymRemark(existingInTarget.id, newRemark)
+                dao.touchTarget(target.id, System.currentTimeMillis())
+                Common.showToast(context.getString(R.string.synonym_remark_filled, target.name))
+                onDone?.invoke()
+                return
+            }
             Common.showToast(context.getString(R.string.synonym_already_in_target))
             return
         }
@@ -663,9 +672,12 @@ object SynonymOperate {
         name: String,
         remark: String?,
     ) {
-        dao(context).insertSynonym(
+        val dao = dao(context)
+        dao.insertSynonym(
             SynonymTagEntity(targetId = target.id, name = name, remark = remark)
         )
+        // issue #910：收到新同义词的目标冒泡到「最近」顶部（手动输入旧目标后也能刷新）
+        dao.touchTarget(target.id, System.currentTimeMillis())
         Common.showToast(context.getString(R.string.synonym_added_to, target.name))
     }
 }

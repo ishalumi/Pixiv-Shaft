@@ -42,8 +42,12 @@ interface SynonymDao {
     @Query("SELECT * FROM synonym_tag_table WHERE targetId = :targetId ORDER BY createdAt ASC")
     fun getSynonymsOfTarget(targetId: Long): List<SynonymTagEntity>
 
-    /** 最近创建的 N 个目标标签 ——「添加为同义词」菜单用（词典可能数千个目标，菜单只列最近的） */
-    @Query("SELECT * FROM synonym_target_table ORDER BY createdAt DESC LIMIT :limit")
+    /**
+     * 最近使用的 N 个目标标签 ——「添加为同义词」/「移动到其他目标标签」菜单用
+     * （词典可能数千个目标，菜单只列最近的）。
+     * issue #910：按 lastUsedAt 倒序（手动输入/合并旧目标后也会冒泡到顶部），createdAt 作次序兜底。
+     */
+    @Query("SELECT * FROM synonym_target_table ORDER BY lastUsedAt DESC, createdAt DESC LIMIT :limit")
     fun getRecentTargets(limit: Int): List<SynonymTargetEntity>
 
     /** 目标标签总数 —— 清空词典确认框用（同步查询，COUNT 毫秒级） */
@@ -57,6 +61,10 @@ interface SynonymDao {
 
     @Query("UPDATE synonym_target_table SET name = :newName WHERE id = :targetId")
     fun renameTarget(targetId: Long, newName: String)
+
+    /** 刷新「最近使用」时间（issue #910）：目标收到新同义词 / 被移入 / 被合并入时调用 */
+    @Query("UPDATE synonym_target_table SET lastUsedAt = :ts WHERE id = :targetId")
+    fun touchTarget(targetId: Long, ts: Long)
 
     @Query("DELETE FROM synonym_target_table WHERE id = :targetId")
     fun deleteTargetOnly(targetId: Long)

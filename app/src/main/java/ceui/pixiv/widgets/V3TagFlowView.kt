@@ -73,13 +73,6 @@ class V3TagFlowView @JvmOverloads constructor(
      */
     var onPinTag: ((name: String, translated: String?, newPinned: Boolean) -> Unit)? = null
 
-    /**
-     * 同义词词典（issue #904）自动收藏需要的作品上下文；host（详情页）bind 时赋值。
-     * workId > 0 时，「添加为同义词」→ 新建目标标签 会自动把该作品收藏进同名收藏标签。
-     */
-    var synonymWorkId: Long = 0
-    var synonymWorkType: String? = null
-
     /** Show a trailing × icon on each chip — for editable/removable chip rows. */
     var showRemoveIcon: Boolean = false
         set(value) {
@@ -270,15 +263,12 @@ class V3TagFlowView @JvmOverloads constructor(
             )
             actions.add { pinHandler.invoke(name, translated, !pinned) }
         }
-        // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文；
-        // host 提供了作品上下文时，新建目标标签会自动把作品收藏进同名收藏标签。
+        // 同义词词典（issue #904）：长按标签加入词典，备注自动填译文。
         // 功能总开关默认关闭，关闭时菜单与本功能存在之前完全一致。
         if (Shaft.sSettings.isSynonymDictEnabled) {
             labels.add(context.getString(R.string.synonym_add_as_synonym))
             actions.add {
-                SynonymOperate.showAddAsSynonymDialog(
-                    context, name, translated, synonymWorkId, synonymWorkType
-                )
+                SynonymOperate.showAddAsSynonymDialog(context, name, translated)
             }
         }
         labels.add(context.getString(R.string.v3_tag_menu_mute))

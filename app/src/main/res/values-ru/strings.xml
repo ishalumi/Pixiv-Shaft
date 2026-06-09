@@ -1622,4 +1622,17 @@
     <string name="synonym_delete">Удалить</string>
     <string name="synonym_jump_type_illust">Иллюстрации/Манга</string>
     <string name="synonym_jump_type_novel">Романы</string>
+    <!-- issue #910 улучшения словаря синонимов -->
+    <string name="synonym_copy_target">Копировать целевой тег</string>
+    <string name="synonym_copy_synonym">Копировать тег-синоним</string>
+    <string name="synonym_copy_remark">Копировать заметку</string>
+    <string name="synonym_export_builtin_raw">Экспорт файла встроенного словаря</string>
+    <string name="synonym_export_builtin_raw_success">Файл встроенного словаря экспортирован</string>
+    <string name="synonym_collapse_synonyms">Свернуть синонимы (%1$d)</string>
+    <string name="synonym_edit">Изменить</string>
+    <string name="synonym_edit_synonym_title">Изменить синоним</string>
+    <string name="synonym_remark_filled">Заметка добавлена к «%1$s»</string>
+    <string name="synonym_rename_target_confirm">Переименовать целевой тег «%1$s» в «%2$s»?</string>
+    <string name="synonym_field_name">Имя тега</string>
+    <string name="synonym_field_remark">Заметка</string>
 </resources>

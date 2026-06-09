@@ -68,6 +68,16 @@ object SynonymBuiltinDict {
         return result
     }
 
+    /**
+     * 把内置词典原件（assets/[ASSET_NAME]）原样读出（issue #910「导出内置词典原件」）。
+     * 不走 DB 遍历，复制的是带全部备注的原始文件，供用户本地搜索标签含义 /
+     * 找回误并进自建目标的内置目标 / 留一份不被修改的原件。
+     * 阻塞读 assets，调用方放后台线程；该 flavor 没打包词典时抛 FileNotFoundException。
+     */
+    @JvmStatic
+    fun readRawAsset(context: Context): String =
+        context.assets.open(ASSET_NAME).use { it.readBytes().toString(Charsets.UTF_8) }
+
     // ────────────────────────────────────────────────────────────────
     // 一次性去重清理（issue #905）
     // ────────────────────────────────────────────────────────────────

@@ -436,9 +436,8 @@ public class FragmentSingleIllust extends BaseFragment<FragmentSingleIllustBindi
                     tagMenuBuilder.addAction(getString(R.string.synonym_add_as_synonym), new QMUIDialogAction.ActionListener() {
                         @Override
                         public void onClick(QMUIDialog dialog, int index) {
-                            // 长按标签加入词典，备注自动填译文；带作品上下文 → 新建目标标签时自动收藏本作品
-                            SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name(),
-                                    illust.getId(), Params.TYPE_ILLUST);
+                            // 长按标签加入词典，备注自动填译文
+                            SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name());
                             dialog.dismiss();
                         }
                     });

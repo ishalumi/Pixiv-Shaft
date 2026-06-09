@@ -1629,4 +1629,17 @@
     <string name="synonym_delete">삭제</string>
     <string name="synonym_jump_type_illust">일러스트/만화</string>
     <string name="synonym_jump_type_novel">소설</string>
+    <!-- issue #910 동의어 사전 개선 -->
+    <string name="synonym_copy_target">대상 태그 복사</string>
+    <string name="synonym_copy_synonym">동의어 태그 복사</string>
+    <string name="synonym_copy_remark">메모 복사</string>
+    <string name="synonym_export_builtin_raw">내장 사전 파일 내보내기</string>
+    <string name="synonym_export_builtin_raw_success">내장 사전 파일을 내보냈습니다</string>
+    <string name="synonym_collapse_synonyms">동의어 %1$d개 접기</string>
+    <string name="synonym_edit">편집</string>
+    <string name="synonym_edit_synonym_title">동의어 편집</string>
+    <string name="synonym_remark_filled">「%1$s」에 메모를 추가했습니다</string>
+    <string name="synonym_rename_target_confirm">대상 태그 「%1$s」을(를) 「%2$s」(으)로 변경할까요?</string>
+    <string name="synonym_field_name">태그 이름</string>
+    <string name="synonym_field_remark">메모</string>
 </resources>

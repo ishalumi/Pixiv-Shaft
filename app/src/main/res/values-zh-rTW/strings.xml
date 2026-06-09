@@ -1732,4 +1732,17 @@
     <string name="synonym_delete">刪除</string>
     <string name="synonym_jump_type_illust">插畫/漫畫</string>
     <string name="synonym_jump_type_novel">小說</string>
+    <!-- issue #910 同義詞詞典最佳化 -->
+    <string name="synonym_copy_target">複製目標標籤</string>
+    <string name="synonym_copy_synonym">複製同義詞標籤</string>
+    <string name="synonym_copy_remark">複製備註</string>
+    <string name="synonym_export_builtin_raw">匯出內建詞典原件</string>
+    <string name="synonym_export_builtin_raw_success">已匯出內建詞典原件</string>
+    <string name="synonym_collapse_synonyms">收起 %1$d 個同義詞</string>
+    <string name="synonym_edit">編輯</string>
+    <string name="synonym_edit_synonym_title">編輯同義詞</string>
+    <string name="synonym_remark_filled">已為「%1$s」補充備註</string>
+    <string name="synonym_rename_target_confirm">將目標標籤「%1$s」重新命名為「%2$s」？</string>
+    <string name="synonym_field_name">標籤名</string>
+    <string name="synonym_field_remark">備註</string>
 </resources>

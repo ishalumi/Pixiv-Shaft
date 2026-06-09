@@ -1620,4 +1620,17 @@
     <string name="synonym_delete">Sil</string>
     <string name="synonym_jump_type_illust">İllüstrasyon/Manga</string>
     <string name="synonym_jump_type_novel">Roman</string>
+    <!-- issue #910 eş anlamlı sözlüğü iyileştirmeleri -->
+    <string name="synonym_copy_target">Hedef etiketi kopyala</string>
+    <string name="synonym_copy_synonym">Eş anlamlı etiketi kopyala</string>
+    <string name="synonym_copy_remark">Notu kopyala</string>
+    <string name="synonym_export_builtin_raw">Yerleşik sözlük dosyasını dışa aktar</string>
+    <string name="synonym_export_builtin_raw_success">Yerleşik sözlük dosyası dışa aktarıldı</string>
+    <string name="synonym_collapse_synonyms">%1$d eş anlamlıyı daralt</string>
+    <string name="synonym_edit">Düzenle</string>
+    <string name="synonym_edit_synonym_title">Eş anlamlıyı düzenle</string>
+    <string name="synonym_remark_filled">“%1$s” ögesine not eklendi</string>
+    <string name="synonym_rename_target_confirm">“%1$s” hedef etiketi “%2$s” olarak yeniden adlandırılsın mı?</string>
+    <string name="synonym_field_name">Etiket adı</string>
+    <string name="synonym_field_remark">Not</string>
 </resources>

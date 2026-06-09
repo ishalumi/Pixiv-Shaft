@@ -1718,4 +1718,17 @@
     <string name="synonym_delete">削除</string>
     <string name="synonym_jump_type_illust">イラスト/マンガ</string>
     <string name="synonym_jump_type_novel">小説</string>
+    <!-- issue #910 類義語辞書の改善 -->
+    <string name="synonym_copy_target">ターゲットタグをコピー</string>
+    <string name="synonym_copy_synonym">類義語タグをコピー</string>
+    <string name="synonym_copy_remark">メモをコピー</string>
+    <string name="synonym_export_builtin_raw">内蔵辞書ファイルを書き出す</string>
+    <string name="synonym_export_builtin_raw_success">内蔵辞書ファイルを書き出しました</string>
+    <string name="synonym_collapse_synonyms">%1$d 件の類義語を折りたたむ</string>
+    <string name="synonym_edit">編集</string>
+    <string name="synonym_edit_synonym_title">類義語を編集</string>
+    <string name="synonym_remark_filled">「%1$s」にメモを追加しました</string>
+    <string name="synonym_rename_target_confirm">ターゲットタグ「%1$s」を「%2$s」に変更しますか？</string>
+    <string name="synonym_field_name">タグ名</string>
+    <string name="synonym_field_remark">メモ</string>
 </resources>

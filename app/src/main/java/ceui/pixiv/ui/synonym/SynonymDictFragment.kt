@@ -85,6 +85,9 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
             menu.add(getString(R.string.synonym_import_builtin)).setOnMenuItemClickListener {
                 confirmImportBuiltinDict(); true
             }
+            menu.add(getString(R.string.synonym_export_builtin_raw)).setOnMenuItemClickListener {
+                exportBuiltinRaw(); true
+            }
             menu.add(getString(R.string.synonym_export)).setOnMenuItemClickListener {
                 exportDict(); true
             }
@@ -253,6 +256,30 @@ class SynonymDictFragment : Fragment(R.layout.fragment_synonym_dict) {
     // ────────────────────────────────────────────────────────────────
     // 导出 / 导入
     // ────────────────────────────────────────────────────────────────
+
+    /**
+     * issue #910：导出内置词典原件 —— 直接复制 assets 里的 synonym_dict_builtin.json（带全部备注），
+     * 不是遍历 DB 输出。用户拿它本地搜索标签含义 / 找回误并进自建目标的内置目标 / 留底。
+     */
+    private fun exportBuiltinRaw() {
+        val act = activity as? BaseActivity<*> ?: return
+        val appContext = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val json = try {
+                withContext(Dispatchers.IO) { SynonymBuiltinDict.readRawAsset(appContext) }
+            } catch (e: Exception) {
+                Timber.e(e, "read builtin synonym dict asset failed")
+                Common.showToast(getString(R.string.synonym_import_failed, e.message ?: ""))
+                return@launch
+            }
+            IllustDownload.downloadBackupFile(
+                act, SynonymBuiltinDict.ASSET_NAME, json,
+                Callback<Uri> {
+                    Common.showToast(getString(R.string.synonym_export_builtin_raw_success))
+                },
+            )
+        }
+    }
 
     private fun exportDict() {
         val act = activity as? BaseActivity<*> ?: return

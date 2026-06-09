@@ -256,9 +256,7 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
                             .addAction(getString(R.string.synonym_add_as_synonym), new QMUIDialogAction.ActionListener() {
                                 @Override
                                 public void onClick(QMUIDialog dialog, int index) {
-                                    // 带上作品上下文 → 新建目标标签时自动把本小说收藏进同名收藏标签
-                                    SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name(),
-                                            mNovelBean.getId(), Params.TYPE_NOVEL);
+                                    SynonymOperate.showAddAsSynonymDialog(mContext, tagName, tagBean.getTranslated_name());
                                     dialog.dismiss();
                                 }
                             })

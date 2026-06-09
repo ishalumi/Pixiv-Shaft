@@ -45,10 +45,10 @@ import ceui.pixiv.db.synonym.SynonymTargetEntity;
                 ComicBookmarkEntity.class, // V3 漫画阅读器书签
                 ComicReadingStatsEntity.class, // V3 漫画阅读器累计统计
                 DownloadQueueEntity.class, // 批量下载队列（v33）
-                SynonymTargetEntity.class, // 同义词词典-目标标签（v36, issue #904）
+                SynonymTargetEntity.class, // 同义词词典-目标标签（v36 建表 / v37 加 lastUsedAt, issue #904/#910）
                 SynonymTagEntity.class, // 同义词词典-同义词（v36, issue #904）
         },
-        version = 36,
+        version = 37,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -329,6 +329,15 @@ public abstract class AppDatabase extends RoomDatabase {
             database.execSQL("CREATE INDEX IF NOT EXISTS index_synonym_tag_table_name ON synonym_tag_table(name)");
         }
     };
+    // 迁移 36 -> 37：目标标签加 lastUsedAt（issue #910）。「添加为同义词」/「移动」菜单改按最近使用排序，
+    // 旧行回填为 createdAt（与原「按创建时间倒序」行为一致，不会打乱已有顺序）。
+    private static final Migration MIGRATION_36_37 = new Migration(36, 37) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE synonym_target_table ADD COLUMN lastUsedAt INTEGER NOT NULL DEFAULT 0");
+            database.execSQL("UPDATE synonym_target_table SET lastUsedAt = createdAt");
+        }
+    };
 
     private static AppDatabase INSTANCE;
 
@@ -355,6 +364,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_33_34) // 注册 33 -> 34 迁移 (download_queue.illustGson)
                             .addMigrations(MIGRATION_34_35) // 注册 34 -> 35 迁移 (search_table.previewIllustsJson)
                             .addMigrations(MIGRATION_35_36) // 注册 35 -> 36 迁移 (同义词词典两张表)
+                            .addMigrations(MIGRATION_36_37) // 注册 36 -> 37 迁移 (synonym_target_table.lastUsedAt)
                             .build();
         }
         return INSTANCE;

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -169,10 +170,25 @@ class SynonymMatchView @JvmOverloads constructor(
         visibility = VISIBLE
 
         addHeader()
-        matched.forEach { result -> addMatchedTarget(result) }
+        // issue #910：组与组之间加一条浅分隔线，避免多个目标的 chip 看串
+        matched.forEachIndexed { index, result ->
+            addMatchedTarget(result, showTopDivider = index > 0)
+        }
         if (unmatchedCount > 0) {
             addUnmatchedSummary(unmatchedCount)
         }
+    }
+
+    /** 匹配组之间的浅分隔线（issue #910）：v3_border_2 日夜自适配，浅到能分隔又不抢眼 */
+    private fun addGroupDivider() {
+        val h = context.resources.displayMetrics.density.toInt().coerceAtLeast(1)
+        addView(View(context).apply {
+            layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h).apply {
+                topMargin = 6.ppppx
+                bottomMargin = 4.ppppx
+            }
+            setBackgroundColor(ContextCompat.getColor(context, R.color.v3_border_2))
+        })
     }
 
     /** section 标题行（抄 section_v3_tags.xml 的小标题风格）+ 管理词典入口 */
@@ -204,8 +220,9 @@ class SynonymMatchView @JvmOverloads constructor(
         addView(row)
     }
 
-    /** 匹配到的目标标签：标题 + 命中 chips；未命中折叠成计数行，点击原地展开（issue #905） */
-    private fun addMatchedTarget(result: SynonymMatcher.TargetResult) {
+    /** 匹配到的目标标签：标题 + 命中 chips；未命中折叠成计数行，点击展开/再点收起（issue #905/#910） */
+    private fun addMatchedTarget(result: SynonymMatcher.TargetResult, showTopDivider: Boolean) {
+        if (showTopDivider) addGroupDivider()
         val synonymCount = result.matchedSynonyms.size + result.unmatchedSynonyms.size
         // 目标标签标题行
         addView(TextView(context).apply {
@@ -230,23 +247,39 @@ class SynonymMatchView @JvmOverloads constructor(
         result.matchedSynonyms.forEach { item -> flow.addView(buildChip(item, matched = true)) }
         addView(flow)
 
-        // 未命中的同义词不直接渲染（内置词典单目标可达 10+ 个，挤占版面），
-        // 折叠成计数行；点击在原 flow 里补出灰色 chip（保留长按编辑入口）
+        // 未命中的同义词不直接渲染（内置词典单目标可达 10+ 个，挤占版面），折叠成计数行。
+        // issue #910：做成可逆开关 —— 点击在原 flow 补灰色 chip 并改为「收起」，再点移除灰 chip 还原。
         if (result.unmatchedSynonyms.isNotEmpty()) {
-            addView(TextView(context).apply {
-                text = context.getString(
-                    R.string.synonym_more_unmatched_synonyms, result.unmatchedSynonyms.size
-                )
+            val matchedChipCount = result.matchedSynonyms.size
+            val toggle = TextView(context).apply {
                 textSize = 13f
                 setTextColor(ContextCompat.getColor(context, R.color.v3_text_3))
                 setPaddingRelative(0, 0, 0, 6.ppppx)
-                setOnClickListener {
+            }
+            var expanded = false
+            fun applyToggleLabel() {
+                toggle.text = if (expanded) {
+                    context.getString(R.string.synonym_collapse_synonyms, result.unmatchedSynonyms.size)
+                } else {
+                    context.getString(R.string.synonym_more_unmatched_synonyms, result.unmatchedSynonyms.size)
+                }
+            }
+            applyToggleLabel()
+            toggle.setOnClickListener {
+                expanded = !expanded
+                if (expanded) {
                     result.unmatchedSynonyms.forEach { item ->
                         flow.addView(buildChip(item, matched = false))
                     }
-                    this@SynonymMatchView.removeView(this)
+                } else {
+                    // 只移除展开时追加的未命中 chip，命中 chip 原样保留
+                    while (flow.childCount > matchedChipCount) {
+                        flow.removeViewAt(flow.childCount - 1)
+                    }
                 }
-            })
+                applyToggleLabel()
+            }
+            addView(toggle)
         }
     }
 
