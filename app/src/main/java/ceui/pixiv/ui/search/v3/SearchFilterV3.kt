@@ -237,8 +237,9 @@ enum class R18Mode {
  * 没有「仅看 AI」——所以「仅看 AI」走 [search_ai_type]=0（服务端全返）+ 客户端按真实
  * `illust_ai_type`(插画) / `novel_ai_type`(小说) == 2 过滤，与 [R18Mode] 同机制。
  *
- * 持久化：只有 [ExcludeAi] 跟全局 `isDeleteAIIllust` 联动落盘；[OnlyAi] 是单次搜索的临时维度，
- * 不写设置（用户明确要求「不需要记录在 settings 里」）。
+ * 持久化：[All]/[ExcludeAi] 把 `isDeleteAIIllust` 落成 false/true（屏蔽 AI 本就是全局设置）；
+ * [OnlyAi] 是单次搜索的临时维度，**绝不碰任何设置**——既不持久化，也不通过 `isDeleteAIIllust`
+ * 顺带改掉首页等其它列表的 AI 屏蔽（issue #909：只影响搜索结果、不持久化）。
  */
 enum class AiMode {
     All, ExcludeAi, OnlyAi;

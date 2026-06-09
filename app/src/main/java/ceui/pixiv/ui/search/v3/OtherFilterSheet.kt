@@ -23,9 +23,9 @@ import java.io.Serializable
  * （仅限原创 / 仅限单词置换）+ R-18 限制三选一。
  *
  * 小说专属两个 switch 仅在 isNovel = true 时显示；illust 模式整张卡片隐藏，结果回传时
- * 也固定 false。AI 仅「屏蔽AI」档提交时落盘 [Shaft.sSettings.isDeleteAIIllust]——与
- * [ceui.lisa.fragments.FragmentFilter] 历史行为对齐，避免设置项分裂；「仅看AI」是临时维度
- * 不入设置（issue #909）。
+ * 也固定 false。AI「全部 / 屏蔽AI」两档提交时把 [Shaft.sSettings.isDeleteAIIllust] 落成
+ * false/true——与 [ceui.lisa.fragments.FragmentFilter] 历史行为对齐，避免设置项分裂；「仅看AI」
+ * 是单次搜索的临时维度，提交时**不碰任何设置**（issue #909：只影响搜索、不持久化）。
  *
  * draft 状态在 [onSaveInstanceState] 持久化，旋屏不丢；结果走 FragmentResult API。
  */
@@ -104,12 +104,16 @@ class OtherFilterSheet : V3BottomSheetBase() {
         binding.btnConfirm.setTextColor(palette.textAccent)
         binding.btnCancel.setOnClick { dismissAllowingStateLoss() }
         binding.btnConfirm.setOnClick {
-            // 只有「屏蔽 AI」跟全局设置联动落盘（与 FragmentFilter 历史行为一致，让其它入口也跟随）；
-            // 「仅看 AI」是临时维度不入设置，所以全部 / 仅看 AI 都落 isDeleteAIIllust=false（issue #909）
-            val globalExclude = draftAiMode == AiMode.ExcludeAi
-            if (Shaft.sSettings.isDeleteAIIllust != globalExclude) {
-                Shaft.sSettings.isDeleteAIIllust = globalExclude
-                Local.setSettings(Shaft.sSettings)
+            // 只有「全部 / 屏蔽 AI」与全局 isDeleteAIIllust 联动落盘（屏蔽 AI 本就是全局设置，
+            // 与 FragmentFilter 历史行为一致）。「仅看 AI」是搜索单次的临时维度——绝不碰全局设置：
+            // 否则既会被持久化，又会顺带改掉首页等其它列表的 AI 屏蔽。issue #909 要求只影响搜索
+            // 结果且不持久化，所以这里整段对 OnlyAi 跳过。
+            if (draftAiMode != AiMode.OnlyAi) {
+                val globalExclude = draftAiMode == AiMode.ExcludeAi
+                if (Shaft.sSettings.isDeleteAIIllust != globalExclude) {
+                    Shaft.sSettings.isDeleteAIIllust = globalExclude
+                    Local.setSettings(Shaft.sSettings)
+                }
             }
             // 小说专属 switch：illust 模式下卡片整体隐藏，强制 false 防止状态串味儿
             val originalOnly = if (isNovel) draftOriginalOnly else false

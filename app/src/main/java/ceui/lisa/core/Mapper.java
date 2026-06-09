@@ -79,7 +79,9 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
                         || (searchOnlyAi && !isCreatedByAI)) {   // 仅看 AI：剔除非 AI 作品
                     dash.add(o);
                 }
-                if (shouldHidAiIllusts && isCreatedByAI) {
+                // 全局屏蔽 AI（首页等所有列表共用）；但搜索「仅看 AI」时必须让步——否则全局 hide
+                // 把 AI 去掉、searchOnlyAi 又把非 AI 去掉，结果会被清空。!searchOnlyAi 仅搜索时为真。
+                if (shouldHidAiIllusts && isCreatedByAI && !searchOnlyAi) {
                     dash.add(o);
                 }
                 ObjectPool.INSTANCE.updateIllust((IllustsBean) o);
