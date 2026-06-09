@@ -3,6 +3,7 @@ package ceui.pixiv.widgets
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -49,6 +50,14 @@ class RateAppDialog : PixivDialog(R.layout.dialog_rate_app) {
             openPlayStoreFallback()
             return
         }
+        // 谷歌商店被停用/卸载时,In-App Review API 会弹出 Play 自己的「Something went
+        // wrong / Check that Google Play is enabled」错误框(issue #908)。先判断 Play
+        // 可用再走 In-App Review,否则直接退回浏览器链接,避免 Play 弹错误框。
+        if (!isPlayStoreAvailable(activity)) {
+            Timber.w("RateAppDialog Google Play unavailable, falling back to Play Store link")
+            openPlayStoreFallback()
+            return
+        }
         Timber.d("RateAppDialog launching In-App Review flow")
         val manager = ReviewManagerFactory.create(activity)
         val request = manager.requestReviewFlow()
@@ -65,6 +74,18 @@ class RateAppDialog : PixivDialog(R.layout.dialog_rate_app) {
                 Timber.w(task.exception, "RateAppDialog requestReviewFlow failed, falling back")
                 openPlayStoreFallback()
             }
+        }
+    }
+
+    /**
+     * 谷歌商店(com.android.vending)已安装且处于启用状态时才返回 true。
+     * 被用户停用时 getApplicationInfo 在默认 flag 下会抛 NameNotFoundException。
+     */
+    private fun isPlayStoreAvailable(context: Context): Boolean {
+        return try {
+            context.packageManager.getApplicationInfo("com.android.vending", 0).enabled
+        } catch (e: Exception) {
+            false
         }
     }
 
