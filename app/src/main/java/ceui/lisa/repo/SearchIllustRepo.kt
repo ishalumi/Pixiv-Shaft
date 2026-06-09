@@ -187,12 +187,15 @@ class SearchIllustRepo @JvmOverloads constructor(
         heightMin = searchModel.heightMin.value
         heightMax = searchModel.heightMax.value
         durationBucket = searchModel.durationBucket.value
-        // 老版没显式 AI 字段；用全局开关派生（FragmentFilter 历史就这么干）。
-        searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
+        // AI：屏蔽走全局 isDeleteAIIllust → search_ai_type=1；「仅看 AI」会话态（issue #909）→
+        // 服务端全返(search_ai_type=0)，再由 FilterMapper 客户端按 illust_ai_type==2 筛。
+        val onlyAi = searchModel.onlyAi.value == true
+        searchAiType = if (onlyAi) 0 else if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
 
         this.filterMapper?.updateStarSizeLimit(this.getStarSizeLimit())
         // R18 三档（0=不限/1=仅安全/2=仅R-18）→ 客户端按 x_restrict 过滤
         this.filterMapper?.setSearchR18Restriction(r18Restriction ?: 0)
+        this.filterMapper?.setSearchOnlyAi(onlyAi)
     }
 
     private fun getStarSizeLimit(): Int {

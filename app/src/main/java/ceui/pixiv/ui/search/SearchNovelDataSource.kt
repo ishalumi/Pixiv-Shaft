@@ -61,8 +61,13 @@ class SearchNovelDataSource(
         }
     },
     itemMapper = { novel -> listOf(NovelCardHolder(novel)) },
-    // visible 过滤之外叠加 R18 三档客户端过滤（按真实 x_restrict，「全部」时恒 true）
-    filter = { novel -> novel.visible != false && provider().r18Mode.accepts(novel.x_restrict) }
+    // visible 过滤之外叠加 R18 三档（按真实 x_restrict）+ AI 三档（「仅看 AI」按 novel_ai_type==2）
+    // 客户端过滤；两者「全部」档 accepts 恒 true，零开销。
+    filter = { novel ->
+        novel.visible != false &&
+            provider().r18Mode.accepts(novel.x_restrict) &&
+            provider().aiMode.accepts(novel.novel_ai_type)
+    }
 ) {
     override fun initialLoad(): Boolean {
         return provider().keyword.isNotEmpty()

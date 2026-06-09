@@ -1,5 +1,6 @@
 package ceui.pixiv.ui.search
 
+import ceui.pixiv.ui.search.v3.AiMode
 import ceui.pixiv.ui.search.v3.R18Mode
 
 data class SearchConfig(
@@ -19,7 +20,9 @@ data class SearchConfig(
     // 当场算成 start/end_date 塞进这两个字段。
     val startDate: String? = null,   // YYYY-MM-DD
     val endDate: String? = null,
-    val searchAiType: Int = 0,       // 0 = include AI（默认）；1 = exclude AI
+    val searchAiType: Int = 0,       // 0 = include AI（默认）；1 = exclude AI（由 aiMode 派生）
+    // AI 三档：屏蔽走 searchAiType 服务端；「仅看 AI」走 DataSource 客户端按 illust/novel_ai_type 过滤
+    val aiMode: AiMode = AiMode.All,
     val isOriginalOnly: Boolean? = null,    // novel only
     val isReplaceableOnly: Boolean? = null, // novel only
     val ratioPattern: String? = null,       // illust/manga only: landscape | portrait | square

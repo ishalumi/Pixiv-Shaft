@@ -63,7 +63,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- AI section -->
+            <!-- AI section —— 三选一：全部 / 屏蔽 AI / 仅看 AI（issue #909） -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -71,9 +71,46 @@
                 android:clipToOutline="true"
                 android:orientation="vertical">
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="18dp"
+                    android:paddingTop="14dp"
+                    android:paddingEnd="18dp"
+                    android:paddingBottom="10dp"
+                    android:text="@string/search_filter_v3_section_ai"
+                    android:textColor="@color/v3_text_2"
+                    android:textSize="13sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
                 <include
-                    android:id="@+id/row_ai"
-                    layout="@layout/cell_search_filter_switch_row" />
+                    android:id="@+id/row_ai_all"
+                    layout="@layout/cell_search_filter_check_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_ai_exclude"
+                    layout="@layout/cell_search_filter_check_row" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="18dp"
+                    android:background="@color/v3_border_2" />
+
+                <include
+                    android:id="@+id/row_ai_only"
+                    layout="@layout/cell_search_filter_check_row" />
             </LinearLayout>
 
             <!-- 插画/漫画专属（制图工具）—— novel 模式整张卡片 GONE -->

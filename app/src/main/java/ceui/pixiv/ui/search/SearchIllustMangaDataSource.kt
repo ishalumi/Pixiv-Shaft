@@ -62,7 +62,11 @@ class SearchIllustMangaDataSource(
     itemMapper = { illust -> listOf(IllustCardHolder(illust)) },
     // R18 三档客户端过滤：只看真实 x_restrict（与 IllustsBean.isR18File 同口径，不碰
     // sanity_level，避免误伤普通插画）。「全部」时 accepts 恒 true，零开销。
-    filter = { illust -> provider().r18Mode.accepts(illust.x_restrict) }
+    // AI 三档同机制：「仅看 AI」按真实 illust_ai_type==2 过滤（屏蔽已由 search_ai_type 服务端做）。
+    filter = { illust ->
+        provider().r18Mode.accepts(illust.x_restrict) &&
+            provider().aiMode.accepts(illust.illust_ai_type)
+    }
 ) {
     override fun initialLoad(): Boolean {
         return provider().keyword.isNotEmpty()

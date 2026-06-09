@@ -1249,6 +1249,9 @@
 
     <string name="search_filter_v3_ai_exclude">YZ eserlerini gizle</string>
     <string name="search_filter_v3_ai_exclude_desc">«Ayarlar → YZ eserlerini gizle» ile senkron</string>
+    <string name="search_filter_v3_section_ai">YZ eserleri</string>
+    <string name="search_filter_v3_ai_all">Tümü</string>
+    <string name="search_filter_v3_ai_only">Yalnızca YZ</string>
 
     <string name="search_filter_v3_section_r18">R-18 kısıtlaması</string>
     <string name="search_filter_v3_r18_all">Tümü</string>
@@ -1325,6 +1328,7 @@
     <string name="search_filter_v3_genre_all_summary">Tüm türler</string>
     <string name="search_filter_v3_lang_all_summary">Tüm diller</string>
     <string name="search_filter_v3_other_summary_no_ai">YZ gizle</string>
+    <string name="search_filter_v3_other_summary_only_ai">Yalnızca YZ</string>
     <string name="search_filter_v3_other_summary_none">Yok</string>
     <string name="search_filter_v3_date_start">Başlangıç tarihi</string>
     <string name="search_filter_v3_date_end">Bitiş tarihi</string>

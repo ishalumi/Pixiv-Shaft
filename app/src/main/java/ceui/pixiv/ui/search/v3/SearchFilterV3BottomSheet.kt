@@ -319,7 +319,7 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
                     as? OtherFilterSheet.Patch ?: return@setFragmentResultListener
             updateFilter {
                 it.copy(
-                    excludeAi = patch.excludeAi,
+                    aiMode = patch.aiMode,
                     r18Mode = patch.r18Mode,
                     isOriginalOnly = patch.isOriginalOnly,
                     isReplaceableOnly = patch.isReplaceableOnly,
@@ -528,7 +528,11 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
 
     private fun otherSummary(filter: SearchFilterV3): String {
         val flags = mutableListOf<String>()
-        if (filter.excludeAi) flags += getString(R.string.search_filter_v3_other_summary_no_ai)
+        when (filter.aiMode) {
+            AiMode.ExcludeAi -> flags += getString(R.string.search_filter_v3_other_summary_no_ai)
+            AiMode.OnlyAi    -> flags += getString(R.string.search_filter_v3_other_summary_only_ai)
+            AiMode.All -> Unit
+        }
         when (filter.r18Mode) {
             R18Mode.SafeOnly -> flags += getString(R.string.search_filter_v3_r18_safe)
             R18Mode.R18Only  -> flags += getString(R.string.search_filter_v3_r18_only)

@@ -718,7 +718,8 @@ data class Novel(
     val total_view: Int? = null,
     val user: User? = null,
     val visible: Boolean? = null,
-    val x_restrict: Int? = null
+    val x_restrict: Int? = null,
+    val novel_ai_type: Int = 0,   // 0=未知 / 1=人类 / 2=AI（issue #909 仅看 AI 客户端过滤用）
 ) : Serializable, ModelObject {
     override val objectUniqueId: Long
         get() = id

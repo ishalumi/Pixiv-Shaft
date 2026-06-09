@@ -117,7 +117,9 @@ class SearchViewModel(initialKeyword: String) : ViewModel() {
             lang = filter.lang,
             startDate = computedDates?.first ?: filter.startDate,
             endDate = computedDates?.second ?: filter.endDate,
-            searchAiType = if (filter.excludeAi) 1 else 0,
+            searchAiType = filter.aiMode.searchAiType(),
+            // 「仅看 AI」官方无参数，带到 DataSource 客户端按 illust/novel_ai_type 过滤
+            aiMode = filter.aiMode,
             // novel-only switches —— illust 路径忽略；nullable 保留 retrofit 不传 query 的语义
             isOriginalOnly = if (isNovel && filter.isOriginalOnly) true else null,
             isReplaceableOnly = if (isNovel && filter.isReplaceableOnly) true else null,

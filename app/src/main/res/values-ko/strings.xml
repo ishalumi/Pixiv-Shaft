@@ -1258,6 +1258,9 @@
 
     <string name="search_filter_v3_ai_exclude">AI 작품 숨기기</string>
     <string name="search_filter_v3_ai_exclude_desc">「설정 → AI 작품 숨기기」와 연동</string>
+    <string name="search_filter_v3_section_ai">AI 작품</string>
+    <string name="search_filter_v3_ai_all">전체</string>
+    <string name="search_filter_v3_ai_only">AI만</string>
 
     <string name="search_filter_v3_section_r18">R-18 제한</string>
     <string name="search_filter_v3_r18_all">전체</string>
@@ -1334,6 +1337,7 @@
     <string name="search_filter_v3_genre_all_summary">모든 장르</string>
     <string name="search_filter_v3_lang_all_summary">모든 언어</string>
     <string name="search_filter_v3_other_summary_no_ai">AI 숨김</string>
+    <string name="search_filter_v3_other_summary_only_ai">AI만</string>
     <string name="search_filter_v3_other_summary_none">없음</string>
     <string name="search_filter_v3_date_start">시작일</string>
     <string name="search_filter_v3_date_end">종료일</string>

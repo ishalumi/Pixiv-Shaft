@@ -19,18 +19,19 @@ import ceui.pixiv.utils.setOnClick
 import java.io.Serializable
 
 /**
- * 「其他条件」子 sheet —— 收纳次要维度：屏蔽 AI 开关 + 小说专属（仅限原创 / 仅限单词置换）
- * + R-18 限制三选一。
+ * 「其他条件」子 sheet —— 收纳次要维度：AI 三选一（全部/屏蔽AI/仅看AI）+ 小说专属
+ * （仅限原创 / 仅限单词置换）+ R-18 限制三选一。
  *
  * 小说专属两个 switch 仅在 isNovel = true 时显示；illust 模式整张卡片隐藏，结果回传时
- * 也固定 false。AI switch 提交时同时落盘 [Shaft.sSettings.isDeleteAIIllust]——与
- * [ceui.lisa.fragments.FragmentFilter] 历史行为对齐，避免设置项分裂。
+ * 也固定 false。AI 仅「屏蔽AI」档提交时落盘 [Shaft.sSettings.isDeleteAIIllust]——与
+ * [ceui.lisa.fragments.FragmentFilter] 历史行为对齐，避免设置项分裂；「仅看AI」是临时维度
+ * 不入设置（issue #909）。
  *
  * draft 状态在 [onSaveInstanceState] 持久化，旋屏不丢；结果走 FragmentResult API。
  */
 class OtherFilterSheet : V3BottomSheetBase() {
 
-    private var draftExcludeAi: Boolean = false
+    private var draftAiMode: AiMode = AiMode.All
     private var draftR18: R18Mode = R18Mode.All
     private var draftOriginalOnly: Boolean = false
     private var draftReplaceableOnly: Boolean = false
@@ -50,7 +51,7 @@ class OtherFilterSheet : V3BottomSheetBase() {
             ?.searchViewModel?.searchOptions?.value?.illust?.tool?.options.orEmpty()
 
     data class Patch(
-        val excludeAi: Boolean,
+        val aiMode: AiMode,
         val r18Mode: R18Mode,
         val isOriginalOnly: Boolean,
         val isReplaceableOnly: Boolean,
@@ -69,7 +70,7 @@ class OtherFilterSheet : V3BottomSheetBase() {
         @Suppress("DEPRECATION", "UNCHECKED_CAST")
         val patch = source.getSerializable(KEY_DRAFT) as? Patch
             ?: @Suppress("DEPRECATION") (requireArguments().getSerializable(ARG_INITIAL) as? Patch)
-        draftExcludeAi = patch?.excludeAi ?: false
+        draftAiMode = patch?.aiMode ?: AiMode.All
         draftR18 = patch?.r18Mode ?: R18Mode.All
         draftOriginalOnly = patch?.isOriginalOnly ?: false
         draftReplaceableOnly = patch?.isReplaceableOnly ?: false
@@ -79,7 +80,7 @@ class OtherFilterSheet : V3BottomSheetBase() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putSerializable(KEY_DRAFT,
-            Patch(draftExcludeAi, draftR18, draftOriginalOnly, draftReplaceableOnly, draftTool))
+            Patch(draftAiMode, draftR18, draftOriginalOnly, draftReplaceableOnly, draftTool))
     }
 
     override fun onCreateView(
@@ -103,9 +104,11 @@ class OtherFilterSheet : V3BottomSheetBase() {
         binding.btnConfirm.setTextColor(palette.textAccent)
         binding.btnCancel.setOnClick { dismissAllowingStateLoss() }
         binding.btnConfirm.setOnClick {
-            // AI 开关同步落盘到全局设置（与 FragmentFilter 历史行为一致），让其它入口也跟随
-            if (Shaft.sSettings.isDeleteAIIllust != draftExcludeAi) {
-                Shaft.sSettings.isDeleteAIIllust = draftExcludeAi
+            // 只有「屏蔽 AI」跟全局设置联动落盘（与 FragmentFilter 历史行为一致，让其它入口也跟随）；
+            // 「仅看 AI」是临时维度不入设置，所以全部 / 仅看 AI 都落 isDeleteAIIllust=false（issue #909）
+            val globalExclude = draftAiMode == AiMode.ExcludeAi
+            if (Shaft.sSettings.isDeleteAIIllust != globalExclude) {
+                Shaft.sSettings.isDeleteAIIllust = globalExclude
                 Local.setSettings(Shaft.sSettings)
             }
             // 小说专属 switch：illust 模式下卡片整体隐藏，强制 false 防止状态串味儿
@@ -115,19 +118,16 @@ class OtherFilterSheet : V3BottomSheetBase() {
             val tool = if (isNovel) null else draftTool
             parentFragmentManager.setFragmentResult(
                 requestKey,
-                bundleOf(KEY_PATCH to Patch(draftExcludeAi, draftR18, originalOnly, replaceableOnly, tool)),
+                bundleOf(KEY_PATCH to Patch(draftAiMode, draftR18, originalOnly, replaceableOnly, tool)),
             )
             dismissAllowingStateLoss()
         }
 
-        // AI section
-        binding.rowAi.switchTitle.setText(R.string.search_filter_v3_ai_exclude)
-        binding.rowAi.switchSubtitle.setText(R.string.search_filter_v3_ai_exclude_desc)
-        binding.rowAi.switchToggle.thumbTintList = ColorStateList.valueOf(palette.primary)
-        binding.rowAi.switchToggle.isChecked = draftExcludeAi
-        binding.rowAi.switchToggle.setOnCheckedChangeListener { _, checked ->
-            draftExcludeAi = checked
-        }
+        // AI section —— 三选一：全部 / 屏蔽 AI / 仅看 AI
+        bindAiRow(binding.rowAiAll,     AiMode.All,       R.string.search_filter_v3_ai_all)
+        bindAiRow(binding.rowAiExclude, AiMode.ExcludeAi, R.string.search_filter_v3_ai_exclude)
+        bindAiRow(binding.rowAiOnly,    AiMode.OnlyAi,    R.string.search_filter_v3_ai_only)
+        renderAiMarks()
 
         // 制图工具（illust/manga 专属）—— novel 模式整张卡片隐藏
         binding.illustToolSpace.isVisible = !isNovel
@@ -212,6 +212,21 @@ class OtherFilterSheet : V3BottomSheetBase() {
         row.switchToggle.setOnCheckedChangeListener { _, checked -> onChange(checked) }
     }
 
+    private fun bindAiRow(row: CellSearchFilterCheckRowBinding, mode: AiMode, labelRes: Int) {
+        row.checkLabel.setText(labelRes)
+        row.checkMark.setTextColor(palette.textAccent)
+        row.root.setOnClick {
+            draftAiMode = mode
+            renderAiMarks()
+        }
+    }
+
+    private fun renderAiMarks() {
+        binding.rowAiAll.checkMark.isInvisible     = draftAiMode != AiMode.All
+        binding.rowAiExclude.checkMark.isInvisible = draftAiMode != AiMode.ExcludeAi
+        binding.rowAiOnly.checkMark.isInvisible    = draftAiMode != AiMode.OnlyAi
+    }
+
     private fun bindR18Row(row: CellSearchFilterCheckRowBinding, mode: R18Mode, labelRes: Int) {
         row.checkLabel.setText(labelRes)
         row.checkMark.setTextColor(palette.textAccent)
@@ -248,7 +263,7 @@ class OtherFilterSheet : V3BottomSheetBase() {
                 putString(ARG_REQUEST_KEY, requestKey)
                 putBoolean(ARG_IS_NOVEL, isNovel)
                 putSerializable(ARG_INITIAL, Patch(
-                    current.excludeAi,
+                    current.aiMode,
                     current.r18Mode,
                     current.isOriginalOnly,
                     current.isReplaceableOnly,

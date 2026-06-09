@@ -1369,6 +1369,9 @@
 
     <string name="search_filter_v3_ai_exclude">不顯示 AI 作品</string>
     <string name="search_filter_v3_ai_exclude_desc">與「設定 → 不顯示 AI 作品」連動</string>
+    <string name="search_filter_v3_section_ai">AI 作品</string>
+    <string name="search_filter_v3_ai_all">全部</string>
+    <string name="search_filter_v3_ai_only">僅 AI 作品</string>
 
     <string name="search_filter_v3_section_r18">R-18 限制</string>
     <string name="search_filter_v3_r18_all">全部</string>
@@ -1445,6 +1448,7 @@
     <string name="search_filter_v3_genre_all_summary">全部類型</string>
     <string name="search_filter_v3_lang_all_summary">所有語種</string>
     <string name="search_filter_v3_other_summary_no_ai">屏蔽 AI</string>
+    <string name="search_filter_v3_other_summary_only_ai">僅 AI</string>
     <string name="search_filter_v3_other_summary_none">無</string>
     <string name="search_filter_v3_date_start">起始日期</string>
     <string name="search_filter_v3_date_end">截止日期</string>

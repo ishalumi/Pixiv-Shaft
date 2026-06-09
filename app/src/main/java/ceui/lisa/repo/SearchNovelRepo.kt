@@ -153,7 +153,10 @@ class SearchNovelRepo @JvmOverloads constructor(
         bookmarkMin = searchModel.bookmarkMin.value
         genre = searchModel.genre.value
         lang = searchModel.lang.value
-        searchAiType = if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
+        // AI：屏蔽走全局 isDeleteAIIllust → search_ai_type=1；「仅看 AI」会话态（issue #909）→
+        // 服务端全返(0)，再由 Mapper 客户端按 novel_ai_type==2 筛。
+        val onlyAi = searchModel.onlyAi.value == true
+        searchAiType = if (onlyAi) 0 else if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
         // null 让 retrofit 跳过 query；只有显式 true 才传，行为对齐 iOS（关闭时不带）
         isOriginalOnly = if (searchModel.isOriginalOnly.value == true) true else null
         isReplaceableOnly = if (searchModel.isReplaceableOnly.value == true) true else null
@@ -166,5 +169,6 @@ class SearchNovelRepo @JvmOverloads constructor(
         durationBucket = searchModel.durationBucket.value
         // R18 三档（0=不限/1=仅安全/2=仅R-18）→ 客户端按 x_restrict 过滤
         filterMapper?.setSearchR18Restriction(r18Restriction ?: 0)
+        filterMapper?.setSearchOnlyAi(onlyAi)
     }
 }

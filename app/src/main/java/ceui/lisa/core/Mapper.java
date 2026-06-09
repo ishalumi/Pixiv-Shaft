@@ -28,6 +28,14 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
      */
     private int searchR18Restriction = 0;
 
+    /**
+     * 搜索「仅看 AI」客户端过滤（issue #909）：true 时只留下 AI 生成作品
+     * （插画 {@link IllustsBean#isCreatedByAI()} / 小说 {@link NovelBean#isCreatedByAI()}，
+     * 即 ai_type==2），其余剔除。默认 false 对其它所有列表无副作用——只有搜索 repo 经
+     * {@link #setSearchOnlyAi} 显式开启。屏蔽 AI 仍走全局 {@link Shaft.sSettings#isDeleteAIIllust()}。
+     */
+    private boolean searchOnlyAi = false;
+
     public Mapper<T> enableSkipR18Filter() {
         this.skipR18Filter = true;
         return this;
@@ -35,6 +43,11 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
 
     public Mapper<T> setSearchR18Restriction(int searchR18Restriction) {
         this.searchR18Restriction = searchR18Restriction;
+        return this;
+    }
+
+    public Mapper<T> setSearchOnlyAi(boolean searchOnlyAi) {
+        this.searchOnlyAi = searchOnlyAi;
         return this;
     }
 
@@ -62,7 +75,8 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
                 boolean isR18FilterBanned = !skipR18Filter && IllustNovelFilter.judgeR18Filter(illust);
                 boolean isCreatedByAI = illust.isCreatedByAI();
                 if (isTagBanned || isIdBanned || isUserBanned || isR18FilterBanned
-                        || searchR18Rejects(illust.isR18File())) {
+                        || searchR18Rejects(illust.isR18File())
+                        || (searchOnlyAi && !isCreatedByAI)) {   // 仅看 AI：剔除非 AI 作品
                     dash.add(o);
                 }
                 if (shouldHidAiIllusts && isCreatedByAI) {
@@ -77,7 +91,8 @@ public class Mapper<T extends ListShow<?>> implements Function<T, T> {
                 boolean isUserBanned = IllustNovelFilter.judgeUserID(novel);
                 boolean isR18FilterBanned = !skipR18Filter && IllustNovelFilter.judgeR18Filter(novel);
                 if (isTagBanned || isIdBanned || isUserBanned || isR18FilterBanned
-                        || searchR18Rejects(novel.getX_restrict() > 0)) {
+                        || searchR18Rejects(novel.getX_restrict() > 0)
+                        || (searchOnlyAi && !novel.isCreatedByAI())) {   // 仅看 AI：剔除非 AI 小说
                     dash.add(o);
                 }
             }

@@ -59,6 +59,8 @@ public class NovelBean implements Serializable, Starable, ModelObject {
     private int content_count;
     private int total_character_count;
     private String display_text;
+    // AI 生成标记（issue #909）：0=未知 / 1=人类 / 2=AI；Gson 直接吃同名 JSON key novel_ai_type
+    private int novel_ai_type;
 
     public int getId() {
         return id;
@@ -98,6 +100,19 @@ public class NovelBean implements Serializable, Starable, ModelObject {
 
     public void setX_restrict(int x_restrict) {
         this.x_restrict = x_restrict;
+    }
+
+    public int getNovel_ai_type() {
+        return novel_ai_type;
+    }
+
+    public void setNovel_ai_type(int novel_ai_type) {
+        this.novel_ai_type = novel_ai_type;
+    }
+
+    /** ai_type==2 视为 AI 生成（与 {@link IllustsBean.IllustAIType#CreatedByAI} 同口径）。 */
+    public boolean isCreatedByAI() {
+        return novel_ai_type == IllustsBean.IllustAIType.CreatedByAI;
     }
 
     public boolean isIs_original() {

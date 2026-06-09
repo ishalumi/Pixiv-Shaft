@@ -102,8 +102,8 @@ object SearchFilterV3LegacyBridge {
      *  - `sortType`              → sort（不识别就回 popular_preview）
      *  - `startDate / endDate`   → 同名字段
      *  - `r18Restriction`        → R18Mode（0/1/2 ↔ All/SafeOnly/R18Only）
-     *  - AI 屏蔽：legacy 没存在 SearchModel，由 [ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust]
-     *    全局读，所以这里直接读全局 + 写到 filter。
+     *  - AI 三档：「屏蔽AI」由 [ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust] 全局读（baseline）；
+     *    「仅看AI」是临时维度，不入设置，存在 [SearchModel.onlyAi] 会话态里，这里读回来还原档位。
      */
     private fun seedFromLegacy(searchModel: SearchModel, isNovel: Boolean): SearchFilterV3 {
         // baseline = Shaft.sSettings 三项偏好；下面任一字段在 SearchModel 里有值就 override，
@@ -180,8 +180,9 @@ object SearchFilterV3LegacyBridge {
             startDate = searchModel.startDate.value ?: baseline.startDate,
             endDate = searchModel.endDate.value ?: baseline.endDate,
             r18Mode = r18,
-            // AI 屏蔽永远以全局设置为准（OtherFilterSheet 提交时同步落盘，所以 baseline 已是最新）
-            excludeAi = baseline.excludeAi,
+            // AI 三档：「屏蔽AI」以全局设置为准（baseline，OtherFilterSheet 提交时已落盘）；
+            // 「仅看AI」是会话临时态，从 SearchModel.onlyAi 读回还原（activity 重建后 VM 为空时也不丢）。
+            aiMode = if (searchModel.onlyAi.value == true) AiMode.OnlyAi else baseline.aiMode,
             isOriginalOnly = isNovel && searchModel.isOriginalOnly.value == true,
             isReplaceableOnly = isNovel && searchModel.isReplaceableOnly.value == true,
             ratioPattern = ratio,
@@ -204,8 +205,9 @@ object SearchFilterV3LegacyBridge {
      *    （[SearchIllustRepo.initApi] 内拼接）。
      * 两条可以同时生效（会员选 bookmark_num_min；非会员只能靠 keyword hack）。
      *
-     * excludeAi 不写 SearchModel——它通过 [ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust]
-     * 全局生效（[OtherFilterSheet] 提交时已经落盘，Repo.update 也读全局）。
+     * AI 三档：「屏蔽AI」不写 SearchModel——它通过全局 [ceui.lisa.activities.Shaft.sSettings.isDeleteAIIllust]
+     * 生效（[OtherFilterSheet] 提交时已落盘，Repo.update 也读全局）。「仅看AI」官方无参数，写到
+     * [SearchModel.onlyAi] 会话态，Repo.update 读它喂给 FilterMapper 做客户端过滤（issue #909）。
      */
     private fun applyToLegacy(filter: SearchFilterV3, searchModel: SearchModel) {
         searchModel.sortType.value = filter.sort
@@ -232,6 +234,8 @@ object SearchFilterV3LegacyBridge {
             R18Mode.SafeOnly -> 1
             R18Mode.R18Only -> 2
         }
+        // 「仅看AI」会话态：Repo.update 读它喂 FilterMapper 客户端过滤（屏蔽AI 仍走全局设置）
+        searchModel.onlyAi.value = filter.aiMode == AiMode.OnlyAi
         searchModel.isOriginalOnly.value = filter.isOriginalOnly
         searchModel.isReplaceableOnly.value = filter.isReplaceableOnly
         // ratio_pattern 仅 illust/manga；novel 路径 SearchIllustRepo 不读，写入 SearchModel 也无副作用

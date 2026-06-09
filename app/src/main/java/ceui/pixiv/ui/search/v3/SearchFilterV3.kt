@@ -23,7 +23,10 @@ import ceui.pixiv.ui.search.SortType
  *                              说明：V3 不再发 within_last_* 的 `duration` 参数；durationBucket
  *                              在 [buildSearchConfig] 当场算 today−N → start_date/end_date 发出去，
  *                              对齐 iOS pixiv 8.6.6 抓包行为
- *  10. excludeAi             — 屏蔽 AI 作品（驱动 search_ai_type）
+ *  10. aiMode                — AI 作品筛选三档（全部/屏蔽AI/仅看AI）。屏蔽走官方 search_ai_type；
+ *                              「仅看AI」官方无对应参数，由 DataSource 按真实 `illust_ai_type`==2
+ *                              客户端过滤（与 R18 三档同机制）。仅「屏蔽AI」落 settings，「仅看AI」
+ *                              是临时维度不入设置（issue #909）。
  *  11. r18Mode               — R18 限制（沿用旧版「-R-18」「R-18」关键字 hack）
  *  12. ratioPattern          — 长宽比（仅 illust/manga，走官方 `ratio_pattern` query 参数）
  *  13. resolutionBucket      — 分辨率档位（仅 illust/manga，走官方 `width_min/max` + `height_min/max`）
@@ -43,7 +46,7 @@ data class SearchFilterV3(
     val durationBucket: DurationBucket? = null,
     val startDate: String? = null,    // YYYY-MM-DD —— 与 durationBucket 互斥
     val endDate: String? = null,      // YYYY-MM-DD
-    val excludeAi: Boolean = false,
+    val aiMode: AiMode = AiMode.All,
     val r18Mode: R18Mode = R18Mode.All,
     val ratioPattern: RatioPattern? = null,   // illust/manga only
     val resolutionBucket: ResolutionBucket? = null,   // illust/manga only
@@ -65,7 +68,7 @@ data class SearchFilterV3(
          *   - keywordUsersBucket：`getSearchFilter()`（"" / "1000users入り" 之类）—— 这条设置
          *     从老 FragmentFilter 起就是关键字后缀语义，所以落到 keyword 维度，不是 bookmark
          *     query 维度。bookmarkBucket 维度走 query 参数，没有全局默认。
-         *   - excludeAi：`isDeleteAIIllust`
+         *   - aiMode：`isDeleteAIIllust` → ExcludeAi / All（OnlyAi 是临时维度，不来自 settings）
          *
          * 用户的「activeCount」基线也跟着跑——例如全局已开 AI 屏蔽，sheet 打开「其他条件」
          * 行就会显示「屏蔽 AI」徽标，不再误以为没改过。
@@ -80,7 +83,7 @@ data class SearchFilterV3(
             return SearchFilterV3(
                 sort = sort,
                 keywordUsersBucket = keywordBucket,
-                excludeAi = s.isDeleteAIIllust,
+                aiMode = if (s.isDeleteAIIllust) AiMode.ExcludeAi else AiMode.All,
             )
         }
     }
@@ -97,7 +100,7 @@ data class SearchFilterV3(
         if (lang != null) n++
         if (durationBucket != null) n++
         if (startDate != null || endDate != null) n++
-        if (excludeAi) n++
+        if (aiMode != AiMode.All) n++
         if (r18Mode != R18Mode.All) n++
         if (isNovel && isOriginalOnly) n++
         if (isNovel && isReplaceableOnly) n++
@@ -226,6 +229,28 @@ enum class R18Mode {
         All -> true
         SafeOnly -> (xRestrict ?: 0) <= 0
         R18Only -> (xRestrict ?: 0) > 0
+    }
+}
+
+/**
+ * AI 作品三档（issue #909）。pixiv 官方 `search_ai_type` 只有「含 AI(0) / 屏蔽 AI(1)」两态，
+ * 没有「仅看 AI」——所以「仅看 AI」走 [search_ai_type]=0（服务端全返）+ 客户端按真实
+ * `illust_ai_type`(插画) / `novel_ai_type`(小说) == 2 过滤，与 [R18Mode] 同机制。
+ *
+ * 持久化：只有 [ExcludeAi] 跟全局 `isDeleteAIIllust` 联动落盘；[OnlyAi] 是单次搜索的临时维度，
+ * 不写设置（用户明确要求「不需要记录在 settings 里」）。
+ */
+enum class AiMode {
+    All, ExcludeAi, OnlyAi;
+
+    /** 服务端 `search_ai_type`：屏蔽=1，其余（含「仅看 AI」）=0（全返后客户端再筛）。 */
+    fun searchAiType(): Int = if (this == ExcludeAi) 1 else 0
+
+    /** 该档是否接受这条作品；`aiType`==2 视为 AI 生成（[ceui.lisa.models.IllustsBean.IllustAIType.CreatedByAI]）。 */
+    fun accepts(aiType: Int): Boolean = when (this) {
+        All -> true
+        ExcludeAi -> aiType != 2
+        OnlyAi -> aiType == 2
     }
 }
 

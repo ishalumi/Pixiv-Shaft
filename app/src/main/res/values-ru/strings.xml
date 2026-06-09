@@ -1251,6 +1251,9 @@
 
     <string name="search_filter_v3_ai_exclude">Скрывать работы ИИ</string>
     <string name="search_filter_v3_ai_exclude_desc">Синхронизировано с «Настройки → Скрывать ИИ»</string>
+    <string name="search_filter_v3_section_ai">Работы ИИ</string>
+    <string name="search_filter_v3_ai_all">Все</string>
+    <string name="search_filter_v3_ai_only">Только ИИ</string>
 
     <string name="search_filter_v3_section_r18">R-18</string>
     <string name="search_filter_v3_r18_all">Все</string>
@@ -1327,6 +1330,7 @@
     <string name="search_filter_v3_genre_all_summary">Все жанры</string>
     <string name="search_filter_v3_lang_all_summary">Все языки</string>
     <string name="search_filter_v3_other_summary_no_ai">Скрыть ИИ</string>
+    <string name="search_filter_v3_other_summary_only_ai">Только ИИ</string>
     <string name="search_filter_v3_other_summary_none">Нет</string>
     <string name="search_filter_v3_date_start">Начальная дата</string>
     <string name="search_filter_v3_date_end">Конечная дата</string>
