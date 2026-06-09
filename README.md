@@ -29,7 +29,7 @@
 <br>
 
 <a href="https://pixshaft.com" title="Visit pixshaft.com — the Shaft website">
-  <img src="snap/website.jpg" alt="Shaft — pixshaft.com" width="820">
+  <img src="snap/website.jpg" alt="Shaft — pixshaft.com" width="100%">
 </a>
 
 <sub>🌐 <b><a href="https://pixshaft.com">pixshaft.com</a></b> — click the banner to open the live site</sub>
