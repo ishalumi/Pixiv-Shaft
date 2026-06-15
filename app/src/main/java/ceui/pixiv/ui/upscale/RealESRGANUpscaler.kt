@@ -32,9 +32,17 @@ object NcnnUpscaler {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
+    // cache key 必须含影响输出的参数(scale 等)，否则改了参数后旧的(损坏)结果会被继续命中(#861)。
+    // 与 BackgroundRemover 把 profileArg 写进 key 的做法一致。
+    private fun cacheFileName(inputHash: String, model: UpscaleModel): String {
+        val argSig = model.extraArgs.joinToString("").filter { it.isLetterOrDigit() }
+        return if (argSig.isEmpty()) "${inputHash}_${model.name}.png"
+        else "${inputHash}_${model.name}_${argSig}.png"
+    }
+
     private fun getCached(context: Context, inputFile: File, model: UpscaleModel): File? {
         val hash = md5(inputFile)
-        val cached = File(cacheDir(context), "${hash}_${model.name}.png")
+        val cached = File(cacheDir(context), cacheFileName(hash, model))
         return if (cached.exists() && cached.length() > 0) cached else null
     }
 
@@ -82,7 +90,7 @@ object NcnnUpscaler {
 
             bitmap.recycle()
 
-            val outputFile = File(cacheDir(context), "${inputHash}_${model.name}.png")
+            val outputFile = File(cacheDir(context), cacheFileName(inputHash, model))
 
             val args = mutableListOf(
                 executablePath,
