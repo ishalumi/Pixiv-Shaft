@@ -12,6 +12,9 @@ import androidx.databinding.DataBindingUtil;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.Observer;
+
+import java.io.File;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
@@ -80,10 +83,29 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
     @Override
     public void onViewRecycled(@NonNull ViewHolder<RecyIllustDetailBinding> holder) {
         super.onViewRecycled(holder);
+        // Detach this holder's LoadTask observers (see loadIllust) so they don't outlive
+        // the bind and pile up on the per-URL task's LiveData.
+        detachTaskObservers(holder);
         // Cancel any in-flight Glide load targeting this ImageView so a late-arriving
         // bitmap from the previous bind can't leak into the recycled holder.
         Glide.with(mFragment).clear(holder.baseBind.illust);
         holder.baseBind.illust.setTag(R.id.tag_image_url, null);
+    }
+
+    /**
+     * Remove the status/result observers registered by the previous {@link #loadIllust} on
+     * this holder, if any. The observers are attached to the fragment's viewLifecycleOwner
+     * (not the holder), so without this they would survive every rebind and accumulate
+     * unbounded on the shared, per-URL {@link LoadTask} LiveData — each progress tick then
+     * fans out to all of them, and the leaked lambdas pin recycled holders/bitmaps. On a
+     * 50–60 page artwork that compounds into severe scroll jank. See issue #912.
+     */
+    private void detachTaskObservers(@NonNull ViewHolder<RecyIllustDetailBinding> holder) {
+        Object prev = holder.itemView.getTag(R.id.tag_task_observers);
+        if (prev instanceof Runnable) {
+            ((Runnable) prev).run();
+            holder.itemView.setTag(R.id.tag_task_observers, null);
+        }
     }
 
     @Override
@@ -162,6 +184,10 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
      * @param changeSize 是否自动计算宽高
      */
     private void loadIllust(ViewHolder<RecyIllustDetailBinding> holder, int position, boolean changeSize) {
+        // Drop observers left over from a previous bind of this recycled holder before
+        // registering new ones. Prevents unbounded observer accumulation across rebinds. #912
+        detachTaskObservers(holder);
+
         final String imageUrl;
         boolean isLoadOriginalImage = Shaft.sSettings.isShowOriginalPreviewImage() || isForceOriginal;
         if (isLoadOriginalImage) {
@@ -195,7 +221,7 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         Timber.d("[IllustAdapter] loadIllust pos=%d, isOriginal=%b, taskId=%d, taskStatus=%s, url=%s",
                 position, isLoadOriginalImage, task.getTaskId(), task.getStatus().getValue(), shortUrl);
 
-        task.getStatus().observe(lifecycleOwner, status -> {
+        final Observer<TaskStatus> statusObserver = status -> {
             boolean tagMatch = imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url));
             if (!tagMatch) {
                 Timber.d("[IllustAdapter] status STALE callback ignored. pos=%d, status=%s, url=%s", position, status, shortUrl);
@@ -217,9 +243,9 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             if (pageStatusListener != null) {
                 pageStatusListener.onStatusChanged(position, status);
             }
-        });
+        };
 
-        task.getResult().observe(lifecycleOwner, file -> {
+        final Observer<File> resultObserver = file -> {
             if (file == null) {
                 Timber.d("[IllustAdapter] result NULL callback. pos=%d, url=%s", position, shortUrl);
                 return;
@@ -264,6 +290,16 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         }
                     })
                     .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
+        };
+
+        task.getStatus().observe(lifecycleOwner, statusObserver);
+        task.getResult().observe(lifecycleOwner, resultObserver);
+
+        // Remember how to detach these two observers when this holder is recycled or rebound,
+        // so they don't outlive the bind on the per-URL task's (sticky) LiveData. See #912.
+        holder.itemView.setTag(R.id.tag_task_observers, (Runnable) () -> {
+            task.getStatus().removeObserver(statusObserver);
+            task.getResult().removeObserver(resultObserver);
         });
     }
 }
