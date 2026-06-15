@@ -16,7 +16,9 @@ enum class UpscaleModel(
         assetDir = "Real-ESRGANv3-anime",
         extractDir = "models-Real-ESRGANv3-anime",
         modelFiles = listOf("x2.bin", "x2.param"),
-        extraArgs = emptyList()
+        // realsr 二进制 -s 默认 4，会去找不存在的 x4.param/x4.bin，输出红黄条纹乱图(#861)；
+        // 必须显式传 -s 2 匹配 bundled 的 x2 模型，与 Real-CUGAN 一致。
+        extraArgs = listOf("-s", "2")
     ),
     REAL_CUGAN(
         displayName = "Real-CUGAN",
