@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.hjq.toast.ToastUtils;
 
 import com.scwang.smart.refresh.footer.ClassicsFooter;
+import com.getkeepsafe.relinker.ReLinker;
 import com.scwang.smart.refresh.header.ClassicsHeader;
 import com.scwang.smart.refresh.layout.SmartRefreshLayout;
 import com.tencent.mmkv.MMKV;
@@ -104,11 +105,21 @@ public class Shaft extends Application implements ServicesProvider {
     @Override
     protected void attachBaseContext(Context base) {
         try {
-            MMKV.initialize(base);
+            initMMKV(base);
         } catch (Throwable ignored) {
             // Application.onCreate 里还会再 init 一次兜底。
         }
         super.attachBaseContext(ceui.pixiv.i18n.AppLocales.INSTANCE.wrapWithSavedLocale(base));
+    }
+
+    /**
+     * 用 ReLinker 兜底加载 libmmkv.so。部分华为等 OEM 上系统默认 lib 路径里 dlopen 会报
+     * "libmmkv.so not found"（应用分身/存储清理把解压出来的 .so 弄没了、或安装时未正确解压），
+     * 直接 MMKV.initialize 抛 UnsatisfiedLinkError 把启动整崩。ReLinker 先走正常 System.loadLibrary，
+     * 失败才从 APK 抠出 .so 复制到私有目录按绝对路径加载——健康设备零行为变化，坏设备能救回来。
+     */
+    private static void initMMKV(Context context) {
+        MMKV.initialize(context, libName -> ReLinker.loadLibrary(context, libName));
     }
 
     private static boolean hasStackFrame(Throwable t, String classNamePrefix) {
@@ -205,7 +216,7 @@ public class Shaft extends Application implements ServicesProvider {
 
         Timber.plant(new Timber.DebugTree());
 
-        MMKV.initialize(this);
+        initMMKV(this);
         networkStateManager = new NetworkStateManager(this);
         sSettings = Local.getSettings();
 
