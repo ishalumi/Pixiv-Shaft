@@ -12,14 +12,19 @@ import androidx.fragment.app.FragmentManager
 import ceui.lisa.activities.TemplateActivity
 import androidx.lifecycle.lifecycleScope
 import ceui.lisa.R
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
@@ -153,6 +158,9 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         flow?.let { f ->
             fetchJob = f.flowOn(Dispatchers.IO)
                 .onEach(::handleEvent)
+                // producer 里没接住的异常(最典型:写盘时 MediaStore 目录被占用抛 ISE)
+                // 以前直接崩进 Crashlytics。这里兜底,收成 FAILED 终态 + 友好 QMUI 弹窗。
+                .catch { onFlowFatal(it) }
                 .launchIn(requireActivity().lifecycleScope)
         }
 
@@ -305,6 +313,29 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                 }
             }
         }
+    }
+
+    /**
+     * Flow producer 抛出的、没在 producer 内部转成 [FetchEvent.Errored] 的异常的兜底。
+     * 最典型的是写盘时 [ceui.pixiv.download.backend.MediaStoreBackend] 因目录被系统/
+     * 别的 app 占用而 throw 的 IllegalStateException(消息本身就是可操作的中文提示)。
+     * 以前没有 .catch 直接崩进 Crashlytics(20 events / 4 users)。现在:
+     *   1) 把进度 dialog 推进 FAILED 终态 —— 不再卡在转圈、补出 close 按钮;
+     *   2) 弹一个友好的 QMUI 弹窗,把可操作提示直接糊到用户脸上(CLI 日志区太容易被忽略)。
+     */
+    private fun onFlowFatal(e: Throwable) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "FetchProgressDialog flow crashed")
+        handleEvent(FetchEvent.Errored(e.message ?: "", totalSoFar))
+        val act = activity ?: return
+        val message = e.message?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.dlmgr_active_size_failed)
+        QMUIDialog.MessageDialogBuilder(act)
+            .setTitle(R.string.string_143)
+            .setMessage(message)
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addAction(R.string.sure) { dialog, _ -> dialog.dismiss() }
+            .show()
     }
 
     /**
