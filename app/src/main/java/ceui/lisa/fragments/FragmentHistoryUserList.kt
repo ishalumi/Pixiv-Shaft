@@ -31,10 +31,10 @@ class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list) {
         binding.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()))
         binding.refreshLayout.setRefreshFooter(ClassicsFooter(requireContext()))
         binding.refreshLayout.setOnRefreshListener {
-            viewModel.loadFirst { binding.refreshLayout.finishRefresh() }
+            viewModel.loadFirst { withBinding { it.refreshLayout.finishRefresh() } }
         }
         binding.refreshLayout.setOnLoadMoreListener {
-            viewModel.loadMore { binding.refreshLayout.finishLoadMore() }
+            viewModel.loadMore { withBinding { it.refreshLayout.finishLoadMore() } }
         }
 
         viewModel.setDeleteCallback { entity -> confirmDelete(entity) }
@@ -48,8 +48,17 @@ class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list) {
         if (viewModel.holders.value.isNullOrEmpty()) {
             // 远端:初次加载用居中 ProgressBar 当加载态(避免下拉头压到 toolbar)。
             binding.loadingBar.isVisible = true
-            viewModel.loadFirst { binding.loadingBar.isVisible = false }
+            viewModel.loadFirst { withBinding { it.loadingBar.isVisible = false } }
         }
+    }
+
+    /**
+     * loadFirst/loadMore 的完成回调跑在 viewModelScope,慢网络下可能在 view 销毁后才回来;
+     * 直接碰 binding 会 requireView() 崩(Crashlytics: did not return a View from onCreateView)。
+     * viewModelScope 在主线程 resume、view 销毁也在主线程,故此处判空无竞态。
+     */
+    private fun withBinding(block: (FragmentHistoryListBinding) -> Unit) {
+        if (view != null) block(binding)
     }
 
     /** host 一键清空全部历史 (#886) 后调一下，让本 tab 重新拉 DAO。 */

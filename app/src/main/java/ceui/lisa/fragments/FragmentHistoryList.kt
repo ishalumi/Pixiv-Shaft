@@ -41,10 +41,10 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
         binding.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()))
         binding.refreshLayout.setRefreshFooter(ClassicsFooter(requireContext()))
         binding.refreshLayout.setOnRefreshListener {
-            viewModel.loadFirst { binding.refreshLayout.finishRefresh() }
+            viewModel.loadFirst { withBinding { it.refreshLayout.finishRefresh() } }
         }
         binding.refreshLayout.setOnLoadMoreListener {
-            viewModel.loadMore { binding.refreshLayout.finishLoadMore() }
+            viewModel.loadMore { withBinding { it.refreshLayout.finishLoadMore() } }
         }
 
         viewModel.setDeleteCallback { entity -> confirmDelete(entity) }
@@ -59,7 +59,7 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
             // 远端有网络延迟:初次加载用居中 ProgressBar 当加载态(下拉头在 appbar
             // 协同布局里落点会压到 toolbar,所以这里不用 autoRefresh)。
             binding.loadingBar.isVisible = true
-            viewModel.loadFirst { binding.loadingBar.isVisible = false }
+            viewModel.loadFirst { withBinding { it.loadingBar.isVisible = false } }
         }
 
         // host toolbar 上 SearchView 的输入通过 activity-scope SharedVM 下发到这里，
@@ -70,6 +70,15 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
                 searchVm.query.collect { q -> viewModel.applySearch(q) }
             }
         }
+    }
+
+    /**
+     * loadFirst/loadMore 的完成回调跑在 viewModelScope,慢网络下可能在 view 销毁后才回来;
+     * 直接碰 binding 会 requireView() 崩(Crashlytics: did not return a View from onCreateView)。
+     * viewModelScope 在主线程 resume、view 销毁也在主线程,故此处判空无竞态。
+     */
+    private fun withBinding(block: (FragmentHistoryListBinding) -> Unit) {
+        if (view != null) block(binding)
     }
 
     /** host 一键清空全部历史 (#886) 后调一下，让本 tab 重新拉 DAO。 */
