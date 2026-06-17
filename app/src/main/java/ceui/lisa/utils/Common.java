@@ -92,6 +92,25 @@ public class Common {
         return true;
     }
 
+    /**
+     * 把用户输入/外链里的数字串安全解析成 Pixiv 用户 ID(int)。
+     * Pixiv 用户 ID 落在 int 范围内,但用户可能往搜索框/链接里塞超出 int 的纯数字
+     * (电话号、乱填),裸 Integer.valueOf 会抛 NumberFormatException 直接崩
+     * (Crashlytics: For input string "12779303638")。解析失败或越界一律返回 0,
+     * 跳到「用户不存在」页而不是闪退。
+     */
+    public static int safeUserId(String str) {
+        if (str == null) return 0;
+        try {
+            long value = Long.parseLong(str.trim());
+            if (value > 0 && value <= Integer.MAX_VALUE) {
+                return (int) value;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return 0;
+    }
+
     public static boolean isEmpty(List<?> list) {
         return list == null || list.size() == 0;
     }

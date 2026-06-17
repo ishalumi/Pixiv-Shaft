@@ -157,7 +157,7 @@ public class FragmentSearch extends BaseFragment<FragmentSearchBinding> {
             if (Common.isNumeric(trimmedKeyword)) {
                 PixivOperate.insertSearchHistory(trimmedKeyword, SearchTypeUtil.SEARCH_TYPE_DB_USERID);
                 Intent intent = new Intent(mContext, UActivity.class);
-                intent.putExtra(Params.USER_ID, Integer.valueOf(trimmedKeyword));
+                intent.putExtra(Params.USER_ID, Common.safeUserId(trimmedKeyword));
                 startActivity(intent);
             } else {
                 Common.showToast(getString(R.string.string_154));
@@ -214,7 +214,7 @@ public class FragmentSearch extends BaseFragment<FragmentSearchBinding> {
                         tipDialog.dismiss();
                         PixivOperate.insertSearchHistory(trimmedKeyword, SearchTypeUtil.SEARCH_TYPE_DB_USERID);
                         Intent intent = new Intent(mContext, UActivity.class);
-                        intent.putExtra(Params.USER_ID, Integer.valueOf(trimmedKeyword));
+                        intent.putExtra(Params.USER_ID, Common.safeUserId(trimmedKeyword));
                         startActivity(intent);
                     }
                 });
@@ -464,7 +464,7 @@ public class FragmentSearch extends BaseFragment<FragmentSearchBinding> {
             entity.setSearchTime(System.currentTimeMillis());
             AppDatabase.getAppDatabase(mContext).searchDao().insert(entity);
             Intent intent = new Intent(mContext, UActivity.class);
-            intent.putExtra(Params.USER_ID, Integer.valueOf(entity.getKeyword()));
+            intent.putExtra(Params.USER_ID, Common.safeUserId(entity.getKeyword()));
             startActivity(intent);
         } else if (type == SearchTypeUtil.SEARCH_TYPE_DB_NOVELID) {
             entity.setSearchTime(System.currentTimeMillis());

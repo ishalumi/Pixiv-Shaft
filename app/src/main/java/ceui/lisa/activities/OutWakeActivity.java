@@ -110,7 +110,7 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                             String userID = pathArray.get(pathArray.size() - 1);
                             if (!TextUtils.isEmpty(userID)) {
                                 Intent userIntent = new Intent(mContext, UActivity.class);
-                                userIntent.putExtra(Params.USER_ID, Integer.valueOf(userID));
+                                userIntent.putExtra(Params.USER_ID, Common.safeUserId(userID));
                                 startActivity(userIntent);
                                 finish();
                                 return;
@@ -173,7 +173,7 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                         String userID = uri.getQueryParameter("id");
                         if (!TextUtils.isEmpty(userID)) {
                             Intent userIntent = new Intent(mContext, UActivity.class);
-                            userIntent.putExtra(Params.USER_ID, Integer.valueOf(userID));
+                            userIntent.putExtra(Params.USER_ID, Common.safeUserId(userID));
                             startActivity(userIntent);
                             finish();
                             return;
@@ -310,7 +310,7 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
                             if (host.contains("users")) {
                                 String path = uri.getPath();
                                 Intent userIntent = new Intent(mContext, UActivity.class);
-                                userIntent.putExtra(Params.USER_ID, Integer.valueOf(path.substring(1)));
+                                userIntent.putExtra(Params.USER_ID, Common.safeUserId(path.substring(1)));
                                 startActivity(userIntent);
                                 finish();
                                 return;
@@ -409,7 +409,7 @@ public class OutWakeActivity extends BaseActivity<ActivityOutWakeBinding> {
             String digits = userId.replaceAll("\\D", "");
             if (TextUtils.isEmpty(digits)) return false;
             Intent userIntent = new Intent(mContext, UActivity.class);
-            userIntent.putExtra(Params.USER_ID, Integer.valueOf(digits));
+            userIntent.putExtra(Params.USER_ID, Common.safeUserId(digits));
             startActivity(userIntent);
             finish();
             return true;

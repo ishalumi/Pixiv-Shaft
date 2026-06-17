@@ -288,7 +288,7 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
                             tipDialog.dismiss();
                             PixivOperate.insertSearchHistory(trimmedKeyword, SearchTypeUtil.SEARCH_TYPE_DB_USERID);
                             Intent intent = new Intent(mContext, UActivity.class);
-                            intent.putExtra(Params.USER_ID, Integer.valueOf(trimmedKeyword));
+                            intent.putExtra(Params.USER_ID, Common.safeUserId(trimmedKeyword));
                             startActivity(intent);
                             mActivity.finish();
                         }
