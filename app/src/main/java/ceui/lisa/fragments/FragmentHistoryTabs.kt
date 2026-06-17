@@ -34,6 +34,7 @@ import timber.log.Timber
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -97,6 +98,8 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
 
     /** 让现存的子 tab 各自重走 VM.loadFirst(),按当前 useRemote() 重读数据源。 */
     private fun reloadAllTabs() {
+        // 可能从后台协程(导入/清空成功后)回调,此时 fragment 已 detach 则 childFragmentManager 会抛。
+        if (!isAdded) return
         childFragmentManager.fragments.forEach { child ->
             when (child) {
                 is FragmentHistoryList -> child.reloadFromDao()
@@ -198,7 +201,7 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                         }
                     }
                     reloadAllTabs()
-                    Common.showToast(getString(R.string.string_220))
+                    Common.showToast(act.getString(R.string.string_220))
                     d.dismiss()
                 }
             }
@@ -216,13 +219,13 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                 BrowseHistoryBackup.exportToJson(act)
             }
             if (count == 0) {
-                Common.showToast(getString(R.string.view_history_export_empty))
+                Common.showToast(act.getString(R.string.view_history_export_empty))
                 return@launch
             }
             IllustDownload.downloadBackupFile(
                 act, BROWSE_HISTORY_FILE_NAME, json,
                 Callback<Uri> {
-                    Common.showToast(getString(R.string.view_history_export_success, count))
+                    Common.showToast(act.getString(R.string.view_history_export_success, count))
                 },
             )
         }
@@ -248,30 +251,36 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_CODE_IMPORT_HISTORY || resultCode != Activity.RESULT_OK) return
         val uri = data?.data
+        // 抓住此刻(onActivityResult 必然 attached)的 context 做后续 getString / contentResolver。
+        // IO 读文件期间宿主 Activity 可能被系统销毁(低内存/不保留活动),fragment detach 后
+        // requireContext() 会抛 ISE——尤其 catch 里的报错 toast 自己再崩一次(Crashlytics)。
+        val ctx = context ?: return
         if (uri == null) {
-            Common.showToast(getString(R.string.view_history_import_no_file))
+            Common.showToast(ctx.getString(R.string.view_history_import_no_file))
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val json = withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)
+                    ctx.contentResolver.openInputStream(uri)
                         ?.use { it.readBytes().toString(Charsets.UTF_8) }
                 }
                 if (json.isNullOrBlank()) {
-                    Common.showToast(getString(R.string.view_history_import_invalid))
+                    Common.showToast(ctx.getString(R.string.view_history_import_invalid))
                     return@launch
                 }
-                val imported = BrowseHistoryBackup.importFromJson(requireContext(), json)
+                val imported = BrowseHistoryBackup.importFromJson(ctx, json)
                 if (imported == 0) {
-                    Common.showToast(getString(R.string.view_history_import_invalid))
+                    Common.showToast(ctx.getString(R.string.view_history_import_invalid))
                     return@launch
                 }
                 reloadAllTabs()
-                Common.showToast(getString(R.string.view_history_import_success, imported))
+                Common.showToast(ctx.getString(R.string.view_history_import_success, imported))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "browse history import failed")
-                Common.showToast(getString(R.string.view_history_import_failed, e.message ?: ""))
+                Common.showToast(ctx.getString(R.string.view_history_import_failed, e.message ?: ""))
             }
         }
     }
