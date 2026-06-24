@@ -1157,7 +1157,7 @@
     <string name="bulk_fetch_dialog_btn_cancel">취소</string>
     <string name="bulk_fetch_dialog_btn_open_manager">다운로드 관리 →</string>
     <string name="bulk_fetch_dialog_btn_close">닫기</string>
-    <string name="merge_novel_dialog_close_hint">창을 닫아도 작업은 중지되지 않습니다. 파일은 「다운로드/Novel」에 저장됩니다.</string>
+    <string name="merge_novel_dialog_close_hint">다운로드는 이 창에서 진행됩니다. 완료될 때까지 닫지 마세요. 파일은 「다운로드/Novel」에 저장됩니다. 중간에 멈추려면 「취소」를 누르세요(받은 챕터는 유지됩니다).</string>
     <string name="merge_novel_dialog_canceled">^C  user canceled — 이미 가져온 챕터는 폐기되며, 파일은 저장되지 않습니다.</string>
     <string name="merge_novel_dialog_stop_requested">&gt; user stop — 잘린 버전을 작성 중, 잠시만 기다려주세요…</string>
     <string name="merge_novel_dialog_done_title">✓ 합본 완료</string>

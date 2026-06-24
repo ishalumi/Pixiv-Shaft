@@ -1268,7 +1268,7 @@
     <string name="bulk_fetch_dialog_btn_cancel">取消</string>
     <string name="bulk_fetch_dialog_btn_open_manager">去下載管理 →</string>
     <string name="bulk_fetch_dialog_btn_close">關閉</string>
-    <string name="merge_novel_dialog_close_hint">關掉此視窗不會停止任務，檔案會寫到 \"下載/Novel\" 目錄</string>
+    <string name="merge_novel_dialog_close_hint">下載全程在此視窗進行，完成前請勿關閉；檔案會寫到 \"下載/Novel\" 目錄。中途想停按「取消」(保留已抓章節)</string>
     <string name="merge_novel_dialog_canceled">^C  user canceled — 已抓的章節會被丟棄，不寫檔案</string>
     <string name="merge_novel_dialog_stop_requested">&gt; user stop — 寫出截短版，稍等收尾…</string>
     <string name="merge_novel_dialog_done_title">✓ 合集已寫出</string>

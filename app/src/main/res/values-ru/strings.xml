@@ -1150,7 +1150,7 @@
     <string name="bulk_fetch_dialog_btn_cancel">Отмена</string>
     <string name="bulk_fetch_dialog_btn_open_manager">Менеджер загрузок →</string>
     <string name="bulk_fetch_dialog_btn_close">Закрыть</string>
-    <string name="merge_novel_dialog_close_hint">Закрытие окна не остановит задачу; файл будет сохранён в «Загрузки/Novel».</string>
+    <string name="merge_novel_dialog_close_hint">Загрузка выполняется в этом окне — не закрывайте его до завершения. Файл сохраняется в «Загрузки/Novel». Нажмите «Отмена», чтобы остановить раньше (уже загруженные главы сохранятся).</string>
     <string name="merge_novel_dialog_canceled">^C  user canceled — уже загруженные главы отброшены; файл не сохранён.</string>
     <string name="merge_novel_dialog_stop_requested">&gt; user stop — записываю усечённую версию, завершаю…</string>
     <string name="merge_novel_dialog_done_title">✓ Сборка завершена</string>

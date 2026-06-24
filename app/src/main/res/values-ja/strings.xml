@@ -1254,7 +1254,7 @@
     <string name="bulk_fetch_dialog_btn_cancel">キャンセル</string>
     <string name="bulk_fetch_dialog_btn_open_manager">ダウンロード管理 →</string>
     <string name="bulk_fetch_dialog_btn_close">閉じる</string>
-    <string name="merge_novel_dialog_close_hint">ウィンドウを閉じてもタスクは継続します。ファイルは「ダウンロード/Novel」に保存されます。</string>
+    <string name="merge_novel_dialog_close_hint">ダウンロードはこのウィンドウ内で実行されます。完了するまで閉じないでください。ファイルは「ダウンロード/Novel」に保存されます。途中で止めるには「キャンセル」を押してください（取得済みの章は保持されます）。</string>
     <string name="merge_novel_dialog_canceled">^C  user canceled — 取得済みの章は破棄され、ファイルは書き出されません。</string>
     <string name="merge_novel_dialog_stop_requested">&gt; user stop — 切り詰め版を出力中、もう少しお待ちください…</string>
     <string name="merge_novel_dialog_done_title">✓ 合冊完了</string>

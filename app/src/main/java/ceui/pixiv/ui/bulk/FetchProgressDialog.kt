@@ -84,8 +84,12 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 允许 back 收起 dialog —— fetch 在 activity scope 仍跑
-        isCancelable = true
+        // 默认允许 back / 点外部收起 dialog —— batch illust 的活儿已落进持久化队列，
+        // dialog 关掉也由 QueueDownloadManager 接着下。但 merge novel 把「拉章节→合并→
+        // 写文件」整套都跑在这条 activity-scoped flow 里，且只在最后一刻才写盘：窗口一关、
+        // 用户离开页面 activity 一销毁，整单内存进度全丢且不留任何痕迹（issue #919）。
+        // 这类任务用 keepOpenUntilDone 锁住，跑完（或用户显式「取消」收尾）前不让误关。
+        isCancelable = !config.keepOpenUntilDone
     }
 
     fun bindFlow(flow: Flow<FetchEvent>) {
@@ -131,6 +135,7 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                     appendLine(getString(config.canceledLineRes))
                     cancelBtn.visibility = View.GONE
                     closeBtn.visibility = View.VISIBLE
+                    isCancelable = true // 终态了，back / 点外部也能收起
                     flushLog()
                 }
                 CancelMode.COOPERATIVE -> {
@@ -288,6 +293,7 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                     cancelBtn.visibility = View.GONE
                     if (config.showOpenManager) openManagerBtn.visibility = View.VISIBLE
                     closeBtn.visibility = View.VISIBLE
+                    isCancelable = true // 终态了，back / 点外部也能收起
                     flushLog()
                 }
             }
@@ -309,6 +315,7 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
                     cancelBtn.visibility = View.GONE
                     if (config.showOpenManager && totalSoFar > 0) openManagerBtn.visibility = View.VISIBLE
                     closeBtn.visibility = View.VISIBLE
+                    isCancelable = true // 终态了，back / 点外部也能收起
                     flushLog()
                 }
             }
@@ -460,6 +467,13 @@ class FetchProgressDialog : DialogFragment(R.layout.dialog_fetch_progress) {
         @StringRes val failedPartialRes: Int = R.string.bulk_fetch_dialog_failed_partial,
         /** cancel 按钮按下时的行为 */
         val cancelMode: CancelMode = CancelMode.HARD,
+        /**
+         * true = 任务跑完（或用户显式「取消」收尾）前禁止 back / 点外部收起 dialog。
+         * 给那些把全部活儿都跑在这条 flow 里、没有持久化队列兜底的任务用（merge novel：
+         * 只在最后一刻写盘，窗口一关 + 离开页面就整单丢失，issue #919）。默认 false：
+         * batch illust 已入队，关掉安全。
+         */
+        val keepOpenUntilDone: Boolean = false,
         /** cancel 按钮按下时无论 cancelMode 都会触发的钩子 */
         val onCancelRequested: () -> Unit = {},
     )

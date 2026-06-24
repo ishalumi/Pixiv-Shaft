@@ -219,6 +219,9 @@ class NovelSeriesFragment :
                 failedMessageRes = R.string.merge_novel_dialog_failed_message,
                 failedPartialRes = R.string.merge_novel_dialog_failed_partial,
                 cancelMode = FetchProgressDialog.CancelMode.COOPERATIVE,
+                // 合并下载整条 flow 跑在 activity scope 且只在最后一刻写盘，关窗 + 离开页面
+                // 会整单丢失。跑完前锁住窗口，只能用「取消」显式收尾（写截短版）。issue #919
+                keepOpenUntilDone = true,
                 onCancelRequested = { stopSignal.set(true) },
             )
             FetchProgressDialog.show(requireActivity().supportFragmentManager, flow, config)
