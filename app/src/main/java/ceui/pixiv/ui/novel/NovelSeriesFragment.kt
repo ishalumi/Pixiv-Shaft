@@ -45,6 +45,9 @@ import ceui.pixiv.ui.bulk.FetchProgressDialog
 import ceui.pixiv.ui.task.BatchDownloadNovelsTask
 import ceui.pixiv.ui.task.FailedNovel
 import ceui.pixiv.ui.task.FetchAllTask
+import ceui.pixiv.ui.task.HumanReadableTask
+import ceui.loxia.Novel
+import ceui.loxia.NovelSeriesResp
 import ceui.pixiv.ui.task.MergeDownloadNovelSeriesTask
 import ceui.pixiv.ui.task.PixivTaskType
 import java.util.concurrent.atomic.AtomicBoolean
@@ -395,12 +398,29 @@ class NovelSeriesFragment :
     }
 
     private fun launchDownloadAll() {
-        FetchAllTask(
+        // 批量下载 = 系列全部章节各自下成独立文件。先用 FetchAllTask 把整个系列(含分页)
+        // 按作者设定的顺序拉全，拉完在 onEnd 里直接交给 BatchDownloadNovelsTask。
+        // 之前这里只 new 了裸 FetchAllTask，走默认 onEnd(写缓存 + 跳 cache-list 调试页)，
+        // 根本没触发下载 —— 用户点了「只执行了拉取」就是这个原因。
+        object : FetchAllTask<Novel, NovelSeriesResp>(
             requireActivity(),
             taskFullName = "下载系列小说全部作品-${seriesId}",
-            PixivTaskType.DownloadSeriesNovels,
+            taskType = PixivTaskType.DownloadSeriesNovels,
+            initialLoader = { Client.appApi.getNovelSeries(seriesId) },
         ) {
-            Client.appApi.getNovelSeries(seriesId)
+            override fun onEnd(humanReadableTask: HumanReadableTask, results: List<Novel>) {
+                if (!isAdded) return
+                if (results.isEmpty()) {
+                    ToastUtils.show(getString(R.string.merge_download_failed_empty))
+                    return
+                }
+                BatchDownloadNovelsTask(
+                    activity = requireActivity(),
+                    novels = results,
+                    onFinished = { failures -> onBatchDownloadFinished(failures) },
+                    orderIsSeriesPosition = true,
+                )
+            }
         }
     }
 
