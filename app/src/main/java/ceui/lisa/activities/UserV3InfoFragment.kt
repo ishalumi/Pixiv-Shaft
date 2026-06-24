@@ -332,9 +332,12 @@ class UserV3InfoFragment : Fragment() {
             bd.chipValue.setTextColor(0xFFFFC233.toInt())
         }
         if (data.second.startsWith("http://") || data.second.startsWith("https://")) {
-            bd.chipValue.autoLinkMask = android.text.util.Linkify.WEB_URLS
-            bd.chipValue.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-            bd.chipValue.text = data.second
+            // 不用 autoLinkMask/LinkMovementMethod:LinkMovementMethod 继承
+            // ScrollingMovementMethod,横拖 URL 会跟外层 ViewPager2 抢手势,整页
+            // 跟着滑(issue #917)。改成整块点击打开 + 复用 textColorLink 的链接色,
+            // 跟 addSocialChip 的 tap-to-open 一致。
+            bd.chipValue.setTextColor(bd.chipValue.linkTextColors)
+            bd.root.setOnClickListener { openUrl(data.second) }
         }
         return bd.root
     }
