@@ -24,6 +24,7 @@ import ceui.lisa.R
 import ceui.lisa.activities.ImageDetailActivity
 import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.TemplateActivity
+import ceui.lisa.activities.UActivity
 import ceui.lisa.core.ManagerReactive
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.DownloadDao
@@ -82,6 +83,7 @@ class DoneListV3Fragment : Fragment() {
         when (action) {
             DoneAction.OPEN -> openDetail(group)
             DoneAction.DELETE -> deleteOne(group)
+            DoneAction.OPEN_AUTHOR -> openAuthor(group)
         }
     }
 
@@ -252,6 +254,20 @@ class DoneListV3Fragment : Fragment() {
         startActivity(intent)
     }
 
+    // 点下载卡片的作者名 → 跳作者主页(UActivity)。下载记录都带完整 illustGson,
+    // user.id 正常都在;解析失败 / 老记录拿不到 id 就静默不跳。
+    private fun openAuthor(group: DownloadGroup) {
+        val userId: Int = if (group.isNovel) {
+            group.parsedNovel?.user?.id?.toInt() ?: 0
+        } else {
+            group.parsedIllust?.user?.id ?: 0
+        }
+        if (userId <= 0) return
+        startActivity(
+            Intent(requireContext(), UActivity::class.java).putExtra(Params.USER_ID, userId),
+        )
+    }
+
     private fun showClearDoneConfirmDialog(onConfirm: () -> Unit) {
         val act = activity ?: return
         if (act.isFinishing || act.isDestroyed) return
@@ -366,7 +382,7 @@ private fun groupByIllust(rows: List<DownloadEntity>): List<DownloadGroup> {
     return groups.sortedByDescending { it.latest.downloadTime }
 }
 
-private enum class DoneAction { OPEN, DELETE }
+private enum class DoneAction { OPEN, DELETE, OPEN_AUTHOR }
 
 /**
  * 已完成 tab 三种布局模式。值与 [Settings.doneListLayoutMode] 同步：
@@ -501,6 +517,8 @@ private class DoneAdapterV3(
         h.time.text = entity.downloadTime.takeIf { it > 0 }?.let { timeFmt.format(Date(it)) } ?: ""
 
         h.itemView.setOnClickListener { onAction(group, DoneAction.OPEN) }
+        // 点作者名单独跳作者主页(消费掉点击,不冒泡到卡片的打开作品)
+        h.author.setOnClickListener { onAction(group, DoneAction.OPEN_AUTHOR) }
         h.deleteBtn.setOnClickListener { onAction(group, DoneAction.DELETE) }
     }
 
