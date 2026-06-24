@@ -307,6 +307,10 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
             .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
                 d.dismiss()
                 tab.deleteSelected { deleted ->
+                    // 批量删 N 条要逐条打远端,耗时;期间宿主 view 若被销毁(旋转等),
+                    // 回调里碰 binding(exitSelectionMode→restoreNormalToolbar)会崩。
+                    // 对齐子 fragment 的 withBinding 防护:view 没了就只让 VM 自己收尾。
+                    if (view == null) return@deleteSelected
                     if (deleted > 0) {
                         Common.showToast(getString(R.string.history_multi_delete_done, deleted))
                     }
