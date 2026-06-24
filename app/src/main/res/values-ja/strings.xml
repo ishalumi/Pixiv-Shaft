@@ -1220,6 +1220,12 @@
     <string name="bulk_select_title">一括ダウンロード · 作品を選択</string>
     <string name="bulk_select_select_all">すべて選択</string>
     <string name="bulk_select_clear_all">選択解除</string>
+
+    <!-- 閲覧履歴の複数選択削除 -->
+    <string name="history_multi_select">複数選択</string>
+    <string name="history_selected_count">%1$d 件選択中</string>
+    <string name="history_multi_delete_message">選択した %1$d 件の履歴を削除しますか？</string>
+    <string name="history_multi_delete_done">%1$d 件を削除しました</string>
     <string name="bulk_select_invert">選択反転</string>
     <string name="bulk_select_no_items">選択可能な作品がありません。別の入口から来たため状態が失われた可能性があります。</string>
     <string name="bulk_select_loading">読み込み中…</string>

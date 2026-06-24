@@ -2,30 +2,58 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item
-        android:id="@+id/action_search"
-        android:orderInCategory="50"
-        android:icon="@drawable/ic_search_black_24dp"
-        android:title="@string/search"
-        app:actionViewClass="androidx.appcompat.widget.SearchView"
-        app:showAsAction="always|collapseActionView" />
+    <!-- 普通态:搜索 / 清空全部 / 多选 / 导出 / 导入 -->
+    <group android:id="@+id/group_normal">
+        <item
+            android:id="@+id/action_search"
+            android:orderInCategory="50"
+            android:icon="@drawable/ic_search_black_24dp"
+            android:title="@string/search"
+            app:actionViewClass="androidx.appcompat.widget.SearchView"
+            app:showAsAction="always|collapseActionView" />
 
-    <item
-        android:id="@+id/action_delete"
-        android:orderInCategory="100"
-        android:icon="@drawable/ic_delete_black_24dp"
-        android:title="@string/delete_all"
-        app:showAsAction="always" />
+        <item
+            android:id="@+id/action_delete"
+            android:orderInCategory="100"
+            android:icon="@drawable/ic_delete_black_24dp"
+            android:title="@string/delete_all"
+            app:showAsAction="always" />
 
-    <item
-        android:id="@+id/action_export_history"
-        android:orderInCategory="200"
-        android:title="@string/view_history_export"
-        app:showAsAction="never" />
+        <item
+            android:id="@+id/action_multi_select"
+            android:orderInCategory="150"
+            android:title="@string/history_multi_select"
+            app:showAsAction="never" />
 
-    <item
-        android:id="@+id/action_import_history"
-        android:orderInCategory="201"
-        android:title="@string/view_history_import"
-        app:showAsAction="never" />
+        <item
+            android:id="@+id/action_export_history"
+            android:orderInCategory="200"
+            android:title="@string/view_history_export"
+            app:showAsAction="never" />
+
+        <item
+            android:id="@+id/action_import_history"
+            android:orderInCategory="201"
+            android:title="@string/view_history_import"
+            app:showAsAction="never" />
+    </group>
+
+    <!-- 选择态:全选/取消全选(图标运行时切) / 删除选中 -->
+    <group
+        android:id="@+id/group_selection"
+        android:visible="false">
+        <item
+            android:id="@+id/action_select_all_toggle"
+            android:orderInCategory="10"
+            android:icon="@drawable/ic_select_all_24"
+            android:title="@string/bulk_select_select_all"
+            app:showAsAction="always" />
+
+        <item
+            android:id="@+id/action_delete_selected"
+            android:orderInCategory="20"
+            android:icon="@drawable/ic_delete_black_24dp"
+            android:title="@string/string_141"
+            app:showAsAction="always" />
+    </group>
 </menu>

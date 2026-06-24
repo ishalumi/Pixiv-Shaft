@@ -1114,6 +1114,12 @@
     <string name="bulk_select_title">Toplu indirme · Eserleri seç</string>
     <string name="bulk_select_select_all">Tümünü seç</string>
     <string name="bulk_select_clear_all">Seçimi kaldır</string>
+
+    <!-- Geçmişte çoklu seçimle silme -->
+    <string name="history_multi_select">Çoklu seçim</string>
+    <string name="history_selected_count">%1$d seçildi</string>
+    <string name="history_multi_delete_message">Seçili %1$d kayıt silinsin mi?</string>
+    <string name="history_multi_delete_done">%1$d öğe silindi</string>
     <string name="bulk_select_invert">Tersine çevir</string>
     <string name="bulk_select_no_items">Seçilebilir eser yok. Farklı bir giriş noktasından gelinmiş olabilir.</string>
     <string name="bulk_select_loading">Yükleniyor…</string>

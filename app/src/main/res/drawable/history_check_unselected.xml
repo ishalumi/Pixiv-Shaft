@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 多选未选中态角标:半透明深底 + 白色描边空心圈,叠在缩略图任意明暗背景上都看得见。
+     选中时由 HistorySelectBadge 换成 bulk_select_check_bg(实心主题色)+ 白勾。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#40000000" />
+    <stroke
+        android:width="2dp"
+        android:color="#FFFFFFFF" />
+</shape>

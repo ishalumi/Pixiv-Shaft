@@ -12,11 +12,14 @@ import android.view.View
 import android.widget.EditText
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.widget.SearchView
+import androidx.core.content.ContextCompat
 import androidx.core.view.MenuItemCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentPagerAdapter
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
+import androidx.viewpager.widget.ViewPager
 import ceui.lisa.R
 import ceui.lisa.activities.BaseActivity
 import ceui.lisa.database.AppDatabase
@@ -58,6 +61,14 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
 
     private var searchDebounceJob: Job? = null
 
+    // —— 多选删除(contextual toolbar)——
+    // 一次只有当前可见 tab 进选择态:host 把 toolbar 换成 ✕/已选 N 项/全选/删除,
+    // 子 tab(SelectableHistoryTab)管自己列表选中态。切 tab/返回即退出。
+    private var inSelectionMode = false
+    private var activeSelectionTab: SelectableHistoryTab? = null
+    private var selectedCountObserver: Observer<Int>? = null
+    private lateinit var selectionBackCallback: OnBackPressedCallback
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -90,6 +101,23 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
 
         setupSearchMenu()
 
+        // 选择态返回键:优先退选择态而不是关页。enabled 只在选择态为 true。
+        // 注册在 setupSearchMenu(搜索收起 callback)之后 → 选择态优先级更高;两者
+        // 不会同时 enabled(进选择态前会收起搜索框)。
+        selectionBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                exitSelectionMode()
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, selectionBackCallback)
+
+        // 切 tab 时退出选择态:选中态是 per-tab 的,跨 tab 操作语义不清。
+        binding.viewPager.addOnPageChangeListener(object : ViewPager.SimpleOnPageChangeListener() {
+            override fun onPageSelected(position: Int) {
+                if (inSelectionMode) exitSelectionMode()
+            }
+        })
+
         // 云同步同意框挪到这里:用户点进浏览历史页才问一次「是否把记录存到云端」,
         // 而不是一进首页就弹(见 issue #889)。已弹过/未登录则什么都不做。
         // 选 KEEP 后读取会切到云端,所以选完要重刷一下子 tab。
@@ -119,6 +147,9 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                 R.id.action_delete -> { showClearAllDialog(); true }
                 R.id.action_export_history -> { exportHistory(); true }
                 R.id.action_import_history -> { pickImportFile(); true }
+                R.id.action_multi_select -> { enterSelectionMode(); true }
+                R.id.action_select_all_toggle -> { activeSelectionTab?.toggleSelectAll(); refreshSelectionToolbar(); true }
+                R.id.action_delete_selected -> { confirmDeleteSelected(); true }
                 else -> false
             }
         }
@@ -174,6 +205,115 @@ class FragmentHistoryTabs : Fragment(R.layout.viewpager_with_tablayout) {
                 return true
             }
         })
+    }
+
+    // —— 多选删除 contextual toolbar —— //
+
+    /** 当前可见的子 tab(按 FragmentPagerAdapter 的 tag 取活实例,旋转后也准)。 */
+    private fun currentSelectableTab(): SelectableHistoryTab? {
+        val pos = binding.viewPager.currentItem
+        val tag = "android:switcher:${binding.viewPager.id}:$pos"
+        return childFragmentManager.findFragmentByTag(tag) as? SelectableHistoryTab
+    }
+
+    /** 进选择态:让当前 tab 显示勾选框,toolbar 换成 ✕/已选 N 项/全选/删除。 */
+    private fun enterSelectionMode() {
+        if (inSelectionMode) return
+        val tab = currentSelectableTab() ?: return
+        if (!tab.hasItems()) {
+            Common.showToast(getString(R.string.string_254))
+            return
+        }
+        // 收起搜索框(防止选择态跟展开的 SearchView 抢 toolbar)。
+        binding.toolbar.menu.findItem(R.id.action_search)?.collapseActionView()
+        inSelectionMode = true
+        activeSelectionTab = tab
+        tab.enterSelectionMode()
+        val obs = Observer<Int> { refreshSelectionToolbar() }
+        tab.selectedCount.observe(viewLifecycleOwner, obs)
+        selectedCountObserver = obs
+        applySelectionToolbar()
+        selectionBackCallback.isEnabled = true
+    }
+
+    /** 退选择态:清当前 tab 选中,toolbar 还原成普通态。 */
+    private fun exitSelectionMode() {
+        if (!inSelectionMode) return
+        inSelectionMode = false
+        selectionBackCallback.isEnabled = false
+        selectedCountObserver?.let { activeSelectionTab?.selectedCount?.removeObserver(it) }
+        selectedCountObserver = null
+        activeSelectionTab?.exitSelectionMode()
+        activeSelectionTab = null
+        restoreNormalToolbar()
+    }
+
+    private fun applySelectionToolbar() {
+        val menu = binding.toolbar.menu
+        menu.setGroupVisible(R.id.group_normal, false)
+        menu.setGroupVisible(R.id.group_selection, true)
+        binding.toolbar.navigationIcon =
+            ContextCompat.getDrawable(requireContext(), R.drawable.ic_close_black_24dp)
+                ?.mutate()?.apply { setTint(Color.WHITE) }
+        binding.toolbar.setNavigationOnClickListener { exitSelectionMode() }
+        refreshSelectionToolbar()
+    }
+
+    private fun restoreNormalToolbar() {
+        val menu = binding.toolbar.menu
+        menu.setGroupVisible(R.id.group_selection, false)
+        menu.setGroupVisible(R.id.group_normal, true)
+        binding.toolbarTitle.text = getString(R.string.view_history)
+        binding.toolbar.navigationIcon =
+            ContextCompat.getDrawable(requireContext(), R.drawable.ic_arrow_back_white_shadow)
+        binding.toolbar.setNavigationOnClickListener { activity?.finish() }
+    }
+
+    /** 刷 toolbar 标题(已选 N 项)+ 删除键可用态 + 全选/取消全选图标。 */
+    private fun refreshSelectionToolbar() {
+        val tab = activeSelectionTab ?: return
+        val count = tab.selectedCount.value ?: 0
+        binding.toolbarTitle.text = getString(R.string.history_selected_count, count)
+        val menu = binding.toolbar.menu
+        menu.findItem(R.id.action_delete_selected)?.isEnabled = count > 0
+        val allSelected = tab.isAllSelected()
+        menu.findItem(R.id.action_select_all_toggle)?.apply {
+            setIcon(if (allSelected) R.drawable.ic_deselect_24 else R.drawable.ic_select_all_24)
+            setTitle(if (allSelected) R.string.bulk_select_clear_all else R.string.bulk_select_select_all)
+        }
+        tintSelectionIcons()
+    }
+
+    /** 选择态菜单图标强制白色:彩色 toolbar 上 ic_select_all/ic_delete 默认色看不清。 */
+    private fun tintSelectionIcons() {
+        val menu = binding.toolbar.menu
+        intArrayOf(R.id.action_select_all_toggle, R.id.action_delete_selected).forEach { id ->
+            menu.findItem(id)?.let { item ->
+                item.icon = item.icon?.mutate()?.also { it.setTint(Color.WHITE) }
+            }
+        }
+    }
+
+    private fun confirmDeleteSelected() {
+        val tab = activeSelectionTab ?: return
+        val count = tab.selectedCount.value ?: 0
+        if (count == 0) return
+        val act = activity ?: return
+        QMUIDialog.MessageDialogBuilder(act)
+            .setTitle(R.string.string_143)
+            .setMessage(getString(R.string.history_multi_delete_message, count))
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addAction(R.string.string_142) { d, _ -> d.dismiss() }
+            .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                tab.deleteSelected { deleted ->
+                    if (deleted > 0) {
+                        Common.showToast(getString(R.string.history_multi_delete_done, deleted))
+                    }
+                    exitSelectionMode()
+                }
+            }
+            .show()
     }
 
     /**

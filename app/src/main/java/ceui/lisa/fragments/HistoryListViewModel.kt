@@ -44,6 +44,15 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
     private val allIllusts = mutableListOf<IllustsBean>()
     private var onDeleteCallback: ((IllustHistoryEntity) -> Unit)? = null
 
+    // —— 多选删除 ——
+    // 选中态以 illustID 为键(同一 tab 内每条历史 illustID 唯一)。selectionMode 决定 holder
+    // 渲染勾选框 + 点击切换选中而非打开;selectedCount 给 host toolbar 标题/删除键用。
+    private val _selectionMode = MutableLiveData(false)
+    val selectionMode: LiveData<Boolean> = _selectionMode
+    private val selectedIds = linkedSetOf<Int>()
+    private val _selectedCount = MutableLiveData(0)
+    val selectedCount: LiveData<Int> = _selectedCount
+
     /** 远端 keyset 翻页游标；null = 没有更多。 */
     private var nextCursor: String? = null
 
@@ -193,17 +202,96 @@ class HistoryListViewModel(private val historyType: Int) : ViewModel() {
         }
     }
 
+    // —— 多选删除 ——
+
+    fun enterSelectionMode() {
+        if (_selectionMode.value == true) return
+        selectedIds.clear()
+        _selectedCount.value = 0
+        _selectionMode.value = true
+        _holders.value = buildHolders()
+    }
+
+    fun exitSelectionMode() {
+        if (_selectionMode.value != true) return
+        selectedIds.clear()
+        _selectedCount.value = 0
+        _selectionMode.value = false
+        _holders.value = buildHolders()
+    }
+
+    fun toggleSelect(illustID: Int) {
+        if (!selectedIds.add(illustID)) selectedIds.remove(illustID)
+        _selectedCount.value = selectedIds.size
+        _holders.value = buildHolders()
+    }
+
+    fun isAllSelected(): Boolean =
+        rawItems.isNotEmpty() && rawItems.all { selectedIds.contains(it.illustID) }
+
+    /** master-checkbox:已全选 → 取消全选;否则全选(当前已加载条目)。 */
+    fun toggleSelectAll() {
+        val allSelected = isAllSelected()
+        selectedIds.clear()
+        if (!allSelected) rawItems.forEach { selectedIds.add(it.illustID) }
+        _selectedCount.value = selectedIds.size
+        _holders.value = buildHolders()
+    }
+
+    fun deleteSelected(onComplete: (Int) -> Unit) {
+        val targets = rawItems.filter { selectedIds.contains(it.illustID) }
+        if (targets.isEmpty()) {
+            onComplete(0)
+            return
+        }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                targets.forEach { entity ->
+                    // 永远删本地(双写副本),server 挂时回退本地才不会"复活"。
+                    dao.delete(entity)
+                    if (useRemote()) {
+                        val tt = if (historyType == 1) {
+                            "novel"
+                        } else {
+                            val ib = runCatching {
+                                Shaft.sGson.fromJson(entity.illustJson, IllustsBean::class.java)
+                            }.getOrNull()
+                            if (ib?.type == "manga") "manga" else "illust"
+                        }
+                        runCatching {
+                            Client.pixshaft.deleteHistory(SessionManager.loggedInUid, tt, entity.illustID.toLong())
+                        }.onFailure { Timber.w(it, "remote history batch-delete failed (local deleted)") }
+                    }
+                }
+            }
+            val deletedIds = targets.map { it.illustID }.toSet()
+            rawItems.removeAll { it.illustID in deletedIds }
+            if (historyType == 0) allIllusts.removeAll { it.id in deletedIds }
+            selectedIds.clear()
+            _selectedCount.value = 0
+            _selectionMode.value = false
+            _holders.value = buildHolders()
+            _isEmpty.value = rawItems.isEmpty()
+            onComplete(deletedIds.size)
+        }
+    }
+
     private fun buildHolders(): List<ListItemHolder> {
+        val selecting = _selectionMode.value == true
         val deleteHandler: (IllustHistoryEntity) -> Unit = { entity ->
             onDeleteCallback?.invoke(entity)
         }
+        val toggleHandler: (IllustHistoryEntity) -> Unit = { entity ->
+            toggleSelect(entity.illustID)
+        }
         return rawItems.mapNotNull { entity ->
+            val selected = selectedIds.contains(entity.illustID)
             if (historyType == 0) {
                 val illust = Shaft.sGson.fromJson(entity.illustJson, IllustsBean::class.java) ?: return@mapNotNull null
-                HistoryIllustHolder(entity, illust, { allIllusts.toList() }, deleteHandler)
+                HistoryIllustHolder(entity, illust, { allIllusts.toList() }, deleteHandler, selecting, selected, toggleHandler)
             } else {
                 val novel = Shaft.sGson.fromJson(entity.illustJson, NovelBean::class.java) ?: return@mapNotNull null
-                HistoryNovelHolder(entity, novel, deleteHandler)
+                HistoryNovelHolder(entity, novel, deleteHandler, selecting, selected, toggleHandler)
             }
         }
     }

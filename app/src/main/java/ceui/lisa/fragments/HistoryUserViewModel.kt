@@ -36,6 +36,13 @@ class HistoryUserViewModel : ViewModel() {
     private val rawItems = mutableListOf<GeneralEntity>()
     private var onDeleteCallback: ((GeneralEntity) -> Unit)? = null
 
+    // —— 多选删除 —— 选中态以 entity.id(用户 uid)为键。
+    private val _selectionMode = MutableLiveData(false)
+    val selectionMode: LiveData<Boolean> = _selectionMode
+    private val selectedIds = linkedSetOf<Long>()
+    private val _selectedCount = MutableLiveData(0)
+    val selectedCount: LiveData<Int> = _selectedCount
+
     private var nextCursor: String? = null
     private var forcedLocal = false
 
@@ -131,11 +138,80 @@ class HistoryUserViewModel : ViewModel() {
         }
     }
 
+    // —— 多选删除 ——
+
+    fun enterSelectionMode() {
+        if (_selectionMode.value == true) return
+        selectedIds.clear()
+        _selectedCount.value = 0
+        _selectionMode.value = true
+        _holders.value = buildHolders()
+    }
+
+    fun exitSelectionMode() {
+        if (_selectionMode.value != true) return
+        selectedIds.clear()
+        _selectedCount.value = 0
+        _selectionMode.value = false
+        _holders.value = buildHolders()
+    }
+
+    fun toggleSelect(id: Long) {
+        if (!selectedIds.add(id)) selectedIds.remove(id)
+        _selectedCount.value = selectedIds.size
+        _holders.value = buildHolders()
+    }
+
+    fun isAllSelected(): Boolean =
+        rawItems.isNotEmpty() && rawItems.all { selectedIds.contains(it.id) }
+
+    fun toggleSelectAll() {
+        val allSelected = isAllSelected()
+        selectedIds.clear()
+        if (!allSelected) rawItems.forEach { selectedIds.add(it.id) }
+        _selectedCount.value = selectedIds.size
+        _holders.value = buildHolders()
+    }
+
+    fun deleteSelected(onComplete: (Int) -> Unit) {
+        val targets = rawItems.filter { selectedIds.contains(it.id) }
+        if (targets.isEmpty()) {
+            onComplete(0)
+            return
+        }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                targets.forEach { entity ->
+                    dao.deleteByRecordTypeAndId(RecordType.VIEW_USER_HISTORY, entity.id)
+                    if (useRemote()) {
+                        runCatching {
+                            Client.pixshaft.deleteHistory(SessionManager.loggedInUid, "user", entity.id)
+                        }.onFailure { Timber.w(it, "remote user-history batch-delete failed (local deleted)") }
+                    }
+                }
+            }
+            val deletedIds = targets.map { it.id }.toSet()
+            rawItems.removeAll { it.id in deletedIds }
+            selectedIds.clear()
+            _selectedCount.value = 0
+            _selectionMode.value = false
+            _holders.value = buildHolders()
+            _isEmpty.value = rawItems.isEmpty()
+            onComplete(deletedIds.size)
+        }
+    }
+
     private fun buildHolders(): List<ListItemHolder> {
+        val selecting = _selectionMode.value == true
         val deleteHandler: (GeneralEntity) -> Unit = { entity ->
             onDeleteCallback?.invoke(entity)
         }
-        return rawItems.map { HistoryUserHolder(it, deleteHandler) }
+        val toggleHandler: (GeneralEntity) -> Unit = { entity ->
+            toggleSelect(entity.id)
+        }
+        return rawItems.map { entity ->
+            HistoryUserHolder(entity, deleteHandler, selecting, selectedIds.contains(entity.id), toggleHandler)
+        }
     }
 
     companion object {

@@ -1234,6 +1234,12 @@
     <string name="bulk_select_title">批次下載 · 選擇作品</string>
     <string name="bulk_select_select_all">全選</string>
     <string name="bulk_select_clear_all">取消全選</string>
+
+    <!-- 瀏覽紀錄多選刪除 -->
+    <string name="history_multi_select">多選</string>
+    <string name="history_selected_count">已選 %1$d 項</string>
+    <string name="history_multi_delete_message">確定刪除選中的 %1$d 項瀏覽紀錄嗎？</string>
+    <string name="history_multi_delete_done">已刪除 %1$d 項</string>
     <string name="bulk_select_invert">反選</string>
     <string name="bulk_select_no_items">沒有可選作品，可能從其他入口進來導致狀態遺失。</string>
     <string name="bulk_select_loading">載入中…</string>

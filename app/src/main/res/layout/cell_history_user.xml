@@ -10,6 +10,16 @@
     android:paddingHorizontal="16dp"
     android:paddingVertical="12dp">
 
+    <!-- 多选勾标:仅选择态显示(占位 gone,普通态头像仍最左)。 -->
+    <ImageView
+        android:id="@+id/select_check"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="@null"
+        android:padding="5dp"
+        android:visibility="gone" />
+
     <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/user_avatar"
         android:layout_width="48dp"

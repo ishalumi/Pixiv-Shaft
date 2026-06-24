@@ -7,6 +7,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
@@ -21,7 +22,7 @@ import com.scwang.smart.refresh.footer.ClassicsFooter
 import com.scwang.smart.refresh.header.MaterialHeader
 import kotlinx.coroutines.launch
 
-class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
+class FragmentHistoryList : Fragment(R.layout.fragment_history_list), SelectableHistoryTab {
 
     private val binding by viewBinding(FragmentHistoryListBinding::bind)
     private val historyType: Int by lazy { arguments?.getInt(ARG_TYPE, 0) ?: 0 }
@@ -70,7 +71,20 @@ class FragmentHistoryList : Fragment(R.layout.fragment_history_list) {
                 searchVm.query.collect { q -> viewModel.applySearch(q) }
             }
         }
+
+        // 旋转等 view 重建时 VM 选择态可能还留着,但 host toolbar 已回普通态 → 复位避免
+        // 列表挂着勾选框却没法退出。fresh VM 时 selectionMode 本就是 false,这里是 no-op。
+        viewModel.exitSelectionMode()
     }
+
+    // —— SelectableHistoryTab：多选删除,具体状态在 VM —— //
+    override val selectedCount: LiveData<Int> get() = viewModel.selectedCount
+    override fun hasItems(): Boolean = viewModel.holders.value?.isNotEmpty() == true
+    override fun isAllSelected(): Boolean = viewModel.isAllSelected()
+    override fun enterSelectionMode() = viewModel.enterSelectionMode()
+    override fun exitSelectionMode() = viewModel.exitSelectionMode()
+    override fun toggleSelectAll() = viewModel.toggleSelectAll()
+    override fun deleteSelected(onComplete: (Int) -> Unit) = viewModel.deleteSelected(onComplete)
 
     /**
      * loadFirst/loadMore 的完成回调跑在 viewModelScope,慢网络下可能在 view 销毁后才回来;

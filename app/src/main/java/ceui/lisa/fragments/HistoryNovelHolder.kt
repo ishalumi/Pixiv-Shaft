@@ -21,12 +21,18 @@ class HistoryNovelHolder(
     val entity: IllustHistoryEntity,
     val novel: NovelBean,
     val onRequestDelete: (IllustHistoryEntity) -> Unit,
+    val isSelectionMode: Boolean = false,
+    val isSelected: Boolean = false,
+    val onToggleSelect: (IllustHistoryEntity) -> Unit = {},
 ) : ListItemHolder() {
 
     override fun getItemId(): Long = entity.illustID.toLong()
 
     override fun areContentsTheSame(other: ListItemHolder): Boolean {
-        return other is HistoryNovelHolder && other.entity.time == entity.time
+        return other is HistoryNovelHolder &&
+            other.entity.time == entity.time &&
+            other.isSelectionMode == isSelectionMode &&
+            other.isSelected == isSelected
     }
 }
 
@@ -50,7 +56,14 @@ class HistoryNovelViewHolder(bd: CellHistoryNovelV3Binding) :
         binding.time.text = timeFormat.format(entity.time)
         binding.badgeAi.isVisible = novel.isCreatedByAI()
 
+        HistorySelectBadge.bind(binding.selectCheck, holder.isSelectionMode, holder.isSelected)
+        binding.deleteItem.isVisible = !holder.isSelectionMode
+
         binding.root.setOnClickListener {
+            if (holder.isSelectionMode) {
+                holder.onToggleSelect(entity)
+                return@setOnClickListener
+            }
             context.startActivity(Intent(context, TemplateActivity::class.java).apply {
                 putExtra(Params.CONTENT, novel)
                 putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
@@ -58,6 +71,7 @@ class HistoryNovelViewHolder(bd: CellHistoryNovelV3Binding) :
             })
         }
         binding.root.setOnLongClickListener {
+            if (holder.isSelectionMode) return@setOnLongClickListener true
             holder.onRequestDelete(entity)
             true
         }

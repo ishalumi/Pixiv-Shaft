@@ -27,12 +27,18 @@ class HistoryIllustHolder(
     val illust: IllustsBean,
     val allIllustsProvider: () -> List<IllustsBean>,
     val onRequestDelete: (IllustHistoryEntity) -> Unit,
+    val isSelectionMode: Boolean = false,
+    val isSelected: Boolean = false,
+    val onToggleSelect: (IllustHistoryEntity) -> Unit = {},
 ) : ListItemHolder() {
 
     override fun getItemId(): Long = entity.illustID.toLong()
 
     override fun areContentsTheSame(other: ListItemHolder): Boolean {
-        return other is HistoryIllustHolder && other.entity.time == entity.time
+        return other is HistoryIllustHolder &&
+            other.entity.time == entity.time &&
+            other.isSelectionMode == isSelectionMode &&
+            other.isSelected == isSelected
     }
 }
 
@@ -74,7 +80,14 @@ class HistoryIllustViewHolder(bd: CellHistoryIllustV3Binding) :
             else -> binding.pSize.isVisible = false
         }
 
+        HistorySelectBadge.bind(binding.selectCheck, holder.isSelectionMode, holder.isSelected)
+        binding.deleteItem.isVisible = !holder.isSelectionMode
+
         binding.root.setOnClickListener {
+            if (holder.isSelectionMode) {
+                holder.onToggleSelect(entity)
+                return@setOnClickListener
+            }
             val all = holder.allIllustsProvider()
             if (all.isEmpty()) return@setOnClickListener
             val pageData = PageData(all)
@@ -86,6 +99,7 @@ class HistoryIllustViewHolder(bd: CellHistoryIllustV3Binding) :
             })
         }
         binding.root.setOnLongClickListener {
+            if (holder.isSelectionMode) return@setOnLongClickListener true
             holder.onRequestDelete(entity)
             true
         }

@@ -1,6 +1,7 @@
 package ceui.lisa.fragments
 
 import android.content.Intent
+import androidx.core.view.isVisible
 import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.UActivity
 import ceui.lisa.annotations.ItemHolder
@@ -18,11 +19,17 @@ import java.util.Locale
 class HistoryUserHolder(
     val entity: GeneralEntity,
     val onRequestDelete: (GeneralEntity) -> Unit,
+    val isSelectionMode: Boolean = false,
+    val isSelected: Boolean = false,
+    val onToggleSelect: (GeneralEntity) -> Unit = {},
 ) : ListItemHolder() {
     override fun getItemId(): Long = entity.id
 
     override fun areContentsTheSame(other: ListItemHolder): Boolean {
-        return other is HistoryUserHolder && other.entity.updatedTime == entity.updatedTime
+        return other is HistoryUserHolder &&
+            other.entity.updatedTime == entity.updatedTime &&
+            other.isSelectionMode == isSelectionMode &&
+            other.isSelected == isSelected
     }
 }
 
@@ -43,12 +50,20 @@ class HistoryUserViewHolder(bd: CellHistoryUserBinding) :
         if (!avatarUrl.isNullOrEmpty()) {
             Glide.with(context).load(GlideUtil.getUrl(avatarUrl)).into(binding.userAvatar)
         }
+        HistorySelectBadge.bind(binding.selectCheck, holder.isSelectionMode, holder.isSelected)
+        binding.deleteItem.isVisible = !holder.isSelectionMode
+
         binding.root.setOnClickListener {
+            if (holder.isSelectionMode) {
+                holder.onToggleSelect(holder.entity)
+                return@setOnClickListener
+            }
             context.startActivity(Intent(context, UActivity::class.java).apply {
                 putExtra(Params.USER_ID, holder.entity.id.toInt())
             })
         }
         binding.root.setOnLongClickListener {
+            if (holder.isSelectionMode) return@setOnLongClickListener true
             holder.onRequestDelete(holder.entity)
             true
         }

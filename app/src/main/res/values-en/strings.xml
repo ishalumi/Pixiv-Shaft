@@ -1188,6 +1188,12 @@
     <string name="bulk_select_title">Batch download · Select works</string>
     <string name="bulk_select_select_all">Select all</string>
     <string name="bulk_select_clear_all">Deselect all</string>
+
+    <!-- Browse-history multi-select delete -->
+    <string name="history_multi_select">Multi-select</string>
+    <string name="history_selected_count">%1$d selected</string>
+    <string name="history_multi_delete_message">Delete the %1$d selected record(s)?</string>
+    <string name="history_multi_delete_done">Deleted %1$d item(s)</string>
     <string name="bulk_select_invert">Invert</string>
     <string name="bulk_select_no_items">No selectable works. State may have been lost from a different entry point.</string>
     <string name="bulk_select_loading">Loading…</string>

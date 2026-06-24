@@ -5,6 +5,7 @@ import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.LinearLayoutManager
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentHistoryListBinding
@@ -16,7 +17,7 @@ import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import com.scwang.smart.refresh.footer.ClassicsFooter
 import com.scwang.smart.refresh.header.MaterialHeader
 
-class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list) {
+class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list), SelectableHistoryTab {
 
     private val binding by viewBinding(FragmentHistoryListBinding::bind)
     private val viewModel: HistoryUserViewModel by viewModels()
@@ -50,7 +51,19 @@ class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list) {
             binding.loadingBar.isVisible = true
             viewModel.loadFirst { withBinding { it.loadingBar.isVisible = false } }
         }
+
+        // 同 FragmentHistoryList:view 重建复位选择态,避免残留勾选框退不出去。
+        viewModel.exitSelectionMode()
     }
+
+    // —— SelectableHistoryTab：多选删除,具体状态在 VM —— //
+    override val selectedCount: LiveData<Int> get() = viewModel.selectedCount
+    override fun hasItems(): Boolean = viewModel.holders.value?.isNotEmpty() == true
+    override fun isAllSelected(): Boolean = viewModel.isAllSelected()
+    override fun enterSelectionMode() = viewModel.enterSelectionMode()
+    override fun exitSelectionMode() = viewModel.exitSelectionMode()
+    override fun toggleSelectAll() = viewModel.toggleSelectAll()
+    override fun deleteSelected(onComplete: (Int) -> Unit) = viewModel.deleteSelected(onComplete)
 
     /**
      * loadFirst/loadMore 的完成回调跑在 viewModelScope,慢网络下可能在 view 销毁后才回来;
