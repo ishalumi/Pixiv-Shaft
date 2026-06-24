@@ -2200,4 +2200,13 @@
     <string name="synonym_rename_target_confirm">将目标标签「%1$s」重命名为「%2$s」？</string>
     <string name="synonym_field_name">标签名</string>
     <string name="synonym_field_remark">备注</string>
+
+    <!-- 本地小说书库 -->
+    <string name="local_novel_entry">本地小说</string>
+    <string name="local_novel_pick_folder">选择文件夹</string>
+    <string name="local_novel_empty_no_root">还没有选择小说文件夹\n选一个装了 txt 的文件夹开始阅读</string>
+    <string name="local_novel_empty_folder">这个文件夹里没有 txt 文件</string>
+    <string name="local_novel_folder">文件夹</string>
+    <string name="local_novel_pick_failed">无法访问该文件夹：%1$s</string>
+    <string name="local_novel_bookmark_unsupported">本地文件不支持收藏</string>
 </resources>

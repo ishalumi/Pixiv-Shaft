@@ -1633,4 +1633,13 @@
     <string name="synonym_rename_target_confirm">“%1$s” hedef etiketi “%2$s” olarak yeniden adlandırılsın mı?</string>
     <string name="synonym_field_name">Etiket adı</string>
     <string name="synonym_field_remark">Not</string>
+
+    <!-- Yerel roman kitaplığı -->
+    <string name="local_novel_entry">Yerel Romanlar</string>
+    <string name="local_novel_pick_folder">Klasör Seç</string>
+    <string name="local_novel_empty_no_root">Henüz klasör seçilmedi.\nOkumaya başlamak için .txt dosyaları olan bir klasör seçin.</string>
+    <string name="local_novel_empty_folder">Bu klasörde .txt dosyası yok</string>
+    <string name="local_novel_folder">Klasör</string>
+    <string name="local_novel_pick_failed">Bu klasöre erişilemiyor: %1$s</string>
+    <string name="local_novel_bookmark_unsupported">Yerel dosyalar için yer imi kullanılamaz</string>
 </resources>

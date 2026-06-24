@@ -1635,4 +1635,13 @@
     <string name="synonym_rename_target_confirm">Переименовать целевой тег «%1$s» в «%2$s»?</string>
     <string name="synonym_field_name">Имя тега</string>
     <string name="synonym_field_remark">Заметка</string>
+
+    <!-- Локальная библиотека новелл -->
+    <string name="local_novel_entry">Локальные новеллы</string>
+    <string name="local_novel_pick_folder">Выбрать папку</string>
+    <string name="local_novel_empty_no_root">Папка ещё не выбрана.\nВыберите папку с файлами .txt, чтобы начать чтение.</string>
+    <string name="local_novel_empty_folder">В этой папке нет файлов .txt</string>
+    <string name="local_novel_folder">Папка</string>
+    <string name="local_novel_pick_failed">Нет доступа к этой папке: %1$s</string>
+    <string name="local_novel_bookmark_unsupported">Закладки недоступны для локальных файлов</string>
 </resources>

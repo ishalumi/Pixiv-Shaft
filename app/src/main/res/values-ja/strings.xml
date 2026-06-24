@@ -1731,4 +1731,13 @@
     <string name="synonym_rename_target_confirm">ターゲットタグ「%1$s」を「%2$s」に変更しますか？</string>
     <string name="synonym_field_name">タグ名</string>
     <string name="synonym_field_remark">メモ</string>
+
+    <!-- ローカル小説ライブラリ -->
+    <string name="local_novel_entry">ローカル小説</string>
+    <string name="local_novel_pick_folder">フォルダを選択</string>
+    <string name="local_novel_empty_no_root">フォルダがまだ選択されていません。\ntxt ファイルの入ったフォルダを選んで読み始めましょう。</string>
+    <string name="local_novel_empty_folder">このフォルダに txt ファイルがありません</string>
+    <string name="local_novel_folder">フォルダ</string>
+    <string name="local_novel_pick_failed">このフォルダにアクセスできません：%1$s</string>
+    <string name="local_novel_bookmark_unsupported">ローカルファイルはブックマークできません</string>
 </resources>

@@ -1745,4 +1745,13 @@
     <string name="synonym_rename_target_confirm">將目標標籤「%1$s」重新命名為「%2$s」？</string>
     <string name="synonym_field_name">標籤名</string>
     <string name="synonym_field_remark">備註</string>
+
+    <!-- 本機小說書庫 -->
+    <string name="local_novel_entry">本機小說</string>
+    <string name="local_novel_pick_folder">選擇資料夾</string>
+    <string name="local_novel_empty_no_root">還沒有選擇小說資料夾\n選一個放了 txt 的資料夾開始閱讀</string>
+    <string name="local_novel_empty_folder">這個資料夾裡沒有 txt 檔案</string>
+    <string name="local_novel_folder">資料夾</string>
+    <string name="local_novel_pick_failed">無法存取該資料夾：%1$s</string>
+    <string name="local_novel_bookmark_unsupported">本機檔案不支援收藏</string>
 </resources>

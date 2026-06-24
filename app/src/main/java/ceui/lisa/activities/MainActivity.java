@@ -463,6 +463,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         } else if (id == R.id.nav_event_history) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "操作记录");
+        } else if (id == R.id.nav_local_novel) {
+            intent = new Intent(mContext, TemplateActivity.class);
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "本地小说库");
         } else if (id == R.id.nav_debug_bulk_dl) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "批量下载Debug");

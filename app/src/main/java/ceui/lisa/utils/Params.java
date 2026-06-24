@@ -36,6 +36,10 @@ public class Params {
     public static final String TYPE_NOVEL    = "novel";
     public static final String TYPE_MANGA    = "manga";
     public static final String NOVEL_KEY     = "pixiv_shaft_novel_";
+    // 本地 txt 阅读（本地小说书库）：document content:// URI、展示标题、书库内相对路径
+    public static final String LOCAL_TXT_URI   = "local_txt_uri";
+    public static final String LOCAL_TXT_TITLE = "local_txt_title";
+    public static final String LOCAL_TXT_KEY   = "local_txt_key";
     public static final String USER_KEY      = "pixiv_shaft_local_user";
     public static final String PAGE_UUID     = "page_uuid";
     public static final String POSITION      = "position";

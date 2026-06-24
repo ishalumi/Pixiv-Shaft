@@ -242,6 +242,7 @@ class MeFragment : Fragment(R.layout.fragment_me) {
         val isLite = BuildConfig.IS_LITE
         if (!(isLite && !BuildConfig.DEBUG)) {
             val experimentalEntries = mutableListOf(
+                Entry(R.drawable.ic_baseline_menu_book_24, R.string.local_novel_entry, R.id.nav_local_novel),
                 Entry(R.drawable.ic_baseline_settings_24, R.string.debug_bulk_dl_entry, R.id.nav_debug_bulk_dl),
             )
             // 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。

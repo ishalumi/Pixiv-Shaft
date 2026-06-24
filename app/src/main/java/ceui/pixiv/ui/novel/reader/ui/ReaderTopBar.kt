@@ -35,4 +35,9 @@ class ReaderTopBar(private val binding: LayoutReaderTopBarBinding) {
             if (bookmarked) R.drawable.ic_reader_bookmark_filled else R.drawable.ic_reader_bookmark_border,
         )
     }
+
+    /** 本地 txt 没有 pixiv 收藏概念，整颗收藏按钮直接隐藏。 */
+    fun setBookmarkVisible(visible: Boolean) {
+        binding.btnBookmark.visibility = if (visible) View.VISIBLE else View.GONE
+    }
 }

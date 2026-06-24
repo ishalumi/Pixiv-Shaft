@@ -246,6 +246,13 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return NovelTextFragment.Companion.newInstance(tid);
                 }
                 case "小说正文": {
+                    String localUri = intent.getStringExtra(Params.LOCAL_TXT_URI);
+                    if (localUri != null && !localUri.isEmpty()) {
+                        return NovelReaderV3Fragment.newInstanceLocal(
+                                localUri,
+                                intent.getStringExtra(Params.LOCAL_TXT_TITLE),
+                                intent.getStringExtra(Params.LOCAL_TXT_KEY));
+                    }
                     NovelBean bean = (NovelBean) intent.getSerializableExtra(Params.CONTENT);
                     if (bean != null) {
                         return NovelReaderV3Fragment.newInstance(bean);
@@ -253,6 +260,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     long rid = intent.getLongExtra(Params.NOVEL_ID, 0L);
                     return NovelReaderV3Fragment.newInstance(rid);
                 }
+                case "本地小说库":
+                    return new ceui.pixiv.ui.novel.local.LocalLibraryFragment();
                 case "漫画阅读": {
                     long iid = intent.getLongExtra(Params.ILLUST_ID, 0L);
                     if (iid == 0L) iid = intent.getIntExtra(Params.ILLUST_ID, 0);

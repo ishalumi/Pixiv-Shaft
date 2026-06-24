@@ -1642,4 +1642,13 @@
     <string name="synonym_rename_target_confirm">대상 태그 「%1$s」을(를) 「%2$s」(으)로 변경할까요?</string>
     <string name="synonym_field_name">태그 이름</string>
     <string name="synonym_field_remark">메모</string>
+
+    <!-- 로컬 소설 라이브러리 -->
+    <string name="local_novel_entry">로컬 소설</string>
+    <string name="local_novel_pick_folder">폴더 선택</string>
+    <string name="local_novel_empty_no_root">아직 폴더를 선택하지 않았습니다.\ntxt 파일이 있는 폴더를 선택해 읽기를 시작하세요.</string>
+    <string name="local_novel_empty_folder">이 폴더에 txt 파일이 없습니다</string>
+    <string name="local_novel_folder">폴더</string>
+    <string name="local_novel_pick_failed">이 폴더에 접근할 수 없습니다: %1$s</string>
+    <string name="local_novel_bookmark_unsupported">로컬 파일은 북마크할 수 없습니다</string>
 </resources>

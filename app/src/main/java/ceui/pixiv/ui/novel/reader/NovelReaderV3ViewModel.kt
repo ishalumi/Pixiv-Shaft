@@ -42,7 +42,12 @@ import timber.log.Timber
 
 class NovelReaderV3ViewModel(
     val novelId: Long,
+    private val localUri: String? = null,
+    private val localTitle: String? = null,
 ) : ViewModel() {
+
+    /** 本地 txt 源：非空时 [load] 走离线分支，不碰网络 / ObjectPool。 */
+    val isLocal: Boolean get() = !localUri.isNullOrEmpty()
 
     sealed class LoadState {
         object Idle : LoadState()
@@ -121,6 +126,10 @@ class NovelReaderV3ViewModel(
         _loadState.value = LoadState.Loading
         viewModelScope.launch {
             runCatching {
+                if (isLocal) {
+                    loadLocal()
+                    return@runCatching
+                }
                 val novel = ObjectPool.get<Novel>(novelId).value
                     ?: Client.appApi.getNovel(novelId).novel?.also { ObjectPool.update(it) }
                 // 详情页进来时已经预热了 webNovel + tokens，命中就跳过网络 +
@@ -148,6 +157,28 @@ class NovelReaderV3ViewModel(
                 _loadState.postValue(LoadState.Error(throwable.message ?: ctx().getString(R.string.msg_load_fail)))
             }
         }
+    }
+
+    /**
+     * 本地 txt 离线分支：读字节 → [ceui.pixiv.ui.novel.local.TextDecoder] 探测编码
+     * （UTF-8 / GB18030）→ 直接喂 [ContentParser.tokenize]。novel 元数据为 null，
+     * 标题取文件名（[localTitle]）。进度/标注/书签照常按 [novelId]（合成负数 id）走。
+     */
+    private suspend fun loadLocal() {
+        val uri = android.net.Uri.parse(localUri)
+        val parsed = withContext(Dispatchers.IO) {
+            val bytes = ctx().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: error(ctx().getString(R.string.msg_load_fail))
+            val text = ceui.pixiv.ui.novel.local.TextDecoder.decode(bytes)
+            val web = WebNovel(title = localTitle.orEmpty(), text = text)
+            web to ContentParser.tokenize(text)
+        }
+        webNovel = parsed.first
+        tokens = parsed.second
+        imageResolver = ImageResolver.of(parsed.first)
+        desiredCharIndex = ReaderProgressStore.loadCharIndex(novelId)
+        _loadState.postValue(LoadState.Loaded(null, parsed.first, parsed.second))
+        repaginateIfReady()
     }
 
     fun updateLayout(style: TypeStyle, geometry: PageGeometry) {
@@ -323,6 +354,7 @@ class NovelReaderV3ViewModel(
     // ---- Bookmark toggle ----------------------------------------------------
 
     suspend fun toggleBookmark(): String {
+        if (isLocal) return ctx().getString(R.string.local_novel_bookmark_unsupported)
         return runCatching {
             val novel = ObjectPool.get<Novel>(novelId).value
                 ?: Client.appApi.getNovel(novelId).novel?.also { ObjectPool.update(it) }
@@ -457,10 +489,14 @@ class NovelReaderV3ViewModel(
     }
 
     companion object {
-        fun factory(novelId: Long): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+        fun factory(
+            novelId: Long,
+            localUri: String? = null,
+            localTitle: String? = null,
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return NovelReaderV3ViewModel(novelId) as T
+                return NovelReaderV3ViewModel(novelId, localUri, localTitle) as T
             }
         }
     }

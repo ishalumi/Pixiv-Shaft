@@ -1729,4 +1729,13 @@
     <string name="synonym_rename_target_confirm">Rename target tag “%1$s” to “%2$s”?</string>
     <string name="synonym_field_name">Tag name</string>
     <string name="synonym_field_remark">Remark</string>
+
+    <!-- Local novel library -->
+    <string name="local_novel_entry">Local Novels</string>
+    <string name="local_novel_pick_folder">Choose Folder</string>
+    <string name="local_novel_empty_no_root">No folder selected yet.\nPick a folder with .txt files to start reading.</string>
+    <string name="local_novel_empty_folder">No .txt files in this folder</string>
+    <string name="local_novel_folder">Folder</string>
+    <string name="local_novel_pick_failed">Can\'t access this folder: %1$s</string>
+    <string name="local_novel_bookmark_unsupported">Bookmarking isn\'t available for local files</string>
 </resources>

@@ -89,8 +89,16 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
 
     private val binding by viewBinding(FragmentNovelReaderV3Binding::bind)
     private val viewModel: NovelReaderV3ViewModel by viewModels {
-        NovelReaderV3ViewModel.factory(resolveNovelId())
+        NovelReaderV3ViewModel.factory(
+            resolveNovelId(),
+            arguments?.getString(ARG_LOCAL_URI),
+            arguments?.getString(ARG_LOCAL_TITLE),
+        )
     }
+
+    /** 本地 txt 源标记（来自 [newInstanceLocal]）。用于隐藏 pixiv 专属按钮 / 菜单项。 */
+    private val isLocalSource: Boolean
+        get() = !arguments?.getString(ARG_LOCAL_URI).isNullOrEmpty()
 
     private var readerView: NovelReaderView? = null
     private var scrollReaderView: NovelScrollReaderView? = null
@@ -141,6 +149,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         val so = ReaderSearchOverlay(binding.readerSearchOverlay)
 
         wireTopBar(tb)
+        tb.setBookmarkVisible(!isLocalSource)
         wireBottomBar(rv, bb, ch, so)
         wireReaderView(rv, ch)
         wireSearchOverlay(so)
@@ -543,6 +552,15 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         ReaderTheme.findPresetById(ReaderSettings.themeId)?.isDark == true
 
     private fun showTopMoreMenu() {
+        if (isLocalSource) {
+            // 本地 txt 没有作品详情 / 评论 / 分享链接，只留「复制正文」一项。
+            showV3Menu {
+                item(getString(R.string.menu_copy_novel_text), R.drawable.chat_ic_content_copy) {
+                    copyNovelBodyToClipboard()
+                }
+            }
+            return
+        }
         val novelId = resolveNovelId()
         if (novelId == 0L) return
         viewLifecycleOwner.lifecycleScope.launch {
@@ -633,17 +651,21 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 val icon = if (watchlistAdded) R.drawable.icon_liked else R.drawable.icon_not_liked
                 item(label, icon) { toggleWatchlist() }
             }
-            item(getString(R.string.menu_export), R.drawable.ic_baseline_get_app_24) {
-                if (viewModel.loadState.value !is NovelReaderV3ViewModel.LoadState.Loaded) {
-                    Toast.makeText(requireContext(), getString(R.string.msg_novel_not_ready), Toast.LENGTH_SHORT).show()
-                    return@item
-                }
-                val defaultFormat = Shaft.sSettings.defaultNovelExportFormat
-                val format = ExportFormat.entries.firstOrNull { it.name == defaultFormat }
-                if (format != null) {
-                    executeExport(format)
-                } else {
-                    showExportSheet()
+            // 本地 txt 已经是 txt，再导出无意义；且 NovelHeaderRenderer 需要非空
+            // novel（本地源 novel 为 null），直接不挂导出项。
+            if (!isLocalSource) {
+                item(getString(R.string.menu_export), R.drawable.ic_baseline_get_app_24) {
+                    if (viewModel.loadState.value !is NovelReaderV3ViewModel.LoadState.Loaded) {
+                        Toast.makeText(requireContext(), getString(R.string.msg_novel_not_ready), Toast.LENGTH_SHORT).show()
+                        return@item
+                    }
+                    val defaultFormat = Shaft.sSettings.defaultNovelExportFormat
+                    val format = ExportFormat.entries.firstOrNull { it.name == defaultFormat }
+                    if (format != null) {
+                        executeExport(format)
+                    } else {
+                        showExportSheet()
+                    }
                 }
             }
         }
@@ -1112,6 +1134,10 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
 
     private fun resolveNovelId(): Long {
         arguments?.let { args ->
+            val localKey = args.getString(ARG_LOCAL_KEY)
+            if (!localKey.isNullOrEmpty()) {
+                return ceui.pixiv.ui.novel.local.LocalLibraryStore.novelIdFor(localKey)
+            }
             val idLong = args.getLong(ARG_NOVEL_ID, 0L)
             if (idLong != 0L) return idLong
             @Suppress("DEPRECATION")
@@ -1123,6 +1149,9 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
 
     companion object {
         private const val ARG_NOVEL_ID = "novel_id"
+        private const val ARG_LOCAL_URI = "local_uri"
+        private const val ARG_LOCAL_TITLE = "local_title"
+        private const val ARG_LOCAL_KEY = "local_key"
         private const val COLOR_SEARCH_CURRENT = 0xAAFF9800.toInt() // opaque orange
         private const val COLOR_SEARCH_OTHER = 0x66FFEB3B           // semi-transparent yellow
 
@@ -1141,6 +1170,22 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
             return NovelReaderV3Fragment().apply {
                 arguments = Bundle().apply {
                     putLong(ARG_NOVEL_ID, novelId)
+                }
+            }
+        }
+
+        /**
+         * 本地 txt 阅读：[uri] 是 SAF document content:// URI，[title] 取自文件名，
+         * [idKey] 是书库内相对路径（[ceui.pixiv.ui.novel.local.LocalLibraryStore.novelIdFor]
+         * 据此派生稳定负数 novelId，绑定进度/标注/书签）。
+         */
+        @JvmStatic
+        fun newInstanceLocal(uri: String, title: String?, idKey: String?): NovelReaderV3Fragment {
+            return NovelReaderV3Fragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_LOCAL_URI, uri)
+                    putString(ARG_LOCAL_TITLE, title)
+                    putString(ARG_LOCAL_KEY, idKey ?: title ?: uri)
                 }
             }
         }
