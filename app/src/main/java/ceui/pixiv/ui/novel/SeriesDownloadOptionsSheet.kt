@@ -97,7 +97,7 @@ class SeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
                 Action.Picker,
                 getString(R.string.series_download_picker),
                 getString(R.string.series_download_picker_desc),
-                "🗹", // ballot box with check
+                "✅", // 勾选：用白色对勾彩色 emoji，别用 🗹/☑ 这类单色字形(黑暗模式看不见)
             ),
             Row(
                 Action.AllSeparate,

@@ -24,11 +24,13 @@ class ExportSheet : BottomSheetDialogFragment() {
         savedInstanceState: Bundle?,
     ): View {
         val binding = SheetReaderExportBinding.inflate(inflater, container, false)
+        // \u7528\u5168\u5F69 emoji\uFF0C\u522B\u7528 \uD83C\uDD63/\uD83C\uDD5C \u8FD9\u7C7B\u300Cnegative circled\u300D\u5355\u8272\u5B57\u5F62 \u2014\u2014 \u5B83\u4EEC\u5728\u6DF1\u8272\u80CC\u666F\u4E0A
+        // \u6E32\u67D3\u6210\u9ED1\u8272,\u9ED1\u6697\u6A21\u5F0F\u4E0B\u770B\u4E0D\u89C1(EPUB \uD83D\uDCD6 / PDF \uD83D\uDCC4 \u662F\u5F69\u8272 emoji \u6240\u4EE5\u4E00\u76F4\u53EF\u89C1)\u3002
         val rows = listOf(
-            Triple(ExportFormat.Txt, getString(R.string.export_txt_desc), "\uD83C\uDD63"),
-            Triple(ExportFormat.Markdown, getString(R.string.export_md_desc), "\uD83C\uDD5C"),
-            Triple(ExportFormat.Epub, getString(R.string.export_epub_desc), "\uD83D\uDCD6"),
-            Triple(ExportFormat.Pdf, getString(R.string.export_pdf_desc), "\uD83D\uDCC4"),
+            Triple(ExportFormat.Txt, getString(R.string.export_txt_desc), "\uD83D\uDCCB"),      // \uD83D\uDCCB \u526A\u8D34\u677F(\u8D34\u5230\u4EFB\u4F55\u5730\u65B9)
+            Triple(ExportFormat.Markdown, getString(R.string.export_md_desc), "\uD83D\uDCDD"),   // \uD83D\uDCDD \u5907\u5FD8(\u6807\u8BB0\u8BED\u8A00)
+            Triple(ExportFormat.Epub, getString(R.string.export_epub_desc), "\uD83D\uDCD6"),     // \uD83D\uDCD6
+            Triple(ExportFormat.Pdf, getString(R.string.export_pdf_desc), "\uD83D\uDCC4"),       // \uD83D\uDCC4
         )
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = Adapter(rows) { format ->
