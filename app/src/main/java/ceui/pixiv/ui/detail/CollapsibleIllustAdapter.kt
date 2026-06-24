@@ -53,6 +53,9 @@ class CollapsibleIllustAdapter(
 
     fun expand() {
         if (expanded) return
+        // 展开时再扫一遍下载库：覆盖「未展开时下载、随后展开」——此时第 2 张及之后
+        // 才首次绑定，扫到本地文件就直读，不回 pixiv 重新下。
+        scanLocalDownloads()
         val prev = itemCount
         expanded = true
         val added = itemCount - prev

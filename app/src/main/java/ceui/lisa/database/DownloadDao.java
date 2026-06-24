@@ -75,6 +75,14 @@ public interface DownloadDao {
             "illustGson LIKE '%\"id\":' || :illustId || '}%'")
     boolean hasDownloadRecordByIllustId(long illustId);
 
+    /**
+     * 按 fileName(主键)精确取一条下载记录。详情页把每页用 FileCreator.customFileName
+     * 算出的文件名直接拿来查,命中就读本地文件复用下载,不回 pixiv 重新下。走主键索引,
+     * 30000+ 条下载库下也是 O(log n),不像 illustGson LIKE 那样全表扫 blob。
+     */
+    @Query("SELECT * FROM illust_download_table WHERE fileName = :fileName LIMIT 1")
+    DownloadEntity getDownloadByFileName(String fileName);
+
     @Query("SELECT * FROM illust_downloading_table")
     List<DownloadingEntity> getAllDownloading();
 

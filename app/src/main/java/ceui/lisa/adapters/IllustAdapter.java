@@ -1,6 +1,9 @@
 package ceui.lisa.adapters;
 
 import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +18,10 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
@@ -29,7 +36,11 @@ import timber.log.Timber;
 import ceui.lisa.R;
 import ceui.lisa.activities.BaseActivity;
 import ceui.lisa.activities.Shaft;
+import ceui.lisa.database.AppDatabase;
+import ceui.lisa.database.DownloadDao;
+import ceui.lisa.database.DownloadEntity;
 import ceui.lisa.databinding.RecyIllustDetailBinding;
+import ceui.lisa.download.FileCreator;
 import ceui.lisa.download.IllustDownload;
 import ceui.lisa.models.IllustsBean;
 import ceui.lisa.transformer.LargeBitmapScaleTransformer;
@@ -57,6 +68,15 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
     @Nullable
     private PageStatusListener pageStatusListener;
 
+    /**
+     * 页码 -> 已下载文件 Uri。后台扫一次 illust_download_table，命中的页在绑定时
+     * 直接 Glide 读本地文件，免得详情页(尤其多图「展开」后)又回 pixiv 重新下。
+     * 见用户反馈：未展开时下载，展开后第二张及之后被重新加载。
+     */
+    private final Map<Integer, Uri> localPageUris = new ConcurrentHashMap<>();
+    private volatile boolean localScanRunning = false;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
     public IllustAdapter(FragmentActivity activity, Fragment fragment, IllustsBean illustsBean, int maxHeight, boolean isForceOriginal) {
         Common.showLog("IllustAdapter maxHeight " + maxHeight);
         mActivity = activity;
@@ -66,10 +86,58 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         imageSize = mContext.getResources().getDisplayMetrics().widthPixels;
         this.isForceOriginal = isForceOriginal;
         this.mFragment = fragment;
+        scanLocalDownloads();
     }
 
     public void setPageStatusListener(@Nullable PageStatusListener listener) {
         this.pageStatusListener = listener;
+    }
+
+    /**
+     * 后台扫描该作品已下载的页 → 本地文件 Uri。命中后回主线程刷新，绑定时优先走本地。
+     * 调两次：构造时(覆盖「打开前就下好了」)、展开时(覆盖「未展开时下载，再展开」)。
+     * 页码 → 文件名用 {@link FileCreator#customFileName}，与下载时写库的 fileName 同源，
+     * 所以是精确的逐页匹配，不依赖文件名字典序，分图缺页也不会错位。
+     */
+    public void scanLocalDownloads() {
+        final IllustsBean illust = allIllust;
+        if (illust == null || localScanRunning || illust.isGif()) {
+            return;
+        }
+        final int pageCount = Math.max(illust.getPage_count(), 1);
+        final long illustId = illust.getId();
+        localScanRunning = true;
+        new Thread(() -> {
+            final Map<Integer, Uri> found = new HashMap<>();
+            try {
+                DownloadDao dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao();
+                for (int i = 0; i < pageCount; i++) {
+                    // 页码 → 下载文件名(与写库时同源)→ 主键精确查。命中就记下本地 Uri。
+                    DownloadEntity e = dao.getDownloadByFileName(FileCreator.customFileName(illust, i));
+                    if (e != null && e.getFilePath() != null && !e.getFilePath().isEmpty()) {
+                        try {
+                            found.put(i, Uri.parse(e.getFilePath()));
+                        } catch (Exception ignore) {
+                            // 坏 URI 跳过，该页照常走网络
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                Timber.w(t, "[IllustAdapter] scanLocalDownloads failed, id=%d", illustId);
+            }
+            mainHandler.post(() -> {
+                localScanRunning = false;
+                boolean changed = false;
+                for (Map.Entry<Integer, Uri> en : found.entrySet()) {
+                    if (localPageUris.put(en.getKey(), en.getValue()) == null) {
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    notifyDataSetChanged();
+                }
+            });
+        }).start();
     }
 
     @NonNull
@@ -188,6 +256,16 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         // registering new ones. Prevents unbounded observer accumulation across rebinds. #912
         detachTaskObservers(holder);
 
+        // 命中已下载的本地文件就直读，跳过网络 LoadTask —— 详情页展开多图复用下载结果。
+        Uri localUri = localPageUris.get(position);
+        if (localUri != null) {
+            loadFromLocalFile(holder, position, changeSize, localUri);
+            return;
+        }
+        loadFromNetwork(holder, position, changeSize);
+    }
+
+    private void loadFromNetwork(ViewHolder<RecyIllustDetailBinding> holder, int position, boolean changeSize) {
         final String imageUrl;
         boolean isLoadOriginalImage = Shaft.sSettings.isShowOriginalPreviewImage() || isForceOriginal;
         if (isLoadOriginalImage) {
@@ -301,5 +379,47 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             task.getStatus().removeObserver(statusObserver);
             task.getResult().removeObserver(resultObserver);
         });
+    }
+
+    /**
+     * 直接 Glide 读已下载的本地文件（content:// 或 file://），不走 LoadTask 网络下载。
+     * 读失败（文件被移动/删除/无权限）就忘掉这页的本地映射、回退网络。observer 由
+     * 上层 detachTaskObservers 统一清理，本路径不挂 LiveData observer，不会累积(#912)。
+     */
+    private void loadFromLocalFile(ViewHolder<RecyIllustDetailBinding> holder, int position, boolean changeSize, Uri localUri) {
+        boolean isLoadOriginalImage = Shaft.sSettings.isShowOriginalPreviewImage() || isForceOriginal;
+        final String imageUrl = IllustDownload.getUrl(allIllust, position,
+                isLoadOriginalImage ? Params.IMAGE_RESOLUTION_ORIGINAL : Params.IMAGE_RESOLUTION_LARGE);
+        // 与网络路径一致地打 tag，让后续 stale 回调判定、reload 重试逻辑共用一套。
+        holder.baseBind.illust.setTag(R.id.tag_image_url, imageUrl);
+        holder.baseBind.reload.setVisibility(View.GONE);
+        holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+        holder.baseBind.reload.setOnClickListener(v -> loadIllust(holder, position, changeSize));
+
+        RequestManager requestManager = mFragment != null ? Glide.with(mFragment) : Glide.with(mContext);
+        requestManager
+                .asBitmap()
+                .load(localUri)
+                .transform(new LargeBitmapScaleTransformer())
+                .transition(BitmapTransitionOptions.withCrossFade())
+                .listener(new RequestListener<Bitmap>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Bitmap> target, boolean isFirstResource) {
+                        if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
+                        Timber.w(e, "[IllustAdapter] local file load FAIL pos=%d, fall back to network", position);
+                        localPageUris.remove(position);
+                        loadFromNetwork(holder, position, changeSize);
+                        return true; // 已接管，网络路径会重新填图
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Bitmap resource, Object model, Target<Bitmap> target, DataSource dataSource, boolean isFirstResource) {
+                        if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
+                        holder.baseBind.reload.setVisibility(View.GONE);
+                        holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+                        return false;
+                    }
+                })
+                .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
     }
 }
