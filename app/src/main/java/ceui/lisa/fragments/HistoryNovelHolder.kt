@@ -1,6 +1,7 @@
 package ceui.lisa.fragments
 
 import android.content.Intent
+import androidx.core.view.isVisible
 import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.activities.UActivity
@@ -47,6 +48,7 @@ class HistoryNovelViewHolder(bd: CellHistoryNovelV3Binding) :
         binding.title.text = novel.title
         binding.author.text = novel.user?.name.orEmpty()
         binding.time.text = timeFormat.format(entity.time)
+        binding.badgeAi.isVisible = novel.isCreatedByAI()
 
         binding.root.setOnClickListener {
             context.startActivity(Intent(context, TemplateActivity::class.java).apply {

@@ -105,6 +105,7 @@ class NovelCardViewHolder(bd: CellNovelCardBinding) :
         binding.novelTag.setOnTouchListener { _, _ ->
             holder.isMultiSelectMode
         }
+        binding.badgeAi.isVisible = holder.novel.novel_ai_type == 2
         binding.publishTime.text = context.getString(
             R.string.published_on,
             DateParse.getTimeAgo(context, holder.novel.create_date)

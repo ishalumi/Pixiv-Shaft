@@ -138,6 +138,7 @@ class NovelV3ViewHolder(private val b: CellNovelV3Binding) :
     private fun bindBadges(novel: Novel) {
         b.badgeR18.isVisible = novel.is_x_restricted == true || (novel.x_restrict ?: 0) > 0
         b.badgeOriginal.isVisible = novel.is_original == true
+        b.badgeAi.isVisible = novel.novel_ai_type == 2
     }
 
 

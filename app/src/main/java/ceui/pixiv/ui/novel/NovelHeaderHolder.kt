@@ -68,6 +68,9 @@ class NovelHeaderViewHolder(bd: CellNovelHeaderBinding) :
             // Meta line
             val date = novel.create_date?.replace('T', ' ')?.take(16).orEmpty()
             binding.metaDate.text = date
+            val isAi = novel.novel_ai_type == 2
+            binding.metaAi.isVisible = isAi
+            binding.metaDotAi.isVisible = isAi
             val wordCount = novel.text_length
             if (wordCount != null && wordCount > 0) {
                 binding.metaWordCount.text = context.getString(

@@ -29,6 +29,24 @@
                 android:background="@color/v3_surface_2"
                 android:contentDescription="@null"
                 android:scaleType="centerCrop" />
+
+            <!-- AI badge: shown only for AI-generated novels (novel_ai_type == 2) -->
+            <TextView
+                android:id="@+id/badge_ai"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/v3_novel_ai_badge_bg"
+                android:paddingHorizontal="5dp"
+                android:paddingVertical="2dp"
+                android:text="@string/v3_detail_ai"
+                android:textColor="@android:color/white"
+                android:textSize="8sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:visibility="visible" />
         </androidx.cardview.widget.CardView>
 
         <LinearLayout
