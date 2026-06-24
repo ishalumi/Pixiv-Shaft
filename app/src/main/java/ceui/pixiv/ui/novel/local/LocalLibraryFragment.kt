@@ -29,6 +29,9 @@ import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import com.blankj.utilcode.util.BarUtils
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 
 /**
  * 本地小说书库 —— 用户给一个文件夹，按文件夹分系列/作者、按文件名排序当列表，
@@ -49,6 +52,7 @@ class LocalLibraryFragment : Fragment(R.layout.fragment_local_library) {
     private lateinit var emptyState: View
     private lateinit var emptyText: TextView
     private lateinit var btnPick: Button
+    private var clearItem: MenuItem? = null
 
     private val adapter = LocalAdapter { entry ->
         if (entry.isDir) viewModel.drillInto(entry) else openFile(entry)
@@ -79,10 +83,18 @@ class LocalLibraryFragment : Fragment(R.layout.fragment_local_library) {
         // 不用 fitsSystemWindows（会把 status + nav 两个 inset 都套上）。
         toolbar.updatePadding(top = BarUtils.getStatusBarHeight())
         toolbar.setNavigationOnClickListener { if (!viewModel.goUp()) activity?.finish() }
-        toolbar.menu.add(Menu.NONE, MENU_PICK, Menu.NONE, getString(R.string.local_novel_pick_folder))
+        toolbar.menu.add(Menu.NONE, MENU_PICK, 0, getString(R.string.local_novel_pick_folder))
             .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        clearItem = toolbar.menu.add(Menu.NONE, MENU_CLEAR, 1, getString(R.string.local_novel_clear)).apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            isVisible = false // 没选过文件夹时无所谓清空，render 里按状态打开
+        }
         toolbar.setOnMenuItemClickListener {
-            if (it.itemId == MENU_PICK) { launchPicker(); true } else false
+            when (it.itemId) {
+                MENU_PICK -> { launchPicker(); true }
+                MENU_CLEAR -> { showClearConfirm(); true }
+                else -> false
+            }
         }
 
         breadcrumb = view.findViewById(R.id.breadcrumb)
@@ -117,12 +129,14 @@ class LocalLibraryFragment : Fragment(R.layout.fragment_local_library) {
     private fun render(state: LocalLibraryViewModel.UiState) {
         when (state) {
             is LocalLibraryViewModel.UiState.NeedRoot -> {
+                clearItem?.isVisible = false
                 toolbar.title = getString(R.string.local_novel_entry)
                 breadcrumb.visibility = View.GONE
                 adapter.submitList(emptyList())
                 showEmpty(getString(R.string.local_novel_empty_no_root), pickVisible = true)
             }
             is LocalLibraryViewModel.UiState.Browsing -> {
+                clearItem?.isVisible = true
                 toolbar.title = state.crumbs.lastOrNull()?.name ?: getString(R.string.local_novel_entry)
                 breadcrumb.text = state.crumbs.joinToString("  ›  ") { it.name }
                 breadcrumb.visibility = if (state.crumbs.size > 1) View.VISIBLE else View.GONE
@@ -155,6 +169,22 @@ class LocalLibraryFragment : Fragment(R.layout.fragment_local_library) {
         } catch (e: Exception) {
             Common.showToast(getString(R.string.local_novel_pick_failed, e.message ?: ""))
         }
+    }
+
+    /** 清空书架前确认。文案明确「不会删文件」，避免用户误以为要删小说。仅 QMUIDialog。 */
+    private fun showClearConfirm() {
+        val act = activity ?: return
+        if (act.isFinishing || act.isDestroyed) return
+        QMUIDialog.MessageDialogBuilder(act)
+            .setTitle(R.string.local_novel_clear_confirm_title)
+            .setMessage(R.string.local_novel_clear_confirm_msg)
+            .setSkinManager(QMUISkinManager.defaultInstance(act))
+            .addAction(R.string.cancel) { d, _ -> d.dismiss() }
+            .addAction(0, R.string.sure, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                viewModel.clearLibrary()
+            }
+            .show()
     }
 
     // ---- 打开正文 ------------------------------------------------------------
@@ -193,6 +223,7 @@ class LocalLibraryFragment : Fragment(R.layout.fragment_local_library) {
 
     companion object {
         private const val MENU_PICK = 1
+        private const val MENU_CLEAR = 2
     }
 }
 

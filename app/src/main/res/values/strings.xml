@@ -2209,4 +2209,7 @@
     <string name="local_novel_folder">文件夹</string>
     <string name="local_novel_pick_failed">无法访问该文件夹：%1$s</string>
     <string name="local_novel_bookmark_unsupported">本地文件不支持收藏</string>
+    <string name="local_novel_clear">清空书架</string>
+    <string name="local_novel_clear_confirm_title">清空书架？</string>
+    <string name="local_novel_clear_confirm_msg">只会移除已选的书库文件夹，本地 txt 文件不会被删除。</string>
 </resources>

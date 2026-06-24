@@ -1651,4 +1651,7 @@
     <string name="local_novel_folder">폴더</string>
     <string name="local_novel_pick_failed">이 폴더에 접근할 수 없습니다: %1$s</string>
     <string name="local_novel_bookmark_unsupported">로컬 파일은 북마크할 수 없습니다</string>
+    <string name="local_novel_clear">책장 비우기</string>
+    <string name="local_novel_clear_confirm_title">책장을 비울까요?</string>
+    <string name="local_novel_clear_confirm_msg">선택한 라이브러리 폴더만 해제합니다. 로컬 txt 파일은 삭제되지 않습니다.</string>
 </resources>

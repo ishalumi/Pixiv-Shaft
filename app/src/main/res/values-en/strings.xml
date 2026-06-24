@@ -1738,4 +1738,7 @@
     <string name="local_novel_folder">Folder</string>
     <string name="local_novel_pick_failed">Can\'t access this folder: %1$s</string>
     <string name="local_novel_bookmark_unsupported">Bookmarking isn\'t available for local files</string>
+    <string name="local_novel_clear">Clear Bookshelf</string>
+    <string name="local_novel_clear_confirm_title">Clear bookshelf?</string>
+    <string name="local_novel_clear_confirm_msg">This only removes the selected library folder. Your local .txt files won\'t be deleted.</string>
 </resources>

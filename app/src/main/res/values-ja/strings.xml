@@ -1740,4 +1740,7 @@
     <string name="local_novel_folder">フォルダ</string>
     <string name="local_novel_pick_failed">このフォルダにアクセスできません：%1$s</string>
     <string name="local_novel_bookmark_unsupported">ローカルファイルはブックマークできません</string>
+    <string name="local_novel_clear">本棚をクリア</string>
+    <string name="local_novel_clear_confirm_title">本棚をクリアしますか？</string>
+    <string name="local_novel_clear_confirm_msg">選択した書庫フォルダの登録を解除するだけです。ローカルの txt ファイルは削除されません。</string>
 </resources>

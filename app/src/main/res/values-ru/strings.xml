@@ -1644,4 +1644,7 @@
     <string name="local_novel_folder">Папка</string>
     <string name="local_novel_pick_failed">Нет доступа к этой папке: %1$s</string>
     <string name="local_novel_bookmark_unsupported">Закладки недоступны для локальных файлов</string>
+    <string name="local_novel_clear">Очистить полку</string>
+    <string name="local_novel_clear_confirm_title">Очистить книжную полку?</string>
+    <string name="local_novel_clear_confirm_msg">Будет удалена только выбранная папка библиотеки. Ваши локальные файлы .txt не будут удалены.</string>
 </resources>

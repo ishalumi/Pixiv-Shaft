@@ -1,5 +1,6 @@
 package ceui.pixiv.ui.novel.local
 
+import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.lifecycle.LiveData
@@ -76,6 +77,28 @@ class LocalLibraryViewModel : ViewModel() {
             if (gen != loadGen) return@launch
             _state.value = UiState.Browsing(crumbs.toList(), entries)
         }
+    }
+
+    /**
+     * 清空书架：只移除「已选的书库文件夹」这层绑定 —— 释放 SAF 持久授权、清掉
+     * MMKV 根 URI、回到选文件夹空态。**绝不删用户本地 txt 文件**（那是用户的小说）。
+     */
+    fun clearLibrary() {
+        val uri = treeUri
+            ?: LocalLibraryStore.rootUri?.let { runCatching { Uri.parse(it) }.getOrNull() }
+        if (uri != null) {
+            runCatching {
+                ctx().contentResolver.releasePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
+        LocalLibraryStore.rootUri = null
+        treeUri = null
+        crumbs.clear()
+        loadJob?.cancel()
+        loadGen++ // 作废在途的目录加载帧
+        _state.value = UiState.NeedRoot
     }
 
     fun drillInto(entry: Entry) {

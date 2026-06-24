@@ -1754,4 +1754,7 @@
     <string name="local_novel_folder">資料夾</string>
     <string name="local_novel_pick_failed">無法存取該資料夾：%1$s</string>
     <string name="local_novel_bookmark_unsupported">本機檔案不支援收藏</string>
+    <string name="local_novel_clear">清空書架</string>
+    <string name="local_novel_clear_confirm_title">清空書架？</string>
+    <string name="local_novel_clear_confirm_msg">只會移除已選的書庫資料夾，本機 txt 檔案不會被刪除。</string>
 </resources>

@@ -1642,4 +1642,7 @@
     <string name="local_novel_folder">Klasör</string>
     <string name="local_novel_pick_failed">Bu klasöre erişilemiyor: %1$s</string>
     <string name="local_novel_bookmark_unsupported">Yerel dosyalar için yer imi kullanılamaz</string>
+    <string name="local_novel_clear">Rafı Temizle</string>
+    <string name="local_novel_clear_confirm_title">Kitaplık rafı temizlensin mi?</string>
+    <string name="local_novel_clear_confirm_msg">Yalnızca seçili kitaplık klasörü kaldırılır. Yerel .txt dosyalarınız silinmez.</string>
 </resources>
