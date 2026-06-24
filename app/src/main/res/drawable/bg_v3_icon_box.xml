@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 本地书库 cell 的图标底框：v3 表面色 + 10dp 圆角，日夜随 v3_surface_2 切换。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_surface_2" />
+    <corners android:radius="10dp" />
+</shape>

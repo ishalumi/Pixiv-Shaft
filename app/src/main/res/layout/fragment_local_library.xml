@@ -3,13 +3,14 @@
   本地小说书库。Toolbar 抄 fragment_webview 5 件套(AppBarOverlay + popupTheme +
   navigationIcon + titleTextColor),状态栏 inset 走 BarUtils 在代码里 padding,
   不用 fitsSystemWindows(BaseActivity 开了 EdgeToEdge,会重复套 inset)。
+  正文区走 V3:v3_bg 底 + v3_surface/v3_text 色 + 居中空态。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/f5_to_deep_dark"
+    android:background="@color/v3_bg"
     android:orientation="vertical">
 
     <androidx.appcompat.widget.Toolbar
@@ -28,14 +29,14 @@
         android:id="@+id/breadcrumb"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/f5_to_deep_dark"
         android:ellipsize="start"
+        android:fontFamily="monospace"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
         android:singleLine="true"
-        android:textColor="@color/v3_text_2"
+        android:textColor="@color/v3_text_3"
         android:textSize="12sp"
-        tools:text="内部存储 / 小说 / 铁 / 崩铁3p" />
+        tools:text="内部存储 › 小说 › 铁 › 崩铁3p" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -47,34 +48,51 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingBottom="12dp"
+            android:overScrollMode="never"
+            android:paddingTop="4dp"
+            android:paddingBottom="24dp"
             tools:listitem="@layout/cell_local_library_entry" />
 
         <LinearLayout
             android:id="@+id/emptyState"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:gravity="center"
             android:orientation="vertical"
             android:padding="32dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:alpha="0.4"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_local_folder"
+                app:tint="@color/v3_text_3" />
 
             <TextView
                 android:id="@+id/emptyText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
                 android:gravity="center"
-                android:lineSpacingExtra="4dp"
+                android:lineSpacingExtra="3dp"
                 android:text="@string/local_novel_empty_no_root"
                 android:textColor="@color/v3_text_2"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/btnPick"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="@string/local_novel_pick_folder" />
+                android:minWidth="160dp"
+                android:text="@string/local_novel_pick_folder"
+                android:textColor="@color/white"
+                android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
 </LinearLayout>

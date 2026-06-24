@@ -27,6 +27,7 @@ import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
+import ceui.lisa.utils.V3Palette
 import com.blankj.utilcode.util.BarUtils
 
 /**
@@ -88,6 +89,9 @@ class LocalLibraryFragment : Fragment(R.layout.fragment_local_library) {
         emptyState = view.findViewById(R.id.emptyState)
         emptyText = view.findViewById(R.id.emptyText)
         btnPick = view.findViewById(R.id.btnPick)
+        // V3 主按钮：accent 实心 pill，色随当前主题派生（V3Palette）。
+        btnPick.background = V3Palette.from(requireContext())
+            .pillPrimary(999f * resources.displayMetrics.density)
         btnPick.setOnClickListener { launchPicker() }
 
         recycler = view.findViewById(R.id.list)
