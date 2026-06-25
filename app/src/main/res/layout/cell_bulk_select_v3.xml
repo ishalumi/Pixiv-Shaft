@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   批量选择 cell —— V3 风格:
+   - 外层 ConstraintLayout 只负责把 cell 撑成 9:16 竖图比例(thumbContainer
+     height=0dp + dimensionRatio="9:16",跟 item_illust_square 同款写法)。
+     原来是写死 140dp,3 列在平板上一格被拉成横图,centerCrop 把竖图作品的
+     上下裁掉,脸基本没了(issue #922)。竖图比例下 centerCrop 改裁两侧,脸保住。
    - thumbContainer 用 clipToOutline + 14dp 圆角 bg drawable 做剪裁
    - thumb 图 + selectedBorder(半透 colorPrimary scrim,选中时显示)都是 thumbContainer
      的 child,被同一份 14dp outline 一起剪 —— scrim 跟 image 圆角 PIXEL 级一致,
@@ -11,69 +15,77 @@
   outline 算法对不上几个像素,肉眼看"贴不上"。inset 障眼法又留了 2dp 沟,用户还是
   嫌不齐。第三版直接换成共享同一份 outline 的 scrim,从根上消掉对齐这道题。
 -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/thumbContainer"
     android:layout_width="match_parent"
-    android:layout_height="140dp"
-    android:layout_margin="4dp"
-    android:background="@drawable/bulk_select_cell_bg"
-    android:clipToOutline="true"
-    android:foreground="?attr/selectableItemBackground">
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp">
 
-    <ImageView
-        android:id="@+id/thumb"
+    <FrameLayout
+        android:id="@+id/thumbContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:adjustViewBounds="true"
-        android:contentDescription="@null"
-        android:scaleType="centerCrop" />
+        android:layout_height="0dp"
+        android:background="@drawable/bulk_select_cell_bg"
+        android:clipToOutline="true"
+        android:foreground="?attr/selectableItemBackground"
+        app:layout_constraintDimensionRatio="9:16"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <!-- 选中 scrim:半透 colorPrimary 覆盖整图,跟 image 共享 thumbContainer 的
-         14dp outline,被同一份 clip 剪,两层圆角天然 pixel 级对齐;不再有 stroke,
-         "圆角不齐"的对比根本不存在。变量名沿用 selectedBorder 是为了不动 Kotlin 侧。 -->
-    <View
-        android:id="@+id/selectedBorder"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/bulk_select_scrim"
-        android:visibility="gone"
-        tools:visibility="visible" />
+        <ImageView
+            android:id="@+id/thumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:adjustViewBounds="true"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
 
-    <!-- 多页徽章(左上) -->
-    <TextView
-        android:id="@+id/pBadge"
-        style="@style/V3StatusBadge"
-        android:layout_gravity="top|start"
-        android:layout_margin="6dp"
-        android:visibility="gone"
-        tools:text="3P"
-        tools:visibility="visible" />
+        <!-- 选中 scrim:半透 colorPrimary 覆盖整图,跟 image 共享 thumbContainer 的
+             14dp outline,被同一份 clip 剪,两层圆角天然 pixel 级对齐;不再有 stroke,
+             "圆角不齐"的对比根本不存在。变量名沿用 selectedBorder 是为了不动 Kotlin 侧。 -->
+        <View
+            android:id="@+id/selectedBorder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/bulk_select_scrim"
+            android:visibility="gone"
+            tools:visibility="visible" />
 
-    <!-- GIF 徽章(左下,避开右上 checkBadge 的位置;GIF 不可选所以也不会有 checkBadge) -->
-    <TextView
-        android:id="@+id/gifBadge"
-        style="@style/V3StatusBadge"
-        android:layout_gravity="bottom|start"
-        android:layout_margin="6dp"
-        android:textColor="#FFB454"
-        android:visibility="gone"
-        tools:text="GIF" />
+        <!-- 多页徽章(左上) -->
+        <TextView
+            android:id="@+id/pBadge"
+            style="@style/V3StatusBadge"
+            android:layout_gravity="top|start"
+            android:layout_margin="6dp"
+            android:visibility="gone"
+            tools:text="3P"
+            tools:visibility="visible" />
 
-    <!-- 选中勾标:28dp colorPrimary 实心圆 + 白勾,右上角,只在选中时显示。
-         elevation 想加但 clipToOutline 父会截阴影,留 0 -->
-    <ImageView
-        android:id="@+id/checkBadge"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
-        android:layout_gravity="top|end"
-        android:layout_margin="6dp"
-        android:background="@drawable/bulk_select_check_bg"
-        android:contentDescription="@null"
-        android:padding="4dp"
-        android:src="@drawable/ic_check_24dp"
-        android:visibility="gone"
-        app:tint="#FFFFFF"
-        tools:visibility="visible" />
-</FrameLayout>
+        <!-- GIF 徽章(左下,避开右上 checkBadge 的位置;GIF 不可选所以也不会有 checkBadge) -->
+        <TextView
+            android:id="@+id/gifBadge"
+            style="@style/V3StatusBadge"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="6dp"
+            android:textColor="#FFB454"
+            android:visibility="gone"
+            tools:text="GIF" />
+
+        <!-- 选中勾标:28dp colorPrimary 实心圆 + 白勾,右上角,只在选中时显示。
+             elevation 想加但 clipToOutline 父会截阴影,留 0 -->
+        <ImageView
+            android:id="@+id/checkBadge"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:background="@drawable/bulk_select_check_bg"
+            android:contentDescription="@null"
+            android:padding="4dp"
+            android:src="@drawable/ic_check_24dp"
+            android:visibility="gone"
+            app:tint="#FFFFFF"
+            tools:visibility="visible" />
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

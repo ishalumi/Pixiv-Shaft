@@ -31,7 +31,8 @@ import kotlinx.coroutines.withContext
  *       本 fragment 取 BulkSelectStorage.consume() 拿到列表
  *
  * 行为：
- *  - 默认全选（包含 ugoira —— consumer 内独立的 [downloadUgoira] 管线会处理）
+ *  - 默认全不选（issue #922：默认全选时整屏铺蓝 scrim，缩略图反而看不清；想要全部的
+ *    走 toolbar「全选」一下即可）
  *  - 全选 / 反选 在 toolbar 右上 menu（不再占用底部 bar）
  *  - 选中态：粗 v3_blue 边框 + 实色圆形勾标 + 微缩小 0.94，三层视觉差
  *  - 确认按钮：把选中的灌入 download_queue（走 LegacyBatchEnqueue），完成后跳转
@@ -110,7 +111,8 @@ class BulkSelectV3Fragment : Fragment() {
             val prepared = withContext(Dispatchers.IO) {
                 raw.map { illust ->
                     // ugoira 现在也走批量队列（独立 consumer 管线），不再 disable。
-                    SelectableItem(illust, selected = true, selectable = true)
+                    // 默认不选（issue #922），用户点选要的，或 toolbar 一键全选。
+                    SelectableItem(illust, selected = false, selectable = true)
                 }
             }
             items.clear()
