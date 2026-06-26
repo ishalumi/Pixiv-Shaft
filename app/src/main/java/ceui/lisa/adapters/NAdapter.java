@@ -169,6 +169,12 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
         setOnItemClickListener(new OnItemClickListener() {
             @Override
             public void onItemClick(View v, int position, int viewType) {
+                // 点击监听捕获的是 bind 时的 position。下拉刷新/clear() 会清空
+                // allItems,而屏幕上残留的旧 ViewHolder 仍可能用旧 position 触发点击,
+                // 越界拿 allItems.get(position) 会 IndexOutOfBounds 崩。先卡边界再用。
+                if (position < 0 || position >= allItems.size()) {
+                    return;
+                }
                 if (viewType == 0) {
                     Intent intent = new Intent(mContext, TemplateActivity.class);
                     intent.putExtra(Params.CONTENT, allItems.get(position));
