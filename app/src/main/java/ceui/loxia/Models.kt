@@ -724,7 +724,7 @@ data class Novel(
     override val objectUniqueId: Long
         get() = id
     override val objectType: Int
-        get() = ObjectSpec.POST
+        get() = ObjectSpec.KNovel
 }
 
 data class Series (

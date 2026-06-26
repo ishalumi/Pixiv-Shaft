@@ -18,4 +18,10 @@ object ObjectSpec {
     const val JNOVEL = 7
 
     const val UserProfile = 8
+
+    // Kotlin loxia.Novel 的专属类型。绝不能复用 POST(=IllustsBean)：插画 ID 与小说 ID
+    // 是两套独立命名空间，会在 (id, POST) 上撞键，导致 get<Novel> 取到 IllustsBean 后
+    // ClassCastException。等价于 IllustsBean(POST)↔Illust(5)、UserBean(USER)↔User(KUser)
+    // 这对 Java/Kotlin 双胞胎各自独占类型的既有约定。
+    const val KNovel = 9
 }

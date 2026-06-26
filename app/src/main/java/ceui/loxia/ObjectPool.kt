@@ -163,8 +163,13 @@ object ObjectPool {
     private fun <ObjectT : ModelObject> findObjectSpec(objClass: KClass<ObjectT>): Int {
         val classSimpleName = objClass.simpleName ?: return ObjectSpec.UNKNOWN
         return when (classSimpleName) {
-            "IllustsBean", "Novel" -> {
+            "IllustsBean" -> {
                 ObjectSpec.POST
+            }
+            "Novel" -> {
+                // 不能跟 IllustsBean 共用 POST：插画/小说 ID 各自独立，撞键会让
+                // get<Novel> 取到 IllustsBean 直接 ClassCastException。
+                ObjectSpec.KNovel
             }
             "Illust" -> {
                 ObjectSpec.Illust
