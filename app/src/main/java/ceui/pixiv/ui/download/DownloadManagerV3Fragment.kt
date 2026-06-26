@@ -89,8 +89,11 @@ class DownloadManagerV3Fragment : Fragment() {
         // (浅色主题下跟白底融合看不见)。同 BulkSelectV3.refreshSelectToggleIcon
         // 末尾对 select_toggle 做的处理。setIcon() 后 iconTintList 仍是 null
         // (MenuItem property 跟 drawable 解耦),不需要反复重设。
-        exportItem?.iconTintList = null
-        pauseToggleItem?.iconTintList = null
+        // 走 MenuItemCompat —— MenuItem.setIconTintList 是 API 26 才进 framework
+        // 的接口方法,直接 item.iconTintList= 在 API 24/25 会 NoSuchMethodError;
+        // compat 走 SupportMenuItem (AppCompat Toolbar 的 menu item 都是) 全版本安全。
+        exportItem?.let { MenuItemCompat.setIconTintList(it, null) }
+        pauseToggleItem?.let { MenuItemCompat.setIconTintList(it, null) }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_export -> {
