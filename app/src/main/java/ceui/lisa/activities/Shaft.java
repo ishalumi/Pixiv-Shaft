@@ -155,6 +155,19 @@ public class Shaft extends Application implements ServicesProvider {
                         Timber.w(t, "Suppressed GMS SecurityException on main thread");
                         continue;
                     }
+                    // 另一类 GMS 主线程 SecurityException：某些 ROM 上 Play Services
+                    // 内部去注册 PermissionManager.OnPermissionsChangedListener，需要系统级
+                    // OBSERVE_GRANT_REVOKE_PERMISSIONS 权限，普通应用拿不到，于是 GMS 在
+                    // BaseGmsClient 的 onReportServiceBinding 回调里直接把它抛到主线程
+                    // Handler，host app 没有任何 API 能阻止。permission 名字够独特，但仍要求
+                    // stack 里有 GMS 帧才放过，否则会吞掉应用自己抛的 SecurityException。
+                    if (t instanceof SecurityException
+                            && t.getMessage() != null
+                            && t.getMessage().contains("OBSERVE_GRANT_REVOKE_PERMISSIONS")
+                            && hasStackFrame(t, "com.google.android.gms")) {
+                        Timber.w(t, "Suppressed GMS permission-listener SecurityException on main thread");
+                        continue;
+                    }
                     if (t instanceof RuntimeException
                             && t.getMessage() != null
                             && t.getMessage().contains("trying to draw too large")) {
