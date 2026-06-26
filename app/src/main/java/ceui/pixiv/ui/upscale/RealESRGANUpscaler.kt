@@ -54,14 +54,17 @@ object NcnnUpscaler {
     ): File? = withContext(Dispatchers.IO) {
         val tag = model.displayName
 
-        // Check cache first
-        getCached(context, inputFile, model)?.let { cached ->
-            Timber.d("$tag: cache hit → ${cached.absolutePath}")
-            onProgress?.invoke(1f, 0f)
-            return@withContext cached
-        }
-
         try {
+            // Check cache first. md5/getCached read inputFile, which may be a Glide
+            // disk-cache file that's been LRU-evicted between the caller grabbing it and
+            // now — keep it inside the try so a FileNotFoundException returns null instead
+            // of crashing (sister BackgroundRemover does the same).
+            getCached(context, inputFile, model)?.let { cached ->
+                Timber.d("$tag: cache hit → ${cached.absolutePath}")
+                onProgress?.invoke(1f, 0f)
+                return@withContext cached
+            }
+
             val inputHash = md5(inputFile)
             val modelDir = ensureModelFiles(context, model)
             val nativeDir = context.applicationInfo.nativeLibraryDir
