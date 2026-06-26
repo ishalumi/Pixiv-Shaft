@@ -186,6 +186,22 @@ public class Shaft extends Application implements ServicesProvider {
                         Timber.w(t, "Suppressed Glide GifDrawable null-bitmap draw on main thread");
                         continue;
                     }
+                    // RecyclerView "Inconsistency detected. Invalid view holder adapter
+                    // position"：predictive-animation 预布局(dispatchLayoutStep1)在
+                    // SmartRefreshLayout + ViewPager 快速滑动 / 重入布局下，RecyclerView 内部
+                    // 把 pending insert 和 scrap holder 的偏移对不上时抛的 IOOBE。我们的
+                    // notifyItemRangeInserted 计数(beforeLoadSize→afterLoadSize 差值)是对的，
+                    // host app 在数据层无法阻止这个框架内部 bug。它会自愈：坏的这帧布局回退后，
+                    // 下一帧 Choreographer 重新 onLayout 会按 getItemCount() 干净重建。丢一帧好过
+                    // 崩进程。message 文本是 AOSP RecyclerView 写死的，且要求 stack 里有
+                    // RecyclerView 帧，绝不会吞掉应用自己抛的 IndexOutOfBoundsException。
+                    if (t instanceof IndexOutOfBoundsException
+                            && t.getMessage() != null
+                            && t.getMessage().contains("Inconsistency detected")
+                            && hasStackFrame(t, "androidx.recyclerview.widget.RecyclerView")) {
+                        Timber.w(t, "Suppressed RecyclerView layout inconsistency on main thread");
+                        continue;
+                    }
                     // android.app.RemoteServiceException$CrashedByAdbException：adb 的
                     // `am crash <pkg>` 或某些 OEM 侧 shell-induced 信号会通过
                     // ActivityThread$H 投递。这条异常的 class 是 @hide，没法 instanceof，
