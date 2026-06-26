@@ -30,6 +30,22 @@ public class StaggeredManager extends StaggeredGridLayoutManager {
     }
 
     @Override
+    public void onLayoutChildren(RecyclerView.Recycler recycler, RecyclerView.State state) {
+        // SGLM 的 predictive-animation 预布局(dispatchLayoutStep1)在快速 fling
+        // (ViewFlinger.run) + 列表插入新页同帧发生时，框架内部把 pending insert
+        // 跟 scrap holder 偏移对不上，抛 "Inconsistency detected. Invalid view
+        // holder adapter position" 的 IndexOutOfBoundsException。我们的 notify 计数
+        // 是对的，host app 在数据层无法阻止这个 AOSP 内部 bug。在 LayoutManager 这一层
+        // 兜住只丢掉这一次坏的布局，fling 不被打断，下一帧按 getItemCount() 干净重建——
+        // 比让异常一路冒到 Shaft 主线程兜底(那会整帧 Choreographer 回调全废、fling 卡死)更精准。
+        try {
+            super.onLayoutChildren(recycler, state);
+        } catch (IndexOutOfBoundsException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
     public void smoothScrollToPosition(RecyclerView recyclerView, RecyclerView.State state, int position) {
         LinearSmoothScroller scroller = new LinearSmoothScroller(recyclerView.getContext()){
             @Override
