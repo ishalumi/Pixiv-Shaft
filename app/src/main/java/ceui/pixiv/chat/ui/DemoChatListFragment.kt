@@ -19,7 +19,8 @@ import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import ceui.lisa.R
 import ceui.lisa.activities.UActivity
 import ceui.lisa.databinding.ChatFragmentDemoListBinding
@@ -377,11 +378,16 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     }
 
     private fun confirmDeleteMessage(localKey: String) {
-        MaterialAlertDialogBuilder(requireContext())
+        QMUIDialog.MessageDialogBuilder(requireContext())
             .setTitle("删除消息")
+            .setSkinManager(QMUISkinManager.defaultInstance(requireContext()))
             .setMessage("确定要删除这条消息吗？")
-            .setNegativeButton("取消", null)
-            .setPositiveButton("删除") { _, _ -> deleteMessage(localKey) }
+            .addAction("取消") { d, _ -> d.dismiss() }
+            .addAction("删除") { d, _ ->
+                d.dismiss()
+                deleteMessage(localKey)
+            }
+            .create()
             .show()
     }
 
