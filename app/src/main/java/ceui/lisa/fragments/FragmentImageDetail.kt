@@ -15,7 +15,9 @@ import ceui.lisa.R
 import ceui.lisa.activities.ImageDetailActivity
 import ceui.lisa.activities.ImageTranslationViewModel
 import ceui.lisa.activities.Shaft
+import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.FragmentImageDetailBinding
+import ceui.lisa.download.FileCreator
 import ceui.lisa.download.IllustDownload
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
@@ -389,59 +391,117 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
         val shortUrl = imageUrl?.substringAfterLast('/') ?: "null"
         Timber.d("[ImageDetail] loadImage index=$index, isUrlMode=$isUrlMode, url=$shortUrl")
 
-        if (imageUrl?.isNotEmpty() == true) {
-            // content:// URI（来自下载完成页的 SAF 路径）直接用 Sketch 加载，
-            // 不走 TaskPool/Glide，因为 Glide 没有 SAF URI 的访问权限。
-            if (imageUrl.startsWith("content://")) {
-                baseBind.image.loadImage(Uri.parse(imageUrl))
-                return
+        if (imageUrl.isNullOrEmpty()) return
+
+        // content:// URI（来自下载完成页的 SAF 路径）直接用 Sketch 加载，
+        // 不走 TaskPool/Glide，因为 Glide 没有 SAF URI 的访问权限。
+        if (imageUrl.startsWith("content://")) {
+            baseBind.image.loadImage(Uri.parse(imageUrl))
+            return
+        }
+
+        // 这一页原图若已下载到本地，直读本地文件秒展示，跳过 TaskPool 重新下原图。
+        // 与一级详情页 IllustAdapter.scanLocalDownloads 同源：按 FileCreator.customFileName
+        // （= 下载写库的 fileName）主键精确查 illust_download_table，命中即用 Sketch 直读。
+        // 修复用户反馈：多 P 未展开时点下载已下好原图，进二级详情大图却仍走进度条重新下原图。
+        //
+        // 仅当原图还没在查看器缓存里时才查库：正常浏览(原图已在 TaskPool 缓存)直接走原同步
+        // 快路径，零 DB 开销、即时显示；真正要修的「下载过但查看器没缓存」才值得多查一次库。
+        val illust = mIllustsBean
+        if (!isUrlMode && illust != null && !illust.isGif() && TaskPool.peekCachedFile(imageUrl) == null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val localUri = withContext(Dispatchers.IO) { findDownloadedPageUri(illust, index) }
+                if (localUri != null) {
+                    Timber.d("[ImageDetail] local download HIT index=$index uri=$localUri")
+                    loadFromLocal(localUri, imageUrl, isUrlMode)
+                } else {
+                    loadFromNetwork(imageUrl, isUrlMode)
+                }
             }
+            return
+        }
 
-            val task = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-            Timber.d("[ImageDetail] task acquired. taskId=${task.taskId}, status=${task.status.value}, hasResult=${task.result.value != null}, url=$shortUrl")
+        loadFromNetwork(imageUrl, isUrlMode)
+    }
 
-            // 原图尚未加载完时，若一级详情页的大图已在 Glide 缓存，先用大图占位
-            if (mIllustsBean != null && task.result.value == null) {
-                val largeUrl = IllustDownload.getUrl(
-                    mIllustsBean, index, Params.IMAGE_RESOLUTION_LARGE
-                )
-                if (!largeUrl.isNullOrEmpty() && largeUrl != imageUrl) {
-                    val largeFile = TaskPool.peekCachedFile(largeUrl)
-                    if (largeFile != null) {
-                        Timber.d("[ImageDetail] placeholder HIT path=${largeFile.absolutePath} size=${largeFile.length()}")
-                        baseBind.image.loadImage(largeFile)
+    /**
+     * 直接 Sketch 读已下载的本地文件（content:// 或 file://），不走 TaskPool 网络下载。
+     * 读失败（文件被移动/删除/无权限）就回退网络路径重新下，行为与 IllustAdapter 一致。
+     */
+    private fun loadFromLocal(localUri: Uri, imageUrl: String, isUrlMode: Boolean) {
+        baseBind.progressCircular.visibility = View.GONE
+        baseBind.image.loadImage(localUri) {
+            addListener(onError = { _, _ ->
+                Timber.w("[ImageDetail] local file load FAIL uri=$localUri, fall back to network")
+                loadFromNetwork(imageUrl, isUrlMode)
+            })
+        }
+    }
+
+    private fun loadFromNetwork(imageUrl: String, isUrlMode: Boolean) {
+        val shortUrl = imageUrl.substringAfterLast('/')
+        val task = TaskPool.getLoadTask(NamedUrl("", imageUrl))
+        Timber.d("[ImageDetail] task acquired. taskId=${task.taskId}, status=${task.status.value}, hasResult=${task.result.value != null}, url=$shortUrl")
+
+        // 原图尚未加载完时，若一级详情页的大图已在 Glide 缓存，先用大图占位
+        if (mIllustsBean != null && task.result.value == null) {
+            val largeUrl = IllustDownload.getUrl(
+                mIllustsBean, index, Params.IMAGE_RESOLUTION_LARGE
+            )
+            if (!largeUrl.isNullOrEmpty() && largeUrl != imageUrl) {
+                val largeFile = TaskPool.peekCachedFile(largeUrl)
+                if (largeFile != null) {
+                    Timber.d("[ImageDetail] placeholder HIT path=${largeFile.absolutePath} size=${largeFile.length()}")
+                    baseBind.image.loadImage(largeFile)
+                } else {
+                    Timber.d("[ImageDetail] placeholder MISS largeUrl=${largeUrl.substringAfterLast('/')}")
+                }
+            }
+        }
+
+        task.result.observe(viewLifecycleOwner) { file ->
+            Timber.d("[ImageDetail] result callback. file=${file?.absolutePath}, exists=${file?.exists()}, size=${file?.length() ?: -1}, url=$shortUrl")
+            baseBind.image.loadImage(file)
+            if (isUrlMode) {
+                baseBind.downloadButton.visibility = View.VISIBLE
+                baseBind.downloadButton.setOnClick {
+                    val ext = imageUrl.substringAfterLast('.', "jpg")
+                    val displayName = if (!saveName.isNullOrEmpty()) {
+                        "$saveName.$ext"
                     } else {
-                        Timber.d("[ImageDetail] placeholder MISS largeUrl=${largeUrl.substringAfterLast('/')}")
+                        imageUrl.substringAfterLast('/')
                     }
-                }
-            }
-
-            task.result.observe(viewLifecycleOwner) { file ->
-                Timber.d("[ImageDetail] result callback. file=${file?.absolutePath}, exists=${file?.exists()}, size=${file?.length() ?: -1}, url=$shortUrl")
-                baseBind.image.loadImage(file)
-                if (isUrlMode) {
-                    baseBind.downloadButton.visibility = View.VISIBLE
-                    baseBind.downloadButton.setOnClick {
-                        val ext = imageUrl.substringAfterLast('.', "jpg")
-                        val displayName = if (!saveName.isNullOrEmpty()) {
-                            "$saveName.$ext"
-                        } else {
-                            imageUrl.substringAfterLast('/')
-                        }
-                        val ctx = requireActivity()
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            withContext(Dispatchers.IO) {
-                                val imageId = getImageIdInGallery(ctx, displayName)
-                                if (imageId != null) {
-                                    deleteImageById(ctx, imageId)
-                                }
-                                saveImageToGallery(ctx, file, displayName)
+                    val ctx = requireActivity()
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        withContext(Dispatchers.IO) {
+                            val imageId = getImageIdInGallery(ctx, displayName)
+                            if (imageId != null) {
+                                deleteImageById(ctx, imageId)
                             }
+                            saveImageToGallery(ctx, file, displayName)
                         }
                     }
                 }
             }
-            baseBind.progressCircular.setUpWithTaskStatus(task.status, viewLifecycleOwner)
+        }
+        baseBind.progressCircular.setUpWithTaskStatus(task.status, viewLifecycleOwner)
+    }
+
+    /**
+     * 按页码查 illust_download_table 里这一页已下载文件的 Uri（content:// 或 file://）。
+     * 文件名用 [FileCreator.customFileName]，与下载写库时同源，所以是精确的逐页匹配，
+     * 走主键索引（[ceui.lisa.database.DownloadDao.getDownloadByFileName]），大下载库下仍是
+     * O(log n)。返回 null 表示这页没下过 / 记录损坏，调用方回退网络。须在 IO 线程调用。
+     */
+    private fun findDownloadedPageUri(illust: IllustsBean, page: Int): Uri? {
+        return try {
+            val dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao()
+            val entity = dao.getDownloadByFileName(FileCreator.customFileName(illust, page))
+            val path = entity?.filePath
+            if (!path.isNullOrEmpty()) Uri.parse(path) else null
+        } catch (t: Throwable) {
+            Timber.w(t, "[ImageDetail] findDownloadedPageUri failed page=%d", page)
+            null
         }
     }
 
