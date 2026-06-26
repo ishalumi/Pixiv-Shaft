@@ -39,6 +39,15 @@ object TemplateValidator {
         }
 
         if (bucket != null) {
+            // Compiling is not enough: unknown flags/variables and bad date
+            // formats only blow up at *render* time (TemplateContext), which
+            // used to slip past Save and crash the actual download. Render a
+            // sample so those errors are caught before the template is persisted.
+            when (val preview = TemplateSamples.preview(source, bucket)) {
+                is TemplateSamples.Preview.Failure ->
+                    issues += Issue(Severity.Error, "Render: ${preview.message}")
+                is TemplateSamples.Preview.Ok -> Unit
+            }
             applyBucketRules(source, bucket, issues)
         }
 

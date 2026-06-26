@@ -46,4 +46,23 @@ class TemplateValidatorTest {
         assertTrue(r.ok)
         assertTrue(r.warnings.isEmpty())
     }
+
+    /**
+     * 复现 bug 的入口：`[?p<100:…]` 能编译（被当成名为 `p<100` 的 flag），
+     * 旧校验只编译不渲染 → 放行保存 → 下载时崩。现在保存校验也渲染样本，
+     * 必须在保存前就报错拦下。
+     */
+    @Test fun `unsupported condition operator is rejected before save`() {
+        val r = TemplateValidator.validate(
+            "ShaftImages/{title}_{id}[?p<100:_p{page}].{ext}", Bucket.Illust,
+        )
+        assertFalse(r.ok)
+        assertTrue(r.errors.any { it.message.contains("p<100") })
+    }
+
+    /** 未知变量同理：编译过得了，渲染过不了，应在保存校验阶段就拦下。 */
+    @Test fun `unknown variable is rejected before save`() {
+        val r = TemplateValidator.validate("Shaft/{nope}.{ext}", Bucket.Illust)
+        assertFalse(r.ok)
+    }
 }

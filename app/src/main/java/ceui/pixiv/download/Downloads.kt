@@ -10,7 +10,7 @@ import ceui.pixiv.download.model.DownloadItem
 import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.download.sanitize.FsSanitizer
 import ceui.pixiv.download.template.DefaultTemplates
-import ceui.pixiv.download.template.Template
+import ceui.pixiv.download.template.SafeTemplateRender
 
 /**
  * Facade — the only entrypoint the rest of the app uses to convert a
@@ -46,13 +46,16 @@ class Downloads(
         backendFactory: (StorageChoice) -> StorageBackend,
     ) : this({ config }, backendFactory)
 
-    private val templateCache = HashMap<String, Template>()
-
     fun plan(item: DownloadItem): Plan {
         val resolved: ResolvedBucket = resolveBucket(item.bucket)
 
-        val template = templateCache.getOrPut(resolved.template) { Template.compile(resolved.template) }
-        val raw: RelativePath = template.render(item.meta, item.ext)
+        // Resilient render: a malformed persisted template must not crash the
+        // download (it is rendered eagerly inside the legacy DownloadItem
+        // constructor on the main thread, before any caller can catch). On
+        // failure SafeTemplateRender falls back to the bucket default.
+        val raw: RelativePath = SafeTemplateRender.render(
+            resolved.template, item.bucket, item.meta, item.ext, configProvider().pageIndexFrom1,
+        )
         val cleaned: RelativePath = FsSanitizer.clean(raw)
         val backend: StorageBackend = backendFactory(resolved.storage)
         val (finalPath, skip) = applyOverwritePolicy(cleaned, backend, resolved.overwrite)

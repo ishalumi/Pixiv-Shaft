@@ -13,7 +13,7 @@ import ceui.pixiv.download.model.Flag
 import ceui.pixiv.download.model.ItemMeta
 import ceui.pixiv.download.model.RelativePath
 import ceui.pixiv.download.sanitize.FsSanitizer
-import ceui.pixiv.download.template.Template
+import ceui.pixiv.download.template.SafeTemplateRender
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
@@ -96,8 +96,9 @@ object DownloadItems {
         val item = illustPage(illust, pageIndex)
         val config = DownloadsRegistry.store.loadOrFallback()
         val resolved = config.resolve(item.bucket)
-        val template = Template.compile(resolved.template)
-        val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
+        val rendered = SafeTemplateRender.render(
+            resolved.template, item.bucket, item.meta, item.ext, config.pageIndexFrom1,
+        )
         return FsSanitizer.clean(rendered)
     }
 
@@ -296,8 +297,9 @@ object DownloadItems {
     private fun novelDestination(item: DownloadItem, extOverride: String?): RelativePath {
         val config = DownloadsRegistry.store.loadOrFallback()
         val resolved = config.resolve(item.bucket)
-        val template = templateFor(resolved.template)
-        val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
+        val rendered = SafeTemplateRender.render(
+            resolved.template, item.bucket, item.meta, item.ext, config.pageIndexFrom1,
+        )
         val cleaned = FsSanitizer.clean(rendered)
         if (extOverride.isNullOrEmpty()) return cleaned
         val newName = swapExtension(cleaned.filename, extOverride)
@@ -316,8 +318,9 @@ object DownloadItems {
     ): RelativePath {
         val config = DownloadsRegistry.store.loadOrFallback()
         val resolved = config.resolve(item.bucket)
-        val template = templateFor(resolved.template)
-        val rendered = template.render(item.meta, item.ext, config.pageIndexFrom1)
+        val rendered = SafeTemplateRender.render(
+            resolved.template, item.bucket, item.meta, item.ext, config.pageIndexFrom1,
+        )
         val cleaned = FsSanitizer.clean(rendered)
         val finalName = FsSanitizer.cleanSegment(overrideName, preserveExtension = true)
         return RelativePath(cleaned.directory + finalName)
@@ -328,18 +331,6 @@ object DownloadItems {
         val stem = if (dot in 1 until filename.length) filename.substring(0, dot) else filename
         return "$stem.$newExt"
     }
-
-    /**
-     * Compiled-template cache, keyed by source string. Mirrors the cache in
-     * [ceui.pixiv.download.Downloads] so batch downloads (100 novels in a
-     * series) don't pay parse cost N times. The cache is process-lifetime
-     * — entries never need invalidation since every distinct template
-     * source is its own key.
-     */
-    private val templateCache = java.util.concurrent.ConcurrentHashMap<String, Template>()
-
-    private fun templateFor(source: String): Template =
-        templateCache.getOrPut(source) { Template.compile(source) }
 
     private fun metaOf(illust: IllustsBean, pageIndex: Int?): ItemMeta = ItemMeta(
         id = illust.id.toLong(),

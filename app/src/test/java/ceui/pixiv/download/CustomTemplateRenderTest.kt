@@ -115,11 +115,30 @@ class CustomTemplateRenderTest {
         assertEquals(listOf("evil_.._boom_12345.png"), plan.path.segments)
     }
 
-    /** 未知变量不该让整个下载崩溃 —— 现在依赖外层 try/catch（Manager.insert）兜底。 */
-    @Test(expected = IllegalStateException::class)
-    fun `unknown variable still throws so caller catch fires`() {
+    /**
+     * 坏模板不能崩溃下载。文件名是在 Java 端 DownloadItem 构造器里同步渲染的
+     * （主线程、Manager 接手之前），任何抛出都没人接 → 直接闪退。
+     * 现在 SafeTemplateRender 在渲染失败时退回该桶的默认模板，下载照常进行。
+     */
+    @Test fun `unknown variable falls back to bucket default instead of crashing`() {
         val facade = Downloads(cfg("{nope}.{ext}"), { NoopBackend() })
-        facade.plan(illustItem)
+        val plan = facade.plan(illustItem)
+        // 退回默认 Illust 模板（ShaftImages/{title}_{id}…），ID 仍在
+        assertTrue(
+            "坏模板应退回默认命名，实际 path = ${plan.path.joinTo()}",
+            plan.path.joinTo().contains("12345"),
+        )
+    }
+
+    /**
+     * 复现崩溃：用户把命名条件写成 `[?p<100:…]`（只支持 p>N），渲染期
+     * TemplateContext.evaluate 会因「未知 flag」抛 IllegalStateException。
+     * 这条钉住「不再崩溃、退回默认」。
+     */
+    @Test fun `unsupported page condition does not crash download`() {
+        val facade = Downloads(cfg("ShaftImages/{title}_{id}[?p<100:_p{page}].{ext}"), { NoopBackend() })
+        val plan = facade.plan(illustItem)
+        assertTrue(plan.path.joinTo().contains("12345"))
     }
 
     private class NoopBackend : StorageBackend {
