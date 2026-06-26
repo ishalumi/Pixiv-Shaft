@@ -13,7 +13,9 @@ class TokenFetcherInterceptor : Interceptor {
 
         return if (response.code == 400) {
             val gson = response.peekBody(Long.MAX_VALUE).string()
-            if (gson.contains(ClientManager.TOKEN_ERROR_1) || gson.contains(ClientManager.TOKEN_ERROR_2)) {
+            // 未登录 / 已登出时不尝试刷新 token,直接返回 400,避免 refreshAccessToken→getAccessToken 抛 "account not found" 炸 OkHttp 线程
+            if (SessionManager.isLoggedIn &&
+                (gson.contains(ClientManager.TOKEN_ERROR_1) || gson.contains(ClientManager.TOKEN_ERROR_2))) {
                 response.close()
                 val tokenForThisRequest = request.header(ClientManager.HEADER_AUTH)
                     ?.substring(ClientManager.TOKEN_HEAD.length) ?: ""
