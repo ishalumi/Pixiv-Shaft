@@ -408,7 +408,16 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
                         Timber.w(e, "[IllustAdapter] local file load FAIL pos=%d, fall back to network", position);
                         localPageUris.remove(position);
-                        loadFromNetwork(holder, position, changeSize);
+                        // Glide forbids starting/clearing a load from inside a Target/RequestListener
+                        // callback. loadFromNetwork() observes the per-URL task's *sticky* result
+                        // LiveData, which can dispatch synchronously and call Glide.into() — that
+                        // clears this very request while it's still in onLoadFailed and throws
+                        // "You can't start or clear loads in ... callbacks". Defer to the next main-
+                        // loop tick so this callback unwinds first.
+                        holder.baseBind.illust.post(() -> {
+                            if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return;
+                            loadIllust(holder, position, changeSize);
+                        });
                         return true; // 已接管，网络路径会重新填图
                     }
 
