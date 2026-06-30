@@ -142,6 +142,8 @@ abstract class BaseStripWidgetWorker(
                 Container.get().addPageToMap(pageData)
                 putExtra(Params.POSITION, 0)
                 putExtra(Params.PAGE_UUID, pageData.uuid)
+                // 进程被杀后 Container 已空，靠 UUID 取不到数据；自带 bean 让 VActivity 重建 PageData
+                putExtra(Params.WIDGET_ILLUST, illust)
             }
             val pi = PendingIntent.getActivity(
                 context,

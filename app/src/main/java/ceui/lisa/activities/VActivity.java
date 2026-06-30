@@ -27,6 +27,7 @@ import ceui.lisa.http.NullCtrl;
 import ceui.lisa.http.Retro;
 import ceui.lisa.model.ListIllust;
 import ceui.lisa.models.IllustsBean;
+import java.util.Collections;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
@@ -39,11 +40,14 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
 
     private String pageUUID = "";
     private int index = 0;
+    private IllustsBean widgetIllust = null;
 
     @Override
     protected void initBundle(Bundle bundle) {
         pageUUID = bundle.getString(Params.PAGE_UUID);
         index = bundle.getInt(Params.POSITION);
+        // widget 点击携带的单张作品：进程被杀后 Container 已空时的兜底数据源
+        widgetIllust = (IllustsBean) bundle.getSerializable(Params.WIDGET_ILLUST);
     }
 
     @Override
@@ -53,9 +57,18 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
 
     @Override
     protected void initView() {
-        PageData pageData = Container.get().getPage(pageUUID);
-        // [DEBUG-568] VActivity 重建时：PageData 还在 Container（进程级单例）→ 重建 ViewPager（fragment 全部重新加载）；
-        // PageData 不在（进程被杀过）→ 直接 finish()，用户会被多弹回一级
+        PageData found = Container.get().getPage(pageUUID);
+        // 进程被杀后 Container（内存级 HashMap）已空 → widget 点击会丢数据，之前直接 finish() 闪退回桌面
+        //（视频复现：杀掉 app 后点 widget 没反应，刷新一次重新拉活进程才能点开）。
+        // widget 的 intent 自带 IllustsBean（Serializable），用它重建单图 PageData，
+        // 这样 app 未运行时点击 widget 也能正常打开详情。
+        if (found == null && widgetIllust != null) {
+            found = new PageData(pageUUID, null, Collections.singletonList(widgetIllust));
+            Container.get().addPageToMap(found);
+        }
+        final PageData pageData = found;
+        // [DEBUG-568] PageData 在 Container（进程级单例）或由 widget intent 重建 → 重建 ViewPager；
+        // 都没有（进程被杀且非 widget 入口）→ finish()，用户会被多弹回一级
         timber.log.Timber.tag("DEBUG-568").w("VActivity initView pageUUID=%s pageDataFound=%s",
                 pageUUID, pageData != null);
         if (pageData != null) {
