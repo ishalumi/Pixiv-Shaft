@@ -28,7 +28,14 @@ public class LegacyFile {
     }
 
     public static File gifCacheFolder(Context context) {
-        File cacheDir = new File(context.getExternalCacheDir().getPath() + GIF_CACHE);
+        // getExternalCacheDir() 在外部存储不可用(卷被卸载 / 模拟外存缺失)时返回 null,
+        // 直接 .getPath() 会 NPE 把整个 Settings 页炸掉。退回内部 cache 目录——
+        // 这也是 GIF 缓存最初的落点(见 21c86322 之前),外存不可用时本就该走内部存储。
+        File base = context.getExternalCacheDir();
+        if (base == null) {
+            base = context.getCacheDir();
+        }
+        File cacheDir = new File(base.getPath() + GIF_CACHE);
         if (!cacheDir.exists()) {
             cacheDir.mkdirs();
         }
