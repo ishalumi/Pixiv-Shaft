@@ -77,17 +77,22 @@ public abstract class BaseActivity<Layout extends ViewDataBinding> extends AppCo
                 }
             }
 
-            // 系统栏统一走 EdgeToEdge：非全屏 Activity 给 SystemBarStyle.auto(primary)
-            // 让顶部 AppBar/Toolbar 的 fitsSystemWindows + colorPrimary 背景吃掉状态栏区域；
+            // 系统栏统一走 EdgeToEdge：非全屏 Activity 让顶部 AppBar/Toolbar 的
+            // fitsSystemWindows + colorPrimary 背景吃掉状态栏区域；
             // 全屏 Activity 走默认透明 scrim，由页面自己用 WindowInsets 处理。
             // 不再调 setDecorFitsSystemWindows(true) —— 它和 EdgeToEdge 互斥，
             // 在部分 OEM (HarmonyOS / EMUI) 上会让状态栏退回主题透明色而下方填 windowBackground (issue #853)。
+            //
+            // 状态栏图标固定走 dark()（= 浅色/白色图标）：状态栏区始终压在 colorPrimary
+            // 这条深色头栏上，跟系统的日夜没关系。用 auto() 会在系统浅色模式下把图标转成
+            // 黑色，黑图标叠蓝头栏看不清（issue #926，迁 EdgeToEdge 前是 setStatusBarColor
+            // 直接配白图标）。导航栏仍走 auto()——它的背景跟随日夜内容色，图标该自适应。
             if (hideStatusBar()) {
                 EdgeToEdge.enable(this);
             } else {
                 int primaryColor = Common.resolveThemeAttribute(mContext, androidx.appcompat.R.attr.colorPrimary);
                 EdgeToEdge.enable(this,
-                        SystemBarStyle.auto(primaryColor, primaryColor),
+                        SystemBarStyle.dark(primaryColor),
                         SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT));
             }
             try {
