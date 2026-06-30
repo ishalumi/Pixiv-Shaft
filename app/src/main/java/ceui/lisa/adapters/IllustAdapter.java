@@ -415,6 +415,10 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         // "You can't start or clear loads in ... callbacks". Defer to the next main-
                         // loop tick so this callback unwinds first.
                         holder.baseBind.illust.post(() -> {
+                            // By the next tick the fragment's view may be gone (user navigated
+                            // away). loadFromNetwork() reads mFragment.getViewLifecycleOwner(),
+                            // which throws once getView()==null (after onDestroyView). Bail first.
+                            if (mFragment == null || mFragment.getView() == null) return;
                             if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return;
                             loadIllust(holder, position, changeSize);
                         });
