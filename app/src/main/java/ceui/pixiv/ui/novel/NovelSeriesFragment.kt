@@ -9,10 +9,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -77,7 +75,6 @@ class NovelSeriesFragment :
     private var multiSelectBar: View? = null
     private var multiSelectDownloadBtn: TextView? = null
     private var multiSelectSelectAllBtn: TextView? = null
-    private var topToggleBtn: ImageView? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -96,12 +93,10 @@ class NovelSeriesFragment :
         // 条状按钮，所有系列页都能一眼看到。
         addDownloadAllButton()
         addMultiSelectActionBar()
-        addMultiSelectTopToggle()
 
         // Edge-to-edge safe area: TemplateActivity draws behind the status bar
-        // / display cutout, so both the floating multi-select toggle and the
-        // list's first holder need to clear systemBars.top. The list also
-        // needs extra room for the 44dp toggle + 8dp margin overlay.
+        // / display cutout, so the list's first holder needs to clear
+        // systemBars.top, plus a small breathing gap below the status bar.
         // Remove the toolbar's insets listener first — setUpToolbar sets one
         // on binding.toolbarLayout.root that calls content.updatePadding(0,0,0,bottom),
         // resetting our top padding to 0. The toolbar is GONE anyway.
@@ -109,13 +104,16 @@ class NovelSeriesFragment :
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.listView.updatePadding(
-                top = bars.top + (56 * density).toInt(),
+                top = bars.top + (12 * density).toInt(),
                 bottom = bars.bottom + (72 * density).toInt()
             )
-            topToggleBtn?.let { tb ->
-                val lp = tb.layoutParams as ConstraintLayout.LayoutParams
-                lp.topMargin = bars.top + (8 * density).toInt()
-                tb.layoutParams = lp
+            // 单下载按钮靠它那 300dp 渐变容器的内边距把自己抬离手势导航条，但多选
+            // 操作条是裸挂在 bottomCovered 底部的，只有 12dp 下外边距，会压在手势区 /
+            // 导航栏上。把底部安全区 inset 折进它的下外边距，让「全选 / 下载选中」抬起来。
+            multiSelectBar?.let { bar ->
+                val lp = bar.layoutParams as ViewGroup.MarginLayoutParams
+                lp.bottomMargin = bars.bottom + (12 * density).toInt()
+                bar.layoutParams = lp
             }
             insets
         }
@@ -293,60 +291,13 @@ class NovelSeriesFragment :
         multiSelectDownloadBtn = download
     }
 
-    /**
-     * Top-right floating toggle that flips multi-select mode. Rendered as
-     * an overlay on the root ConstraintLayout to mirror NovelTextFragment's
-     * top-actions pattern. Tinted via V3Palette so day/night both look
-     * right.
-     */
-    private fun addMultiSelectTopToggle() {
-        val density = resources.displayMetrics.density
-        val palette = V3Palette.from(requireContext())
-
-        val toggle = ImageView(requireContext()).apply {
-            // A generic "checklist" vector isn't guaranteed in the project,
-            // so reuse ic_check_circle for ON and ic_checkbox_off for OFF.
-            setImageResource(R.drawable.ic_checkbox_off)
-            setColorFilter(palette.textTag)
-            val size = (44 * density).toInt()
-            val pad = (10 * density).toInt()
-            setPadding(pad, pad, pad, pad)
-            background = palette.pillSecondary(
-                999f * density, (1 * density).toInt()
-            )
-            setOnClick {
-                val now = viewModel.isMultiSelect.value == true
-                viewModel.setMultiSelectMode(!now)
-            }
-            // Anchor top-end; topMargin is updated via the root WindowInsets
-            // listener in onViewCreated so it matches safe-area / cutout.
-            val lp = ConstraintLayout.LayoutParams(size, size).apply {
-                topToTop = ConstraintLayout.LayoutParams.PARENT_ID
-                endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
-                topMargin = (8 * density).toInt()
-                marginEnd = (12 * density).toInt()
-            }
-            layoutParams = lp
-        }
-
-        val rootLayout = binding.root as ConstraintLayout
-        rootLayout.addView(toggle)
-        topToggleBtn = toggle
-    }
-
     private fun applyMultiSelectVisibility(enabled: Boolean) {
+        // Multi-select mode is entered via the bottom sheet's "选择下载" option
+        // (showDownloadOptionsSheet → Action.Picker) and exited after a batch
+        // download finishes. The single download button and the multi-select
+        // action bar swap based on this state.
         singleDownloadBtn?.isVisible = !enabled
         multiSelectBar?.isVisible = enabled
-        val palette = V3Palette.from(requireContext())
-        topToggleBtn?.let { tb ->
-            if (enabled) {
-                tb.setImageResource(R.drawable.ic_check_circle_black_24dp)
-                tb.clearColorFilter()
-            } else {
-                tb.setImageResource(R.drawable.ic_checkbox_off)
-                tb.setColorFilter(palette.textTag)
-            }
-        }
     }
 
     private fun onClickSelectAllToggle() {
