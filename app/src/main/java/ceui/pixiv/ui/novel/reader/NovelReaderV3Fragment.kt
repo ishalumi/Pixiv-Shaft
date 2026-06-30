@@ -883,8 +883,13 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
             val currentChar = scrollReaderView?.takeIf { it.visibility == View.VISIBLE }?.currentCharIndex()
                 ?: viewModel.pagination.value?.pages?.getOrNull(readerView?.currentPageIndex() ?: 0)?.charStart
             if (currentChar != null) {
-                val target = if (forward) outline.firstOrNull { it.sourceStart > currentChar }
-                else outline.lastOrNull { it.sourceStart < currentChar } ?: outline.firstOrNull()
+                // currentChar 是阅读位置而非章首，所以「上一章」不能用
+                // lastOrNull { sourceStart < currentChar }——在章节中段它会命中
+                // 当前章自己的章首(进度归零),而不是真正的上一章。先定位当前章
+                // 下标再 ±1,跟「下一章」方向对称。
+                val currentIdx = outline.indexOfLast { it.sourceStart <= currentChar }
+                val target = if (forward) outline.getOrNull(currentIdx + 1)
+                else outline.getOrNull(currentIdx - 1)
                 if (target != null) {
                     navigateToCharIndex(target.sourceStart, animate = true)
                     return
