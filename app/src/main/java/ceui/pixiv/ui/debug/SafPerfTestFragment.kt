@@ -1,5 +1,6 @@
 package ceui.pixiv.ui.debug
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -84,8 +85,9 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri == null) return@registerForActivityResult
+        val appCtx = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
-            val (bytes, mime) = withContext(Dispatchers.IO) { loadPayload(uri) } ?: return@launch
+            val (bytes, mime) = withContext(Dispatchers.IO) { loadPayload(appCtx, uri) } ?: return@launch
             payloadBytes = bytes
             payloadMime = mime
             payloadExt = extForMime(mime)
@@ -94,13 +96,13 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
         }
     }
 
-    private fun loadPayload(uri: Uri): Pair<ByteArray, String>? = try {
-        val resolver = requireContext().contentResolver
+    private fun loadPayload(ctx: Context, uri: Uri): Pair<ByteArray, String>? = try {
+        val resolver = ctx.contentResolver
         val mime = resolver.getType(uri) ?: "image/jpeg"
         val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
         if (bytes == null) null else bytes to mime
     } catch (e: Exception) {
-        Common.showToast(getString(R.string.saf_perf_test_payload_failed, e.javaClass.simpleName))
+        Common.showToast(ctx.getString(R.string.saf_perf_test_payload_failed, e.javaClass.simpleName))
         null
     }
 
@@ -170,9 +172,10 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
         val payload = bytes
         val mime = payloadMime
         val ext = payloadExt
+        val appCtx = requireContext().applicationContext
         runningJob = viewLifecycleOwner.lifecycleScope.launch {
             val report = withContext(Dispatchers.IO) {
-                runBenchmark(uri, total, payload, mime, ext)
+                runBenchmark(appCtx, uri, total, payload, mime, ext)
             }
             appendLine(report)
             statusText.text = getString(R.string.saf_perf_test_status_idle)
@@ -205,24 +208,24 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
         }
         appendLine("──── ${getString(R.string.saf_perf_test_diag_start)} @ ${tsFormat.format(Date())} ────")
         statusText.text = getString(R.string.saf_perf_test_status_diag)
+        val appCtx = requireContext().applicationContext
         runningJob = viewLifecycleOwner.lifecycleScope.launch {
-            val report = withContext(Dispatchers.IO) { runDiag(uri, bytes, payloadMime, payloadExt) }
+            val report = withContext(Dispatchers.IO) { runDiag(appCtx, uri, bytes, payloadMime, payloadExt) }
             appendLine(report)
             statusText.text = getString(R.string.saf_perf_test_status_idle)
         }
     }
 
-    private fun runDiag(tree: Uri, payload: ByteArray, mime: String, ext: String): String {
+    private fun runDiag(ctx: Context, tree: Uri, payload: ByteArray, mime: String, ext: String): String {
         val sb = StringBuilder()
-        val ctx = requireContext().applicationContext
 
         // Step 1: root.listFiles()
         val rootDoc = androidx.documentfile.provider.DocumentFile.fromTreeUri(ctx, tree)
-            ?: return getString(R.string.saf_perf_test_purge_no_tree)
+            ?: return ctx.getString(R.string.saf_perf_test_purge_no_tree)
         val rootListStart = System.nanoTime()
         val rootChildren = rootDoc.listFiles()
         val rootListMs = (System.nanoTime() - rootListStart) / 1_000_000.0
-        sb.appendLine(getString(R.string.saf_perf_test_diag_root, rootChildren.size, rootListMs))
+        sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_root, rootChildren.size, rootListMs))
 
         // Step 2: ShaftPerfTest/.listFiles() 如果存在
         val testDir = rootChildren.firstOrNull { it.isDirectory && it.name == testDirSegment }
@@ -230,9 +233,9 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
             val testListStart = System.nanoTime()
             val testChildren = testDir.listFiles()
             val testListMs = (System.nanoTime() - testListStart) / 1_000_000.0
-            sb.appendLine(getString(R.string.saf_perf_test_diag_subdir, testChildren.size, testListMs))
+            sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_subdir, testChildren.size, testListMs))
         } else {
-            sb.appendLine(getString(R.string.saf_perf_test_diag_subdir_absent))
+            sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_subdir_absent))
         }
 
         // Step 3: 一次 backend.replace (走真实下载链路)
@@ -245,17 +248,17 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
             handle.stream.use { it.write(payload) }
             handle.onFinish()
         } catch (e: Exception) {
-            sb.appendLine(getString(R.string.saf_perf_test_diag_replace_failed, e.javaClass.simpleName, e.message ?: ""))
+            sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_replace_failed, e.javaClass.simpleName, e.message ?: ""))
             return sb.toString()
         }
         val backendMs = (System.nanoTime() - backendStart) / 1_000_000.0
-        sb.appendLine(getString(R.string.saf_perf_test_diag_replace, backendMs))
+        sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_replace, backendMs))
 
         // Step 4: 裸 createFile (绕过 backend.delete + ensureDirectory)
         // 重新拿父目录引用,模拟「已经缓存了 parent 不需要再查」的理想情况
         val testDirRefresh = rootDoc.findFile(testDirSegment)
         if (testDirRefresh == null) {
-            sb.appendLine(getString(R.string.saf_perf_test_diag_raw_no_parent))
+            sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_raw_no_parent))
             return sb.toString()
         }
         val rawName = "${UUID.randomUUID()}$ext"
@@ -265,14 +268,14 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
                 ?: error("createFile null")
             ctx.contentResolver.openOutputStream(doc.uri, "rwt")?.use { it.write(payload) }
         } catch (e: Exception) {
-            sb.appendLine(getString(R.string.saf_perf_test_diag_raw_failed, e.javaClass.simpleName, e.message ?: ""))
+            sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_raw_failed, e.javaClass.simpleName, e.message ?: ""))
             return sb.toString()
         }
         val rawMs = (System.nanoTime() - rawStart) / 1_000_000.0
-        sb.appendLine(getString(R.string.saf_perf_test_diag_raw, rawMs))
+        sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_raw, rawMs))
 
         // Step 5: 结论提示
-        sb.appendLine(getString(R.string.saf_perf_test_diag_conclusion, rootListMs, backendMs, rawMs))
+        sb.appendLine(ctx.getString(R.string.saf_perf_test_diag_conclusion, rootListMs, backendMs, rawMs))
         return sb.toString()
     }
 
@@ -289,8 +292,9 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
         cancelFlag.set(false)
         appendLine("──── ${getString(R.string.saf_perf_test_purge_start)} @ ${tsFormat.format(Date())} ────")
         statusText.text = getString(R.string.saf_perf_test_status_purging)
+        val appCtx = requireContext().applicationContext
         runningJob = viewLifecycleOwner.lifecycleScope.launch {
-            val msg = withContext(Dispatchers.IO) { purgeTestDir(uri) }
+            val msg = withContext(Dispatchers.IO) { purgeTestDir(appCtx, uri) }
             appendLine(msg)
             statusText.text = getString(R.string.saf_perf_test_status_idle)
         }
@@ -303,13 +307,14 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
      * 顺带反映写带宽。进度上报粒度 [PROGRESS_EVERY],便于看曲线。
      */
     private suspend fun runBenchmark(
+        ctx: Context,
         tree: Uri,
         total: Int,
         payload: ByteArray,
         mime: String,
         ext: String,
     ): String {
-        val backend = SafBackend(requireContext().applicationContext, tree)
+        val backend = SafBackend(ctx, tree)
         val batchStart = LongArray(1) { System.nanoTime() }
         val totalStart = System.nanoTime()
         var done = 0
@@ -318,7 +323,7 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
         try {
             while (done < total) {
                 if (cancelFlag.get()) {
-                    return getString(
+                    return ctx.getString(
                         R.string.saf_perf_test_cancelled,
                         done, total,
                         (System.nanoTime() - totalStart) / 1_000_000_000.0,
@@ -336,7 +341,7 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
                         throw e
                     }
                 } catch (e: Exception) {
-                    return getString(
+                    return ctx.getString(
                         R.string.saf_perf_test_failed,
                         done, total, e.javaClass.simpleName, e.message ?: "",
                     )
@@ -350,7 +355,7 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
                 val tickTotal = total
                 statusText.post {
                     if (isAdded) {
-                        statusText.text = getString(R.string.saf_perf_test_status_running, tickDone, tickTotal)
+                        statusText.text = ctx.getString(R.string.saf_perf_test_status_running, tickDone, tickTotal)
                     }
                 }
 
@@ -363,12 +368,12 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
                     val avgRate = if (totalSec > 0) done / totalSec else 0.0
                     batchStart[0] = now
                     lastBatchDoneCount = done
-                    val progressLine = getString(
+                    val progressLine = ctx.getString(
                         R.string.saf_perf_test_progress,
                         done, total, totalSec, batchCount, batchSec, batchRate, avgRate,
                     )
                     withContext(Dispatchers.Main) {
-                        statusText.text = getString(R.string.saf_perf_test_status_running, done, total)
+                        statusText.text = ctx.getString(R.string.saf_perf_test_status_running, done, total)
                         appendLineDirect(progressLine)
                     }
                 }
@@ -377,7 +382,7 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
             // no-op; backend is local and GC'd
         }
         val totalSec = (System.nanoTime() - totalStart) / 1_000_000_000.0
-        return getString(
+        return ctx.getString(
             R.string.saf_perf_test_done,
             total, totalSec, total / totalSec,
         )
@@ -387,14 +392,14 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
      * 递归删 `ShaftPerfTest/` 整目录。30000 个 child 也得列一遍,这一步本身
      * 就是 SAF 列目录速度的另一个观测点 —— 「purge 都慢」也是有用信号。
      */
-    private suspend fun purgeTestDir(tree: Uri): String {
+    private suspend fun purgeTestDir(ctx: Context, tree: Uri): String {
         val started = System.nanoTime()
         val root = androidx.documentfile.provider.DocumentFile.fromTreeUri(
-            requireContext().applicationContext, tree
-        ) ?: return getString(R.string.saf_perf_test_purge_no_tree)
+            ctx, tree
+        ) ?: return ctx.getString(R.string.saf_perf_test_purge_no_tree)
         val testDir = root.findFile(testDirSegment)
         if (testDir == null || !testDir.isDirectory) {
-            return getString(R.string.saf_perf_test_purge_empty)
+            return ctx.getString(R.string.saf_perf_test_purge_empty)
         }
         val listStart = System.nanoTime()
         val children = testDir.listFiles()
@@ -406,13 +411,13 @@ class SafPerfTestFragment : Fragment(R.layout.fragment_saf_perf_test) {
             if (child.delete()) deleted++
             if (deleted % 500 == 0) {
                 withContext(Dispatchers.Main) {
-                    statusText.text = getString(R.string.saf_perf_test_status_purging_n, deleted, count)
+                    statusText.text = ctx.getString(R.string.saf_perf_test_status_purging_n, deleted, count)
                 }
             }
         }
         runCatching { testDir.delete() }
         val totalSec = (System.nanoTime() - started) / 1_000_000_000.0
-        return getString(R.string.saf_perf_test_purge_done, deleted, count, listSec, totalSec)
+        return ctx.getString(R.string.saf_perf_test_purge_done, deleted, count, listSec, totalSec)
     }
 
     private fun appendLine(line: String) {
