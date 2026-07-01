@@ -2,7 +2,6 @@ package ceui.pixiv.ui.common
 
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
@@ -24,14 +23,10 @@ import ceui.lisa.activities.Shaft
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.DownloadEntity
 import ceui.lisa.databinding.LayoutToolbarBinding
-import ceui.lisa.utils.Common
 import ceui.loxia.Illust
 import ceui.loxia.ObjectPool
 import ceui.loxia.findActionReceiverOrNull
 import ceui.loxia.getHumanReadableMessage
-import ceui.loxia.observeEvent
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
 import ceui.pixiv.ui.task.TaskStatus
 import ceui.pixiv.ui.works.PagedImgActionReceiver
 import ceui.pixiv.ui.works.ToggleToolnarViewModel
@@ -41,12 +36,10 @@ import ceui.pixiv.utils.animateFadeInQuickly
 import ceui.pixiv.utils.animateFadeOutQuickly
 import ceui.pixiv.utils.setOnClick
 import com.blankj.utilcode.util.UriUtils
-import com.github.panpf.sketch.loadImage
 import com.github.panpf.zoomimage.SketchZoomImageView
 import com.github.panpf.zoomimage.view.zoom.OnViewTapListener
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -75,7 +68,6 @@ abstract class ImgDisplayFragment(layoutId: Int) : PixivFragment(layoutId) {
                 viewModel.toggleFullscreen()
             }
         }
-        val activity = requireActivity()
         val url = contentUrl()
         if (url.isEmpty()) {
             Timber.d("ImgDisplayFragment display img: empty")
@@ -83,25 +75,6 @@ abstract class ImgDisplayFragment(layoutId: Int) : PixivFragment(layoutId) {
         }
 
         Timber.d("ImgDisplayFragment display img: ${url}")
-        val namedUrl = NamedUrl(displayName(), url)
-        val task = TaskPool.getLoadTask(namedUrl)
-        task.result.observe(viewLifecycleOwner) { file ->
-            displayImg.loadImage(file)
-            downloadButton.setOnClick {
-                performDownload(activity, file)
-            }
-            val resolution = getImageDimensions(file)
-            Common.showLog("sadasd2 bb ${resolution}")
-            Common.showLog("sadasd2 cc ${getFileSize(file)}")
-        }
-        if (parentFragment is ViewPagerFragment) {
-            viewPagerViewModel.downloadEvent.observeEvent(viewLifecycleOwner) { index ->
-                task.result.value?.let { file ->
-                    performDownload(activity, file)
-                }
-            }
-        }
-        progressCircular.setUpWithTaskStatus(task.status, viewLifecycleOwner)
     }
 
     private fun performDownload(activity: FragmentActivity, file: File) {

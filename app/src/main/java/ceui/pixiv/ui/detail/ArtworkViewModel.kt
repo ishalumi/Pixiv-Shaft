@@ -26,7 +26,6 @@ import ceui.pixiv.ui.common.LoadingHolder
 import ceui.pixiv.ui.common.RefreshOwner
 import ceui.pixiv.ui.common.createResponseStore
 import ceui.pixiv.ui.user.UserPostHolder
-import ceui.pixiv.ui.works.getGalleryHolders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -90,8 +89,6 @@ class ArtworkViewModel(
             }
         } ?: return
         val result = mutableListOf<ListItemHolder>()
-        val images = getGalleryHolders(illust)
-        result.addAll(images ?: listOf())
         result.add(RedSectionHeaderHolder("标题"))
         result.add(ArtworkInfoHolder(illustId))
         result.add(RedSectionHeaderHolder(context.getString(R.string.string_432)))

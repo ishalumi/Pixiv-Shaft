@@ -29,9 +29,6 @@ import ceui.pixiv.ui.common.ListMode
 import ceui.pixiv.ui.common.constructVM
 import ceui.pixiv.ui.common.setUpRefreshState
 import ceui.pixiv.ui.common.shareIllust
-import ceui.pixiv.ui.works.GalleryActionReceiver
-import ceui.pixiv.ui.works.GalleryHolder
-import ceui.pixiv.ui.works.PagedImgUrlFragmentArgs
 
 import ceui.pixiv.widgets.MenuItem
 import ceui.pixiv.widgets.showActionMenu
@@ -40,12 +37,9 @@ import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.related.RelatedIllustsFragmentArgs
 import ceui.pixiv.ui.works.blurBackground
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import timber.log.Timber
 import kotlin.getValue
 
-class ArtworkFragment : PixivFragment(R.layout.fragment_pixiv_list), FitsSystemWindowFragment, GalleryActionReceiver, SeeMoreAction {
+class ArtworkFragment : PixivFragment(R.layout.fragment_pixiv_list), FitsSystemWindowFragment, SeeMoreAction {
 
     private val binding by viewBinding(FragmentPixivListBinding::bind)
     private val safeArgs by threadSafeArgs<ArtworkFragmentArgs>()
@@ -124,16 +118,6 @@ class ArtworkFragment : PixivFragment(R.layout.fragment_pixiv_list), FitsSystemW
                 }
             }
         }
-    }
-
-    override fun onClickGalleryHolder(index: Int, galleryHolder: GalleryHolder) {
-        pushFragment(
-            R.id.navigation_paged_img_urls,
-            PagedImgUrlFragmentArgs(
-                safeArgs.illustId,
-                index
-            ).toBundle()
-        )
     }
 
     override fun seeMore(type: Int) {

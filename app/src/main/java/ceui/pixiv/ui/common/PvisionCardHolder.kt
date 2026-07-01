@@ -1,15 +1,9 @@
 package ceui.pixiv.ui.common
 
 import ceui.lisa.annotations.ItemHolder
-import ceui.lisa.databinding.CellNovelCardBinding
 import ceui.lisa.databinding.CellPvisionCardBinding
-import ceui.lisa.databinding.CellPvisionMiniCardBinding
-import ceui.lisa.utils.GlideUrlChild
 import ceui.loxia.Article
-import ceui.loxia.Novel
 import ceui.loxia.findActionReceiverOrNull
-import ceui.pixiv.ui.task.LoadTask
-import com.bumptech.glide.Glide
 
 class PvisionCardHolder(val article: Article) : ListItemHolder() {
 

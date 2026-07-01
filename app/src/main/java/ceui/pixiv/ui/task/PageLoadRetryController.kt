@@ -75,8 +75,6 @@ class PageLoadRetryController(
             .filter { it.value is TaskStatus.Error }
             .map { it.key }
         for (idx in failedIndices) {
-            val url = urlAtIndex(idx) ?: continue
-            TaskPool.removeTask(url)
             statuses.remove(idx)
             failedCount--
             onRetryAt(idx)

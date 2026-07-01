@@ -1,9 +1,7 @@
 package ceui.loxia
 
-import ceui.lisa.activities.Shaft
 import ceui.lisa.helper.LanguageHelper
 import ceui.pixiv.session.SessionManager
-import ceui.pixiv.ui.task.TaskPool
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response

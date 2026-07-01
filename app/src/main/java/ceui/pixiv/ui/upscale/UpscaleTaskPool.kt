@@ -3,7 +3,9 @@ package ceui.pixiv.ui.upscale
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import ceui.pixiv.ui.task.TaskPool
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -18,6 +20,7 @@ class UpscaleTask(
 ) {
     private val _progress = MutableLiveData(0f)
     val progress: LiveData<Float> = _progress
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _eta = MutableLiveData(0f)
     val eta: LiveData<Float> = _eta
@@ -35,7 +38,7 @@ class UpscaleTask(
         _status.value = UpscaleStatus.Running
         _progress.value = 0f
 
-        TaskPool.scope.launch {
+        scope.launch {
             val result = NcnnUpscaler.upscale(context, inputFile, model) { percent, etaSeconds ->
                 _progress.postValue(percent)
                 _eta.postValue(etaSeconds)
