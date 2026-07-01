@@ -4,14 +4,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.databinding.CellComicPageBinding
-import ceui.pixiv.ui.task.LoadTask
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
+import ceui.pixiv.imageloader.Disposable
+import ceui.pixiv.imageloader.ImageLoadState
+import ceui.pixiv.imageloader.ImageLoaderV3
+import ceui.pixiv.imageloader.observeState
 import ceui.pixiv.ui.task.TaskStatus
 import com.github.panpf.sketch.loadImage
 import com.github.panpf.zoomimage.util.OffsetCompat
@@ -19,13 +19,12 @@ import com.github.panpf.zoomimage.view.zoom.OnViewLongPressListener
 import com.github.panpf.zoomimage.view.zoom.OnViewTapListener
 import com.github.panpf.zoomimage.zoom.ContentScaleCompat
 import timber.log.Timber
-import java.io.File
 
 /**
  * 漫画页面适配器：依赖倒置后只接 [LifecycleOwner] 与函数引用，不再引用 Fragment / Settings。
  *
  * 职责单一：把 [ComicReaderV3ViewModel.ComicPage] 渲染到 [com.github.panpf.zoomimage.SketchZoomImageView]。
- * 加载链路：URL 由 [urlResolver] 决定 → TaskPool 下载 → image.loadImage(file)。
+ * 加载链路：URL 由 [urlResolver] 决定 → V3 imageloader(进程级共享任务/去重/跨导航保留) → image.loadImage(file)。
  *
  * 业务规则（preview vs original / fitMode 映射）由调用方注入，符合单向依赖。
  */
@@ -68,9 +67,7 @@ class ComicPagerAdapter(
         private val onPageStatusChanged: ((Int, TaskStatus) -> Unit)?,
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        private var currentTask: LoadTask? = null
-        private var resultObserver: Observer<File?>? = null
-        private var statusObserver: Observer<TaskStatus>? = null
+        private var imageDisposable: Disposable? = null
 
         init {
             // OffsetCompat 是 Kotlin value class，SAM lambda 不能转换成 mangled 方法名，
@@ -95,7 +92,7 @@ class ComicPagerAdapter(
             }
             binding.reload.setOnClickListener {
                 val current = binding.root.tag as? ComicReaderV3ViewModel.ComicPage ?: return@setOnClickListener
-                TaskPool.removeTask(urlResolver(current))
+                // 重绑：bind 内对 Error 终态任务会 retry()（对齐旧 TaskPool removeTask 后重下）。
                 bind(current)
             }
         }
@@ -109,44 +106,43 @@ class ComicPagerAdapter(
             binding.progress.visibility = View.VISIBLE
 
             val url = urlResolver(page)
-            val task = TaskPool.getLoadTask(NamedUrl("", url))
-            currentTask = task
-            task.result.value?.let { binding.image.loadImage(it) }
+            val task = ImageLoaderV3.obtain(url)
+            // 上一次失败的任务在(重新)绑定时重来一次，对齐旧 TaskPool「取到 errored 即重下」。
+            if (task.state.value is ImageLoadState.Error) task.retry()
+            // 已下好则秒显(共享/缓存命中)。
+            task.currentFile?.let { binding.image.loadImage(it) }
 
-            val rObs = Observer<File?> { file ->
-                if (file == null) return@Observer
-                Timber.d("[ComicPager] page=${page.index} file ready size=${file.length()}")
-                binding.image.loadImage(file)
-                binding.progress.visibility = View.GONE
-                binding.reload.visibility = View.GONE
-            }
-            val sObs = Observer<TaskStatus> { status ->
-                when (status) {
-                    is TaskStatus.Executing -> {
+            imageDisposable = task.observeState(lifecycleOwner) { state ->
+                when (state) {
+                    is ImageLoadState.Loading -> {
                         binding.progress.visibility = View.VISIBLE
                         binding.reload.visibility = View.GONE
+                        onPageStatusChanged?.invoke(page.index, TaskStatus.Executing(state.percent))
                     }
-                    is TaskStatus.Finished -> binding.progress.visibility = View.GONE
-                    is TaskStatus.Error -> {
+                    is ImageLoadState.Success -> {
+                        Timber.d("[ComicPager] page=${page.index} file ready size=${state.file.length()}")
+                        binding.image.loadImage(state.file)
+                        binding.progress.visibility = View.GONE
+                        binding.reload.visibility = View.GONE
+                        onPageStatusChanged?.invoke(page.index, TaskStatus.Finished)
+                    }
+                    is ImageLoadState.Error -> {
                         binding.progress.visibility = View.GONE
                         binding.reload.visibility = View.VISIBLE
+                        val cause = state.cause
+                        onPageStatusChanged?.invoke(
+                            page.index,
+                            TaskStatus.Error(if (cause is Exception) cause else Exception(cause)),
+                        )
                     }
-                    else -> Unit
+                    ImageLoadState.Idle -> Unit
                 }
-                onPageStatusChanged?.invoke(page.index, status)
             }
-            resultObserver = rObs
-            statusObserver = sObs
-            task.result.observe(lifecycleOwner, rObs)
-            task.status.observe(lifecycleOwner, sObs)
         }
 
         fun clearObservers() {
-            val task = currentTask ?: return
-            resultObserver?.let { task.result.removeObserver(it) }
-            statusObserver?.let { task.status.removeObserver(it) }
-            resultObserver = null
-            statusObserver = null
+            imageDisposable?.dispose()
+            imageDisposable = null
         }
     }
 

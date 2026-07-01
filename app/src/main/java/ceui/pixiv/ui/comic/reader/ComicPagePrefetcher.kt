@@ -1,14 +1,13 @@
 package ceui.pixiv.ui.comic.reader
 
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
+import ceui.pixiv.imageloader.ImageLoaderV3
 
 /**
  * 真正给 [ComicReaderSettings.preloadAhead] 兜底的主动预取器。
  * 设置值变化时，下一次 [prefetchAround] 会立即按新值生效，不像 ViewPager2.offscreenPageLimit
  * 那样只在 view 创建时读一次。
  *
- * 对同一 (current, end) 二元组做 dedup，避免每次翻页都重复 hit TaskPool。
+ * 对同一 (current, end) 二元组做 dedup，避免每次翻页都重复 hit imageloader。
  */
 class ComicPagePrefetcher {
     private var lastFingerprint: Long = -1L
@@ -25,7 +24,7 @@ class ComicPagePrefetcher {
         lastFingerprint = fp
         for (i in (currentIndex + 1)..end) {
             val url = if (original) pages[i].originalUrl else pages[i].previewUrl
-            TaskPool.getLoadTask(NamedUrl("", url), autoStart = true)
+            ImageLoaderV3.obtain(url)
         }
     }
 
