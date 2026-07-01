@@ -31,16 +31,6 @@
     </fragment>
 
     <fragment
-        android:id="@+id/navigation_cache_list"
-        android:name="ceui.pixiv.ui.task.CacheFileFragment"
-        tools:layout="@layout/fragment_pixiv_list">
-
-        <argument
-            android:name="task"
-            app:argType="ceui.pixiv.ui.task.HumanReadableTask" />
-    </fragment>
-
-    <fragment
         android:id="@+id/navigation_square"
         android:name="ceui.pixiv.ui.chats.SquareFragment"
         tools:layout="@layout/fragment_pixiv_list">
@@ -69,11 +59,6 @@
         android:id="@+id/navigation_search_all"
         android:name="ceui.pixiv.ui.search.SearchAllFragment"
         tools:layout="@layout/fragment_search_all" />
-
-    <fragment
-        android:id="@+id/navigation_task_preview_list"
-        android:name="ceui.pixiv.ui.task.TaskListFragment"
-        tools:layout="@layout/fragment_pixiv_list" />
 
     <fragment
         android:id="@+id/navigation_blocking_item_list"

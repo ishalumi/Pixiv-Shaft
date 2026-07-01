@@ -20,8 +20,10 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import ceui.lisa.R
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
+import ceui.pixiv.imageloader.Disposable
+import ceui.pixiv.imageloader.ImageLoadState
+import ceui.pixiv.imageloader.ImageLoaderV3
+import ceui.pixiv.imageloader.observeState
 import ceui.pixiv.utils.ppppx
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -66,6 +68,7 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
      * before doing anything, so a still-downloading prev/next no longer fires after the user
      * skipped past it. */
     private var loadEpoch: Long = 0
+    private var pendingLoad: Disposable? = null
 
     /** Owned handler so cleanup is deterministic. `view?.postDelayed/removeCallbacks` is fragile:
      * once the view detaches, View.removeCallbacks silently skips the looper queue and only clears
@@ -175,8 +178,10 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
 
         // Always make sure download is queued.
         ensurePreload(url)
-        val task = TaskPool.getLoadTask(NamedUrl(s.titles.getOrNull(idx).orEmpty(), url))
-        val cached = task.result.value
+        val task = ImageLoaderV3.obtain(url, s.titles.getOrNull(idx).orEmpty())
+        // 上一次失败的任务在(重新)展示时重来一次，对齐旧 TaskPool「取到 errored 即重下」，避免卡在黑屏。
+        if (task.state.value is ImageLoadState.Error) task.retry()
+        val cached = task.currentFile
         if (cached != null && cached.exists()) {
             if (initial) displayFirstImage(cached) else performTransition(cached)
             return
@@ -184,10 +189,13 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
         // Need to wait. Show the loading dim only on initial / manual jumps so auto-advance
         // stays seamless (the previous image keeps playing).
         loadingOverlay.isVisible = true
-        task.result.observe(viewLifecycleOwner) { file ->
-            if (myEpoch != loadEpoch) return@observe
-            if (file == null || !file.exists()) return@observe
-            if (!isAdded || view == null) return@observe
+        // 摘掉上一张还在等的观察，避免长时间放映累积 collector。
+        pendingLoad?.dispose()
+        pendingLoad = task.observeState(viewLifecycleOwner) { state ->
+            if (myEpoch != loadEpoch) return@observeState
+            val file = (state as? ImageLoadState.Success)?.file ?: return@observeState
+            if (!file.exists()) return@observeState
+            if (!isAdded || view == null) return@observeState
             // One-shot: bump the epoch so any duplicate emit (shouldn't happen but be safe) is
             // ignored.
             loadEpoch += 1
@@ -310,7 +318,7 @@ class SlideshowFragment : Fragment(R.layout.fragment_slideshow) {
     }
 
     private fun ensurePreload(url: String) {
-        TaskPool.getLoadTask(NamedUrl("", url))
+        ImageLoaderV3.obtain(url)
     }
 
     /**

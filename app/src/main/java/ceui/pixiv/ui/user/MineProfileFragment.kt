@@ -106,11 +106,6 @@ class MineProfileFragment : PixivFragment(R.layout.fragment_pixiv_list) {
                             CommonViewPagerFragmentArgs(ViewPagerContentType.MyBlockingHistory).toBundle()
                         )
                     },
-                    TabCellHolder(getString(R.string.created_tasks)).onItemClick {
-                        pushFragment(
-                            R.id.navigation_task_preview_list,
-                        )
-                    },
                     TabCellHolder(getString(R.string.action_settings)).onItemClick {
                         pushFragment(
                             R.id.navigation_settings,

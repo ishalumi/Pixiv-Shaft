@@ -122,7 +122,6 @@ open class FetchAllTask<Item, ResponseT: KListShow<Item>>(
     }
 
     open fun onEnd(humanReadableTask: HumanReadableTask, results: List<Item>) {
-        activity.findCurrentFragmentOrNull()?.pushFragment(R.id.navigation_cache_list, CacheFileFragmentArgs(task = humanReadableTask).toBundle())
         ToastUtils.show("全部结束")
         Common.showLog("FetchAllTask all end ${this.results.size}")
     }
