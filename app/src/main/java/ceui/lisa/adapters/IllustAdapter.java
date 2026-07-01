@@ -46,11 +46,13 @@ import ceui.lisa.models.IllustsBean;
 import ceui.lisa.transformer.LargeBitmapScaleTransformer;
 import ceui.lisa.transformer.UniformScaleTransformation;
 import ceui.lisa.utils.Common;
+import ceui.lisa.utils.GlideUrlChild;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
-import ceui.pixiv.ui.task.LoadTask;
-import ceui.pixiv.ui.task.NamedUrl;
-import ceui.pixiv.ui.task.TaskPool;
+import ceui.pixiv.utils.SketchPreloader;
+import ceui.pixiv.imageloader.ImageLoadState;
+import ceui.pixiv.imageloader.ImageLoadTask;
+import ceui.pixiv.imageloader.ImageLoaderV3;
 import ceui.pixiv.ui.task.TaskStatus;
 
 public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDetailBinding>> {
@@ -154,9 +156,12 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         // Detach this holder's LoadTask observers (see loadIllust) so they don't outlive
         // the bind and pile up on the per-URL task's LiveData.
         detachTaskObservers(holder);
-        // Cancel any in-flight Glide load targeting this ImageView so a late-arriving
+        // Cancel any in-flight Glide load targeting these ImageViews so a late-arriving
         // bitmap from the previous bind can't leak into the recycled holder.
         Glide.with(mFragment).clear(holder.baseBind.illust);
+        Glide.with(mFragment).clear(holder.baseBind.illustHd);
+        holder.baseBind.illustHd.setImageDrawable(null);
+        holder.baseBind.illustHd.setVisibility(View.GONE);
         holder.baseBind.illust.setTag(R.id.tag_image_url, null);
     }
 
@@ -256,6 +261,11 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         // registering new ones. Prevents unbounded observer accumulation across rebinds. #912
         detachTaskObservers(holder);
 
+        // 复用前重置「顶层原图」overlay，避免上一条的原图盖在这次的图上。底层 large 由各渲染路径自行覆盖。
+        Glide.with(mFragment).clear(holder.baseBind.illustHd);
+        holder.baseBind.illustHd.setImageDrawable(null);
+        holder.baseBind.illustHd.setVisibility(View.GONE);
+
         // 命中已下载的本地文件就直读，跳过网络 LoadTask —— 详情页展开多图复用下载结果。
         Uri localUri = localPageUris.get(position);
         if (localUri != null) {
@@ -266,119 +276,156 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
     }
 
     private void loadFromNetwork(ViewHolder<RecyIllustDetailBinding> holder, int position, boolean changeSize) {
-        final String imageUrl;
-        boolean isLoadOriginalImage = Shaft.sSettings.isShowOriginalPreviewImage() || isForceOriginal;
-        if (isLoadOriginalImage) {
-            imageUrl = IllustDownload.getUrl(allIllust, position, Params.IMAGE_RESOLUTION_ORIGINAL);
-        } else {
-            imageUrl = IllustDownload.getUrl(allIllust, position, Params.IMAGE_RESOLUTION_LARGE);
-        }
+        boolean loadOriginal = Shaft.sSettings.isShowOriginalPreviewImage() || isForceOriginal;
+        final String largeUrl = IllustDownload.getUrl(allIllust, position, Params.IMAGE_RESOLUTION_LARGE);
+        final String targetUrl = loadOriginal
+                ? IllustDownload.getUrl(allIllust, position, Params.IMAGE_RESOLUTION_ORIGINAL)
+                : largeUrl;
 
-        // Stamp the ImageView with the URL this bind intends to display. Task LiveData
-        // observers are attached to the fragment's viewLifecycleOwner and persist across
-        // rebinds; a late-arriving callback from a previous position would otherwise
-        // push the wrong bitmap into a recycled holder. Every callback below checks the
-        // tag before mutating UI so stale callbacks become no-ops.
-        holder.baseBind.illust.setTag(R.id.tag_image_url, imageUrl);
-
-        // Reset stale Error-state UI before the new task can fire its first status. Recycled
-        // holders and retry-all rebinds both hit this path; without the reset the "重新加载"
-        // button stays visible until the new download finishes.
+        // tag = 本次 bind 想显示的「最终」url;所有回调据此判 stale,复用时旧回调自动变 no-op(#912)。
+        holder.baseBind.illust.setTag(R.id.tag_image_url, targetUrl);
         holder.baseBind.reload.setVisibility(View.GONE);
+        holder.baseBind.reload.setOnClickListener(v -> loadIllust(holder, position, changeSize));
+
+        // 总是先用 large 秒显 —— 命中外面瀑布流 A 已加载的 Glide 内存/磁盘缓存(同 url 同 key,立即出图)。
+        // 「仅 large」模式下它就是最终图;「原图」模式下它是即时占位,原图下好再覆盖上去。
         holder.baseBind.progressLayout.donutProgress.setVisibility(View.VISIBLE);
         holder.baseBind.progressLayout.donutProgress.setProgress(0);
+        renderBase(holder, position, changeSize, new GlideUrlChild(largeUrl), targetUrl, /*isFinal=*/!loadOriginal);
 
-        holder.baseBind.reload.setOnClickListener(v -> {
-            TaskPool.INSTANCE.removeTask(imageUrl);
-            loadIllust(holder, position, changeSize);
-        });
+        if (!loadOriginal) {
+            // 设置没开加载原图 → 停在 large:不建 imageloader 任务、不下原图。
+            return;
+        }
 
-        LifecycleOwner lifecycleOwner = mFragment.getViewLifecycleOwner();
-        String shortUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-        LoadTask task = TaskPool.INSTANCE.getLoadTask(new NamedUrl("", imageUrl), true);
-        Timber.d("[IllustAdapter] loadIllust pos=%d, isOriginal=%b, taskId=%d, taskStatus=%s, url=%s",
-                position, isLoadOriginalImage, task.getTaskId(), task.getStatus().getValue(), shortUrl);
+        // 设置开了 → 在 large 占位之上再加载原图(imageloader 共享任务,与大图页 C 复用同一次下载/进度/结果)。
+        String shortUrl = targetUrl.substring(targetUrl.lastIndexOf('/') + 1);
+        ImageLoadTask task = ImageLoaderV3.obtain(targetUrl);
+        // 已失败的任务在(重新)绑定时强制重来一次(对齐旧 TaskPool「rebind 即重下」+ 让重试横幅生效)。
+        if (task.getState().getValue() instanceof ImageLoadState.Error) {
+            task.retry();
+        }
+        Timber.d("[IllustAdapter] loadIllust original pos=%d, state=%s, url=%s",
+                position, task.getState().getValue(), shortUrl);
 
-        final Observer<TaskStatus> statusObserver = status -> {
-            boolean tagMatch = imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url));
-            if (!tagMatch) {
-                Timber.d("[IllustAdapter] status STALE callback ignored. pos=%d, status=%s, url=%s", position, status, shortUrl);
+        final Observer<ImageLoadState> stateObserver = state -> {
+            if (!targetUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) {
                 return;
             }
-            Timber.d("[IllustAdapter] status -> %s, pos=%d, url=%s", status, position, shortUrl);
-            if (status instanceof TaskStatus.Executing) {
+            if (state instanceof ImageLoadState.Loading) {
+                int percent = ((ImageLoadState.Loading) state).getPercent();
                 holder.baseBind.progressLayout.donutProgress.setVisibility(View.VISIBLE);
-                holder.baseBind.progressLayout.donutProgress.setProgress(
-                        ((TaskStatus.Executing) status).getPercentage()
-                );
-            } else if (status instanceof TaskStatus.Finished) {
-                holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
-            } else if (status instanceof TaskStatus.Error) {
+                holder.baseBind.progressLayout.donutProgress.setProgress(percent);
+                reportPageStatus(position, new TaskStatus.Executing(percent));
+            } else if (state instanceof ImageLoadState.Success) {
+                // 原图就绪 → 加载进「顶层」illust_hd，就绪后淡入盖住底层 large(large 从不被清 → 零闪烁)。
+                renderOverlay(holder, ((ImageLoadState.Success) state).getFile(), targetUrl, position);
+                reportPageStatus(position, TaskStatus.Finished.INSTANCE);
+            } else if (state instanceof ImageLoadState.Error) {
                 holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
                 holder.baseBind.reload.setVisibility(View.VISIBLE);
-                Timber.w("[IllustAdapter] showing reload button. pos=%d, url=%s", position, shortUrl);
-            }
-            if (pageStatusListener != null) {
-                pageStatusListener.onStatusChanged(position, status);
+                Throwable cause = ((ImageLoadState.Error) state).getCause();
+                Timber.w(cause, "[IllustAdapter] original load failed, showing reload. pos=%d, url=%s", position, shortUrl);
+                reportPageStatus(position, new TaskStatus.Error(
+                        (cause instanceof Exception) ? (Exception) cause : new Exception(cause)));
             }
         };
 
-        final Observer<File> resultObserver = file -> {
-            if (file == null) {
-                Timber.d("[IllustAdapter] result NULL callback. pos=%d, url=%s", position, shortUrl);
-                return;
-            }
-            boolean tagMatch = imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url));
-            if (!tagMatch) {
-                Timber.d("[IllustAdapter] result STALE callback ignored. pos=%d, url=%s", position, shortUrl);
-                return;
-            }
-            Timber.d("[IllustAdapter] result -> file=%s, exists=%b, size=%d, pos=%d, url=%s",
-                    file.getAbsolutePath(), file.exists(), file.length(), position, shortUrl);
-            holder.baseBind.reload.setVisibility(View.GONE);
-            holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+        task.getStateLiveData().observe(mFragment.getViewLifecycleOwner(), stateObserver);
+        holder.itemView.setTag(R.id.tag_task_observers,
+                (Runnable) () -> task.getStateLiveData().removeObserver(stateObserver));
+    }
 
-            RequestManager requestManager = mFragment != null ? Glide.with(mFragment) : Glide.with(mContext);
-            requestManager
-                    .asBitmap()
-                    .load(file)
-                    .transform(new LargeBitmapScaleTransformer())
-                    .transition(BitmapTransitionOptions.withCrossFade())
-                    .listener(new RequestListener<Bitmap>() {
-                        @Override
-                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Bitmap> target, boolean isFirstResource) {
-                            if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
-                            Timber.w(e, "[IllustAdapter] Glide bitmap FAIL. pos=%d, model=%s, url=%s", position, model, shortUrl);
+    /**
+     * large → 底层 {@code illust}(带动态 resize)。{@code isFinal=true}(仅 large 模式,large 即最终图)时,
+     * 其成功/失败负责收进度环 / 亮重载按钮;{@code isFinal=false}(large 只是原图的占位)不碰进度环。
+     * 回调按 {@code guardUrl}(=tag)判 stale,复用时自动 no-op。
+     */
+    private void renderBase(ViewHolder<RecyIllustDetailBinding> holder, int position, boolean changeSize,
+                            Object model, String guardUrl, boolean isFinal) {
+        String shortUrl = guardUrl.substring(guardUrl.lastIndexOf('/') + 1);
+        RequestManager requestManager = mFragment != null ? Glide.with(mFragment) : Glide.with(mContext);
+        requestManager
+                .asBitmap()
+                .load(model)
+                .transform(new LargeBitmapScaleTransformer())
+                .transition(BitmapTransitionOptions.withCrossFade())
+                .listener(new RequestListener<Bitmap>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object m, Target<Bitmap> target, boolean isFirstResource) {
+                        if (!guardUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
+                        Timber.w(e, "[IllustAdapter] base(large) FAIL pos=%d, isFinal=%b, url=%s", position, isFinal, shortUrl);
+                        if (isFinal) {
                             holder.baseBind.reload.setVisibility(View.VISIBLE);
                             holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
-                            return false;
                         }
+                        return false;
+                    }
 
-                        @Override
-                        public boolean onResourceReady(Bitmap resource, Object model, Target<Bitmap> target, DataSource dataSource, boolean isFirstResource) {
-                            if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
-                            Timber.d("[IllustAdapter] Glide bitmap OK. pos=%d, %dx%d, dataSource=%s, url=%s",
-                                    position, resource.getWidth(), resource.getHeight(), dataSource.name(), shortUrl);
-                            holder.baseBind.reload.setVisibility(View.GONE);
+                    @Override
+                    public boolean onResourceReady(Bitmap resource, Object m, Target<Bitmap> target, DataSource dataSource, boolean isFirstResource) {
+                        if (!guardUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
+                        Timber.d("[IllustAdapter] base(large) OK pos=%d, isFinal=%b, ds=%s, url=%s", position, isFinal, dataSource.name(), shortUrl);
+                        holder.baseBind.reload.setVisibility(View.GONE);
+                        if (isFinal) {
                             holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
-                            if (isLoadOriginalImage) {
-                                Shaft.getMMKV().encode(imageUrl, true);
-                            }
-                            return false;
                         }
-                    })
-                    .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
-        };
+                        return false;
+                    }
+                })
+                .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
+    }
 
-        task.getStatus().observe(lifecycleOwner, statusObserver);
-        task.getResult().observe(lifecycleOwner, resultObserver);
+    /**
+     * 原图 → 顶层 {@code illust_hd},就绪后设为可见 + crossfade 淡入,盖住底层 large。底层 large 全程不被清、
+     * 不共享/回收 bitmap → 大图换原图零闪烁。尺寸随底层 illust(布局四边对齐)。原图失败则保留底层 large、亮重载。
+     */
+    private void renderOverlay(ViewHolder<RecyIllustDetailBinding> holder, File file, String guardUrl, int position) {
+        // 仅对首图(pos 0,点进去最常打开的那张)且「详情展示原图」设置开启时,把原图预热进 Sketch 内存缓存,
+        // 让二级大图页 C 首次打开秒开不黑屏。只挂 pos 0 是为避免翻多图时每页都多解一遍原图的性能开销。
+        if (position == 0 && Shaft.sSettings.isShowOriginalPreviewImage()) {
+            SketchPreloader.warm(mContext, file);
+        }
+        String shortUrl = guardUrl.substring(guardUrl.lastIndexOf('/') + 1);
+        // 关键:先置 INVISIBLE(不是 GONE)。GONE 视图不参与 measure/layout,尺寸为 0,Glide 的 ViewTarget
+        // 拿不到尺寸会一直等、onResourceReady 永不触发;INVISIBLE 照常布局(拿得到 illust 的尺寸)、只是不绘制,
+        // 底层 large 依旧透出来。就绪后再置 VISIBLE 淡入盖上。
+        holder.baseBind.illustHd.setVisibility(View.INVISIBLE);
+        RequestManager requestManager = mFragment != null ? Glide.with(mFragment) : Glide.with(mContext);
+        requestManager
+                .asBitmap()
+                .load(file)
+                .transform(new LargeBitmapScaleTransformer())
+                .transition(BitmapTransitionOptions.withCrossFade())
+                .listener(new RequestListener<Bitmap>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object m, Target<Bitmap> target, boolean isFirstResource) {
+                        if (!guardUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
+                        Timber.w(e, "[IllustAdapter] overlay(original) FAIL pos=%d, url=%s", position, shortUrl);
+                        holder.baseBind.reload.setVisibility(View.VISIBLE);
+                        holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+                        return false;
+                    }
 
-        // Remember how to detach these two observers when this holder is recycled or rebound,
-        // so they don't outlive the bind on the per-URL task's (sticky) LiveData. See #912.
-        holder.itemView.setTag(R.id.tag_task_observers, (Runnable) () -> {
-            task.getStatus().removeObserver(statusObserver);
-            task.getResult().removeObserver(resultObserver);
-        });
+                    @Override
+                    public boolean onResourceReady(Bitmap resource, Object m, Target<Bitmap> target, DataSource dataSource, boolean isFirstResource) {
+                        if (!guardUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
+                        Timber.d("[IllustAdapter] overlay(original) OK pos=%d, %dx%d, ds=%s, url=%s",
+                                position, resource.getWidth(), resource.getHeight(), dataSource.name(), shortUrl);
+                        holder.baseBind.reload.setVisibility(View.GONE);
+                        holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+                        holder.baseBind.illustHd.setVisibility(View.VISIBLE);
+                        Shaft.getMMKV().encode(guardUrl, true);
+                        return false;
+                    }
+                })
+                .into(holder.baseBind.illustHd);
+    }
+
+    private void reportPageStatus(int position, @NonNull TaskStatus status) {
+        if (pageStatusListener != null) {
+            pageStatusListener.onStatusChanged(position, status);
+        }
     }
 
     /**

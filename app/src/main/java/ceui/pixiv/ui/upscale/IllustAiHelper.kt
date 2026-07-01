@@ -13,8 +13,7 @@ import ceui.lisa.download.IllustDownload
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
+import ceui.pixiv.imageloader.ImageLoaderV3
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.launch
 
@@ -48,32 +47,38 @@ class IllustAiHelper(
         progressRing.isIndeterminate = true
         progressText.visibility = View.GONE
 
-        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.observe(lifecycleOwner) { file ->
-            if (file != null) {
-                lifecycleOwner.lifecycleScope.launch {
-                    val result = BackgroundRemover.removeBackground(context, file, model) { percent ->
-                        rootView.post {
-                            progressRing.isIndeterminate = false
-                            progressText.visibility = View.VISIBLE
-                            val p = (percent * 100).toInt()
-                            progressRing.setProgressCompat(p, true)
-                            progressText.text = "$p%"
-                        }
-                    }
-                    overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
-                        overlayRoot.visibility = View.GONE
-                    }.start()
-                    if (result != null) {
-                        val intent = Intent(context, TemplateActivity::class.java)
-                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "主体高亮")
-                        intent.putExtra("original_path", file.absolutePath)
-                        intent.putExtra("rembg_path", result.absolutePath)
-                        fragment.startActivity(intent)
-                    } else {
-                        Common.showToast(R.string.string_ai_rembg_failed)
-                    }
+        // 复用详情页(IllustAdapter)已加载的原图,与显示层同一共享任务,不重新下载。
+        val task = ImageLoaderV3.obtain(imageUrl)
+        lifecycleOwner.lifecycleScope.launch {
+            val file = try {
+                task.awaitFile()
+            } catch (e: Exception) {
+                overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                    overlayRoot.visibility = View.GONE
+                }.start()
+                Common.showToast(R.string.string_ai_rembg_failed)
+                return@launch
+            }
+            val result = BackgroundRemover.removeBackground(context, file, model) { percent ->
+                rootView.post {
+                    progressRing.isIndeterminate = false
+                    progressText.visibility = View.VISIBLE
+                    val p = (percent * 100).toInt()
+                    progressRing.setProgressCompat(p, true)
+                    progressText.text = "$p%"
                 }
+            }
+            overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                overlayRoot.visibility = View.GONE
+            }.start()
+            if (result != null) {
+                val intent = Intent(context, TemplateActivity::class.java)
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "主体高亮")
+                intent.putExtra("original_path", file.absolutePath)
+                intent.putExtra("rembg_path", result.absolutePath)
+                fragment.startActivity(intent)
+            } else {
+                Common.showToast(R.string.string_ai_rembg_failed)
             }
         }
     }
@@ -83,13 +88,13 @@ class IllustAiHelper(
         val imageUrl = IllustDownload.getUrl(illust, 0, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, 0, Params.IMAGE_RESOLUTION_LARGE) ?: return
 
-        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.observe(lifecycleOwner) { file ->
-            if (file != null) {
-                val key = UpscaleTask.illustKey(illust.id)
-                val task = UpscaleTaskPool.startTask(key, context, file, file.absolutePath, model)
-                observeUpscaleTask(task)
-            }
+        // 复用详情页(IllustAdapter)已加载的原图,与显示层同一共享任务,不重新下载。
+        val loadTask = ImageLoaderV3.obtain(imageUrl)
+        lifecycleOwner.lifecycleScope.launch {
+            val file = try { loadTask.awaitFile() } catch (e: Exception) { return@launch }
+            val key = UpscaleTask.illustKey(illust.id)
+            val task = UpscaleTaskPool.startTask(key, context, file, file.absolutePath, model)
+            observeUpscaleTask(task)
         }
     }
 

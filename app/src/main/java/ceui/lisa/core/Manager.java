@@ -36,6 +36,7 @@ import ceui.lisa.utils.DownloadLimitTypeUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
 import ceui.pixiv.download.aria2.Aria2Dispatcher;
+import ceui.pixiv.imageloader.ImageLoaderV3;
 import ceui.pixiv.ui.task.TaskPool;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -599,6 +600,11 @@ public class Manager {
                 cachedFile = null;
             } else {
                 File peeked = TaskPool.peekCachedFile(dlUrl);
+                if (peeked == null) {
+                    // B/C 大图已迁到 V3 imageloader,原图缓存在它的 registry 里而非 TaskPool,
+                    // 补一次 peek,保住「详情看过原图 → 下载复用不重下」的行为。
+                    peeked = ImageLoaderV3.peekFile(dlUrl);
+                }
                 if (peeked != null) {
                     Common.showLog("[DL-CACHE] HIT path=" + peeked.getAbsolutePath()
                             + " size=" + peeked.length() + " url=" + dlUrl);

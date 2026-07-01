@@ -23,8 +23,13 @@ import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.QMUIMenuPopup
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
+import ceui.lisa.core.ManagerReactive
+import ceui.lisa.database.AppDatabase
+import ceui.lisa.database.DownloadEntity
+import ceui.lisa.download.FileCreator
+import ceui.pixiv.download.DownloadsRegistry
+import ceui.pixiv.download.config.DownloadItems
+import ceui.pixiv.imageloader.ImageLoaderV3
 import ceui.pixiv.ui.translate.ComicTextDetectorModel
 import ceui.pixiv.ui.translate.ComicTextDetectorModelManager
 import ceui.pixiv.ui.translate.MangaOcrModel
@@ -48,10 +53,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
 import java.io.UnsupportedEncodingException
 import java.net.URLDecoder
 import java.util.Locale
 import kotlin.coroutines.resume
+import timber.log.Timber
 
 /**
  * 图片二级详情
@@ -156,16 +163,31 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             }
             baseBind!!.viewPager.currentItem = index
             checkDownload(index)
-            downloadSingle?.setOnClickListener(View.OnClickListener {
-                IllustDownload.downloadIllustCertainPage(
-                    mIllustsBean,
-                    baseBind!!.viewPager.currentItem,
-                    mContext as BaseActivity<*>
-                )
-                if (Shaft.sSettings.isAutoPostLikeWhenDownload && !mIllustsBean!!.isIs_bookmarked) {
-                    PixivOperate.postLikeDefaultStarType(mIllustsBean)
+            downloadSingle?.setOnClickListener {
+                val illust = mIllustsBean ?: return@setOnClickListener
+                val page = baseBind!!.viewPager.currentItem
+                if (illust.isGif) {
+                    // ugoira/gif 要 zip→帧→gif 渲染,简单文件拷贝救不了,保留原下载链路(它做 unzipAndPlay)。
+                    IllustDownload.downloadIllustCertainPage(illust, page, mContext as BaseActivity<*>)
+                    if (Shaft.sSettings.isAutoPostLikeWhenDownload && !illust.isIs_bookmarked) {
+                        PixivOperate.postLikeDefaultStarType(illust)
+                    }
+                    return@setOnClickListener
                 }
-            })
+                val imageUrl = IllustDownload.getUrl(illust, page, Params.IMAGE_RESOLUTION_ORIGINAL)
+                    ?: IllustDownload.getUrl(illust, page, Params.IMAGE_RESOLUTION_LARGE)
+                    ?: return@setOnClickListener
+                lifecycleScope.launch {
+                    val ok = saveLoadedIllustPage(illust, page, imageUrl)
+                    if (ok) {
+                        Common.showToast(R.string.string_181)
+                        checkDownload(page)
+                        if (Shaft.sSettings.isAutoPostLikeWhenDownload && !illust.isIs_bookmarked) {
+                            PixivOperate.postLikeDefaultStarType(illust)
+                        }
+                    }
+                }
+            }
             baseBind!!.viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
                 override fun onPageScrolled(i: Int, v: Float, i1: Int) {
                 }
@@ -280,6 +302,48 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
         }
     }
 
+    /**
+     * 「保存这一张」：复用大图页已加载的原图(与显示层同一 imageloader 共享任务,不重新下载),走**新**下载后端
+     * [DownloadsRegistry] 按用户命名模板/存储配置写盘;并记一条 [DownloadEntity]，让「已下载」列表与详情本地复用
+     * (findDownloadedPageUri 仍查 DB)保持一致。按钮隐藏靠 [Common.isIllustDownloaded] → 新后端 `exists()` 自动生效。
+     * 不再走旧 `IllustDownload` / 不重下原图。
+     */
+    private suspend fun saveLoadedIllustPage(illust: IllustsBean, page: Int, imageUrl: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val file = try {
+                ImageLoaderV3.obtain(imageUrl).awaitFile()
+            } catch (e: Exception) {
+                Timber.w(e, "[ImageDetail] save: await loaded file failed page=%d", page)
+                null
+            } ?: return@withContext false
+
+            runCatching {
+                // open() 返回 null = Skip 策略且文件已存在 → 视为已保存,无需重写。
+                val handle = DownloadsRegistry.downloads.open(DownloadItems.illustPage(illust, page))
+                    ?: return@runCatching true
+                try {
+                    handle.stream.use { out -> FileInputStream(file).use { it.copyTo(out) } }
+                    handle.onFinish()
+                } catch (t: Throwable) {
+                    handle.onAbort()
+                    throw t
+                }
+                // 与 Manager 成功分支一致地写库(fileName 用 FileCreator=模板命名,filePath 用写盘 uri)。
+                val entity = DownloadEntity().apply {
+                    illustGson = Shaft.sGson.toJson(illust)
+                    fileName = FileCreator.customFileName(illust, page)
+                    downloadTime = System.currentTimeMillis()
+                    filePath = handle.uri.toString()
+                }
+                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(entity)
+                ManagerReactive.pokeDoneTable()
+                true
+            }.getOrElse { ex ->
+                Timber.e(ex, "[ImageDetail] saveLoadedIllustPage failed page=%d", page)
+                false
+            }
+        }
+
     override fun initData() {
         postponeEnterTransition()
     }
@@ -312,32 +376,38 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
         progressRing.isIndeterminate = true
         progressText.visibility = View.GONE
 
-        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.observe(this) { file ->
-            if (file != null) {
-                lifecycleScope.launch {
-                    val result = BackgroundRemover.removeBackground(this@ImageDetailActivity, file, model) { percent ->
-                        runOnUiThread {
-                            progressRing.isIndeterminate = false
-                            progressText.visibility = View.VISIBLE
-                            val p = (percent * 100).toInt()
-                            progressRing.setProgressCompat(p, true)
-                            progressText.text = "$p%"
-                        }
-                    }
-                    overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
-                        overlayRoot.visibility = View.GONE
-                    }.start()
-                    if (result != null) {
-                        val intent = Intent(this@ImageDetailActivity, TemplateActivity::class.java)
-                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "主体高亮")
-                        intent.putExtra("original_path", file.absolutePath)
-                        intent.putExtra("rembg_path", result.absolutePath)
-                        startActivity(intent)
-                    } else {
-                        Common.showToast(R.string.string_ai_rembg_failed)
-                    }
+        // 复用大图页已加载的原图(与显示层同一共享任务),不重新下载。
+        val task = ImageLoaderV3.obtain(imageUrl)
+        lifecycleScope.launch {
+            val file = try {
+                task.awaitFile()
+            } catch (e: Exception) {
+                overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                    overlayRoot.visibility = View.GONE
+                }.start()
+                Common.showToast(R.string.string_ai_rembg_failed)
+                return@launch
+            }
+            val result = BackgroundRemover.removeBackground(this@ImageDetailActivity, file, model) { percent ->
+                runOnUiThread {
+                    progressRing.isIndeterminate = false
+                    progressText.visibility = View.VISIBLE
+                    val p = (percent * 100).toInt()
+                    progressRing.setProgressCompat(p, true)
+                    progressText.text = "$p%"
                 }
+            }
+            overlayRoot.animate().alpha(0f).setDuration(300).withEndAction {
+                overlayRoot.visibility = View.GONE
+            }.start()
+            if (result != null) {
+                val intent = Intent(this@ImageDetailActivity, TemplateActivity::class.java)
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "主体高亮")
+                intent.putExtra("original_path", file.absolutePath)
+                intent.putExtra("rembg_path", result.absolutePath)
+                startActivity(intent)
+            } else {
+                Common.showToast(R.string.string_ai_rembg_failed)
             }
         }
     }
@@ -444,35 +514,26 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
     }
 
     /**
-     * 等图片下载/缓存就绪。命中缓存直接返回,否则 observeForever 等首发 File 并自卸载。
+     * 等图片下载/缓存就绪。复用大图页显示层的同一共享任务:已加载直接返回、否则等它下完,不重复下载。
      */
-    private suspend fun awaitLoadedFile(imageUrl: String): File? {
-        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.value?.let { return it }
-        return suspendCancellableCoroutine { cont ->
-            val obs = object : Observer<File?> {
-                override fun onChanged(value: File?) {
-                    if (value == null) return
-                    loadTask.result.removeObserver(this)
-                    if (cont.isActive) cont.resume(value)
-                }
-            }
-            loadTask.result.observeForever(obs)
-            cont.invokeOnCancellation { loadTask.result.removeObserver(obs) }
+    private suspend fun awaitLoadedFile(imageUrl: String): File? =
+        try {
+            ImageLoaderV3.obtain(imageUrl).awaitFile()
+        } catch (e: Exception) {
+            null
         }
-    }
 
     private fun performAiUpscale(illust: IllustsBean, pageIndex: Int, model: UpscaleModel) {
         val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_LARGE) ?: return
 
-        val loadTask = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        loadTask.result.observe(this) { file ->
-            if (file != null) {
-                val key = UpscaleTask.illustKey(illust.id * 100 + pageIndex)
-                val task = UpscaleTaskPool.startTask(key, this, file, file.absolutePath, model)
-                observeUpscaleTask(task)
-            }
+        // 复用大图页已加载的原图(与显示层同一共享任务),不重新下载。
+        val loadTask = ImageLoaderV3.obtain(imageUrl)
+        lifecycleScope.launch {
+            val file = try { loadTask.awaitFile() } catch (e: Exception) { return@launch }
+            val key = UpscaleTask.illustKey(illust.id * 100 + pageIndex)
+            val task = UpscaleTaskPool.startTask(key, this@ImageDetailActivity, file, file.absolutePath, model)
+            observeUpscaleTask(task)
         }
     }
 

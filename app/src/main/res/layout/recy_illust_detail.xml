@@ -19,6 +19,19 @@
 
         </ImageView>
 
+        <!-- 顶层原图 overlay：底层 illust 先秒显 large(命中瀑布流缓存),原图下好后加载进这一层、
+             淡入盖住 large。底层 large 全程不被清 → 大图换原图零闪烁。四边对齐 illust 精确覆盖。 -->
+        <ImageView
+            android:id="@+id/illust_hd"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignTop="@+id/illust"
+            android:layout_alignBottom="@+id/illust"
+            android:layout_alignStart="@+id/illust"
+            android:layout_alignEnd="@+id/illust"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+
         <include
             android:id="@+id/progress_layout"
             layout="@layout/item_progress" />

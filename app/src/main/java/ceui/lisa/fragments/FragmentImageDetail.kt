@@ -21,12 +21,13 @@ import ceui.lisa.download.FileCreator
 import ceui.lisa.download.IllustDownload
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
+import ceui.pixiv.imageloader.Disposable
+import ceui.pixiv.imageloader.ImageLoadState
+import ceui.pixiv.imageloader.ImageLoaderV3
+import ceui.pixiv.imageloader.observeState
 import ceui.pixiv.ui.common.deleteImageById
 import ceui.pixiv.ui.common.getImageIdInGallery
 import ceui.pixiv.ui.common.saveImageToGallery
-import ceui.pixiv.ui.common.setUpWithTaskStatus
-import ceui.pixiv.ui.task.NamedUrl
-import ceui.pixiv.ui.task.TaskPool
 import ceui.pixiv.ui.translate.MangaOcrModel
 import ceui.pixiv.ui.works.ToggleToolnarViewModel
 import ceui.pixiv.utils.setOnClick
@@ -52,6 +53,7 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     private var savedScale: Float? = null
     private var zoomedToMax: Boolean = false
     private var pendingGestureCheck: Boolean = false
+    private var imageDisposable: Disposable? = null
     // 不再放进 arguments / savedInstanceState，避免每个 Fragment 重复持久化 80KB IllustsBean
     // 导致 TransactionTooLargeException。统一向 ImageDetailActivity 取。
     private val mIllustsBean: IllustsBean?
@@ -368,8 +370,8 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
 
         val imageUrl = IllustDownload.getUrl(illust, index, Params.IMAGE_RESOLUTION_ORIGINAL)
             ?: IllustDownload.getUrl(illust, index, Params.IMAGE_RESOLUTION_LARGE) ?: return
-        // 只读已加载好的原图,不要 autoStart 触发多余下载(图已显示,正常都是命中)
-        val file = TaskPool.getLoadTask(NamedUrl("", imageUrl), autoStart = false).result.value
+        // 只读已加载好的原图,图已显示、正常都是命中,不触发多余下载
+        val file = ImageLoaderV3.peekFile(imageUrl)
         if (file == null) {
             Toast.makeText(requireContext(), R.string.string_ai_ocr_failed, Toast.LENGTH_SHORT).show()
             return
@@ -408,7 +410,7 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
         // 仅当原图还没在查看器缓存里时才查库：正常浏览(原图已在 TaskPool 缓存)直接走原同步
         // 快路径，零 DB 开销、即时显示；真正要修的「下载过但查看器没缓存」才值得多查一次库。
         val illust = mIllustsBean
-        if (!isUrlMode && illust != null && !illust.isGif() && TaskPool.peekCachedFile(imageUrl) == null) {
+        if (!isUrlMode && illust != null && !illust.isGif() && ImageLoaderV3.peekFile(imageUrl) == null) {
             viewLifecycleOwner.lifecycleScope.launch {
                 val localUri = withContext(Dispatchers.IO) { findDownloadedPageUri(illust, index) }
                 if (localUri != null) {
@@ -440,51 +442,57 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
 
     private fun loadFromNetwork(imageUrl: String, isUrlMode: Boolean) {
         val shortUrl = imageUrl.substringAfterLast('/')
-        val task = TaskPool.getLoadTask(NamedUrl("", imageUrl))
-        Timber.d("[ImageDetail] task acquired. taskId=${task.taskId}, status=${task.status.value}, hasResult=${task.result.value != null}, url=$shortUrl")
+        // V3 imageloader：同一 url 与一级详情页 IllustAdapter 共享同一个进程级任务/进度/结果，不各下一次。
+        val task = ImageLoaderV3.obtain(imageUrl)
+        // 上一次(可能在一级详情)失败的话，打开大图时重来一次——对齐旧 TaskPool「取到 errored 任务即换新重下」。
+        if (task.state.value is ImageLoadState.Error) task.retry()
+        Timber.d("[ImageDetail] task acquired. state=${task.state.value}, hasResult=${task.currentFile != null}, url=$shortUrl")
 
-        // 原图尚未加载完时，若一级详情页的大图已在 Glide 缓存，先用大图占位
-        if (mIllustsBean != null && task.result.value == null) {
-            val largeUrl = IllustDownload.getUrl(
-                mIllustsBean, index, Params.IMAGE_RESOLUTION_LARGE
-            )
-            if (!largeUrl.isNullOrEmpty() && largeUrl != imageUrl) {
-                val largeFile = TaskPool.peekCachedFile(largeUrl)
-                if (largeFile != null) {
-                    Timber.d("[ImageDetail] placeholder HIT path=${largeFile.absolutePath} size=${largeFile.length()}")
-                    baseBind.image.loadImage(largeFile)
-                } else {
-                    Timber.d("[ImageDetail] placeholder MISS largeUrl=${largeUrl.substringAfterLast('/')}")
+        // 复用观察前先摘掉上一次（重试等重复调用），避免观察者叠加。
+        imageDisposable?.dispose()
+        imageDisposable = task.observeState(viewLifecycleOwner) { state ->
+            when (state) {
+                ImageLoadState.Idle -> {
+                    // 对齐旧 setUpWithTaskStatus 的 NotStart：先亮出进度条(0)，别留空白。
+                    baseBind.progressCircular.visibility = View.VISIBLE
+                    baseBind.progressCircular.progress = 0
                 }
-            }
-        }
-
-        task.result.observe(viewLifecycleOwner) { file ->
-            Timber.d("[ImageDetail] result callback. file=${file?.absolutePath}, exists=${file?.exists()}, size=${file?.length() ?: -1}, url=$shortUrl")
-            baseBind.image.loadImage(file)
-            if (isUrlMode) {
-                baseBind.downloadButton.visibility = View.VISIBLE
-                baseBind.downloadButton.setOnClick {
-                    val ext = imageUrl.substringAfterLast('.', "jpg")
-                    val displayName = if (!saveName.isNullOrEmpty()) {
-                        "$saveName.$ext"
-                    } else {
-                        imageUrl.substringAfterLast('/')
-                    }
-                    val ctx = requireActivity()
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        withContext(Dispatchers.IO) {
-                            val imageId = getImageIdInGallery(ctx, displayName)
-                            if (imageId != null) {
-                                deleteImageById(ctx, imageId)
+                is ImageLoadState.Loading -> {
+                    baseBind.progressCircular.visibility = View.VISIBLE
+                    baseBind.progressCircular.progress = state.percent
+                }
+                is ImageLoadState.Success -> {
+                    baseBind.progressCircular.visibility = View.GONE
+                    val file = state.file
+                    Timber.d("[ImageDetail] result callback. file=${file.absolutePath}, size=${file.length()}, url=$shortUrl")
+                    baseBind.image.loadImage(file)
+                    if (isUrlMode) {
+                        baseBind.downloadButton.visibility = View.VISIBLE
+                        baseBind.downloadButton.setOnClick {
+                            val ext = imageUrl.substringAfterLast('.', "jpg")
+                            val displayName = if (!saveName.isNullOrEmpty()) {
+                                "$saveName.$ext"
+                            } else {
+                                imageUrl.substringAfterLast('/')
                             }
-                            saveImageToGallery(ctx, file, displayName)
+                            val ctx = requireActivity()
+                            viewLifecycleOwner.lifecycleScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    val imageId = getImageIdInGallery(ctx, displayName)
+                                    if (imageId != null) {
+                                        deleteImageById(ctx, imageId)
+                                    }
+                                    saveImageToGallery(ctx, file, displayName)
+                                }
+                            }
                         }
                     }
                 }
+                is ImageLoadState.Error -> {
+                    baseBind.progressCircular.visibility = View.GONE
+                }
             }
         }
-        baseBind.progressCircular.setUpWithTaskStatus(task.status, viewLifecycleOwner)
     }
 
     /**
