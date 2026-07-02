@@ -609,6 +609,13 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             labels.add("跳转到漫画…")
             actions.add { jumpTo(data.user.id, UserIllustJumpHelper.Kind.MANGA, "漫画作品") }
         }
+        labels.add(getString(R.string.string_436)) // 相关用户
+        actions.add {
+            val intent = Intent(this, TemplateActivity::class.java)
+            intent.putExtra(Params.USER_ID, data.user.id)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "相关用户")
+            startActivity(intent)
+        }
         if (data.profile.total_illusts > 0) {
             labels.add(getString(R.string.bulk_user_menu_download_all_illust))
             actions.add {
