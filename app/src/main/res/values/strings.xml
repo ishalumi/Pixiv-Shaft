@@ -2218,4 +2218,15 @@
     <string name="local_novel_clear">清空书架</string>
     <string name="local_novel_clear_confirm_title">清空书架？</string>
     <string name="local_novel_clear_confirm_msg">只会移除已选的书库文件夹，本地 txt 文件不会被删除。</string>
+
+    <!-- 图片加速代理 issue #865 -->
+    <string name="image_host_title">图片加速代理</string>
+    <string name="image_host_pixiv_official">Pixiv 官方 (i.pximg.net)</string>
+    <string name="image_host_pixiv_cat">pixiv.cat 反代</string>
+    <string name="image_host_pixiv_re">pixiv.re 反代 (中国大陆推荐)</string>
+    <string name="image_host_pixiv_nl">pixiv.nl 反代</string>
+    <string name="image_host_custom">自定义反代</string>
+    <string name="image_host_custom_hint">https://你的反代域名</string>
+    <string name="image_host_custom_empty">反代地址不能为空</string>
+    <string name="image_host_restart_hint">重启 App 后生效</string>
 </resources>

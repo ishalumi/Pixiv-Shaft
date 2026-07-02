@@ -71,6 +71,52 @@ class ImageHostManagerTest {
         assertEquals(url, ImageHostManager.rewrite(url))
     }
 
+    // --- PIXIV_RE (mainland China mirror of pixiv.cat) ----------------------
+
+    @Test fun `PIXIV_RE maps i_pximg to i_pixiv_re preserving path`() {
+        ImageHostManager.setMode(Mode.PIXIV_RE)
+        assertEquals(
+            "https://i.pixiv.re/img-original/img/2024/01/01/00/00/00/123_p0.jpg",
+            ImageHostManager.rewrite("https://i.pximg.net/img-original/img/2024/01/01/00/00/00/123_p0.jpg")
+        )
+    }
+
+    @Test fun `PIXIV_RE maps s_pximg to s_pixiv_re`() {
+        ImageHostManager.setMode(Mode.PIXIV_RE)
+        assertEquals(
+            "https://s.pixiv.re/common/images/no_profile.png",
+            ImageHostManager.rewrite("https://s.pximg.net/common/images/no_profile.png")
+        )
+    }
+
+    @Test fun `PIXIV_RE preserves query string and does not touch unknown hosts`() {
+        ImageHostManager.setMode(Mode.PIXIV_RE)
+        assertEquals(
+            "https://i.pixiv.re/path/foo.jpg?bar=1",
+            ImageHostManager.rewrite("https://i.pximg.net/path/foo.jpg?bar=1")
+        )
+        assertEquals("https://example.com/foo.jpg", ImageHostManager.rewrite("https://example.com/foo.jpg"))
+    }
+
+    @Test fun `requiresStandardClient is true for PIXIV_RE`() {
+        ImageHostManager.setMode(Mode.PIXIV_RE)
+        assertTrue(ImageHostManager.requiresStandardClient())
+    }
+
+    // --- PIXIV_NL (backup mirror) -------------------------------------------
+
+    @Test fun `PIXIV_NL maps i_pximg and s_pximg to pixiv_nl`() {
+        ImageHostManager.setMode(Mode.PIXIV_NL)
+        assertEquals(
+            "https://i.pixiv.nl/img/x.jpg",
+            ImageHostManager.rewrite("https://i.pximg.net/img/x.jpg")
+        )
+        assertEquals(
+            "https://s.pixiv.nl/common/images/no_profile.png",
+            ImageHostManager.rewrite("https://s.pximg.net/common/images/no_profile.png")
+        )
+    }
+
     // --- CUSTOM --------------------------------------------------------------
 
     @Test fun `CUSTOM with blank host falls back to original`() {
@@ -205,5 +251,42 @@ class ImageHostManagerTest {
         assertEquals(url, ImageHostManager.rewrite(url))   // PIXIV
         ImageHostManager.setMode(Mode.PIXIV_CAT)
         assertEquals("https://i.pixiv.cat/img/x.jpg", ImageHostManager.rewrite(url))
+    }
+
+    // --- ordinal <-> mode (Settings int persistence) ------------------------
+
+    @Test fun `getModeOrdinal matches enum ordinal`() {
+        ImageHostManager.setMode(Mode.PIXIV)
+        assertEquals(0, ImageHostManager.getModeOrdinal())
+        ImageHostManager.setMode(Mode.PIXIV_CAT)
+        assertEquals(1, ImageHostManager.getModeOrdinal())
+        ImageHostManager.setMode(Mode.PIXIV_RE)
+        assertEquals(2, ImageHostManager.getModeOrdinal())
+        ImageHostManager.setMode(Mode.PIXIV_NL)
+        assertEquals(3, ImageHostManager.getModeOrdinal())
+        ImageHostManager.setMode(Mode.CUSTOM)
+        assertEquals(4, ImageHostManager.getModeOrdinal())
+    }
+
+    @Test fun `setModeOrdinal maps each ordinal to its mode`() {
+        ImageHostManager.setModeOrdinal(0)
+        assertEquals(Mode.PIXIV, ImageHostManager.getMode())
+        ImageHostManager.setModeOrdinal(1)
+        assertEquals(Mode.PIXIV_CAT, ImageHostManager.getMode())
+        ImageHostManager.setModeOrdinal(2)
+        assertEquals(Mode.PIXIV_RE, ImageHostManager.getMode())
+        ImageHostManager.setModeOrdinal(3)
+        assertEquals(Mode.PIXIV_NL, ImageHostManager.getMode())
+        ImageHostManager.setModeOrdinal(4)
+        assertEquals(Mode.CUSTOM, ImageHostManager.getMode())
+    }
+
+    @Test fun `setModeOrdinal clamps out-of-range to PIXIV`() {
+        ImageHostManager.setMode(Mode.PIXIV_CAT)
+        ImageHostManager.setModeOrdinal(99)
+        assertEquals(Mode.PIXIV, ImageHostManager.getMode())
+        ImageHostManager.setMode(Mode.PIXIV_CAT)
+        ImageHostManager.setModeOrdinal(-1)
+        assertEquals(Mode.PIXIV, ImageHostManager.getMode())
     }
 }

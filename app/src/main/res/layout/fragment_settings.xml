@@ -278,6 +278,33 @@
                         </LinearLayout>
 
                         <RelativeLayout
+                            android:id="@+id/image_host_rela"
+                            style="@style/ripple_rela">
+
+                            <TextView
+                                android:id="@+id/image_host_title"
+                                style="@style/setting_text_left"
+                                android:layout_marginBottom="@dimen/six_dp"
+                                android:text="@string/image_host_title" />
+
+                            <TextView
+                                android:id="@+id/image_host_value"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@+id/image_host_title"
+                                android:layout_marginStart="@dimen/sixteen_dp"
+                                android:layout_marginBottom="@dimen/twelve_dp"
+                                android:ellipsize="end"
+                                android:singleLine="true"
+                                android:text=""
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="12sp" />
+
+                        </RelativeLayout>
+
+                        <View style="@style/half_divider" />
+
+                        <RelativeLayout
                             android:id="@+id/show_large_thumbnail_image_rela"
                             style="@style/ripple_rela">
 

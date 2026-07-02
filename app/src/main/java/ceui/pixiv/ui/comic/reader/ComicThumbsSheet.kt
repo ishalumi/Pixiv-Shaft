@@ -12,11 +12,10 @@ import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.databinding.CellComicThumbBinding
 import ceui.lisa.databinding.SheetComicThumbsBinding
+import ceui.lisa.utils.GlideUrlChild
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.widgets.PixivBottomSheet
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.model.GlideUrl
-import com.bumptech.glide.load.model.LazyHeaders
 
 /**
  * Activity-scoped ViewModel：宿主 Fragment 进入 reader 时把当前 illust 的页面 URL 列表
@@ -74,11 +73,11 @@ class ComicThumbsSheet : PixivBottomSheet(R.layout.sheet_comic_thumbs) {
                 R.string.comic_reader_page_indicator, position + 1, pages.size,
             )
             holder.b.cellThumbImage.alpha = if (position == current) 1f else 0.85f
-            val glideUrl = GlideUrl(
-                page.previewUrl,
-                LazyHeaders.Builder().addHeader("Referer", "https://app-api.pixiv.net/").build(),
-            )
-            Glide.with(holder.b.cellThumbImage).load(glideUrl).into(holder.b.cellThumbImage)
+            // issue #865: 走 GlideUrlChild 统一带 Pixiv 头 + 图片域名重写(Pixiv/pixiv.cat/自定义),
+            // 不再手搓裸 GlideUrl 绕过加速代理。
+            Glide.with(holder.b.cellThumbImage)
+                .load(GlideUrlChild(page.previewUrl))
+                .into(holder.b.cellThumbImage)
             holder.b.root.setOnClickListener { onClick(position) }
         }
     }

@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.os.Bundle;
 import android.transition.AutoTransition;
@@ -269,6 +270,15 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 @Override
                 public void onClick(View v) {
                     baseBind.useSecureDns.performClick();
+                }
+            });
+
+            //图片加速代理（issue #865）：Pixiv 官方 / pixiv.cat / 自定义反代
+            refreshImageHostSummary();
+            baseBind.imageHostRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showImageHostPicker();
                 }
             });
 
@@ -2122,5 +2132,93 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
         }
         Locale loc = ceui.pixiv.i18n.AppLocales.INSTANCE.currentLocale();
         return ceui.pixiv.i18n.AppLocales.INSTANCE.displayName(loc.toLanguageTag());
+    }
+
+    // ── 图片加速代理（issue #865） ──────────────────────────────────────
+    // 三档：0=Pixiv 官方 / 1=pixiv.cat / 2=自定义反代。只写 Settings，下次启动经
+    // Shaft.onCreate 的 ImageHostManager.hydrate 生效（图片 OkHttpClient 启动时一次性
+    // 构建、被 Glide 持有，与直连开关同款限制），故切换后提示重启。
+
+    // 选项顺序 == ImageHostManager.Mode 的 ordinal == Settings.imageHostMode。
+    private static final int IMAGE_HOST_MODE_CUSTOM =
+            ceui.lisa.http.ImageHostManager.Mode.CUSTOM.ordinal();
+
+    private void refreshImageHostSummary() {
+        int mode = Shaft.sSettings.getImageHostMode();
+        String summary;
+        if (mode == ceui.lisa.http.ImageHostManager.Mode.PIXIV_CAT.ordinal()) {
+            summary = getString(R.string.image_host_pixiv_cat);
+        } else if (mode == ceui.lisa.http.ImageHostManager.Mode.PIXIV_RE.ordinal()) {
+            summary = getString(R.string.image_host_pixiv_re);
+        } else if (mode == ceui.lisa.http.ImageHostManager.Mode.PIXIV_NL.ordinal()) {
+            summary = getString(R.string.image_host_pixiv_nl);
+        } else if (mode == IMAGE_HOST_MODE_CUSTOM) {
+            String host = Shaft.sSettings.getCustomImageHost();
+            summary = TextUtils.isEmpty(host) ? getString(R.string.image_host_custom) : host;
+        } else {
+            summary = getString(R.string.image_host_pixiv_official);
+        }
+        baseBind.imageHostValue.setText(summary);
+    }
+
+    private void showImageHostPicker() {
+        // 顺序必须与 ImageHostManager.Mode 的 ordinal 一致（index == mode 值）。
+        String[] items = {
+                getString(R.string.image_host_pixiv_official),
+                getString(R.string.image_host_pixiv_cat),
+                getString(R.string.image_host_pixiv_re),
+                getString(R.string.image_host_pixiv_nl),
+                getString(R.string.image_host_custom),
+        };
+        int current = Shaft.sSettings.getImageHostMode();
+        if (current < 0 || current >= items.length) {
+            current = 0;
+        }
+        new QMUIDialog.CheckableDialogBuilder(mContext)
+                .setCheckedIndex(current)
+                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                .addItems(items, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        if (which == IMAGE_HOST_MODE_CUSTOM) {
+                            promptCustomImageHost();
+                        } else {
+                            applyImageHostMode(which);
+                        }
+                    }
+                })
+                .create()
+                .show();
+    }
+
+    private void promptCustomImageHost() {
+        final QMUIDialog.EditTextDialogBuilder builder = new QMUIDialog.EditTextDialogBuilder(mContext);
+        builder.setTitle(R.string.image_host_custom)
+                .setSkinManager(QMUISkinManager.defaultInstance(mContext))
+                .setPlaceholder(getString(R.string.image_host_custom_hint))
+                .setDefaultText(Shaft.sSettings.getCustomImageHost())
+                .setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI)
+                .addAction(getString(R.string.string_142), (dialog, index) -> dialog.dismiss())
+                .addAction(getString(R.string.sure), (dialog, index) -> {
+                    CharSequence text = builder.getEditText().getText();
+                    String host = text == null ? "" : text.toString().trim();
+                    if (TextUtils.isEmpty(host)) {
+                        Common.showToast(getString(R.string.image_host_custom_empty));
+                        return;
+                    }
+                    Shaft.sSettings.setCustomImageHost(host);
+                    applyImageHostMode(IMAGE_HOST_MODE_CUSTOM);
+                    dialog.dismiss();
+                })
+                .create()
+                .show();
+    }
+
+    private void applyImageHostMode(int mode) {
+        Shaft.sSettings.setImageHostMode(mode);
+        Local.setSettings(Shaft.sSettings);
+        refreshImageHostSummary();
+        Common.showToast(getString(R.string.image_host_restart_hint), 2);
     }
 }

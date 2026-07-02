@@ -1747,4 +1747,15 @@
     <string name="local_novel_clear">Clear Bookshelf</string>
     <string name="local_novel_clear_confirm_title">Clear bookshelf?</string>
     <string name="local_novel_clear_confirm_msg">This only removes the selected library folder. Your local .txt files won\'t be deleted.</string>
+
+    <!-- Image proxy issue #865 -->
+    <string name="image_host_title">Image proxy</string>
+    <string name="image_host_pixiv_official">Pixiv official (i.pximg.net)</string>
+    <string name="image_host_pixiv_cat">pixiv.cat proxy</string>
+    <string name="image_host_pixiv_re">pixiv.re proxy (mainland China)</string>
+    <string name="image_host_pixiv_nl">pixiv.nl proxy</string>
+    <string name="image_host_custom">Custom proxy</string>
+    <string name="image_host_custom_hint">https://your.proxy</string>
+    <string name="image_host_custom_empty">Proxy URL cannot be empty</string>
+    <string name="image_host_restart_hint">Restart the app to apply</string>
 </resources>

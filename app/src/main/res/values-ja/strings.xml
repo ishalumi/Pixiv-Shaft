@@ -1749,4 +1749,15 @@
     <string name="local_novel_clear">本棚をクリア</string>
     <string name="local_novel_clear_confirm_title">本棚をクリアしますか？</string>
     <string name="local_novel_clear_confirm_msg">選択した書庫フォルダの登録を解除するだけです。ローカルの txt ファイルは削除されません。</string>
+
+    <!-- 画像プロキシ issue #865 -->
+    <string name="image_host_title">画像プロキシ</string>
+    <string name="image_host_pixiv_official">Pixiv 公式 (i.pximg.net)</string>
+    <string name="image_host_pixiv_cat">pixiv.cat プロキシ</string>
+    <string name="image_host_pixiv_re">pixiv.re プロキシ</string>
+    <string name="image_host_pixiv_nl">pixiv.nl プロキシ</string>
+    <string name="image_host_custom">カスタムプロキシ</string>
+    <string name="image_host_custom_hint">https://your.proxy</string>
+    <string name="image_host_custom_empty">プロキシ URL を入力してください</string>
+    <string name="image_host_restart_hint">アプリを再起動すると反映されます</string>
 </resources>

@@ -1,32 +1,31 @@
 package ceui.lisa.http
 
 /**
- * Image host abstraction. Foundation for issue #865 (pixivcat 可否加回来).
+ * Image host abstraction. Implements issue #865 (pixivcat 可否加回来).
  *
- * NOT WIRED YET. This object is built and parked: nothing in the existing
- * image-load / download paths calls into it. Wiring plan when the foundation
- * is ready to apply:
+ * WIRED (issue #865). The runtime state lives here (in memory) and is applied at:
  *
- *   1. GlideUrlChild ctor          → wrap incoming url with [rewrite]
- *   2. IllustDownload.getUrl/      → wrap with [rewrite] so downloads follow
- *      getShowUrl                    the same host as on-screen images
- *   3. Shaft.onCreate              → load mode + customHost from Settings into
- *                                     this object once at startup; subsequent
- *                                     setMode/setCustomHost updates from the
- *                                     settings UI write through to here too
- *   4. Shaft.onCreate (OkHttp)     → gate the directConnect SSL/DNS bypass on
- *                                     [requiresStandardClient]; non-PIXIV modes
- *                                     must use system DNS + standard TLS
- *                                     (the hardcoded 210.140.139.x IPs in
- *                                     HttpDns and the SNI-skipping factory
- *                                     would break pixiv.cat / arbitrary proxies)
- *   5. network_security_config.xml → whitelist pixiv.cat and the custom host
- *   6. SettingsFragment / strings  → UI for picking mode + entering custom URL
- *   7. Settings.java               → migrate the dead `usePixivCat` boolean
- *                                     into `imageHostMode` (int) and add
- *                                     `customImageHost` (string)
+ *   1. [ceui.lisa.utils.GlideUrlChild] ctor → wraps every image url with
+ *      [rewrite]. This is the single choke point for on-screen loading: both
+ *      the direct-Glide loads (avatars/stamps/banners/cards) and the V3
+ *      imageloader (GlideImageFetcher loads a GlideUrlChild) pass through it.
+ *   2. [ceui.lisa.core.Manager] download request → wraps the OkHttp request url
+ *      with [rewrite] so cache-miss downloads follow the same host. The
+ *      DownloadItem url stays raw everywhere else (identity / dedup / peek).
+ *   3. Shaft.onCreate → hydrates mode + customHost from Settings once at
+ *      startup, before the image OkHttpClient is built.
+ *   4. Shaft.onCreate (OkHttp) → the directConnect SSL/DNS bypass is gated on
+ *      [requiresStandardClient]; non-PIXIV modes fall back to system DNS +
+ *      standard TLS (the hardcoded 210.140.139.x IPs in HttpDns and the
+ *      SNI-skipping factory would break pixiv.cat / arbitrary proxies).
+ *   5. FragmentSettings → picker row (Pixiv / pixiv.cat / custom URL). Because
+ *      the image OkHttpClient is built once at startup and captured by Glide
+ *      (same limitation the directConnect toggle has), a mode change persists
+ *      to Settings and takes effect on the next app launch via hydration —
+ *      the live state here is only ever set at startup, keeping url rewriting
+ *      and the client consistent within a session.
  *
- * Defaults chosen during foundation (revisit before wiring):
+ * Defaults:
  *
  *   - CUSTOM accepts a full URL prefix: "https://your.proxy[/optional/path]".
  *     Trailing slash is stripped on set. The original "https://i.pximg.net"
@@ -38,25 +37,38 @@ package ceui.lisa.http
  *     used for placeholder/profile images (Params.IMAGE_UNKNOWN,
  *     Params.HEAD_UNKNOWN, GlideUtil.DEFAULT_HEAD_IMAGE,
  *     UserFollowingFragment.NO_PROFILE_IMG) ride along.
- *
- *   - State lives in memory only. Settings persistence is intentionally not
- *     touched at the foundation stage — Shaft.onCreate will hydrate this
- *     object from Settings once wiring begins.
  */
 object ImageHostManager {
 
-    enum class Mode { PIXIV, PIXIV_CAT, CUSTOM }
+    // Order == persisted Settings ordinal. Append new modes before CUSTOM only
+    // while the feature is unshipped; once persisted, append at the end instead.
+    enum class Mode { PIXIV, PIXIV_CAT, PIXIV_RE, PIXIV_NL, CUSTOM }
 
     private const val PXIMG_I = "i.pximg.net"
     private const val PXIMG_S = "s.pximg.net"
     private const val PIXIV_CAT_I = "i.pixiv.cat"
     private const val PIXIV_CAT_S = "s.pixiv.cat"
+    // pixiv.re / pixiv.nl: pixiv.cat 的备用镜像(同 i.pximg.net 路径反代)。
+    // pixiv.cat 主域名在中国大陆被墙,pixiv.re 为大陆推荐镜像(issue #865 追加)。
+    private const val PIXIV_RE_I = "i.pixiv.re"
+    private const val PIXIV_RE_S = "s.pixiv.re"
+    private const val PIXIV_NL_I = "i.pixiv.nl"
+    private const val PIXIV_NL_S = "s.pixiv.nl"
 
     @Volatile private var mode: Mode = Mode.PIXIV
     @Volatile private var customHost: String = ""
 
     fun getMode(): Mode = mode
     fun setMode(value: Mode) { mode = value }
+
+    /** Persisted-ordinal accessor for [Mode]; kept next to the enum so the
+     *  Settings int (0=PIXIV, 1=PIXIV_CAT, 2=PIXIV_RE, 3=PIXIV_NL, 4=CUSTOM) has one mapping site. */
+    fun getModeOrdinal(): Int = mode.ordinal
+
+    /** Set mode from a persisted ordinal, clamping unknown/out-of-range to PIXIV. */
+    fun setModeOrdinal(ordinal: Int) {
+        mode = Mode.values().getOrElse(ordinal) { Mode.PIXIV }
+    }
 
     fun getCustomHost(): String = customHost
     fun setCustomHost(value: String) { customHost = value.trim().trimEnd('/') }
@@ -93,6 +105,14 @@ object ImageHostManager {
             Mode.PIXIV -> url
             Mode.PIXIV_CAT -> {
                 val mapped = if (host == PXIMG_I) PIXIV_CAT_I else PIXIV_CAT_S
+                url.substring(0, hostStart) + mapped + url.substring(pathStart)
+            }
+            Mode.PIXIV_RE -> {
+                val mapped = if (host == PXIMG_I) PIXIV_RE_I else PIXIV_RE_S
+                url.substring(0, hostStart) + mapped + url.substring(pathStart)
+            }
+            Mode.PIXIV_NL -> {
+                val mapped = if (host == PXIMG_I) PIXIV_NL_I else PIXIV_NL_S
                 url.substring(0, hostStart) + mapped + url.substring(pathStart)
             }
             Mode.CUSTOM -> {

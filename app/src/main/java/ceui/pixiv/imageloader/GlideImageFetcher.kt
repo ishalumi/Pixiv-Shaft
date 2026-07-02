@@ -2,6 +2,7 @@ package ceui.pixiv.imageloader
 
 import android.os.SystemClock
 import ceui.lisa.activities.Shaft
+import ceui.lisa.http.ImageHostManager
 import ceui.lisa.utils.GlideUrlChild
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -35,7 +36,14 @@ object GlideImageFetcher : ImageFetcher {
     override suspend fun fetch(url: String, onProgress: (Int) -> Unit): File {
         val shortUrl = url.substringAfterLast('/')
 
-        ProgressManager.getInstance().addResponseListener(url, object : ProgressListener {
+        // issue #865: the actual network request goes to whatever host
+        // GlideUrlChild rewrites `url` to (Pixiv / pixiv.cat / custom). Register
+        // the progress listener against that same rewritten url — ProgressManager
+        // matches by request url, so keying on the raw url would drop progress
+        // updates in non-PIXIV modes. rewrite() is a no-op / idempotent in PIXIV.
+        val requestUrl = ImageHostManager.rewrite(url)
+
+        ProgressManager.getInstance().addResponseListener(requestUrl, object : ProgressListener {
             override fun onProgress(progressInfo: ProgressInfo) {
                 if (!progressInfo.isFinish) onProgress(progressInfo.percent.coerceIn(0, 99))
             }

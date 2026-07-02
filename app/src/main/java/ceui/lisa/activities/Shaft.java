@@ -249,6 +249,13 @@ public class Shaft extends Application implements ServicesProvider {
         networkStateManager = new NetworkStateManager(this);
         sSettings = Local.getSettings();
 
+        // issue #865: 图片加速代理。在 mOkHttpClient 构建前把持久化的模式/自定义 host
+        // 灌进 ImageHostManager —— requiresStandardClient() 靠它决定是否给图片客户端
+        // 装直连覆盖，运行期 GlideUrlChild.rewrite 也读它。设置页改了只写 Settings，
+        // 下次启动经此 hydrate 生效（图片客户端启动时一次性构建，跟直连开关同款限制）。
+        ceui.lisa.http.ImageHostManager.INSTANCE.setModeOrdinal(sSettings.getImageHostMode());
+        ceui.lisa.http.ImageHostManager.INSTANCE.setCustomHost(sSettings.getCustomImageHost());
+
         // 语言：迁旧字段 + 首启 fallback。必须在任何 UI 拉起前。
         ceui.pixiv.i18n.AppLocalesBootstrap.INSTANCE.bootstrap(sSettings);
 
@@ -318,7 +325,12 @@ public class Shaft extends Application implements ServicesProvider {
         ThemeHelper.applyTheme(null, sSettings.getThemeType());
 
         OkHttpClient.Builder glideBuilder = ProgressManager.getInstance().with(new OkHttpClient.Builder());
-        if (sSettings.isDirectConnect()) {
+        // issue #865: 直连覆盖(HttpDns 硬编码 210.140.139.x + 无 SNI 的 TLS)只对
+        // 原始 i.pximg.net 有效，会打死 pixiv.cat / 自定义反代。所以非 PIXIV 模式下
+        // 图片客户端退回系统 DNS + 标准 TLS。API 客户端(Retro/Client 的 Cronet 直连)
+        // 与本客户端相互独立，不受影响。
+        if (sSettings.isDirectConnect()
+                && !ceui.lisa.http.ImageHostManager.INSTANCE.requiresStandardClient()) {
             // 图片走 https://i.pximg.net 原始 URL，在 OkHttp 层面：
             // 1. 自定义 DNS 绕过 DNS 污染
             // 2. 无 SNI 的 TLS 绕过 GFW（图片服务器不要求 SNI）

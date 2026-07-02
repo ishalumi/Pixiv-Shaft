@@ -737,8 +737,12 @@ public class Manager {
             effectivePassSize = passSize;
         }
 
+        // issue #865: cache-miss downloads follow the same image host as
+        // on-screen images. downloadItem.getUrl() stays raw everywhere else
+        // (identity / dedup / peek key); only the actual network request is
+        // rewritten. No-op in the default PIXIV mode.
         Request.Builder reqBuilder = new Request.Builder()
-                .url(downloadItem.getUrl())
+                .url(ceui.lisa.http.ImageHostManager.INSTANCE.rewrite(downloadItem.getUrl()))
                 .addHeader(Params.MAP_KEY, Params.IMAGE_REFERER);
         if (effectivePassSize > 0) {
             reqBuilder.addHeader("Range", "bytes=" + effectivePassSize + "-");

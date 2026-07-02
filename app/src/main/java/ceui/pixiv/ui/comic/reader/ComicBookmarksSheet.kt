@@ -15,11 +15,10 @@ import ceui.lisa.R
 import ceui.lisa.database.ComicBookmarkEntity
 import ceui.lisa.databinding.CellComicBookmarkBinding
 import ceui.lisa.databinding.SheetComicBookmarksBinding
+import ceui.lisa.utils.GlideUrlChild
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.widgets.PixivBottomSheet
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.model.GlideUrl
-import com.bumptech.glide.load.model.LazyHeaders
 
 class ComicBookmarksSheet : PixivBottomSheet(R.layout.sheet_comic_bookmarks) {
 
@@ -75,11 +74,11 @@ class ComicBookmarksSheet : PixivBottomSheet(R.layout.sheet_comic_bookmarks) {
             holder.b.cellBookmarkNote.isVisible = entry.note.isNotEmpty()
             holder.b.cellBookmarkTime.text = DateUtils.getRelativeTimeSpanString(entry.createdTime)
             if (entry.previewUrl.isNotEmpty()) {
-                val glideUrl = GlideUrl(
-                    entry.previewUrl,
-                    LazyHeaders.Builder().addHeader("Referer", "https://app-api.pixiv.net/").build(),
-                )
-                Glide.with(holder.b.cellBookmarkThumb).load(glideUrl).into(holder.b.cellBookmarkThumb)
+                // issue #865: 走 GlideUrlChild 统一带 Pixiv 头 + 图片域名重写(Pixiv/pixiv.cat/自定义),
+                // 不再手搓裸 GlideUrl 绕过加速代理。
+                Glide.with(holder.b.cellBookmarkThumb)
+                    .load(GlideUrlChild(entry.previewUrl))
+                    .into(holder.b.cellBookmarkThumb)
             }
             holder.b.root.setOnClickListener { onJump(entry) }
             holder.b.cellBookmarkDelete.setOnClickListener { onDelete(entry) }

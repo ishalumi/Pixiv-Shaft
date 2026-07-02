@@ -5,6 +5,7 @@ import com.bumptech.glide.load.model.Headers;
 
 import java.util.HashMap;
 
+import ceui.lisa.http.ImageHostManager;
 import ceui.lisa.http.PixivHeaders;
 
 public class GlideUrlChild extends GlideUrl {
@@ -14,7 +15,13 @@ public class GlideUrlChild extends GlideUrl {
     }
 
     public GlideUrlChild(String url, Headers headers) {
-        super(url, headers);
+        // issue #865: single choke point for image loading — rewrite the pixiv
+        // image host to the user's chosen host (Pixiv / pixiv.cat / custom).
+        // rewrite() is a no-op in the default PIXIV mode and for non-pximg urls,
+        // and is idempotent, so wrapping here (the sink both ctors reach) is safe.
+        // The rewritten url also becomes the GlideUrl cache key, so switching
+        // hosts naturally uses a distinct cache entry.
+        super(ImageHostManager.INSTANCE.rewrite(url), headers);
     }
 
     private static Headers formatHeader() {

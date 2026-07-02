@@ -1651,4 +1651,15 @@
     <string name="local_novel_clear">Rafı Temizle</string>
     <string name="local_novel_clear_confirm_title">Kitaplık rafı temizlensin mi?</string>
     <string name="local_novel_clear_confirm_msg">Yalnızca seçili kitaplık klasörü kaldırılır. Yerel .txt dosyalarınız silinmez.</string>
+
+    <!-- Görsel proxy issue #865 -->
+    <string name="image_host_title">Görsel proxy</string>
+    <string name="image_host_pixiv_official">Pixiv resmi (i.pximg.net)</string>
+    <string name="image_host_pixiv_cat">pixiv.cat proxy</string>
+    <string name="image_host_pixiv_re">pixiv.re proxy</string>
+    <string name="image_host_pixiv_nl">pixiv.nl proxy</string>
+    <string name="image_host_custom">Özel proxy</string>
+    <string name="image_host_custom_hint">https://your.proxy</string>
+    <string name="image_host_custom_empty">Proxy adresi boş olamaz</string>
+    <string name="image_host_restart_hint">Uygulamayı yeniden başlatın</string>
 </resources>

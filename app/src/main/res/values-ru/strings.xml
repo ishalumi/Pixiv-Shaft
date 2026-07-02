@@ -1653,4 +1653,15 @@
     <string name="local_novel_clear">Очистить полку</string>
     <string name="local_novel_clear_confirm_title">Очистить книжную полку?</string>
     <string name="local_novel_clear_confirm_msg">Будет удалена только выбранная папка библиотеки. Ваши локальные файлы .txt не будут удалены.</string>
+
+    <!-- Прокси изображений issue #865 -->
+    <string name="image_host_title">Прокси изображений</string>
+    <string name="image_host_pixiv_official">Официальный Pixiv (i.pximg.net)</string>
+    <string name="image_host_pixiv_cat">Прокси pixiv.cat</string>
+    <string name="image_host_pixiv_re">Прокси pixiv.re</string>
+    <string name="image_host_pixiv_nl">Прокси pixiv.nl</string>
+    <string name="image_host_custom">Свой прокси</string>
+    <string name="image_host_custom_hint">https://your.proxy</string>
+    <string name="image_host_custom_empty">Укажите адрес прокси</string>
+    <string name="image_host_restart_hint">Перезапустите приложение, чтобы применить</string>
 </resources>

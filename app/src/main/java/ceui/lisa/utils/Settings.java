@@ -127,8 +127,10 @@ public class Settings {
 
     private boolean relatedIllustNoLimit = true;
 
-    //使用pixiv cat 代理 展示图片
-    private boolean usePixivCat = false;
+    //图片加速代理（issue #865）。imageHostMode: 0=Pixiv 官方 1=pixiv.cat 2=pixiv.re 3=pixiv.nl 4=自定义反代；
+    //customImageHost: 自定义反代地址前缀（如 https://your.proxy）。旧的 usePixivCat 布尔从未接线，已移除。
+    private int imageHostMode = 0;
+    private String customImageHost = "";
 
     //缩略图图片显示大图
     private boolean showLargeThumbnailImage = false;
@@ -419,12 +421,22 @@ public class Settings {
         return TextUtils.isEmpty(searchFilter) ? "" : searchFilter;
     }
 
-    public boolean isUsePixivCat() {
-        return usePixivCat;
+    // issue #865: 图片加速代理模式。0=Pixiv 官方(i.pximg.net) 1=pixiv.cat 2=pixiv.re 3=pixiv.nl 4=自定义反代。
+    // 对应 ceui.lisa.http.ImageHostManager.Mode 的 ordinal。
+    public int getImageHostMode() {
+        return imageHostMode;
     }
 
-    public void setUsePixivCat(boolean usePixivCat) {
-        this.usePixivCat = usePixivCat;
+    public void setImageHostMode(int imageHostMode) {
+        this.imageHostMode = imageHostMode;
+    }
+
+    public String getCustomImageHost() {
+        return customImageHost == null ? "" : customImageHost;
+    }
+
+    public void setCustomImageHost(String customImageHost) {
+        this.customImageHost = customImageHost;
     }
 
     public void setSearchFilter(String searchFilter) {
