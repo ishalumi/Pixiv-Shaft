@@ -3,6 +3,8 @@ package ceui.pixiv.ui.comic.reader
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.graphics.Color
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -35,6 +37,8 @@ class ComicPagerAdapter(
     private val onSingleTap: (TapZone) -> Unit,
     private val onLongPressPage: ((Int) -> Unit)? = null,
     private val onPageStatusChanged: ((Int, TaskStatus) -> Unit)? = null,
+    // 下载进度环颜色随阅读器黑/白底变化,由调用方注入(依赖倒置,不引用 Settings)。
+    private val indicatorColorProvider: () -> Int = { Color.WHITE },
 ) : ListAdapter<ComicReaderV3ViewModel.ComicPage, ComicPagerAdapter.PageHolder>(DIFF) {
 
     enum class TapZone { Left, Center, Right }
@@ -46,7 +50,7 @@ class ComicPagerAdapter(
         binding.image.layoutParams = binding.image.layoutParams.apply {
             height = if (fillHeight) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT
         }
-        return PageHolder(lifecycleOwner, binding, urlResolver, contentScaleProvider, onSingleTap, onLongPressPage, onPageStatusChanged)
+        return PageHolder(lifecycleOwner, binding, urlResolver, contentScaleProvider, onSingleTap, onLongPressPage, onPageStatusChanged, indicatorColorProvider)
     }
 
     override fun onBindViewHolder(holder: PageHolder, position: Int) {
@@ -65,6 +69,7 @@ class ComicPagerAdapter(
         private val onSingleTap: (TapZone) -> Unit,
         private val onLongPressPage: ((Int) -> Unit)?,
         private val onPageStatusChanged: ((Int, TaskStatus) -> Unit)?,
+        private val indicatorColorProvider: () -> Int,
     ) : RecyclerView.ViewHolder(binding.root) {
 
         private var imageDisposable: Disposable? = null
@@ -103,6 +108,11 @@ class ComicPagerAdapter(
 
             clearObservers()
             binding.reload.visibility = View.GONE
+            // 进度环着色 + 归零(确定模式,复用时避免残留上一页的百分比)。
+            val indicatorColor = indicatorColorProvider()
+            binding.progress.setIndicatorColor(indicatorColor)
+            binding.progress.trackColor = ColorUtils.setAlphaComponent(indicatorColor, 0x33)
+            binding.progress.setProgressCompat(0, false)
             binding.progress.visibility = View.VISIBLE
 
             val url = urlResolver(page)
@@ -116,6 +126,7 @@ class ComicPagerAdapter(
                 when (state) {
                     is ImageLoadState.Loading -> {
                         binding.progress.visibility = View.VISIBLE
+                        binding.progress.setProgressCompat(state.percent, true)
                         binding.reload.visibility = View.GONE
                         onPageStatusChanged?.invoke(page.index, TaskStatus.Executing(state.percent))
                     }

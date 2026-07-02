@@ -10,6 +10,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -166,6 +167,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         // 立即应用阅读器主题背景色，避免加载中显示白底
         val theme = ReaderTheme.findPresetById(ReaderSettings.themeId) ?: ReaderTheme.KRAFT
         binding.root.setBackgroundColor(theme.backgroundColor)
+        applyLoadingTint(theme)
 
         if (ReaderSettings.readingDirection == ReadingDirection.Vertical) {
             rv.visibility = View.GONE
@@ -324,6 +326,14 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         )
     }
 
+    // 加载环随阅读器主题着色:牛皮纸/纯白等浅底用主题强调色即可看清,
+    // 夜间/炭黑等深底同理。不确定模式下 track 不绘制,仍设一份低透明度
+    // 同色 track 以保持与插画详情页进度环一致的配置。
+    private fun applyLoadingTint(theme: ReaderTheme) {
+        binding.readerLoading.setIndicatorColor(theme.accentColor)
+        binding.readerLoading.trackColor = ColorUtils.setAlphaComponent(theme.accentColor, 0x33)
+    }
+
     // ---- Observe ------------------------------------------------------------
 
     private fun observeReaderState(
@@ -342,6 +352,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                     rebindScrollViewIfActive()
                     val t = ReaderTheme.findPresetById(ReaderSettings.themeId) ?: ReaderTheme.KRAFT
                     binding.root.setBackgroundColor(t.backgroundColor)
+                    applyLoadingTint(t)
                 }
                 ReaderSettings.ChangeEvent.Flip -> applyFlipMode(rv, ch)
                 ReaderSettings.ChangeEvent.Interaction -> {

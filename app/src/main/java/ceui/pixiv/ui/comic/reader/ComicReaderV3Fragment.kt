@@ -1,11 +1,13 @@
 package ceui.pixiv.ui.comic.reader
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.SeekBar
 import android.widget.Toast
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -65,6 +67,7 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
         chrome = ComicChrome(binding.comicTopBar.root, binding.comicBottomBar.root, requireActivity().window)
         windowController = ComicWindowController(requireActivity().window, binding.comicRoot, binding.comicWarmOverlay)
         windowController.apply()
+        applyComicLoadingTint()
         chrome.applySystemBars()
 
         retryController = PageLoadRetryController(
@@ -140,6 +143,7 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
                 ComicReaderSettings.ChangeEvent.Theme,
                 ComicReaderSettings.ChangeEvent.Interaction -> {
                     windowController.apply()
+                    applyComicLoadingTint()
                     chrome.applySystemBars()
                 }
                 ComicReaderSettings.ChangeEvent.Image -> {
@@ -175,7 +179,18 @@ class ComicReaderV3Fragment : Fragment(R.layout.fragment_comic_reader_v3) {
         onSingleTap = ::handleSingleTap,
         onLongPressPage = ::showLongPressMenu,
         onPageStatusChanged = { idx, status -> retryController.reportStatus(idx, status) },
+        indicatorColorProvider = ::comicIndicatorColor,
     )
+
+    // 加载/进度环随黑白底着色:黑底用白环(与插画详情页一致),白底用深灰,避免白环不可见。
+    private fun comicIndicatorColor(): Int =
+        if (ComicReaderSettings.backgroundDark) Color.WHITE else 0xFF333333.toInt()
+
+    private fun applyComicLoadingTint() {
+        val c = comicIndicatorColor()
+        binding.comicLoading.setIndicatorColor(c)
+        binding.comicLoading.trackColor = ColorUtils.setAlphaComponent(c, 0x33)
+    }
 
     // ---- Wiring -------------------------------------------------------------
 

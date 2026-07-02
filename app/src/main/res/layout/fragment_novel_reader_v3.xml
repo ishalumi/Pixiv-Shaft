@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/reader_root"
     android:layout_width="match_parent"
@@ -34,12 +35,21 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom" />
 
-    <ProgressBar
+    <!-- 与插画一级/二级详情页的进度环样式统一(30dp/5dp 圆角 Material 环)。
+         阅读器加载章节内容无字节级进度,故用不确定模式;indicatorColor 在
+         applyLoadingTint() 里按当前阅读器主题着色,避免白底主题下不可见。 -->
+    <com.google.android.material.progressindicator.CircularProgressIndicator
         android:id="@+id/reader_loading"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:indeterminate="true"
         android:visibility="gone"
+        app:indicatorColor="@color/white"
+        app:indicatorSize="30dp"
+        app:trackColor="@color/voice_record_track_color"
+        app:trackCornerRadius="4dp"
+        app:trackThickness="5dp"
         tools:visibility="visible" />
 
     <TextView
