@@ -54,6 +54,10 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     private var zoomedToMax: Boolean = false
     private var pendingGestureCheck: Boolean = false
     private var imageDisposable: Disposable? = null
+    // large 占位任务的观察句柄：原图就绪后摘掉，避免晚到的 large 回盖已显示的原图。
+    private var largeDisposable: Disposable? = null
+    // 原图是否已显示（网络成功 / 本地直读）。large 占位仅在其为 false 时才铺，兜住 large/原图竞态。
+    private var originalShown: Boolean = false
     // 不再放进 arguments / savedInstanceState，避免每个 Fragment 重复持久化 80KB IllustsBean
     // 导致 TransactionTooLargeException。统一向 ImageDetailActivity 取。
     private val mIllustsBean: IllustsBean?
@@ -383,6 +387,10 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
 
     private fun loadImage() {
         baseBind.emptyFrame.visibility = View.GONE
+        // 重新加载（重试 / onViewCreated 再进）时复位「large 占位 → 原图」竞态状态。
+        originalShown = false
+        largeDisposable?.dispose()
+        largeDisposable = null
         val isUrlMode = mIllustsBean == null && !TextUtils.isEmpty(url)
         val imageUrl: String? = if (isUrlMode) {
             url
@@ -411,6 +419,10 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
         // 快路径，零 DB 开销、即时显示；真正要修的「下载过但查看器没缓存」才值得多查一次库。
         val illust = mIllustsBean
         if (!isUrlMode && illust != null && !illust.isGif() && ImageLoaderV3.peekFile(imageUrl) == null) {
+            // 原图尚未就绪（典型：一级详情页 B「展示原图」关，只显了 large）。先用 B 已加载的 large
+            // 秒铺底，原图并行下好再盖上——避免大图页只剩一个转圈的空白等待。原图已在缓存
+            // （peekFile 命中，通常是「展示原图」开时 B 已下好）则不进本分支，直接秒显原图，无需占位。
+            showLargePlaceholder(illust, imageUrl)
             viewLifecycleOwner.lifecycleScope.launch {
                 val localUri = withContext(Dispatchers.IO) { findDownloadedPageUri(illust, index) }
                 if (localUri != null) {
@@ -427,10 +439,42 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
     }
 
     /**
+     * 原图下好前，先把一级详情页 B 已加载的 large 秒铺到底图 —— large 的字节已在 Glide 磁盘缓存里，
+     * 经 [ImageLoaderV3]（= Glide asFile）取回时命中缓存即回，不额外走一次网络。原图
+     * [ImageLoadState.Success] 后会 loadImage(原图) 盖掉本占位。[originalShown] 兜住竞态：原图先到时，
+     * 晚到的 large 不再往上盖，避免用 large 覆盖已显示的原图导致清晰度回退。
+     *
+     * @param originalUrl 本页原图 url，仅用来和 large 比对：single-page 无 meta 时两者会回退到同一张，
+     *                    此时占位无意义、直接跳过。
+     */
+    private fun showLargePlaceholder(illust: IllustsBean, originalUrl: String) {
+        val largeUrl = IllustDownload.getUrl(illust, index, Params.IMAGE_RESOLUTION_LARGE)
+        if (largeUrl.isNullOrEmpty() || largeUrl == originalUrl) return
+
+        val largeTask = ImageLoaderV3.obtain(largeUrl)
+        // 已在缓存（B 显过 large）→ 直接秒铺，不必再挂观察。原图仍在后台下，进度条照旧盖在
+        // large 上显示原图下载进度（与一级详情页 B 的 large + 进度环体验一致），Success 后再换原图。
+        val cached = largeTask.currentFile
+        if (cached != null) {
+            if (!originalShown) baseBind.image.loadImage(cached)
+            return
+        }
+        largeDisposable?.dispose()
+        largeDisposable = largeTask.observeState(viewLifecycleOwner) { state ->
+            if (state is ImageLoadState.Success && !originalShown) {
+                baseBind.image.loadImage(state.file)
+            }
+        }
+    }
+
+    /**
      * 直接 Sketch 读已下载的本地文件（content:// 或 file://），不走 TaskPool 网络下载。
      * 读失败（文件被移动/删除/无权限）就回退网络路径重新下，行为与 IllustAdapter 一致。
      */
     private fun loadFromLocal(localUri: Uri, imageUrl: String, isUrlMode: Boolean) {
+        // 本地已有原图，直读即最终图 —— 摘掉 large 占位观察，别让晚到的 large 回盖已显示的原图。
+        originalShown = true
+        largeDisposable?.dispose()
         baseBind.progressCircular.visibility = View.GONE
         baseBind.image.loadImage(localUri) {
             addListener(onError = { _, _ ->
@@ -458,11 +502,15 @@ class FragmentImageDetail : BaseFragment<FragmentImageDetailBinding?>() {
                     baseBind.progressCircular.progress = 0
                 }
                 is ImageLoadState.Loading -> {
+                    // large 占位下，进度条照旧盖在图上显示原图下载进度（与一级详情页 B 一致）。
                     baseBind.progressCircular.visibility = View.VISIBLE
                     baseBind.progressCircular.progress = state.percent
                 }
                 is ImageLoadState.Success -> {
                     baseBind.progressCircular.visibility = View.GONE
+                    // 原图就绪：标记 + 摘掉 large 占位观察，晚到的 large 不再回盖。
+                    originalShown = true
+                    largeDisposable?.dispose()
                     val file = state.file
                     Timber.d("[ImageDetail] result callback. file=${file.absolutePath}, size=${file.length()}, url=$shortUrl")
                     baseBind.image.loadImage(file)
