@@ -233,6 +233,8 @@
     <color name="bulk_select_scrim">#4D2B6FCC</color>
     <color name="v3_green">#1DA88A</color>
     <color name="v3_purple">#7C5CC8</color>
+    <!-- 评论毛玻璃卡片:近纯白 95%,浮在模糊+压暗的作品背景上仍保证深色文字可读,卡片间隙透出模糊图,日夜各自适配 -->
+    <color name="v3_glass_card">#F2FFFFFF</color>
     <color name="v3_orange">#D45A30</color>
     <color name="v3_ambient_primary">#5B4CA0</color>
     <color name="v3_ambient_glow">#335B4CA0</color>

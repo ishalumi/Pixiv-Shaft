@@ -435,14 +435,10 @@ fun Fragment.setUpLayoutManager(listView: RecyclerView, listMode: Int = ListMode
         listView.layoutManager = LinearLayoutManager(ctx)
         listView.addItemDecoration(LinearItemDecorationNoLRTB(18.ppppx))
     } else if (listMode == ListMode.VERTICAL_COMMENT) {
+        // V3 评论改成毛玻璃卡片:间距走 LinearItemDecoration(左右/间隔 + 首项顶部留白),
+        // 不在 cell 上挂 margin,否则首个 cell 距顶部太近
         listView.layoutManager = LinearLayoutManager(requireContext())
-        listView.addItemDecoration(
-            BottomDividerDecoration(
-                requireContext(),
-                R.drawable.list_divider,
-                marginLeft = 48.ppppx
-            )
-        )
+        listView.addItemDecoration(LinearItemDecoration(10.ppppx))
     } else if (listMode == ListMode.VERTICAL_TABCELL) {
         listView.layoutManager = LinearLayoutManager(requireContext())
         listView.addItemDecoration(
