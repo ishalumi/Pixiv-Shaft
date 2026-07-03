@@ -86,6 +86,11 @@ class CommentViewHolder(bd: CellCommentBinding) :
         binding.root.setOnClickListener { sender ->
             sender.findActionReceiverOrNull<CommentActionReceiver>()?.onClickComment(holder.comment)
         }
+        binding.root.setOnLongClickListener { sender ->
+            sender.findActionReceiverOrNull<CommentActionReceiver>()
+                ?.onLongClickComment(sender, holder.comment, 0L)
+            true
+        }
         val hasStamp = holder.comment.stamp != null
         binding.commentStamp.isVisible = hasStamp
         if (hasStamp) {
@@ -197,6 +202,11 @@ class CellChildCommentViewHolder(bd: CellChildCommentBinding) :
         binding.holder = holder
         binding.root.setOnClickListener { sender ->
             sender.findActionReceiverOrNull<CommentActionReceiver>()?.onClickComment(holder.comment)
+        }
+        binding.root.setOnLongClickListener { sender ->
+            sender.findActionReceiverOrNull<CommentActionReceiver>()
+                ?.onLongClickComment(sender, holder.comment, holder.parentCommentId)
+            true
         }
         val hasStamp = holder.comment.stamp != null
         binding.commentStamp.isVisible = hasStamp

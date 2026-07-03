@@ -6,7 +6,7 @@
     android:paddingHorizontal="12dp"
     android:paddingBottom="18dp">
 
-    <!-- Header -->
+    <!-- Header: 评论 label + 查看更多(常驻右侧,无论有没有评论都能进完整列表) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,14 +15,23 @@
         android:orientation="horizontal">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:letterSpacing="0.12"
             android:text="@string/v3_label_comments"
             android:textAllCaps="true"
             android:textColor="@color/v3_text_3"
             android:textSize="12sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/comments_more"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/see_more"
+            android:textColor="@color/v3_ambient_primary"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <!-- Loading spinner -->
@@ -54,18 +63,4 @@
         android:textColor="@color/v3_text_3"
         android:textSize="13sp"
         android:visibility="gone" />
-
-    <!-- View all comments -->
-    <TextView
-        android:id="@+id/comments_more"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/v3_comments_more_bg"
-        android:gravity="center"
-        android:padding="12dp"
-        android:text="@string/view_comments"
-        android:textColor="@color/v3_text_2"
-        android:textSize="13sp"
-        android:textStyle="bold" />
 </LinearLayout>

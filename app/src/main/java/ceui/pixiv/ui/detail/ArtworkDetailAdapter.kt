@@ -2,12 +2,12 @@ package ceui.pixiv.ui.detail
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.SystemClock
 import android.text.TextUtils
 import android.util.Log
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -29,6 +29,7 @@ import ceui.lisa.activities.unfollowUser
 import ceui.lisa.adapters.LAdapter
 import ceui.lisa.core.Container
 import ceui.lisa.core.PageData
+import ceui.lisa.databinding.CellCommentPreviewBinding
 import ceui.lisa.databinding.SectionV3ArtistBinding
 import ceui.lisa.databinding.SectionV3AuthorWorksBinding
 import ceui.lisa.databinding.SectionV3CommentsBinding
@@ -43,6 +44,7 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.TagsBean
 import ceui.lisa.models.UserBean
 import ceui.lisa.utils.Common
+import ceui.lisa.utils.ClipBoardUtils
 import ceui.lisa.utils.GlideUrlChild
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
@@ -52,6 +54,8 @@ import ceui.lisa.utils.V3Palette
 import ceui.loxia.Comment
 import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressTextButton
+import ceui.pixiv.ui.comments.CommentEmojiSpanner
+import ceui.pixiv.ui.comments.translateCommentToChinese
 import ceui.pixiv.utils.buildPinnedTagPreviewJson
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
@@ -502,92 +506,95 @@ class ArtworkDetailAdapter(
         private var observing = false
 
         fun bind(item: ArtworkDetailItem.Comments) {
+            // 「查看更多」常驻评论 label 右侧:不管有没有评论(甚至加载中)都能点进完整列表
+            b.commentsMore.setTextColor(palette.textAccent)
+            b.commentsMore.setOnClick {
+                val intent = Intent(ctx, TemplateActivity::class.java)
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "相关评论")
+                intent.putExtra(Params.ILLUST_ID, item.illustId)
+                intent.putExtra(Params.ILLUST_TITLE, item.illustTitle)
+                ctx.startActivity(intent)
+            }
             if (!observing) {
                 observing = true
                 item.liveData.observe(fragment.viewLifecycleOwner) { comments ->
-                    render(comments, item.illustId, item.illustTitle)
+                    render(comments, item.illustAuthorId)
                 }
             }
         }
 
-        private fun render(comments: List<Comment>?, illustId: Int, illustTitle: String) {
+        private fun render(comments: List<Comment>?, illustAuthorId: Int) {
             val isLoading = comments == null
             b.commentsLoading.isVisible = isLoading
             b.commentsList.isVisible = !isLoading
             b.commentsEmpty.isVisible = false
-            b.commentsMore.isVisible = false
             if (isLoading) return
 
             b.commentsList.removeAllViews()
             val hasComments = comments.isNotEmpty()
             b.commentsEmpty.isVisible = !hasComments
-            b.commentsMore.isVisible = true
+
+            // 作品评论列表页毛玻璃卡的缩小版预览:复用 cell_comment_preview + V3Palette 强调色
+            val inflater = LayoutInflater.from(ctx)
+            val accent = palette.textAccent
             comments.forEach { comment ->
-                val row = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.HORIZONTAL; setPadding(0, 14.ppppx, 0, 14.ppppx)
+                val cell = CellCommentPreviewBinding.inflate(inflater, b.commentsList, false)
+                (cell.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin =
+                    if (b.commentsList.childCount > 0) 8.ppppx else 0
+
+                cell.userName.text = comment.user.name
+                cell.commentTime.text = comment.displayCommentDate()
+
+                val isArthur = illustAuthorId.toLong() == comment.user.id
+                cell.arthurLabel.isVisible = isArthur
+                if (isArthur) {
+                    cell.arthurLabel.backgroundTintList = ColorStateList.valueOf(palette.alpha15)
+                    cell.arthurLabel.setTextColor(accent)
                 }
-                val avatar = CircleImageView(ctx).apply {
-                    layoutParams =
-                        LinearLayout.LayoutParams(36.ppppx, 36.ppppx).apply { marginEnd = 12.ppppx }
-                }
+                cell.userIcon.borderColor =
+                    if (isArthur) accent else ctx.getColor(R.color.v3_border_2)
                 comment.user.profile_image_urls?.medium?.let {
-                    glide.load(GlideUrlChild(it)).circleCrop().into(avatar)
+                    glide.load(GlideUrlChild(it)).circleCrop().into(cell.userIcon)
                 }
-                row.addView(avatar)
-                val content = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.VERTICAL
-                    layoutParams =
-                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+
+                val stampUrl = comment.stamp?.stamp_url
+                cell.commentStamp.isVisible = stampUrl != null
+                cell.commentContent.isVisible = stampUrl == null
+                if (stampUrl != null) {
+                    glide.load(GlideUrlChild(stampUrl)).into(cell.commentStamp)
+                } else {
+                    cell.commentContent.text = CommentEmojiSpanner.format(
+                        ctx, comment.comment, cell.commentContent.textSize.toInt()
+                    )
                 }
-                val header = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                }
-                header.addView(TextView(ctx).apply {
-                    text = comment.user.name; textSize = 13f
-                    setTextColor(ctx.getColor(R.color.v3_text_1)); setTypeface(
-                    typeface,
-                    Typeface.BOLD
-                )
-                })
-                header.addView(TextView(ctx).apply {
-                    text = comment.displayCommentDate(); textSize = 11f
-                    setTextColor(ctx.getColor(R.color.v3_text_3)); setPadding(8.ppppx, 0, 0, 0)
-                })
-                content.addView(header)
-                if (!comment.comment.isNullOrBlank()) {
-                    content.addView(TextView(ctx).apply {
-                        text = comment.comment; textSize = 13f
-                        setTextColor(ctx.getColor(R.color.v3_text_1))
-                        alpha = 0.72f
-                        setPadding(0, 4.ppppx, 0, 0); setLineSpacing(0f, 1.65f)
-                    })
-                }
-                if (comment.stamp?.stamp_url != null) {
-                    val sv = net.csdn.roundview.RoundImageView(ctx).apply {
-                        layoutParams = LinearLayout.LayoutParams(80.ppppx, 80.ppppx)
-                            .apply { topMargin = 6.ppppx }
-                        scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                        setRadius(10F)
+
+                // 长按预览卡:与列表页保持一致(只读一瞥,取子集:复制评论 / 查看用户)
+                cell.root.setOnLongClickListener {
+                    val text = comment.comment
+                    fragment.showV3Menu("PreviewCommentMenu") {
+                        if (!text.isNullOrBlank()) {
+                            item(
+                                ctx.getString(R.string.string_173),
+                                R.drawable.baseline_content_copy_24
+                            ) { ClipBoardUtils.putTextIntoClipboard(ctx, text) }
+                            item(
+                                ctx.getString(R.string.comment_translate_to_zh),
+                                R.drawable.ic_baseline_translate_24
+                            ) { fragment.translateCommentToChinese(text) }
+                        }
+                        item(
+                            ctx.getString(R.string.string_174),
+                            R.drawable.ic_supervisor_account_black_24dp
+                        ) {
+                            val intent = Intent(ctx, UActivity::class.java)
+                            intent.putExtra(Params.USER_ID, comment.user.id.toInt())
+                            ctx.startActivity(intent)
+                        }
                     }
-                    glide.load(GlideUrlChild(comment.stamp.stamp_url)).into(sv)
-                    content.addView(sv)
+                    true
                 }
-                row.addView(content)
-                if (b.commentsList.childCount > 0) {
-                    b.commentsList.addView(View(ctx).apply {
-                        layoutParams =
-                            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
-                        setBackgroundColor(ctx.getColor(R.color.v3_border_1))
-                    })
-                }
-                b.commentsList.addView(row)
-            }
-            b.commentsMore.setOnClick {
-                val intent = Intent(ctx, TemplateActivity::class.java)
-                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "相关评论")
-                intent.putExtra(Params.ILLUST_ID, illustId)
-                intent.putExtra(Params.ILLUST_TITLE, illustTitle)
-                ctx.startActivity(intent)
+
+                b.commentsList.addView(cell.root)
             }
         }
     }

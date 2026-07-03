@@ -1664,4 +1664,5 @@
     <string name="image_host_custom_hint">https://your.proxy</string>
     <string name="image_host_custom_empty">Укажите адрес прокси</string>
     <string name="image_host_restart_hint">Перезапустите приложение, чтобы применить</string>
+    <string name="comment_translate_to_zh">Перевести на китайский</string>
 </resources>

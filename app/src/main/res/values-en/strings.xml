@@ -1760,4 +1760,5 @@
     <string name="image_host_custom_hint">https://your.proxy</string>
     <string name="image_host_custom_empty">Proxy URL cannot be empty</string>
     <string name="image_host_restart_hint">Restart the app to apply</string>
+    <string name="comment_translate_to_zh">Translate to Chinese</string>
 </resources>

@@ -309,7 +309,14 @@ class ArtworkV3ViewModel(
         list.add(ArtworkDetailItem.Stats(illust))
         list.add(ArtworkDetailItem.DetailPanel(illust))
 
-        list.add(ArtworkDetailItem.Comments(_commentsData, illust.id, illust.title ?: ""))
+        list.add(
+            ArtworkDetailItem.Comments(
+                _commentsData,
+                illust.id,
+                illust.title ?: "",
+                illust.user?.id ?: 0
+            )
+        )
         list.add(
             ArtworkDetailItem.AuthorWorks(
                 _authorWorksData,

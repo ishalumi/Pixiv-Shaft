@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 评论子项/详情预览卡的点按涟漪(前景):圆角 14dp 蒙版 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#40888888">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <corners android:radius="14dp" />
+            <solid android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+</ripple>

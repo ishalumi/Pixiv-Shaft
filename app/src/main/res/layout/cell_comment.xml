@@ -17,7 +17,7 @@
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:foreground="@drawable/cell_background"
+        android:foreground="@drawable/v3_ripple_card22"
         app:cardBackgroundColor="@color/v3_glass_card"
         app:cardCornerRadius="22dp"
         app:cardElevation="3dp">

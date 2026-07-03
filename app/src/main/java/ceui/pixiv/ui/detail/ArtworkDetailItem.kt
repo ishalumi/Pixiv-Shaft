@@ -43,7 +43,8 @@ sealed class ArtworkDetailItem {
     data class Comments(
         val liveData: LiveData<List<Comment>?>,
         val illustId: Int,
-        val illustTitle: String
+        val illustTitle: String,
+        val illustAuthorId: Int
     ) : ArtworkDetailItem()
 
     data class AuthorWorks(

@@ -14,13 +14,17 @@ import androidx.navigation.fragment.navArgs
 import ceui.lisa.R
 import ceui.lisa.databinding.CellEditingCommentBinding
 import ceui.lisa.databinding.FragmentPixivListBinding
+import ceui.lisa.utils.ClipBoardUtils
 import ceui.loxia.Comment
+import ceui.loxia.ObjectPool
 import ceui.loxia.ObjectType
 import ceui.loxia.ProgressTextButton
 import ceui.loxia.hideKeyboard
 import ceui.loxia.launchSuspend
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.ListMode
 import ceui.pixiv.ui.common.PixivFragment
+import ceui.pixiv.ui.detail.showV3Menu
 import ceui.pixiv.ui.common.setUpRefreshState
 import ceui.pixiv.ui.list.pixivListViewModel
 import ceui.pixiv.ui.user.UserActionReceiver
@@ -94,6 +98,36 @@ class CommentsFragment : PixivFragment(R.layout.fragment_pixiv_list), CommentAct
 
     }
 
+    override fun onLongClickComment(anchor: View, comment: Comment, parentCommentId: Long) {
+        val isOwn = SessionManager.loggedInUid == comment.user.id
+        val commentText = comment.comment
+        // 社交软件式长按操作:复制评论 / 回复 / 查看用户 / 删除(仅自己),统一用 V3MenuDialog
+        showV3Menu("CommentMenu") {
+            if (!commentText.isNullOrBlank()) {
+                item(getString(R.string.string_173), R.drawable.baseline_content_copy_24) {
+                    ClipBoardUtils.putTextIntoClipboard(requireContext(), commentText)
+                }
+                item(getString(R.string.comment_translate_to_zh), R.drawable.ic_baseline_translate_24) {
+                    translateCommentToChinese(commentText)
+                }
+            }
+            if (!isOwn) {
+                item(getString(R.string.string_176), R.drawable.chat_ic_reply) {
+                    onClickReply(comment, parentCommentId)
+                }
+            }
+            item(getString(R.string.string_174), R.drawable.ic_supervisor_account_black_24dp) {
+                ObjectPool.update(comment.user)
+                onClickUser(comment.user.id)
+            }
+            if (isOwn) {
+                item(getString(R.string.string_219), R.drawable.ic_delete_black_24dp) {
+                    launchSuspend { dataSource.deleteComment(comment.id, parentCommentId) }
+                }
+            }
+        }
+    }
+
     override fun onClickDeleteComment(sender: ProgressTextButton, comment: Comment, parentCommentId: Long) {
         launchSuspend(sender) {
             dataSource.deleteComment(comment.id, parentCommentId)
@@ -120,6 +154,8 @@ interface CommentActionReceiver : UserActionReceiver {
     fun onClickShowMoreReply(sender: ProgressTextButton, commentId: Long)
 
     fun onClickComment(comment: Comment)
+
+    fun onLongClickComment(anchor: View, comment: Comment, parentCommentId: Long)
 
     fun onClickDeleteComment(sender: ProgressTextButton, comment: Comment, parentCommentId: Long)
 }
