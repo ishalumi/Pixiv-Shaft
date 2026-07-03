@@ -567,9 +567,9 @@ class ArtworkDetailAdapter(
                         layoutParams = LinearLayout.LayoutParams(80.ppppx, 80.ppppx)
                             .apply { topMargin = 6.ppppx }
                         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                        setRadius(8.ppppx.toFloat())
+                        setRadius(10F)
                     }
-                    glide.load(GlideUrlChild(comment.stamp!!.stamp_url!!)).into(sv)
+                    glide.load(GlideUrlChild(comment.stamp.stamp_url)).into(sv)
                     content.addView(sv)
                 }
                 row.addView(content)

@@ -83,7 +83,7 @@
                 android:id="@+id/comment_stamp"
                 android:layout_width="100dp"
                 android:layout_height="100dp"
-                app:rRadius="4dp" />
+                app:rRadius="12dp" />
         </FrameLayout>
 
 
