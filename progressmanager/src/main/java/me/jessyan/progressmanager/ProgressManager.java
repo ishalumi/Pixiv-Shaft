@@ -484,6 +484,29 @@ public final class ProgressManager {
             progressListeners = mResponseListeners.get(url);
             if (progressListeners != null) {
                 progressListeners.remove(listener);
+                if (progressListeners.isEmpty()) {
+                    mResponseListeners.remove(url);
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove a download listener from every response-listener bucket. Redirect handling can attach
+     * the same listener to the redirected URL as well as the original URL, so one-shot callers that
+     * do not own the redirect chain should use this overload in their cleanup path.
+     */
+    public void removeResponseListener(ProgressListener listener) {
+        checkNotNull(listener, "listener cannot be null");
+        synchronized (ProgressManager.class) {
+            java.util.Iterator<Map.Entry<String, List<ProgressListener>>> iterator =
+                    mResponseListeners.entrySet().iterator();
+            while (iterator.hasNext()) {
+                List<ProgressListener> progressListeners = iterator.next().getValue();
+                progressListeners.remove(listener);
+                if (progressListeners.isEmpty()) {
+                    iterator.remove();
+                }
             }
         }
     }

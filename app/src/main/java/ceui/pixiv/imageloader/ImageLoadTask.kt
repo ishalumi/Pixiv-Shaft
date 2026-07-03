@@ -35,6 +35,7 @@ class ImageLoadTask(
     val request: ImageRequest,
     private val scope: CoroutineScope,
     private val fetcher: ImageFetcher = GlideImageFetcher,
+    private val elapsedRealtime: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
 
     private val shortUrl = request.url.substringAfterLast('/')
@@ -49,7 +50,7 @@ class ImageLoadTask(
     val stateLiveData: LiveData<ImageLoadState> by lazy { state.asLiveData() }
 
     /** 当前已下好的文件(仅成功后非空),供占位链/缓存命中/一键保存快速取用。 */
-    val currentFile: File? get() = _state.value.fileOrNull
+    val currentFile: File? get() = _state.value.fileOrNull?.takeIf { it.isUsableImageFile() }
 
     private var job: Job? = null
 
@@ -62,7 +63,12 @@ class ImageLoadTask(
         if (job?.isActive == true) return
         when (val current = _state.value) {
             // 磁盘缓存文件还在就直接复用;被清了(exists=false)才落到下面重抓。
-            is ImageLoadState.Success -> if (current.file.exists()) return
+            is ImageLoadState.Success -> {
+                if (current.file.isUsableImageFile()) return
+                // Glide 磁盘缓存可能被系统/用户清掉。必须先离开旧 Success,否则 awaitFile()
+                // 会立刻读到 stale terminal state,把不存在的 File 交给保存/AI 流程。
+                _state.value = ImageLoadState.Loading(0)
+            }
             // 终态失败不自动重来,交给 retry(),避免复用触发 retry 风暴。
             is ImageLoadState.Error -> return
             else -> Unit
@@ -89,7 +95,13 @@ class ImageLoadTask(
         // 上一次失败就重来一次(对齐旧 TaskPool「取到 errored 任务即换新重下」的行为);否则幂等启动。
         // 这是显式「我要这个文件」的取用点(保存/AI),不是列表滚动,重试一次不会造成风暴。
         if (_state.value is ImageLoadState.Error) retry() else start()
-        return when (val terminal = state.first { it.isTerminal }) {
+        return when (val terminal = state.first { state ->
+            when (state) {
+                is ImageLoadState.Success -> state.file.isUsableImageFile()
+                is ImageLoadState.Error -> true
+                else -> false
+            }
+        }) {
             is ImageLoadState.Success -> terminal.file
             is ImageLoadState.Error -> throw terminal.cause
             else -> error("unreachable non-terminal state: $terminal")
@@ -97,7 +109,7 @@ class ImageLoadTask(
     }
 
     private suspend fun runDownload() {
-        val startMs = SystemClock.elapsedRealtime()
+        val startMs = elapsedRealtime()
         _state.value = ImageLoadState.Loading(0)
         try {
             val file = fetcher.fetch(request.url) { percent ->
@@ -105,13 +117,15 @@ class ImageLoadTask(
                 _state.update { if (it is ImageLoadState.Loading) ImageLoadState.Loading(percent) else it }
             }
             _state.value = ImageLoadState.Success(file)
-            Timber.d("[ImgV3] task SUCCESS url=$shortUrl totalMs=${SystemClock.elapsedRealtime() - startMs} size=${file.length()}")
+            Timber.d("[ImgV3] task SUCCESS url=$shortUrl totalMs=${elapsedRealtime() - startMs} size=${file.length()}")
         } catch (ce: CancellationException) {
             Timber.d("[ImgV3] task CANCELLED url=$shortUrl")
             throw ce
         } catch (ex: Exception) {
             _state.value = ImageLoadState.Error(ex)
-            Timber.e(ex, "[ImgV3] task ERROR url=$shortUrl totalMs=${SystemClock.elapsedRealtime() - startMs}")
+            Timber.e(ex, "[ImgV3] task ERROR url=$shortUrl totalMs=${elapsedRealtime() - startMs}")
         }
     }
+
+    private fun File.isUsableImageFile(): Boolean = exists() && length() > 0
 }

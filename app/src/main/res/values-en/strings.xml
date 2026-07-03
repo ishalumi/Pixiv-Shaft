@@ -712,6 +712,8 @@
   <string name="rate_dialog_maybe_later">Maybe Later</string>
   <string name="rate_dialog_never">Don\'t ask again</string>
   <string name="string_ai_upscale">AI Enhance (2x)</string>
+  <string name="string_set_wallpaper">Set Wallpaper</string>
+  <string name="string_set_wallpaper_failed">Can\'t open system wallpaper settings</string>
   <string name="string_ai_manga_translate_inline">Translate Manga</string>
   <string name="string_ai_manga_translate_manual">Select &amp; Translate</string>
   <string name="string_ai_manga_translate_manual_hint">Drag to select the text you want translated</string>

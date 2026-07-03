@@ -43,13 +43,15 @@ object GlideImageFetcher : ImageFetcher {
         // updates in non-PIXIV modes. rewrite() is a no-op / idempotent in PIXIV.
         val requestUrl = ImageHostManager.rewrite(url)
 
-        ProgressManager.getInstance().addResponseListener(requestUrl, object : ProgressListener {
+        val progressManager = ProgressManager.getInstance()
+        val progressListener = object : ProgressListener {
             override fun onProgress(progressInfo: ProgressInfo) {
                 if (!progressInfo.isFinish) onProgress(progressInfo.percent.coerceIn(0, 99))
             }
 
             override fun onError(id: Long, ex: Exception) = Unit
-        })
+        }
+        progressManager.addResponseListener(requestUrl, progressListener)
 
         // 捕获 Glide 命中的数据源,仅用于日志分析(缓存命中 vs 走网络)。
         var dataSource: DataSource? = null
@@ -79,6 +81,7 @@ object GlideImageFetcher : ImageFetcher {
                 Timber.d("[ImgV3] fetch DONE url=$shortUrl source=${dataSource?.name} ms=$elapsed size=${file.length()}")
                 file
             } finally {
+                progressManager.removeResponseListener(progressListener)
                 if (!future.isDone) future.cancel(true)
             }
         }

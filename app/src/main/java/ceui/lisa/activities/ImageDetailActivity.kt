@@ -1,10 +1,13 @@
 package ceui.lisa.activities
 
+import android.app.WallpaperManager
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.viewModels
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -64,6 +67,11 @@ import timber.log.Timber
  * 图片二级详情
  */
 class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
+    private data class WallpaperImage(
+        val uri: Uri,
+        val mimeType: String,
+    )
+
     var mIllustsBean: IllustsBean? = null
         private set
     private val translationViewModel by viewModels<ImageTranslationViewModel>()
@@ -73,6 +81,24 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
     private var currentSize: TextView? = null
     private var index = 0
     private val viewModel by viewModels<ToggleToolnarViewModel>()
+
+    companion object {
+        private val WALLPAPER_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif")
+        private val WALLPAPER_TARGET_KEYWORDS = listOf(
+            "wallpaper",
+            "theme",
+            "launcher",
+            "crop",
+            "gallery",
+            "album",
+            "壁纸",
+            "主题",
+            "桌面",
+            "锁屏",
+            "相册",
+            "图库",
+        )
+    }
 
     override fun initLayout(): Int {
         return R.layout.activity_image_detail
@@ -133,7 +159,8 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                     getString(R.string.string_ai_upscale),
                     getString(R.string.string_ai_rembg),
                     getString(R.string.string_ai_manga_translate_inline),
-                    getString(R.string.string_ai_manga_translate_manual)
+                    getString(R.string.string_ai_manga_translate_manual),
+                    getString(R.string.string_set_wallpaper)
                 )
                 QMUIMenuPopup.show(this, anchor, titles) { index, _ ->
                     val illust = mIllustsBean ?: return@show
@@ -147,6 +174,7 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                         }
                         2 -> performAiMangaTranslateInline(illust, pageIndex)
                         3 -> performAiMangaTranslateManual(illust, pageIndex)
+                        4 -> performSetWallpaper(illust, pageIndex)
                     }
                 }
             }
@@ -521,6 +549,114 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
             ImageLoaderV3.obtain(imageUrl).awaitFile()
         } catch (e: Exception) {
             null
+        }
+
+    private fun performSetWallpaper(illust: IllustsBean, pageIndex: Int) {
+        val imageUrl = IllustDownload.getUrl(illust, pageIndex, Params.IMAGE_RESOLUTION_ORIGINAL)
+        if (imageUrl == null) {
+            Timber.w("[ImageDetail] set wallpaper: original url missing page=%d", pageIndex)
+            Common.showToast(R.string.string_set_wallpaper_failed)
+            return
+        }
+
+        lifecycleScope.launch {
+            val file = awaitLoadedFile(imageUrl)
+            if (file == null) {
+                Common.showToast(R.string.string_set_wallpaper_failed)
+                return@launch
+            }
+            val wallpaperImage = runCatching {
+                withContext(Dispatchers.IO) {
+                    prepareWallpaperImage(file, imageUrl)
+                }
+            }.getOrElse { ex ->
+                Timber.w(ex, "[ImageDetail] set wallpaper: prepare uri failed page=%d", pageIndex)
+                Common.showToast(R.string.string_set_wallpaper_failed)
+                return@launch
+            }
+            openSystemWallpaperSetter(wallpaperImage)
+        }
+    }
+
+    private fun prepareWallpaperImage(source: File, imageUrl: String): WallpaperImage {
+        val ext = imageUrl.substringAfterLast('/')
+            .substringAfterLast('.', "jpg")
+            .substringBefore('?')
+            .lowercase(Locale.ROOT)
+            .let { if (it in WALLPAPER_EXTENSIONS) it else "jpg" }
+        val dir = File(cacheDir, "wallpaper_share").apply {
+            mkdirs()
+            listFiles()?.forEach { it.delete() }
+        }
+        val target = File(dir, "wallpaper.$ext")
+        source.inputStream().use { input ->
+            target.outputStream().use { input.copyTo(it) }
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.provider", target)
+        return WallpaperImage(uri, mimeTypeForWallpaperExt(ext))
+    }
+
+    private fun openSystemWallpaperSetter(image: WallpaperImage) {
+        val attachIntent = wallpaperAttachIntent(image)
+        val vendorIntent = findVendorWallpaperIntent(attachIntent, image.uri)
+        if (vendorIntent != null && startWallpaperIntent(vendorIntent)) {
+            return
+        }
+
+        val cropAndSetIntent = runCatching {
+            WallpaperManager.getInstance(this)
+                .getCropAndSetWallpaperIntent(image.uri)
+                .apply {
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+        }.getOrNull()
+        if (cropAndSetIntent == null || !startWallpaperIntent(cropAndSetIntent)) {
+            Common.showToast(R.string.string_set_wallpaper_failed)
+        }
+    }
+
+    private fun wallpaperAttachIntent(image: WallpaperImage): Intent =
+        Intent(Intent.ACTION_ATTACH_DATA).apply {
+            addCategory(Intent.CATEGORY_DEFAULT)
+            setDataAndType(image.uri, image.mimeType)
+            putExtra("mimeType", image.mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+    @Suppress("DEPRECATION")
+    private fun findVendorWallpaperIntent(baseIntent: Intent, uri: Uri): Intent? {
+        val matches = packageManager.queryIntentActivities(baseIntent, 0)
+        Timber.d(
+            "[ImageDetail] set wallpaper attach targets=%s",
+            matches.joinToString { "${it.activityInfo.packageName}/${it.activityInfo.name}" }
+        )
+        val target = matches.firstOrNull { resolveInfo ->
+            val activity = resolveInfo.activityInfo
+            val label = resolveInfo.loadLabel(packageManager)?.toString().orEmpty()
+            val haystack = "${activity.packageName} ${activity.name} $label".lowercase(Locale.ROOT)
+            WALLPAPER_TARGET_KEYWORDS.any { it in haystack }
+        } ?: return null
+
+        val activity = target.activityInfo
+        grantUriPermission(activity.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return Intent(baseIntent).setClassName(activity.packageName, activity.name)
+    }
+
+    private fun startWallpaperIntent(intent: Intent): Boolean =
+        try {
+            startActivity(intent)
+            true
+        } catch (ex: Exception) {
+            Timber.w(ex, "[ImageDetail] set wallpaper failed")
+            false
+        }
+
+    private fun mimeTypeForWallpaperExt(ext: String): String =
+        when (ext) {
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            "gif" -> "image/gif"
+            else -> "image/jpeg"
         }
 
     private fun performAiUpscale(illust: IllustsBean, pageIndex: Int, model: UpscaleModel) {
