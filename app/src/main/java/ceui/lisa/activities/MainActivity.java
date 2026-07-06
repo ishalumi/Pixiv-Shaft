@@ -12,13 +12,13 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.TextUtils;
-import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -232,6 +232,20 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             }
         });
         DrawerLayoutHelper.setCustomLeftEdgeSize(getDrawer(), 1.0f);
+
+        // 返回键/返回手势:抽屉开着先关抽屉,否则走双击退出。
+        // targetSdk 35+ 后预测式返回默认开启,系统不再回调 onKeyDown(KEYCODE_BACK),
+        // 必须用 OnBackPressedDispatcher 接管。
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (baseBind.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    baseBind.drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    exit();
+                }
+            }
+        });
     }
 
     private void initFragment() {
@@ -556,20 +570,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (baseBind.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            baseBind.drawerLayout.closeDrawer(GravityCompat.START);
-            return true;
-        } else {
-            if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
-                exit();
-                return true;
-            }
-            return false;
         }
     }
 
