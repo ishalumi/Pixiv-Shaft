@@ -8,7 +8,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
+import androidx.fragment.app.viewModels
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
@@ -17,7 +17,6 @@ import com.scwang.smart.refresh.header.MaterialHeader
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.adapters.IAdapter
-import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.FragmentWatchLaterBinding
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.models.IllustsBean
@@ -26,15 +25,11 @@ import ceui.lisa.utils.DensityUtil
 import ceui.lisa.view.SpacesItemDecoration
 import ceui.loxia.requireEntityWrapper
 import ceui.pixiv.db.EntityWrapper
-import ceui.pixiv.db.RecordType
 import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.detail.showV3Menu
 import ceui.pixiv.ui.slideshow.SlideshowLauncher
 import ceui.pixiv.utils.setOnClick
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * 「稍后再看」列表页。**必须用 legacy IAdapter**(recy_illust_stagger)渲染:它点击走
@@ -48,12 +43,16 @@ import kotlinx.coroutines.withContext
 class WatchLaterFragment : Fragment(R.layout.fragment_watch_later) {
 
     private val binding by viewBinding(FragmentWatchLaterBinding::bind)
+    private val viewModel: WatchLaterViewModel by viewModels()
+
+    // 只是 legacy IAdapter 的渲染缓冲(它构造时按引用持有一个 List),
+    // 数据真源是 viewModel.items,这份靠 observer 同步过来。
     private val items = mutableListOf<IllustsBean>()
     private val adapter by lazy { IAdapter(items, requireContext()).apply { setUuid("watch_later") } }
 
     private val changeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            reload()
+            viewModel.reload()
         }
     }
 
@@ -71,19 +70,25 @@ class WatchLaterFragment : Fragment(R.layout.fragment_watch_later) {
         binding.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()))
         binding.refreshLayout.setEnableLoadMore(false)
         binding.refreshLayout.setOnRefreshListener {
-            reload { binding.refreshLayout.finishRefresh() }
+            viewModel.reload { if (getView() != null) binding.refreshLayout.finishRefresh() }
         }
 
         LocalBroadcastManager.getInstance(requireContext())
             .registerReceiver(changeReceiver, IntentFilter(EntityWrapper.ACTION_WATCH_LATER_CHANGED))
 
-        reload()
+        viewModel.items.observe(viewLifecycleOwner) { beans ->
+            items.clear()
+            items.addAll(beans)
+            adapter.notifyDataSetChanged()
+            binding.emptyLayout.isVisible = beans.isEmpty()
+        }
+        viewModel.reload()
     }
 
     override fun onResume() {
         super.onResume()
         // 从详情返回后收藏状态可能变了,重拉一次让红心同步(本地查询,便宜)。
-        reload()
+        viewModel.reload()
     }
 
     override fun onDestroyView() {
@@ -91,31 +96,14 @@ class WatchLaterFragment : Fragment(R.layout.fragment_watch_later) {
         super.onDestroyView()
     }
 
-    private fun reload(done: (() -> Unit)? = null) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val beans = withContext(Dispatchers.IO) {
-                AppDatabase.getAppDatabase(requireContext().applicationContext).generalDao()
-                    .getByRecordType(RecordType.WATCH_LATER, 0, Int.MAX_VALUE)
-                    .mapNotNull {
-                        runCatching { Shaft.sGson.fromJson(it.json, IllustsBean::class.java) }.getOrNull()
-                    }
-            }
-            if (view == null) return@launch
-            items.clear()
-            items.addAll(beans)
-            adapter.notifyDataSetChanged()
-            binding.emptyLayout.isVisible = items.isEmpty()
-            done?.invoke()
-        }
-    }
-
     private fun showActionMenu() {
         showV3Menu("WatchLaterMenu") {
             item(getString(R.string.watch_later_play_all), R.drawable.ic_baseline_play_arrow_24) {
-                if (items.isEmpty()) {
+                val current = viewModel.current
+                if (current.isEmpty()) {
                     Common.showToast(R.string.watch_later_empty)
                 } else {
-                    SlideshowLauncher.launchFromIllustsBeans(requireContext(), ArrayList(items), 0, true)
+                    SlideshowLauncher.launchFromIllustsBeans(requireContext(), ArrayList(current), 0, true)
                 }
             }
             item(getString(R.string.watch_later_clear), R.drawable.ic_not_interested_black_24dp) {
@@ -126,7 +114,7 @@ class WatchLaterFragment : Fragment(R.layout.fragment_watch_later) {
 
     private fun confirmClear() {
         val ctx = context ?: return
-        if (items.isEmpty()) {
+        if (viewModel.current.isEmpty()) {
             Common.showToast(R.string.watch_later_empty)
             return
         }
