@@ -20,12 +20,13 @@ class EntityWrapper(
     private val context: Context
 ) {
 
-    private val _blockingIllustIds = mutableSetOf<Long>()
-    private val _blockingUserIds = mutableSetOf<Long>()
-    private val _blockingNovelIds = mutableSetOf<Long>()
+    // 这几个 id 集合都是「IO 线程写(initialize/insert/delete/clear),主线程读
+    // (isWorkBlocked/isInWatchLater)」,必须用并发 set;普通 HashSet 跨线程读写有可见性/并发问题。
+    private val _blockingIllustIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val _blockingUserIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val _blockingNovelIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
 
     // 稍后再看的插画 id,内存缓存用于长按菜单即时判断「已加入 / 未加入」,避免每次查 DB。
-    // 用并发 set:isInWatchLater 在主线程读,insert/delete/clear 在 IO 线程写,普通 HashSet 会有并发读写问题。
     private val _watchLaterIllustIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
 
     fun initialize() {

@@ -85,11 +85,10 @@ class WatchLaterFragment : Fragment(R.layout.fragment_watch_later) {
         viewModel.reload()
     }
 
-    override fun onResume() {
-        super.onResume()
-        // 从详情返回后收藏状态可能变了,重拉一次让红心同步(本地查询,便宜)。
-        viewModel.reload()
-    }
+    // 不在 onResume 里 reload:增删经 EntityWrapper 发 WATCH_LATER_CHANGED 广播,
+    // changeReceiver 从 onViewCreated 到 onDestroyView 全程注册(暂停在后台也收得到),
+    // 已覆盖所有列表变更。收藏红心不走这条路(存的是加入时的旧 JSON,重拉也 stale),
+    // 硬 reload 只会全表重解析做无用功,还会把列表内乐观点心回弹成旧值。
 
     override fun onDestroyView() {
         LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(changeReceiver)
