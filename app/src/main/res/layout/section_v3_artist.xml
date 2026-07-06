@@ -34,7 +34,7 @@
                     android:layout_width="58dp"
                     android:layout_height="58dp"
                     android:scaleType="centerCrop"
-                    app:civ_border_color="#1A08080C"
+                    app:civ_border_color="?attr/colorPrimary"
                     app:civ_border_width="3dp" />
 
                 <FrameLayout

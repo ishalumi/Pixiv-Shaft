@@ -138,7 +138,7 @@
                                     android:layout_marginStart="@dimen/twelve_dp"
                                     android:layout_marginTop="@dimen/eight_dp"
                                     android:layout_marginBottom="@dimen/eight_dp"
-                                    app:civ_border_color="#DDDDDD"
+                                    app:civ_border_color="?attr/colorPrimary"
                                     app:civ_border_width="1dp" />
 
                                 <TextView
