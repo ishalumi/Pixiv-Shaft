@@ -96,9 +96,9 @@
                             android:gravity="center_vertical"
                             android:letterSpacing="0.01"
                             android:maxLines="1"
+                            style="@style/textMontserratBold"
                             android:textColor="@android:color/white"
                             android:textSize="13sp"
-                            android:textStyle="bold"
                             app:drawableStartCompat="@drawable/ic_favorite_black_24dp"
                             app:drawableTint="#ff445b"
                             tools:text="8172" />
@@ -109,7 +109,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="1dp"
-                            android:fontFamily="sans-serif-medium"
+                            style="@style/textMontserratMedium"
                             android:letterSpacing="0.02"
                             android:maxLines="1"
                             android:textColor="#C8FFFFFF"
@@ -168,8 +168,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
+                        style="@style/textMontserratMedium"
                         android:ellipsize="end"
-                        android:fontFamily="sans-serif-medium"
                         android:maxLines="2"
                         android:textColor="@color/v3_text_2"
                         android:textSize="12sp"
@@ -205,14 +205,16 @@
                             android:layout_marginEnd="8dp"
                             android:layout_weight="1"
                             android:ellipsize="end"
-                            android:fontFamily="sans-serif-medium"
+                            style="@style/textMontserratMedium"
                             android:maxLines="1"
                             android:textColor="@color/v3_text_2"
                             android:textSize="13sp"
                             tools:text="葵由" />
 
+                        <!-- 日期是纯数字,用 Montserrat Regular 跟封面数据同族;保持最弱色阶。 -->
                         <TextView
                             android:id="@+id/date"
+                            style="@style/textMontserratRegular"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:letterSpacing="0.02"
