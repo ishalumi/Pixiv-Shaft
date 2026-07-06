@@ -26,9 +26,11 @@ public class RAdapter extends BaseAdapter<IllustsBean, RecyRankIllustHorizontalB
     public void bindData(IllustsBean target, ViewHolder<RecyRankIllustHorizontalBinding> bindView, int position) {
         bindView.baseBind.title.setText(allItems.get(position).getTitle());
         bindView.baseBind.author.setText(allItems.get(position).getUser().getName());
+        // 排行榜 hero 卡是首页最显眼的两张大图,用 large(600x1200_90)而不是 medium(540_70),
+        // centerCrop 到 180dp 卡里明显更清晰;URL 缺失时 getUrl 返 null 交给 Glide 兜底。
         Glide.with(mContext).load(GlideUtil.getUrl(allItems.get(position)
-                .getImage_urls().getMedium()))
-                .placeholder(R.color.light_bg).into(bindView.baseBind.illustImage);
+                .getImage_urls().getLarge()))
+                .into(bindView.baseBind.illustImage);
         Glide.with(mContext).load(GlideUtil.getUrl(allItems.get(position)
                 .getUser().getProfile_image_urls().getMedium()))
                 .placeholder(R.color.light_bg).error(R.drawable.no_profile).into(bindView.baseBind.userHead);

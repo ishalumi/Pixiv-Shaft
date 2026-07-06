@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="@dimen/eight_dp"
             android:layout_marginTop="@dimen/twelve_dip"
             android:layout_marginBottom="@dimen/four_dp"
             app:drawableStartCompat="@drawable/ic_huangguan"
@@ -23,7 +23,8 @@
             android:text="@string/ranking_illust"
             android:gravity="center"
             android:id="@+id/ranking_s"
-            android:textColor="@color/rank_text_color"
+            android:letterSpacing="0.01"
+            android:textColor="@color/v3_text_1"
             android:textSize="15sp"
             android:textStyle="bold" />
 
@@ -71,8 +72,9 @@
 
             <TextView
                 android:layout_width="wrap_content"
-                android:textColor="@color/rank_text_color"
+                android:textColor="@color/v3_text_1"
                 android:textSize="15sp"
+                android:letterSpacing="0.01"
                 android:text="@string/recmd_for_you"
                 android:layout_marginTop="@dimen/six_dp"
                 android:textStyle="bold"
