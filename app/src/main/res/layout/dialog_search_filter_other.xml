@@ -68,6 +68,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_v3_settings_card"
+                android:tag="v3_card"
                 android:clipToOutline="true"
                 android:orientation="vertical">
 
@@ -125,6 +126,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_v3_settings_card"
+                android:tag="v3_card"
                 android:clipToOutline="true"
                 android:orientation="vertical"
                 android:visibility="gone">
@@ -146,6 +148,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_v3_settings_card"
+                android:tag="v3_card"
                 android:clipToOutline="true"
                 android:orientation="vertical"
                 android:visibility="gone">
@@ -174,6 +177,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_v3_settings_card"
+                android:tag="v3_card"
                 android:clipToOutline="true"
                 android:orientation="vertical">
 

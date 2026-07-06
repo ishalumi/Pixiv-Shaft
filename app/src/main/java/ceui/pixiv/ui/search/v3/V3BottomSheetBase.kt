@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -61,6 +62,7 @@ abstract class V3BottomSheetBase : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        applyThemeCardTint(view)
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.updatePadding(bottom = bars.bottom)
@@ -68,4 +70,28 @@ abstract class V3BottomSheetBase : BottomSheetDialogFragment() {
         }
         ViewCompat.requestApplyInsets(view)
     }
+
+    /**
+     * 把布局里 `android:tag="v3_card"` 的 settings 卡片底色换成 [V3Palette.settingsCardBg]，
+     * 让卡片底色隐约跟随主题色（XML 里的 bg_v3_settings_card 是固定中性底，切主题色不动）。
+     * 每张卡片单独 new 一个 drawable，避免共享实例的 bounds/state 冲突。
+     */
+    private fun applyThemeCardTint(root: View) {
+        val d = root.resources.displayMetrics.density
+        val radius = 14f * d
+        val stroke = (0.5f * d).roundToInt().coerceAtLeast(1)
+        forEachTagged(root, V3_CARD_TAG) {
+            it.background = palette.settingsCardBg(radius, stroke)
+        }
+    }
+
+    private fun forEachTagged(v: View, tag: String, action: (View) -> Unit) {
+        if (v.tag == tag) action(v)
+        if (v is ViewGroup) {
+            for (i in 0 until v.childCount) forEachTagged(v.getChildAt(i), tag, action)
+        }
+    }
 }
+
+/** 卡片 tag —— 与各 dialog_*.xml 里 settings 卡片的 `android:tag` 对应。 */
+private const val V3_CARD_TAG = "v3_card"

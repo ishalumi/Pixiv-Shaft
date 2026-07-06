@@ -166,6 +166,25 @@ class V3Palette(@ColorInt val primary: Int, val isDark: Boolean = true) {
             setStroke(1, 0x0FFFFFFF)
         }
 
+    /**
+     * Settings-card 底色 —— 隐约带一点主题色，专用作背景（绝不用主题色正色）。
+     * 深色：把 primary 大幅去饱和后压到接近 sheet 底的暗度，得到一块"带主题色调的暗底"；
+     * 浅色：去饱和后提到极浅，得到一块"带主题色调的白底"。外加一条 12% 主题色 hairline，
+     * 替代静态 [ceui.lisa.R.drawable.bg_v3_settings_card]（固定中性 v3_menu_bg，切主题色不动）。
+     */
+    fun settingsCardBg(radiusPx: Float, strokePx: Int): GradientDrawable {
+        val fill = if (isDark) darken(desaturate(primary, 0.42f), 0.14f)
+        else lighten(desaturate(primary, 0.60f), 0.955f)
+        val hairline = if (isDark) withAlpha(ensureLightEnough(primary, 0.60f), 0.12f)
+        else withAlpha(ensureDarkEnough(primary, 0.40f), 0.12f)
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusPx
+            setColor(fill)
+            if (strokePx > 0) setStroke(strokePx, hairline)
+        }
+    }
+
     // ── convenience ─────────────────────────────────────────────────
 
     /** Apply accent-colored follow button drawable */

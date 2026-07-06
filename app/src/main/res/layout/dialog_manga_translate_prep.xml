@@ -71,6 +71,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
             android:background="@drawable/bg_v3_settings_card"
+            android:tag="v3_card"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
             android:paddingVertical="14dp">
@@ -184,6 +185,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@drawable/bg_v3_settings_card"
+            android:tag="v3_card"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
             android:paddingVertical="14dp">
