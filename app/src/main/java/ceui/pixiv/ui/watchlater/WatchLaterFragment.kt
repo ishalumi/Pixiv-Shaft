@@ -1,57 +1,122 @@
 package ceui.pixiv.ui.watchlater
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.view.View
+import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import com.scwang.smart.refresh.header.MaterialHeader
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
+import ceui.lisa.adapters.IAdapter
 import ceui.lisa.database.AppDatabase
-import ceui.lisa.databinding.FragmentPixivListBinding
+import ceui.lisa.databinding.FragmentWatchLaterBinding
+import ceui.lisa.helper.StaggeredManager
+import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
+import ceui.lisa.utils.DensityUtil
+import ceui.lisa.view.SpacesItemDecoration
 import ceui.loxia.requireEntityWrapper
+import ceui.pixiv.db.EntityWrapper
 import ceui.pixiv.db.RecordType
-import ceui.pixiv.ui.common.IllustCardHolder
-import ceui.pixiv.ui.common.ListMode
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.common.constructVM
-import ceui.pixiv.ui.common.setUpRefreshState
+import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.detail.showV3Menu
-import ceui.pixiv.ui.history.HistoryViewModel
 import ceui.pixiv.ui.slideshow.SlideshowLauncher
 import ceui.pixiv.utils.setOnClick
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * 「稍后再看」列表页。复用浏览历史那一套(general_table + IllustCardHolder + HistoryViewModel),
- * 只是 recordType = WATCH_LATER。列表 UI 与浏览历史一致(issue 要求「参考历史记录 UI」)。
- * 单条移除走卡片长按菜单的「移出稍后再看」,通过 [WatchLaterActionReceiver] 即时刷新本页。
+ * 「稍后再看」列表页。**必须用 legacy IAdapter**(recy_illust_stagger)渲染:它点击走
+ * VActivity + Container,不依赖 NavController,能在非 NavHost 的 TemplateActivity 里正常
+ * 打开详情;V3 的 IllustCardHolder 点击走 findNavController,在 TemplateActivity 里必崩。
+ *
+ * 数据来自 general_table(WATCH_LATER),存的是 ceui.loxia.Illust JSON,字段名与
+ * IllustsBean 完全一致,直接反序列化成 IllustsBean 喂给 IAdapter。增删清空经 EntityWrapper
+ * 发本地广播,本页收到后重新拉 DB 刷新(所以长按「移出」后能立刻消失)。
  */
-class WatchLaterFragment : PixivFragment(R.layout.fragment_pixiv_list), WatchLaterActionReceiver {
+class WatchLaterFragment : Fragment(R.layout.fragment_watch_later) {
 
-    private val binding by viewBinding(FragmentPixivListBinding::bind)
-    private val viewModel by constructVM({
-        AppDatabase.getAppDatabase(requireContext())
-    }) { database ->
-        HistoryViewModel(database, RecordType.WATCH_LATER)
+    private val binding by viewBinding(FragmentWatchLaterBinding::bind)
+    private val items = mutableListOf<IllustsBean>()
+    private val adapter by lazy { IAdapter(items, requireContext()).apply { setUuid("watch_later") } }
+
+    private val changeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            reload()
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setUpRefreshState(binding, viewModel, ListMode.STAGGERED_GRID)
-
-        // setUpRefreshState 里 setUpToolbar 把 naviMore 设成了 wiggle,这里覆盖成本页的操作菜单。
+        setUpToolbar(binding.toolbarLayout, binding.listView)
         binding.toolbarLayout.naviTitle.setText(R.string.watch_later)
         binding.toolbarLayout.naviMore.setOnClick { showActionMenu() }
+
+        binding.listView.layoutManager =
+            StaggeredManager(Shaft.sSettings.lineCount, androidx.recyclerview.widget.StaggeredGridLayoutManager.VERTICAL)
+        binding.listView.addItemDecoration(SpacesItemDecoration(DensityUtil.dp2px(8f)))
+        binding.listView.adapter = adapter
+
+        binding.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()))
+        binding.refreshLayout.setEnableLoadMore(false)
+        binding.refreshLayout.setOnRefreshListener {
+            reload { binding.refreshLayout.finishRefresh() }
+        }
+
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(changeReceiver, IntentFilter(EntityWrapper.ACTION_WATCH_LATER_CHANGED))
+
+        reload()
     }
-    // 不在 onResume 里 refresh:refresh 会把 _offset 归零只拉第一页,分页列表(>30)返回本页
-    // 时会塌回前 30 条 + 丢滚动位置。本页每次都是新开的 TemplateActivity(init 已 load),
-    // 同页移除走 removeHolderById 即时更新,他处新增靠下拉刷新 —— 与浏览历史页保持一致。
+
+    override fun onResume() {
+        super.onResume()
+        // 从详情返回后收藏状态可能变了,重拉一次让红心同步(本地查询,便宜)。
+        reload()
+    }
+
+    override fun onDestroyView() {
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(changeReceiver)
+        super.onDestroyView()
+    }
+
+    private fun reload(done: (() -> Unit)? = null) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val beans = withContext(Dispatchers.IO) {
+                AppDatabase.getAppDatabase(requireContext().applicationContext).generalDao()
+                    .getByRecordType(RecordType.WATCH_LATER, 0, Int.MAX_VALUE)
+                    .mapNotNull {
+                        runCatching { Shaft.sGson.fromJson(it.json, IllustsBean::class.java) }.getOrNull()
+                    }
+            }
+            if (view == null) return@launch
+            items.clear()
+            items.addAll(beans)
+            adapter.notifyDataSetChanged()
+            binding.emptyLayout.isVisible = items.isEmpty()
+            done?.invoke()
+        }
+    }
 
     private fun showActionMenu() {
         showV3Menu("WatchLaterMenu") {
             item(getString(R.string.watch_later_play_all), R.drawable.ic_baseline_play_arrow_24) {
-                playAll()
+                if (items.isEmpty()) {
+                    Common.showToast(R.string.watch_later_empty)
+                } else {
+                    SlideshowLauncher.launchFromIllustsBeans(requireContext(), ArrayList(items), 0, true)
+                }
             }
             item(getString(R.string.watch_later_clear), R.drawable.ic_not_interested_black_24dp) {
                 confirmClear()
@@ -59,41 +124,25 @@ class WatchLaterFragment : PixivFragment(R.layout.fragment_pixiv_list), WatchLat
         }
     }
 
-    private fun playAll() {
-        val illusts = viewModel.holders.value.orEmpty()
-            .filterIsInstance<IllustCardHolder>()
-            .map { it.illust }
-        if (illusts.isEmpty()) {
-            Common.showToast(R.string.watch_later_empty)
-            return
-        }
-        SlideshowLauncher.launchFromIllusts(requireContext(), illusts, 0, true)
-    }
-
     private fun confirmClear() {
         val ctx = context ?: return
-        if (viewModel.holders.value.orEmpty().isEmpty()) {
+        if (items.isEmpty()) {
             Common.showToast(R.string.watch_later_empty)
             return
         }
-        // 提前抓好 entityWrapper(EntityWrapper 是 app 单例):弹窗动作是异步触发的,
-        // 那时 fragment 可能已 detach,再调 requireEntityWrapper()->requireActivity() 会崩。
+        // EntityWrapper 是 app 单例;提前抓好,弹窗动作异步触发时 fragment 可能已 detach。
         val entityWrapper = requireEntityWrapper()
         QMUIDialog.MessageDialogBuilder(ctx)
             .setTitle(R.string.watch_later)
             .setMessage(R.string.watch_later_clear_confirm)
             .setSkinManager(QMUISkinManager.defaultInstance(ctx))
-            .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
-            .addAction(0, R.string.watch_later_clear_ok, QMUIDialogAction.ACTION_PROP_NEGATIVE) { dialog, _ ->
-                dialog.dismiss()
+            .addAction(R.string.string_142) { d, _ -> d.dismiss() }
+            .addAction(0, R.string.watch_later_clear_ok, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
+                d.dismiss()
+                // clearWatchLater 会发广播触发 reload,不用手动清 items。
                 entityWrapper.clearWatchLater(ctx.applicationContext)
-                viewModel.clearHolders()
                 Common.showToast(R.string.watch_later_cleared)
             }
             .show()
-    }
-
-    override fun onWatchLaterRemoved(illustId: Long) {
-        viewModel.removeHolderById(illustId)
     }
 }

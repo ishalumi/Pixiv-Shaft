@@ -17,7 +17,6 @@ import ceui.loxia.Series
 import ceui.loxia.findActionReceiverOrNull
 import ceui.loxia.requireEntityWrapper
 import ceui.pixiv.ui.detail.showV3Menu
-import ceui.pixiv.ui.watchlater.WatchLaterActionReceiver
 import ceui.pixiv.ui.slideshow.SlideshowLauncher
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.screenWidth
@@ -131,8 +130,6 @@ class IllustCardViewHolder(bd: CellIllustCardBinding) :
             ) {
                 if (inWatchLater) {
                     entityWrapper.removeFromWatchLater(anchor.context, illust.id)
-                    anchor.findActionReceiverOrNull<WatchLaterActionReceiver>()
-                        ?.onWatchLaterRemoved(illust.id)
                     Common.showToast(R.string.watch_later_removed)
                 } else {
                     entityWrapper.addToWatchLater(anchor.context, illust)

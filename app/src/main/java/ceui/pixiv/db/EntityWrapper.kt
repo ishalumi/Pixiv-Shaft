@@ -1,6 +1,8 @@
 package ceui.pixiv.db
 
 import android.content.Context
+import android.content.Intent
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import ceui.lisa.activities.Shaft
 import ceui.lisa.database.AppDatabase
 import ceui.loxia.Illust
@@ -160,12 +162,14 @@ class EntityWrapper(
         val json = Shaft.sGson.toJson(illust)
         MainScope().launch(Dispatchers.IO) {
             insertEntity(context, GeneralEntity(illust.id, json, EntityType.ILLUST, RecordType.WATCH_LATER))
+            notifyWatchLaterChanged()
         }
     }
 
     fun removeFromWatchLater(context: Context, illustId: Long) {
         MainScope().launch(Dispatchers.IO) {
             deleteEntity(context, RecordType.WATCH_LATER, illustId)
+            notifyWatchLaterChanged()
         }
     }
 
@@ -173,10 +177,21 @@ class EntityWrapper(
         MainScope().launch(Dispatchers.IO) {
             AppDatabase.getAppDatabase(context).generalDao().deleteAllByRecordType(RecordType.WATCH_LATER)
             _watchLaterIllustIds.clear()
+            notifyWatchLaterChanged()
         }
     }
 
     fun isInWatchLater(illustId: Long): Boolean {
         return _watchLaterIllustIds.contains(illustId)
+    }
+
+    // 稍后再看列表变更后发本地广播,WatchLaterFragment 收到重新拉 DB。
+    // LocalBroadcastManager.sendBroadcast 内部 post 到主线程,IO 线程调也安全。
+    private fun notifyWatchLaterChanged() {
+        LocalBroadcastManager.getInstance(context).sendBroadcast(Intent(ACTION_WATCH_LATER_CHANGED))
+    }
+
+    companion object {
+        const val ACTION_WATCH_LATER_CHANGED = "ceui.pixiv.action.WATCH_LATER_CHANGED"
     }
 }

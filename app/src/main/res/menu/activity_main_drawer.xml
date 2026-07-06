@@ -63,6 +63,11 @@
                 android:title="@string/string_320" />
 
             <item
+                android:id="@id/watch_later"
+                android:icon="@drawable/ic_watch_later_24"
+                android:title="@string/watch_later" />
+
+            <item
                 android:id="@+id/watchlist"
                 android:icon="@drawable/ic_fiber_new_black_24dp"
                 android:title="@string/watchlist" />
