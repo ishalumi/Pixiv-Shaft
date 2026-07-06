@@ -87,30 +87,33 @@
                         android:paddingHorizontal="6dp"
                         android:paddingBottom="7dp">
 
+                        <!-- 主角数据:收藏数最重(13sp bold 纯白 + 红心) -->
                         <TextView
                             android:id="@+id/bookmark_count"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:drawablePadding="3dp"
                             android:gravity="center_vertical"
+                            android:letterSpacing="0.01"
                             android:maxLines="1"
                             android:textColor="@android:color/white"
-                            android:textSize="11sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
                             app:drawableStartCompat="@drawable/ic_favorite_black_24dp"
                             app:drawableTint="#ff445b"
                             tools:text="8172" />
 
+                        <!-- 次级数据:字数收一档(11sp medium 78% 白),与收藏数拉开层级 -->
                         <TextView
                             android:id="@+id/how_many_word"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="1dp"
+                            android:fontFamily="sans-serif-medium"
                             android:letterSpacing="0.02"
                             android:maxLines="1"
-                            android:textColor="@android:color/white"
+                            android:textColor="#C8FFFFFF"
                             android:textSize="11sp"
-                            android:textStyle="bold"
                             tools:text="10842字" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -138,9 +141,10 @@
                             android:layout_weight="1"
                             android:ellipsize="end"
                             android:letterSpacing="-0.02"
+                            android:lineSpacingMultiplier="0.98"
                             android:maxLines="2"
                             android:textColor="@color/v3_text_1"
-                            android:textSize="15sp"
+                            android:textSize="16sp"
                             android:textStyle="bold"
                             tools:text="死に戻ったら皆んな怒ってたから嘘ついた!" />
 
@@ -158,12 +162,14 @@
                             tools:tint="@color/has_bookmarked" />
                     </LinearLayout>
 
+                    <!-- 系列:强调色 + medium 字重,是全卡唯一常驻的彩色文本,打破灰阶单调 -->
                     <TextView
                         android:id="@+id/series"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:ellipsize="end"
+                        android:fontFamily="sans-serif-medium"
                         android:maxLines="2"
                         android:textColor="@color/v3_text_2"
                         android:textSize="12sp"
@@ -190,6 +196,7 @@
                             app:civ_border_color="@color/v3_surface_2"
                             app:civ_border_width="1dp" />
 
+                        <!-- 作者名:medium 字重(500)+ 次级色,比日期更有存在感又不抢标题 -->
                         <TextView
                             android:id="@+id/author"
                             android:layout_width="0dp"
@@ -198,6 +205,7 @@
                             android:layout_marginEnd="8dp"
                             android:layout_weight="1"
                             android:ellipsize="end"
+                            android:fontFamily="sans-serif-medium"
                             android:maxLines="1"
                             android:textColor="@color/v3_text_2"
                             android:textSize="13sp"
