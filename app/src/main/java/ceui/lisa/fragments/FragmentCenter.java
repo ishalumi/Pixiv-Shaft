@@ -1,11 +1,9 @@
 package ceui.lisa.fragments;
 
 import android.content.Intent;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.fragment.app.FragmentTransaction;
 
@@ -37,8 +35,7 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
             baseBind.head.setLayoutParams(headParams);
         }
 
-        baseBind.toolbar.inflateMenu(R.menu.fragment_left);
-        baseBind.toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+        baseBind.drawerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (mActivity instanceof MainActivity) {
@@ -46,16 +43,12 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
                 }
             }
         });
-        baseBind.toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
+        baseBind.searchBar.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                if (item.getItemId() == R.id.action_search) {
-                    Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "搜索");
-                    startActivity(intent);
-                    return true;
-                }
-                return false;
+            public void onClick(View v) {
+                Intent intent = new Intent(mContext, TemplateActivity.class);
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "搜索");
+                startActivity(intent);
             }
         });
 
@@ -99,17 +92,11 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
                 startActivity(intent);
             }
         });
-        // Google Play 渠道隐藏「Web 首页」入口 —— 目前只是 "Coming soon..." 占位,留着会被
+        // Google Play 渠道隐藏「Web 首页」入口 —— 目前只是 "Coming soon" 占位,留着会被
         // Play Store 视作未完成功能扣分,且没有实际跳转目标。github 渠道保留,便于开发预览。
-        // GridLayout 是 3 行 × 2 列固定高度 402dp,web_street 单独占第 3 行第 1 格,直接 GONE 会
-        // 留 ~134dp 空白,所以把 rowCount 改成 2 同时按比例(2/3)缩小高度。
+        // 这一整行(web_street_row)单独一行,Lite 直接 GONE 就行,布局自然收起,不留空白。
         if (BuildConfig.IS_LITE) {
-            baseBind.webStreet.setVisibility(View.GONE);
-            android.widget.GridLayout grid = (android.widget.GridLayout) baseBind.webStreet.getParent();
-            grid.setRowCount(2);
-            ViewGroup.LayoutParams gridLp = grid.getLayoutParams();
-            gridLp.height = (int) (268 * getResources().getDisplayMetrics().density);
-            grid.setLayoutParams(gridLp);
+            baseBind.webStreetRow.setVisibility(View.GONE);
         } else {
             baseBind.webStreet.setOnClickListener(new View.OnClickListener() {
                 @Override

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发现页图片卡底部压暗渐变:底黑顶透明(angle 90 = 底→顶)。图片上永远铺一层暗 scrim,
+     白色标题在任何图上都读得清,不用旧版那种一字一字硬阴影。这是「恒暗」scrim(不随日夜),
+     因为它压在缩略图上,白字对暗底两个模式都成立。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="90"
+        android:startColor="#B3000000"
+        android:centerColor="#40000000"
+        android:endColor="#00000000"
+        android:type="linear" />
+</shape>

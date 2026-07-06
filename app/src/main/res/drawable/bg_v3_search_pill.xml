@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发现页搜索胶囊:实底 v3_menu_bg(浅 #F5F5F5 / 深 #1A1A2E)+ 0.5dp v3_border_2 hairline,
+     圆角 22dp。hairline 让搜索框在浅色模式也能从 #FAFAFA 背景里浮出来(同 bg_v3_settings_card 思路)。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_menu_bg" />
+    <corners android:radius="22dp" />
+    <stroke
+        android:width="0.5dp"
+        android:color="@color/v3_border_2" />
+</shape>

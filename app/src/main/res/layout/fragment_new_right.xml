@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 「动态」tab —— V3 重设计,风格对齐 fragment_new_center。
+     · 底色 v3_bg;固定 header(抽屉 + 大标题「动态」+ 常驻搜索胶囊)与「发现」页一致。
+     · 下方 CoordinatorLayout + 两个自定义 behavior 保持不动:imagesTitleBlockLayout(推荐用户折叠头)
+       + content_item(内容 sheet 上滑折叠头)。behavior 只认这两个 id,内部随便重排样式。
+     · 头部推荐用户区铺在 v3_bg 上(同「发现」的 pivision 横条);内容 sheet 用 v3_menu_bg 圆角上浮,
+       跟头部拉开层次。 -->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
@@ -8,122 +15,161 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:orientation="vertical"
-        android:layout_height="wrap_content">
+        android:layout_height="match_parent"
+        android:background="@color/v3_bg"
+        android:orientation="vertical">
 
-        <ImageView
+        <!-- 状态栏占位:代码里按 Dev.hideMainActivityStatus 撑到 statusHeight -->
+        <View
             android:id="@+id/head"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_gravity=""
-            android:background="?attr/colorPrimary"
-            android:elevation="@dimen/four_dp">
+            android:background="@color/v3_bg" />
 
-        </ImageView>
-
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <!-- Header 行:抽屉入口 + 大标题「动态」 -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            android:elevation="@dimen/four_dp"
-            app:navigationIcon="@drawable/ic_baseline_dns_24"
-            app:titleTextColor="@color/white">
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="16dp">
 
+            <ImageButton
+                android:id="@+id/drawerButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/string_77"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_baseline_dns_24"
+                app:tint="@color/v3_text_1" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:letterSpacing="-0.02"
+                android:text="@string/string_77"
+                android:textColor="@color/v3_text_1"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- 常驻搜索胶囊(点按→搜索页) -->
+        <LinearLayout
+            android:id="@+id/searchBar"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_v3_search_pill"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:stateListAnimator="@animator/button_press_alpha">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/search"
+                android:src="@drawable/ic_search_black_24dp"
+                app:tint="@color/v3_text_3" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/string_77"
-                android:textColor="@color/always_white"
-                android:textSize="18sp">
+                android:layout_marginStart="10dp"
+                android:text="@string/search"
+                android:textColor="@color/v3_text_3"
+                android:textSize="15sp" />
 
-            </TextView>
-
-        </androidx.appcompat.widget.Toolbar>
+        </LinearLayout>
 
         <androidx.coordinatorlayout.widget.CoordinatorLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/fragment_right_divider"
-            android:orientation="vertical">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@color/v3_bg">
 
+            <!-- 折叠头:推荐用户区(behavior 只认 id) -->
             <LinearLayout
+                android:id="@+id/imagesTitleBlockLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/imagesTitleBlockLayout"
+                android:background="@color/v3_bg"
                 android:orientation="vertical"
                 app:layout_behavior="ceui.lisa.ui.behavior.FragmentRightHeaderBehavior">
 
-
-                <RelativeLayout
+                <!-- 分区小标题「推荐用户」+ 查看更多 -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@color/fragment_center">
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="16dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/twelve_dp"
-                        android:layout_marginTop="@dimen/twelve_dp"
-                        android:drawablePadding="@dimen/four_dp"
-                        android:gravity="center_vertical"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.06"
                         android:text="@string/string_78"
-                        android:textColor="@color/rank_title"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        app:drawableStartCompat="@drawable/ic_baseline_data_usage_24">
-
-                    </TextView>
+                        android:textColor="@color/v3_text_2"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/see_more"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_alignParentEnd="true"
-                        android:layout_marginTop="@dimen/twelve_dp"
-                        android:id="@+id/see_more"
-                        android:stateListAnimator="@animator/button_press_alpha"
-                        app:drawableTint="?attr/colorPrimary"
-                        android:textColor="?attr/colorPrimary"
-                        android:layout_marginEnd="@dimen/twelve_dp"
+                        android:drawablePadding="2dp"
                         android:gravity="center_vertical"
+                        android:stateListAnimator="@animator/button_press_alpha"
                         android:text="@string/string_79"
+                        android:textColor="?attr/colorPrimary"
                         android:textSize="13sp"
-                        app:drawableEndCompat="@drawable/ic_chevron_right_black_20dp">
+                        app:drawableEndCompat="@drawable/ic_chevron_right_black_20dp"
+                        app:drawableTint="?attr/colorPrimary" />
 
-                    </TextView>
-
-                </RelativeLayout>
+                </LinearLayout>
 
                 <FrameLayout
                     android:id="@+id/user_recmd_fragment"
                     android:layout_width="match_parent"
                     android:layout_height="124dp"
-                    android:background="@color/fragment_center">
+                    android:background="@color/v3_bg" />
 
-                </FrameLayout>
-
+                <!-- 头部与内容 sheet 之间的呼吸间隙(v3_bg) -->
                 <View
                     android:layout_width="match_parent"
-                    android:background="@color/f0_and_black"
-                    android:layout_height="16dp">
-
-                </View>
+                    android:layout_height="10dp"
+                    android:background="@color/v3_bg" />
 
             </LinearLayout>
 
+            <!-- 内容 sheet:v3_menu_bg 圆角上浮(behavior 只认 id content_item) -->
             <com.qmuiteam.qmui.widget.roundwidget.QMUIRoundLinearLayout
-                android:layout_width="match_parent"
-                app:layout_behavior="ceui.lisa.ui.behavior.FragmentRightContentBehavior"
-                android:orientation="vertical"
-                app:qmui_backgroundColor="@color/fragment_center"
-                app:qmui_borderWidth="0dp"
-                android:background="@color/fragment_center"
-                app:qmui_radiusTopLeft="20dp"
-                app:qmui_radiusTopRight="20dp"
                 android:id="@+id/content_item"
-                android:layout_height="match_parent">
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/v3_menu_bg"
+                android:orientation="vertical"
+                app:layout_behavior="ceui.lisa.ui.behavior.FragmentRightContentBehavior"
+                app:qmui_backgroundColor="@color/v3_menu_bg"
+                app:qmui_borderWidth="0dp"
+                app:qmui_radiusTopLeft="20dp"
+                app:qmui_radiusTopRight="20dp">
 
                 <androidx.core.widget.NestedScrollView
                     android:layout_width="match_parent"
@@ -134,33 +180,34 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content">
 
+                        <!-- 动态类型切换:插画/漫画 ▾(点按弹菜单) -->
                         <TextView
                             android:id="@+id/dynamic_type_switcher"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="14dp"
-                            android:layout_marginTop="@dimen/twelve_dp"
-                            android:layout_marginBottom="@dimen/twelve_dp"
+                            android:layout_marginTop="12dp"
+                            android:layout_marginBottom="12dp"
                             android:background="?android:attr/selectableItemBackground"
                             android:clickable="true"
+                            android:drawablePadding="2dp"
                             android:focusable="true"
-                            android:drawablePadding="@dimen/four_dp"
-                            app:drawableTint="#75d2f0"
                             android:gravity="center_vertical"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
                             android:text="@string/dynamic_type_illust_manga"
-                            android:textColor="@color/rank_title"
+                            android:textColor="@color/v3_text_1"
                             android:textSize="16sp"
                             android:textStyle="bold"
-                            app:drawableStartCompat="@drawable/ic_toys_black_24dp"
-                            app:drawableEndCompat="@drawable/ic_arrow_drop_down_20dp">
-                        </TextView>
+                            app:drawableEndCompat="@drawable/ic_arrow_drop_down_20dp"
+                            app:drawableTint="@color/v3_text_2" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_centerVertical="true"
                             android:layout_alignParentEnd="true"
-                            android:layout_marginEnd="@dimen/sixteen_dp"
+                            android:layout_centerVertical="true"
+                            android:layout_marginEnd="16dp"
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
 
@@ -169,17 +216,18 @@
                                 android:layout_width="36dp"
                                 android:layout_height="36dp"
                                 android:layout_marginEnd="8dp"
-                                android:padding="6dp"
-                                android:clickable="true"
-                                android:focusable="true"
                                 android:background="?android:attr/selectableItemBackgroundBorderless"
+                                android:clickable="true"
+                                android:contentDescription="Timeline"
+                                android:focusable="true"
+                                android:padding="6dp"
                                 android:src="@drawable/ic_baseline_dehaze_24"
                                 android:tint="@color/glare_unselected_text"
-                                android:contentDescription="Timeline" />
+                                tools:ignore="HardcodedText,UseAppTint" />
 
                             <ceui.lisa.view.GlareLayout
-                                android:layout_width="wrap_content"
                                 android:id="@+id/glare_layout"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" />
 
                         </LinearLayout>
@@ -193,8 +241,8 @@
                     android:layout_height="match_parent">
 
                     <com.scwang.smart.refresh.layout.SmartRefreshLayout
-                        android:layout_width="match_parent"
                         android:id="@+id/refreshLayout"
+                        android:layout_width="match_parent"
                         android:layout_height="match_parent">
 
                         <androidx.recyclerview.widget.RecyclerView
@@ -212,9 +260,7 @@
 
                 </FrameLayout>
 
-
             </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundLinearLayout>
-
 
             <include
                 android:layout_width="wrap_content"
@@ -229,4 +275,3 @@
     </LinearLayout>
 
 </layout>
-

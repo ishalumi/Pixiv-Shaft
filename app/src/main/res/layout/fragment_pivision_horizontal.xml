@@ -24,7 +24,7 @@
                     android:scaleType="centerCrop"
                     android:src="@drawable/ic_pixivision_color_logo"
                     android:layout_marginTop="@dimen/sixteen_dp"
-                    android:layout_marginStart="@dimen/sixteen_dp"
+                    android:layout_marginStart="20dp"
                     android:layout_height="wrap_content">
 
                 </ImageView>
@@ -39,7 +39,7 @@
                     android:layout_marginStart="@dimen/sixteen_dp"
                     android:layout_alignBottom="@+id/image_1"
                     android:layout_marginBottom="2dp"
-                    android:layout_marginEnd="@dimen/sixteen_dp"
+                    android:layout_marginEnd="20dp"
                     android:text="@string/see_more"
                     app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
                     android:gravity="center"
@@ -57,10 +57,16 @@
                 android:layout_below="@+id/rela_1"
                 android:layout_height="wrap_content">
 
+                <!-- clipToPadding=false + 左右各 8dp:配合 item decoration 的 12dp(首项 left / 每项 right),
+                     首卡左缘 = 8+12 = 20dp、末卡右缘 = 12+8 = 20dp、卡间距仍 12dp,与「发现」页其余
+                     内容(其他分类 label / 分类卡)统一到 20dp 边距 + 12dp 间隙。 -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recyclerView"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp">
 
                 </androidx.recyclerview.widget.RecyclerView>
 

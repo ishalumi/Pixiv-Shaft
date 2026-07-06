@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 「发现」tab —— V3 重设计。
+     · 页面底色统一 v3_bg;顶部 header 固定不滚(标题 + 常驻搜索胶囊),下方 pivision + 分类卡滚动。
+     · 状态栏图标:MainActivity 走 EdgeToEdge auto()(跟随日夜),v3_bg header 在浅/深两模式对比都好。
+     · 分类卡改成满铺缩略图 + 底部压暗 scrim + 统一左下白色标题(替掉旧版硬阴影 + 忽上忽下的标签)。 -->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
@@ -8,259 +13,351 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
+        android:background="@color/v3_bg"
         android:orientation="vertical">
 
-        <ImageView
+        <!-- 状态栏占位:代码里按 Dev.hideMainActivityStatus 撑到 statusHeight -->
+        <View
             android:id="@+id/head"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_gravity=""
-            android:background="?attr/colorPrimary"
-            android:elevation="@dimen/four_dp">
+            android:background="@color/v3_bg" />
 
-        </ImageView>
-
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <!-- Header 行:抽屉入口 + 大标题「发现」 -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            android:elevation="@dimen/four_dp"
-            app:navigationIcon="@drawable/ic_baseline_dns_24"
-            app:titleTextColor="@color/white">
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="16dp">
+
+            <ImageButton
+                android:id="@+id/drawerButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/string_75"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_baseline_dns_24"
+                app:tint="@color/v3_text_1" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:letterSpacing="-0.02"
+                android:text="@string/string_75"
+                android:textColor="@color/v3_text_1"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- 常驻搜索胶囊(点按→搜索页) -->
+        <LinearLayout
+            android:id="@+id/searchBar"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_v3_search_pill"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:stateListAnimator="@animator/button_press_alpha">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/search"
+                android:src="@drawable/ic_search_black_24dp"
+                app:tint="@color/v3_text_3" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:id="@+id/toolbar_title"
-                android:text="@string/string_75"
-                android:textColor="@color/white"
-                android:textSize="18sp" />
+                android:layout_marginStart="10dp"
+                android:text="@string/search"
+                android:textColor="@color/v3_text_3"
+                android:textSize="15sp" />
 
-        </androidx.appcompat.widget.Toolbar>
+        </LinearLayout>
 
-            <com.scwang.smart.refresh.layout.SmartRefreshLayout
-                android:id="@+id/refreshLayout"
+        <com.scwang.smart.refresh.layout.SmartRefreshLayout
+            android:id="@+id/refreshLayout"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.core.widget.NestedScrollView
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_height="match_parent"
+                android:overScrollMode="never"
+                android:paddingBottom="20dp">
 
-                <androidx.core.widget.NestedScrollView
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent">
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
+                    <!-- pixivision 推荐横条(子 fragment) -->
+                    <FrameLayout
+                        android:id="@+id/fragment_pivision"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+
+                    <!-- 分区小标题 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="12dp"
+                        android:letterSpacing="0.06"
+                        android:text="@string/string_76"
+                        android:textColor="@color/v3_text_2"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <!-- Row 1: 推荐漫画 · 推荐小说 -->
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:orientation="vertical"
-                        android:layout_height="match_parent">
+                        android:layout_height="128dp"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:orientation="horizontal">
 
                         <FrameLayout
-                            android:id="@+id/fragment_pivision"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content">
+                            android:id="@+id/manga"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_v3_discover_card"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="@drawable/v3_ripple_card22"
+                            android:stateListAnimator="@animator/button_press_scale">
+
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:contentDescription="@null"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/main_novel" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="72dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_v3_card_scrim" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|start"
+                                android:layout_margin="14dp"
+                                android:text="@string/type_manga"
+                                android:textColor="@color/always_white"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
 
                         </FrameLayout>
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="@dimen/twelve_dp"
-                            android:text="@string/string_76"
-                            android:textColor="@color/rank_text_color"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                        <FrameLayout
+                            android:id="@+id/novel"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_v3_discover_card"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="@drawable/v3_ripple_card22"
+                            android:stateListAnimator="@animator/button_press_scale">
 
-                        <GridLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="402dp"
-                            android:columnCount="2"
-                            android:orientation="horizontal"
-                            android:rowCount="3">
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:contentDescription="@null"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/main_manga" />
 
-                            <com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout
-                                app:qmui_radius="10dp"
-                                android:layout_width="0dp"
-                                android:layout_height="0dp"
-                                android:id="@+id/manga"
-                                android:stateListAnimator="@animator/button_press_scale"
-                                android:layout_rowWeight="1"
-                                android:layout_columnWeight="1"
-                                android:layout_marginStart="@dimen/twelve_dp"
-                                android:layout_marginTop="@dimen/twelve_dp"
-                                android:layout_marginEnd="@dimen/six_dp"
-                                android:layout_marginBottom="@dimen/six_dp">
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="72dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_v3_card_scrim" />
 
-                                <ImageView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:scaleType="centerCrop"
-                                    android:src="@drawable/main_novel"
-                                    android:background="@drawable/shape_round_outline"
-                                    android:outlineProvider="background" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|start"
+                                android:layout_margin="14dp"
+                                android:text="@string/type_novel"
+                                android:textColor="@color/always_white"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
 
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_margin="10dp"
-                                    android:shadowColor="#FF000000"
-                                    android:shadowDx="2"
-                                    android:shadowDy="2"
-                                    android:shadowRadius="2"
-                                    android:text="@string/type_manga"
-                                    android:textColor="@color/always_white"
-                                    android:textSize="16sp"
-                                    android:textStyle="bold" />
-
-                            </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout>
-
-                            <com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout
-                                app:qmui_radius="10dp"
-                                android:layout_width="0dp"
-                                android:layout_height="0dp"
-                                android:layout_rowWeight="1"
-                                android:id="@+id/novel"
-                                android:stateListAnimator="@animator/button_press_scale"
-                                android:layout_columnWeight="1"
-                                android:layout_marginStart="@dimen/six_dp"
-                                android:layout_marginTop="@dimen/twelve_dp"
-                                android:layout_marginEnd="@dimen/twelve_dp"
-                                android:layout_marginBottom="@dimen/six_dp">
-
-                                <ImageView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:background="@drawable/shape_round_outline"
-                                    android:outlineProvider="background"
-                                    android:scaleType="centerCrop"
-                                    android:src="@drawable/main_manga" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_alignParentEnd="true"
-                                    android:layout_alignParentBottom="true"
-                                    android:layout_margin="10dp"
-                                    android:shadowColor="#FF000000"
-                                    android:shadowDx="2"
-                                    android:shadowDy="2"
-                                    android:shadowRadius="2"
-                                    android:text="@string/type_novel"
-                                    android:textColor="@color/always_white"
-                                    android:textSize="16sp"
-                                    android:textStyle="bold" />
-
-                            </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout>
-
-                            <com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout
-                                app:qmui_radius="10dp"
-                                android:layout_width="0dp"
-                                android:layout_height="0dp"
-                                android:layout_rowWeight="1"
-                                android:layout_columnWeight="1"
-                                android:layout_marginStart="@dimen/twelve_dp"
-                                android:id="@+id/walk_through"
-                                android:stateListAnimator="@animator/button_press_scale"
-                                android:layout_marginTop="@dimen/six_dp"
-                                android:layout_marginEnd="@dimen/six_dp"
-                                android:layout_marginBottom="@dimen/twelve_dp">
-
-                                <ImageView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:scaleType="centerCrop"
-                                    android:src="@drawable/center_1"
-                                    android:background="@drawable/shape_round_outline"
-                                    android:outlineProvider="background" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_alignParentBottom="true"
-                                    android:layout_margin="10dp"
-                                    android:shadowColor="#FF000000"
-                                    android:shadowDx="2"
-                                    android:shadowDy="2"
-                                    android:shadowRadius="2"
-                                    android:text="@string/type_walk_through"
-                                    android:textColor="@color/always_white"
-                                    android:textSize="16sp"
-                                    android:textStyle="bold" />
-
-                            </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout>
-
-                            <com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout
-                                app:qmui_radius="10dp"
-                                android:layout_width="0dp"
-                                android:layout_height="0dp"
-                                android:layout_rowWeight="1"
-                                android:layout_columnWeight="1"
-                                android:id="@+id/follow_novels"
-                                android:stateListAnimator="@animator/button_press_scale"
-                                android:layout_marginStart="@dimen/six_dp"
-                                android:layout_marginTop="@dimen/six_dp"
-                                android:layout_marginEnd="@dimen/twelve_dp"
-                                android:layout_marginBottom="@dimen/twelve_dp">
-
-                                <ImageView
-                                    android:layout_width="match_parent"
-                                    android:layout_height="match_parent"
-                                    android:scaleType="centerCrop"
-                                    android:src="@drawable/center_2"
-                                    android:background="@drawable/shape_round_outline"
-                                    android:outlineProvider="background"/>
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_alignParentEnd="true"
-                                    android:layout_alignParentBottom="true"
-                                    android:layout_margin="10dp"
-                                    android:shadowColor="#FF000000"
-                                    android:shadowDx="2"
-                                    android:shadowDy="2"
-                                    android:shadowRadius="2"
-                                    android:text="@string/string_196"
-                                    android:textColor="@color/always_white"
-                                    android:textSize="16sp"
-                                    android:textStyle="bold" />
-
-                            </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout>
-
-                            <com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout
-                                app:qmui_radius="10dp"
-                                android:layout_width="0dp"
-                                android:layout_height="0dp"
-                                android:id="@+id/web_street"
-                                android:stateListAnimator="@animator/button_press_scale"
-                                android:layout_rowWeight="1"
-                                android:layout_columnWeight="1"
-                                android:layout_marginStart="@dimen/twelve_dp"
-                                android:layout_marginTop="@dimen/six_dp"
-                                android:layout_marginEnd="@dimen/six_dp"
-                                android:layout_marginBottom="@dimen/twelve_dp"
-                                android:background="@color/v3_surface_2">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_centerInParent="true"
-                                    android:text="Web 首页"
-                                    android:textColor="@color/v3_text_1"
-                                    android:textSize="16sp"
-                                    android:textStyle="bold" />
-
-                            </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundRelativeLayout>
-
-                        </GridLayout>
+                        </FrameLayout>
 
                     </LinearLayout>
 
-                </androidx.core.widget.NestedScrollView>
+                    <!-- Row 2: 画廊 · 关注者的小说 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="128dp"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginEnd="20dp"
+                        android:orientation="horizontal">
 
-            </com.scwang.smart.refresh.layout.SmartRefreshLayout>
+                        <FrameLayout
+                            android:id="@+id/walk_through"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_v3_discover_card"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="@drawable/v3_ripple_card22"
+                            android:stateListAnimator="@animator/button_press_scale">
+
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:contentDescription="@null"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/center_1" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="72dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_v3_card_scrim" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|start"
+                                android:layout_margin="14dp"
+                                android:text="@string/type_walk_through"
+                                android:textColor="@color/always_white"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                        </FrameLayout>
+
+                        <FrameLayout
+                            android:id="@+id/follow_novels"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_v3_discover_card"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="@drawable/v3_ripple_card22"
+                            android:stateListAnimator="@animator/button_press_scale">
+
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:contentDescription="@null"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/center_2" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="72dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_v3_card_scrim" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|start"
+                                android:layout_margin="14dp"
+                                android:text="@string/string_196"
+                                android:textColor="@color/always_white"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                        </FrameLayout>
+
+                    </LinearLayout>
+
+                    <!-- Row 3: Web 首页(仅 github 渠道,Lite 里整行 GONE) -->
+                    <LinearLayout
+                        android:id="@+id/web_street_row"
+                        android:layout_width="match_parent"
+                        android:layout_height="72dp"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginEnd="20dp"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:id="@+id/web_street"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_v3_discover_card"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="@drawable/v3_ripple_card22"
+                            android:stateListAnimator="@animator/button_press_scale">
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/bg_v3_banner_placeholder" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical|start"
+                                android:layout_marginStart="20dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Web 首页"
+                                    android:textColor="@color/v3_text_1"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold"
+                                    tools:ignore="HardcodedText" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="Coming soon"
+                                    android:textColor="@color/v3_text_2"
+                                    android:textSize="12sp"
+                                    tools:ignore="HardcodedText" />
+
+                            </LinearLayout>
+
+                        </FrameLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </androidx.core.widget.NestedScrollView>
+
+        </com.scwang.smart.refresh.layout.SmartRefreshLayout>
 
     </LinearLayout>
 
 </layout>
-

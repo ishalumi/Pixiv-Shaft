@@ -1,7 +1,6 @@
 package ceui.lisa.fragments;
 
 import android.content.Intent;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -10,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.databinding.ViewDataBinding;
 import androidx.fragment.app.FragmentTransaction;
@@ -77,8 +75,7 @@ public class FragmentRight extends NetListFragment<FragmentNewRightBinding, List
             baseBind.head.setLayoutParams(headParams);
         }
 
-        baseBind.toolbar.inflateMenu(R.menu.fragment_left);
-        baseBind.toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+        baseBind.drawerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (mActivity instanceof MainActivity) {
@@ -86,16 +83,12 @@ public class FragmentRight extends NetListFragment<FragmentNewRightBinding, List
                 }
             }
         });
-        baseBind.toolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
+        baseBind.searchBar.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                if (item.getItemId() == R.id.action_search) {
-                    Intent intent = new Intent(mContext, TemplateActivity.class);
-                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "搜索");
-                    startActivity(intent);
-                    return true;
-                }
-                return false;
+            public void onClick(View v) {
+                Intent intent = new Intent(mContext, TemplateActivity.class);
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "搜索");
+                startActivity(intent);
             }
         });
         baseBind.seeMore.setOnClickListener(v -> {

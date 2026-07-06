@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 发现页分类卡:圆角 18dp 的柔面占位底。图片满铺盖在上面(clipToOutline 靠这个 shape 的
+     轮廓把图裁成圆角);图未加载时露出的也是这层 v3_surface_2,日夜自适应。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_surface_2" />
+    <corners android:radius="18dp" />
+</shape>
