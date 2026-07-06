@@ -15,6 +15,8 @@ import androidx.annotation.DrawableRes
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import ceui.lisa.R
+import ceui.lisa.utils.V3Palette
+import kotlin.math.roundToInt
 
 class V3MenuDialog : DialogFragment() {
 
@@ -63,6 +65,11 @@ class V3MenuDialog : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // 面板底色跟搜索筛选器卡片一致：隐约主题色 tint（XML bg_v3_menu_dialog 是固定中性
+        // v3_menu_bg，切主题色不动）。沿用原 24dp 圆角 + 1dp 描边。
+        val d = resources.displayMetrics.density
+        view.background = V3Palette.from(requireContext())
+            .settingsCardBg(24f * d, (1 * d).roundToInt())
         if (items.isEmpty()) return
 
         val container = view.findViewById<LinearLayout>(R.id.menu_container)

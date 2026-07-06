@@ -365,6 +365,12 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             if (loading) loadingFooter.show() else loadingFooter.hide()
         }
 
+        // 悬浮操作胶囊底色跟随主题色（原 bg_v3_fab_bar 固定 #CC1A1A2E,切主题色不动）——
+        // 同 settings 卡片 tint,保留悬浮半透明。
+        baseBind.fabBar.background = headerAdapter.palette.floatingPillBg(
+            999f * resources.displayMetrics.density
+        )
+
         viewModel.isBookmarked.observe(viewLifecycleOwner) { bookmarked ->
             baseBind.fabBookmark.imageTintList = android.content.res.ColorStateList.valueOf(
                 if (bookmarked) mContext.getColor(R.color.has_bookmarked)

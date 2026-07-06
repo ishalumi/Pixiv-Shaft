@@ -172,18 +172,31 @@ class V3Palette(@ColorInt val primary: Int, val isDark: Boolean = true) {
      * 浅色：去饱和后提到极浅，得到一块"带主题色调的白底"。外加一条 12% 主题色 hairline，
      * 替代静态 [ceui.lisa.R.drawable.bg_v3_settings_card]（固定中性 v3_menu_bg，切主题色不动）。
      */
+    /** Settings-card / 悬浮胶囊的不透明底色 —— 隐约带主题色（日夜双模），见 [settingsCardBg]。 */
+    @ColorInt val cardFill: Int = if (isDark) darken(desaturate(primary, 0.42f), 0.14f)
+    else lighten(desaturate(primary, 0.60f), 0.955f)
+
     fun settingsCardBg(radiusPx: Float, strokePx: Int): GradientDrawable {
-        val fill = if (isDark) darken(desaturate(primary, 0.42f), 0.14f)
-        else lighten(desaturate(primary, 0.60f), 0.955f)
         val hairline = if (isDark) withAlpha(ensureLightEnough(primary, 0.60f), 0.12f)
         else withAlpha(ensureDarkEnough(primary, 0.40f), 0.12f)
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radiusPx
-            setColor(fill)
+            setColor(cardFill)
             if (strokePx > 0) setStroke(strokePx, hairline)
         }
     }
+
+    /**
+     * 悬浮胶囊底色（fab bar / glass pill）：[cardFill] 同款主题 tint 加透明，悬浮在内容上，
+     * 替代固定的 #CC1A1A2E。默认 80% 不透明（原 fab bar 的 0xCC）。
+     */
+    fun floatingPillBg(radiusPx: Float, alpha: Float = 0.80f): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusPx
+            setColor(withAlpha(cardFill, alpha))
+        }
 
     // ── convenience ─────────────────────────────────────────────────
 
