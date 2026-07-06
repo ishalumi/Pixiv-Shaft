@@ -6,6 +6,7 @@ import android.net.Uri
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
@@ -351,14 +352,18 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
 
     override fun initData() {
         postponeEnterTransition()
-    }
-
-    override fun onBackPressed() {
-        if (index == baseBind!!.viewPager.currentItem) {
-            super.onBackPressed()
-        } else {
-            mActivity.finish()
-        }
+        // 返回键/返回手势:停在进入时那一页 → 走共享元素返回动画(finishAfterTransition),
+        // 已滑到别的页 → 无共享元素可回,直接关。targetSdk 35+ 后预测式返回默认开启,
+        // 系统不再回调 onBackPressed,必须用 OnBackPressedDispatcher 接管。
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (index == baseBind!!.viewPager.currentItem) {
+                    finishAfterTransition()
+                } else {
+                    mActivity.finish()
+                }
+            }
+        })
     }
 
     private fun performAiRembg(illust: IllustsBean, pageIndex: Int, model: RembgModel) {

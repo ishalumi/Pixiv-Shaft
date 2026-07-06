@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -555,22 +556,29 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
     }
 
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (childFragment instanceof FragmentWebView) {
-            return ((FragmentWebView) childFragment).getAgentWeb().handleKeyEvent(keyCode, event) ||
-                    super.onKeyDown(keyCode, event);
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-    @Override
     protected int initLayout() {
         return R.layout.activity_fragment;
     }
 
     @Override
     protected void initView() {
-
+        // 返回键/返回手势:WebView 网页内历史后退 → 子 Fragment 返回栈 → 关闭本页。
+        // targetSdk 35+ 后预测式返回默认开启,系统不再回调 onKeyDown / onBackPressed,
+        // 必须用 OnBackPressedDispatcher 接管,否则这两条老逻辑全成死代码。
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (childFragment instanceof FragmentWebView
+                        && ((FragmentWebView) childFragment).getAgentWeb() != null
+                        && ((FragmentWebView) childFragment).getAgentWeb().back()) {
+                    return;
+                }
+                if (BackHandlerHelper.handleBackPress(TemplateActivity.this)) {
+                    return;
+                }
+                finish();
+            }
+        });
     }
 
     @Override
@@ -624,13 +632,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
     @Override
     public void onDialogDismissed(int dialogId) {
 
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (!BackHandlerHelper.handleBackPress(this)) {
-            super.onBackPressed();
-        }
     }
 
     public void onFontSizeSelected(int size) {
