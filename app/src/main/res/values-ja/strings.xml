@@ -2075,8 +2075,4 @@
     <string name="watch_later_clear_ok">クリア</string>
     <string name="watch_later_clear_confirm">あとで見るリストをクリアしますか？</string>
     <string name="watch_later_play_all">すべて再生</string>
-    <string name="watch_later_launch_prompt">あとで見るリストに %1$d 件の画像があります。今すぐ見ますか？</string>
-    <string name="watch_later_launch_view">今すぐ見る</string>
-    <string name="watch_later_launch_never">今後表示しない</string>
-    <string name="watch_later_setting_title">起動時にあとで見るを通知</string>
 </resources>

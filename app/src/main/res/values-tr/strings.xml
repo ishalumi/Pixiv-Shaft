@@ -2075,8 +2075,4 @@
     <string name="watch_later_clear_ok">Temizle</string>
     <string name="watch_later_clear_confirm">Sonra İzle listen temizlensin mi?</string>
     <string name="watch_later_play_all">Tümünü oynat</string>
-    <string name="watch_later_launch_prompt">Sonra İzle listende %1$d görsel var. Şimdi görüntülensin mi?</string>
-    <string name="watch_later_launch_view">Şimdi görüntüle</string>
-    <string name="watch_later_launch_never">Bir daha hatırlatma</string>
-    <string name="watch_later_setting_title">Açılışta Sonra İzle\'yi hatırlat</string>
 </resources>

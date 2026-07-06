@@ -291,13 +291,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
 
         // Show rate dialog after a short delay to avoid disrupting app startup.
         // 浏览记录云同步同意框不在首页弹,改到用户点进浏览历史页时再问(见 FragmentHistoryTabs / issue #889)。
-        // 评分弹窗优先;它这次不弹时,才轮到「稍后再看」冷启动提示,避免两个弹窗叠一起。
         baseBind.viewPager.postDelayed(() -> {
-            if (ceui.pixiv.widgets.RateAppManager.INSTANCE.shouldShowRateDialog()) {
-                ceui.pixiv.widgets.RateAppDialog.Companion.showIfNeeded(getSupportFragmentManager());
-            } else {
-                ceui.pixiv.ui.watchlater.WatchLaterLaunchPrompt.INSTANCE.showIfNeeded(MainActivity.this);
-            }
+            ceui.pixiv.widgets.RateAppDialog.Companion.showIfNeeded(getSupportFragmentManager());
         }, 2000);
     }
 

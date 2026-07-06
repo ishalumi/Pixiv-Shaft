@@ -2075,8 +2075,4 @@
     <string name="watch_later_clear_ok">Очистить</string>
     <string name="watch_later_clear_confirm">Очистить список «Смотреть позже»?</string>
     <string name="watch_later_play_all">Воспроизвести все</string>
-    <string name="watch_later_launch_prompt">В списке «Смотреть позже» %1$d изображений. Посмотреть сейчас?</string>
-    <string name="watch_later_launch_view">Смотреть сейчас</string>
-    <string name="watch_later_launch_never">Больше не напоминать</string>
-    <string name="watch_later_setting_title">Напоминать о «Смотреть позже» при запуске</string>
 </resources>

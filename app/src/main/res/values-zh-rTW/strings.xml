@@ -2077,8 +2077,4 @@
     <string name="watch_later_clear_ok">清空</string>
     <string name="watch_later_clear_confirm">確定要清空「稍後再看」清單嗎？</string>
     <string name="watch_later_play_all">播放全部</string>
-    <string name="watch_later_launch_prompt">你的「稍後再看」清單裡有 %1$d 張圖片，現在查看嗎？</string>
-    <string name="watch_later_launch_view">現在查看</string>
-    <string name="watch_later_launch_never">不再提示</string>
-    <string name="watch_later_setting_title">啟動時提醒「稍後再看」</string>
 </resources>

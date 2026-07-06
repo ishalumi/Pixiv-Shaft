@@ -2075,8 +2075,4 @@
     <string name="watch_later_clear_ok">비우기</string>
     <string name="watch_later_clear_confirm">나중에 보기 목록을 비우시겠습니까?</string>
     <string name="watch_later_play_all">모두 재생</string>
-    <string name="watch_later_launch_prompt">나중에 보기 목록에 이미지 %1$d개가 있습니다. 지금 보시겠습니까?</string>
-    <string name="watch_later_launch_view">지금 보기</string>
-    <string name="watch_later_launch_never">다시 알리지 않음</string>
-    <string name="watch_later_setting_title">시작 시 나중에 보기 알림</string>
 </resources>

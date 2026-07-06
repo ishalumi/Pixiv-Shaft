@@ -513,23 +513,6 @@
                         <View style="@style/half_divider" />
 
                         <RelativeLayout
-                            android:id="@+id/remind_watch_later_rela"
-                            style="@style/ripple_rela">
-
-                            <TextView
-                                style="@style/setting_text_left_and_center"
-                                android:text="@string/watch_later_setting_title" />
-
-                            <androidx.appcompat.widget.SwitchCompat
-                                android:id="@+id/remind_watch_later"
-                                style="@style/setting_right_switch" />
-
-
-                        </RelativeLayout>
-
-                        <View style="@style/half_divider" />
-
-                        <RelativeLayout
                             android:id="@+id/search_filter_rela"
                             style="@style/ripple_rela">
 

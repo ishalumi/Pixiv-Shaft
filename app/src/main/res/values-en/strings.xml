@@ -2075,8 +2075,4 @@
     <string name="watch_later_clear_ok">Clear</string>
     <string name="watch_later_clear_confirm">Clear your Watch Later list?</string>
     <string name="watch_later_play_all">Play all</string>
-    <string name="watch_later_launch_prompt">Your Watch Later list has %1$d image(s). View now?</string>
-    <string name="watch_later_launch_view">View now</string>
-    <string name="watch_later_launch_never">Don\'t remind me</string>
-    <string name="watch_later_setting_title">Remind me about Watch Later on launch</string>
 </resources>
