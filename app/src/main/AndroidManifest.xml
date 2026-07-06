@@ -119,7 +119,7 @@
             android:name=".activities.OutWakeActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:exported="true"
-            android:label="@string/string_310"
+            android:label="@string/out_wake_label"
             android:theme="@style/SplashTheme">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

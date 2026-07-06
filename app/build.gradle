@@ -93,6 +93,15 @@ android {
         }
     }
 
+    // 按 flavor + buildType 生成一个可区分的名字,给 OutWakeActivity(pixiv 链接的
+    // 「打开方式」处理器)当 label —— 同时装了多个 build 时在系统选择器里能分清是哪个。
+    // github 渠道=Shaft、google(Play)渠道=PixShaft(沿用现有产品名),debug 追加 " Debug"。
+    applicationVariants.all { variant ->
+        def base = variant.flavorName == "google" ? "PixShaft" : "Shaft"
+        def label = variant.buildType.name == "debug" ? base + " Debug" : base
+        variant.resValue "string", "out_wake_label", label
+    }
+
     compileOptions {
         coreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
