@@ -316,7 +316,9 @@
                             android:foreground="@drawable/v3_ripple_card22"
                             android:stateListAnimator="@animator/button_press_scale">
 
+                            <!-- 静态紫渐变仅作占位/设计态,运行时被 V3Palette.bannerPlaceholder() 换成主题色渐变 -->
                             <View
+                                android:id="@+id/web_street_placeholder"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:background="@drawable/bg_v3_banner_placeholder" />

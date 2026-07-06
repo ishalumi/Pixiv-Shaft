@@ -17,6 +17,7 @@ import ceui.lisa.activities.Shaft;
 import ceui.lisa.activities.TemplateActivity;
 import ceui.lisa.databinding.FragmentNewCenterBinding;
 import ceui.lisa.utils.Dev;
+import ceui.lisa.utils.V3Palette;
 
 public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
 
@@ -57,6 +58,9 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         baseBind.walkThrough.setClipToOutline(true);
         baseBind.followNovels.setClipToOutline(true);
         baseBind.webStreet.setClipToOutline(true);
+        // Web 首页卡片的渐变底跟随主题色(切绿/切其他色都对),并适配日夜。
+        // XML 里的静态紫渐变只是占位,运行时用 V3Palette 生成的主题色渐变覆盖。
+        baseBind.webStreetPlaceholder.setBackground(V3Palette.from(mContext).bannerPlaceholder());
 
         baseBind.manga.setOnClickListener(new View.OnClickListener() {
             @Override

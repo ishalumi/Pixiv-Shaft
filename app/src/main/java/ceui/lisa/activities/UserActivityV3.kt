@@ -113,6 +113,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         baseBind.toolbar.setPadding(0, Shaft.statusHeight, 0, 0)
         baseBind.toolbar.setNavigationOnClickListener { finish() }
 
+        // Banner 占位渐变跟随主题色(无 banner 图时露出),XML 里的静态紫渐变只是占位。
+        baseBind.bannerPlaceholder.background = palette.bannerPlaceholder()
+
         // Apply theme-colored drawables to follow/unfollow buttons
         val density = resources.displayMetrics.density
         baseBind.follow.background = palette.pillPrimary(999f * density)
