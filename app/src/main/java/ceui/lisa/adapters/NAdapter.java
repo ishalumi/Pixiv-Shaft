@@ -3,21 +3,15 @@ package ceui.lisa.adapters;
 import android.content.Context;
 import android.content.Intent;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
-import com.zhy.view.flowlayout.FlowLayout;
-import com.zhy.view.flowlayout.TagAdapter;
-import com.zhy.view.flowlayout.TagFlowLayout;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 import ceui.lisa.R;
-import ceui.lisa.activities.SearchActivity;
 import ceui.lisa.activities.Shaft;
 import ceui.lisa.activities.TemplateActivity;
 import ceui.lisa.activities.UActivity;
@@ -28,7 +22,7 @@ import ceui.lisa.models.TagsBean;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
-import ceui.loxia.Tag;
+import ceui.lisa.utils.V3Palette;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
 import ceui.pixiv.ui.recommend.TrendingScoreFormatKt;
 import kotlin.Unit;
@@ -56,8 +50,11 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
 
     @Override
     public void bindData(NovelBean target, ViewHolder<RecyNovelBinding> bindView, int position) {
+        // 主题色 + 日夜自适应的强调色:系列 / 收藏按钮走 accent,标签流由 V3TagFlowView 自己取 palette。
+        V3Palette palette = V3Palette.from(mContext);
         if (target.getSeries() != null && !TextUtils.isEmpty(target.getSeries().getTitle())) {
             bindView.baseBind.series.setVisibility(View.VISIBLE);
+            bindView.baseBind.series.setTextColor(palette.getTextAccent());
             bindView.baseBind.series.setText(String.format(mContext.getString(R.string.string_184),
                     target.getSeries().getTitle()));
             if (showShop) {
@@ -81,44 +78,31 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
         } else {
             bindView.baseBind.title.setText(target.getTitle());
         }
-        // Respect the user's "show tags on novel cards" setting. Feed
-        // an empty list into the TagAdapter when disabled so the
-        // TagFlowLayout collapses to zero height and the rows anchored
-        // to @id/novel_tag in RelativeLayout stay in the right place
-        // (forcing View.GONE here would orphan those anchors).
+        // Respect the user's "show tags on novel cards" setting. Feed an empty
+        // list when disabled so V3TagFlowView clears its chips and collapses to
+        // zero height. compact=true 让 chip 比详情页小一号;searchIndex=1 让点击
+        // 跳到搜索页的「小说」tab;点击 / 长按菜单由 V3TagFlowView 内建。
         List<TagsBean> tagsToShow = Shaft.sSettings.isShowNovelCardTags()
                 ? target.getTags()
                 : Collections.<TagsBean>emptyList();
-        bindView.baseBind.novelTag.setAdapter(new TagAdapter<TagsBean>(tagsToShow) {
-            @Override
-            public View getView(FlowLayout parent, int position, TagsBean s) {
-                TextView tv = (TextView) LayoutInflater.from(mContext).inflate(R.layout.recy_single_line_text_new,
-                        parent, false);
-                String tag = s.getName();
-                tv.setText(tag);
-                return tv;
-            }
-        });
-        bindView.baseBind.novelTag.setOnTagClickListener(new TagFlowLayout.OnTagClickListener() {
-            @Override
-            public boolean onTagClick(View view, int position, FlowLayout parent) {
-                Intent intent = new Intent(mContext, SearchActivity.class);
-                intent.putExtra(Params.KEY_WORD, target.getTags().get(position).getName());
-                intent.putExtra(Params.INDEX, 1);
-                mContext.startActivity(intent);
-                return true;
-            }
-        });
+        bindView.baseBind.novelTag.setCompact(true);
+        bindView.baseBind.novelTag.setSearchIndex(1);
+        bindView.baseBind.novelTag.setJavaTags(tagsToShow);
+        // 新版是竖排 LinearLayout,空标签直接 GONE 收掉上方 12dp 间距,不会像旧
+        // RelativeLayout 那样丢锚点。
+        bindView.baseBind.novelTag.setVisibility(tagsToShow.isEmpty() ? View.GONE : View.VISIBLE);
+        // AI 生成角标(novel_ai_type == 2),与 card/v3/history/detail 同口径。
+        bindView.baseBind.badgeAi.setVisibility(target.isCreatedByAI() ? View.VISIBLE : View.GONE);
         bindView.baseBind.author.setText(target.getUser().getName());
         var date = target.getCreate_date().substring(0, 10);
-        bindView.baseBind.howManyWord.setText(String.format(Locale.getDefault(), "%d字\n%s", target.getText_length(),date));
-        bindView.baseBind.author.setText(target.getUser().getName());
+        bindView.baseBind.howManyWord.setText(String.format(Locale.getDefault(), "%d字 · %s", target.getText_length(), date));
         bindView.baseBind.bookmarkCount.setText(String.valueOf(target.getTotal_bookmarks()));
         // 站长推荐场景:trending repo 把 score 注入 bean。其他 fragment 复用此
         // adapter 时 trendingScore=null,bindTrendingScore 内部走 GONE,无副作用。
         TrendingScoreFormatKt.bindTrendingScore(bindView.baseBind.trendingScore, target.getTrendingScore());
         Glide.with(mContext).load(GlideUtil.getUrl(target.getImage_urls().getMaxImage())).into(bindView.baseBind.cover);
         Glide.with(mContext).load(GlideUtil.getHead(target.getUser())).into(bindView.baseBind.userHead);
+        bindView.baseBind.like.setTextColor(palette.getTextAccent());
         if (target.isIs_bookmarked()) {
             bindView.baseBind.like.setText(R.string.string_169);
         } else {

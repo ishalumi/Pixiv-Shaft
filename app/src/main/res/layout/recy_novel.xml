@@ -7,196 +7,201 @@
 
     </data>
 
+    <!-- 卡间距由列表的 LinearItemDecoration(12dp) 统一给,cell 本身不加 margin。 -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="2dp"
-        app:cardBackgroundColor="@color/white_to_deep_dark"
-        app:cardElevation="@dimen/four_dp">
+        android:foreground="?attr/selectableItemBackground"
+        app:cardBackgroundColor="@color/v3_bg"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="1.5dp">
 
-        <RelativeLayout
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
 
-
-            <com.makeramen.roundedimageview.RoundedImageView
-                android:id="@+id/cover"
-                android:layout_width="90dp"
-                android:layout_height="120dp"
-                android:layout_alignParentEnd="true"
-                android:layout_marginTop="@dimen/eight_dp"
-                android:layout_marginEnd="@dimen/eight_dp"
-                android:layout_marginBottom="@dimen/eight_dp"
-                android:scaleType="centerCrop"
-                app:riv_border_width="0dp"
-                app:riv_corner_radius="@dimen/eight_dp">
-
-            </com.makeramen.roundedimageview.RoundedImageView>
-
-            <!--
-              站长推荐 score pill,叠在封面左上角(4dp 内缩,避开 8dp 圆角)。
-              必须放在 cover 之后才能在 z 轴上盖住封面。其他 fragment 复用同一
-              holder 时 NAdapter 不会 setVisibility,style 自带 gone 保证隐形。
-            -->
-            <TextView
-                android:id="@+id/trending_score"
-                style="@style/TrendingScorePill"
-                android:layout_alignTop="@+id/cover"
-                android:layout_alignStart="@+id/cover"
-                android:layout_marginTop="@dimen/four_dp"
-                android:layout_marginStart="@dimen/four_dp"
-                tools:text="▲ 1.2k"
-                tools:visibility="visible"/>
-
-
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:id="@+id/top_rela"
-                android:layout_marginEnd="@dimen/eight_dp"
-                android:layout_toStartOf="@+id/cover"
-                android:layout_height="wrap_content">
-
-                <ImageView
-                    android:layout_width="2dp"
-                    android:background="?attr/colorPrimary"
-                    android:layout_alignTop="@+id/title"
-                    android:layout_alignBottom="@+id/title"
-                    android:layout_height="wrap_content">
-
-                </ImageView>
-
-                <TextView
-                    android:id="@+id/title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/eight_dp"
-                    android:layout_marginTop="@dimen/eight_dp"
-                    android:layout_marginBottom="@dimen/eight_dp"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:textColor="@color/rank_text_color"
-                    android:textSize="16sp">
-
-                </TextView>
-
-            </RelativeLayout>
-
-
-            <TextView
-                android:id="@+id/series"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/top_rela"
-                android:layout_marginStart="@dimen/eight_dp"
-                android:layout_marginEnd="@dimen/eight_dp"
-                android:layout_toStartOf="@+id/cover"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="13sp">
-
-
-            </TextView>
-
-            <com.zhy.view.flowlayout.TagFlowLayout
-                android:layout_width="match_parent"
-                android:id="@+id/novel_tag"
-                android:layout_below="@id/series"
-                android:layout_toStartOf="@+id/cover"
-                android:layout_marginStart="@dimen/eight_dp"
-                android:layout_marginEnd="@dimen/eight_dp"
-                android:layout_marginTop="@dimen/four_dp"
-                android:layout_height="wrap_content">
-
-            </com.zhy.view.flowlayout.TagFlowLayout>
-
-
-            <TextView
-                android:id="@+id/how_many_word"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/cover"
-                android:layout_alignStart="@+id/cover"
-                android:layout_alignEnd="@+id/cover"
-                android:layout_marginBottom="@dimen/four_dp"
-                android:gravity="center"
-                android:textColor="@color/rank_text_color"
-                android:textSize="12sp"
-                android:textStyle="bold">
-            </TextView>
-
-            <RelativeLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/how_many_word"
-                android:layout_alignStart="@+id/cover"
-                android:layout_alignEnd="@+id/cover"
-                android:layout_marginBottom="@dimen/four_dp">
-
-                <TextView
-                    android:id="@+id/bookmark_count"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerHorizontal="true"
-                    android:drawablePadding="@dimen/four_dp"
-                    android:textSize="12sp"
-                    android:textColor="@color/rank_text_color"
-                    app:drawableStartCompat="@drawable/ic_favorite_black_24dp"
-                    app:drawableTint="#ff445b" />
-
-            </RelativeLayout>
-
+            <!-- 上半:封面(左) + 标题/系列(上) + 作者/字数日期/收藏(贴封面底部) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/novel_tag"
-                android:layout_alignParentBottom="true"
-                android:layout_marginBottom="@dimen/four_dp"
-                android:layout_toStartOf="@id/cover"
                 android:orientation="horizontal">
 
-                <de.hdodenhof.circleimageview.CircleImageView
-                    android:id="@+id/user_head"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginVertical="0dp"
-                    android:layout_marginStart="@dimen/eight_dp"
-                    android:layout_marginEnd="@dimen/four_dp"
-                    app:civ_border_color="@color/dark_bg"
-                    app:civ_border_width="1dp" />
+                <androidx.cardview.widget.CardView
+                    android:layout_width="90dp"
+                    android:layout_height="134dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp">
 
-                <TextView
-                    android:id="@+id/author"
+                    <ImageView
+                        android:id="@+id/cover"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@color/v3_surface_2"
+                        android:contentDescription="@null"
+                        android:scaleType="centerCrop" />
+
+                    <!-- 站长推荐 score pill,叠在封面左上角。NAdapter 不 setVisibility 时 style 自带 gone。 -->
+                    <TextView
+                        android:id="@+id/trending_score"
+                        style="@style/TrendingScorePill"
+                        android:layout_gravity="top|start"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginTop="4dp"
+                        tools:text="▲ 1.2k"
+                        tools:visibility="visible" />
+
+                    <!-- AI 生成角标:novel_ai_type == 2 时显示 -->
+                    <TextView
+                        android:id="@+id/badge_ai"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/v3_novel_ai_badge_bg"
+                        android:paddingHorizontal="5dp"
+                        android:paddingVertical="2dp"
+                        android:text="@string/v3_detail_ai"
+                        android:textColor="@android:color/white"
+                        android:textSize="8sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+                </androidx.cardview.widget.CardView>
+
+                <!-- 高度锁定与封面一致,靠 Space 把作者/信息簇顶到封面底部,消灭右侧空白 -->
+                <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginVertical="0dp"
-                    android:layout_marginTop="14dp"
-                    android:layout_marginEnd="@dimen/eight_dp"
+                    android:layout_height="134dp"
+                    android:layout_marginStart="14dp"
                     android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:shadowColor="@android:color/black"
-                    android:textColor="@color/rank_text_color"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/like"
-                    style="@style/Widget.AppCompat.Button.Borderless"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:text="@string/string_122"
-                    android:textColor="?attr/colorPrimary">
-                </Button>
+                    <TextView
+                        android:id="@+id/title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:letterSpacing="-0.02"
+                        android:maxLines="2"
+                        android:textColor="@color/v3_text_1"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        tools:text="死に戻ったら皆んな怒ってたから嘘ついた!" />
 
+                    <TextView
+                        android:id="@+id/series"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:textColor="@color/v3_text_2"
+                        android:textSize="12sp"
+                        android:visibility="gone"
+                        tools:text="系列: しにもどり"
+                        tools:visibility="visible" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <!-- 贴封面底部:作者(左) ... 右下角字数·日期 / 收藏数·收藏按钮 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <de.hdodenhof.circleimageview.CircleImageView
+                            android:id="@+id/user_head"
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            app:civ_border_color="@color/v3_surface_2"
+                            app:civ_border_width="1dp" />
+
+                        <TextView
+                            android:id="@+id/author"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:textColor="@color/v3_text_2"
+                            android:textSize="13sp"
+                            tools:text="葵由" />
+
+                        <!-- 右下角信息簇:上排字数·日期,下排收藏数紧贴收藏按钮左侧 -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/how_many_word"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="end"
+                                android:letterSpacing="0.02"
+                                android:maxLines="1"
+                                android:textColor="@color/v3_text_3"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                tools:text="2853字 · 2025-08-12" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="end"
+                                android:layout_marginTop="2dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/bookmark_count"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:drawablePadding="4dp"
+                                    android:gravity="center_vertical"
+                                    android:maxLines="1"
+                                    android:textColor="@color/v3_text_2"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold"
+                                    app:drawableStartCompat="@drawable/ic_favorite_black_24dp"
+                                    app:drawableTint="#ff445b"
+                                    tools:text="2224" />
+
+                                <TextView
+                                    android:id="@+id/like"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:paddingHorizontal="10dp"
+                                    android:paddingVertical="6dp"
+                                    android:text="@string/string_122"
+                                    android:textSize="13sp"
+                                    android:textStyle="bold"
+                                    tools:text="收藏" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
 
-        </RelativeLayout>
-
-
+            <!-- 标签流:整卡满宽,紧凑 chip(比详情页小一号)。关闭「显示标签」时喂空列表折叠。 -->
+            <ceui.pixiv.widgets.V3TagFlowView
+                android:id="@+id/novel_tag"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:flexWrap="wrap" />
+        </LinearLayout>
     </androidx.cardview.widget.CardView>
 </layout>
-

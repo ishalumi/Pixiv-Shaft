@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.ImageView;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -290,8 +291,10 @@ public class PixivOperate {
                             intent.putExtra(Params.IS_LIKED, false);
                             LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
 
-                            if (view instanceof Button) {
-                                ((Button) view).setText(getString(R.string.string_180));
+                            // like 标签在不同页面可能是 Button 或普通 TextView(小说卡片改版后)。
+                            // Button 是 TextView 子类,统一按 TextView 判定即可两者都刷新。
+                            if (view instanceof TextView) {
+                                ((TextView) view).setText(getString(R.string.string_180));
                             }
                             Common.showToast(getString(R.string.cancel_like_illust));
 
@@ -317,8 +320,8 @@ public class PixivOperate {
                             intent.putExtra(Params.IS_LIKED, true);
                             LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
 
-                            if (view instanceof Button) {
-                                ((Button) view).setText(getString(R.string.string_179));
+                            if (view instanceof TextView) {
+                                ((TextView) view).setText(getString(R.string.string_179));
                             }
                             if (Params.TYPE_PUBLIC.equals(pendingType)) {
                                 Common.showToast(getString(R.string.like_novel_success_public));

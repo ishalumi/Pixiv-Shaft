@@ -85,6 +85,20 @@ class V3TagFlowView @JvmOverloads constructor(
             }
         }
 
+    /**
+     * 紧凑模式 — 更小的字号 / 内边距 / 间距。用于把整套 chip 塞进列表卡片
+     * （如小说卡片）时「再小一号」，与详情页大 chip 区分。视觉仍走同一 palette，
+     * 自动适配日夜 + 主题色。
+     */
+    var compact: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                lastSignature = null
+                renderPairs(lastPairs)
+            }
+        }
+
     private var _editor: EditText? = null
 
     /**
@@ -128,17 +142,22 @@ class V3TagFlowView @JvmOverloads constructor(
         val density = context.resources.displayMetrics.density
         val tagBgState = palette.tagLockedBg(999f * density).constantState
 
+        // 紧凑模式整体降一档：字号 / 内边距 / 间距都收窄，便于嵌进列表卡片。
+        val chipTextSize = if (compact) 11.5f else 13f
+        val hPad = if (compact) 10.ppppx else 14.ppppx
+        val vPad = if (compact) 4.ppppx else 7.ppppx
+        val gap = if (compact) 6.ppppx else 8.ppppx
         val closeIconSize = if (showRemoveIcon) 14.ppppx else 0
         // 单行模式（NOWRAP）下不需要 bottom margin，也不给最后一个 chip 留 end margin——
         // 它只会把输入框顶得离内容偏远。
         val isSingleRow = flexWrap == com.google.android.flexbox.FlexWrap.NOWRAP
-        val bottomGap = if (isSingleRow) 0 else 8.ppppx
+        val bottomGap = if (isSingleRow) 0 else gap
         val lastIndex = pairs.size - 1
         pairs.forEachIndexed { idx, (name, translated) ->
             val endGap = when {
-                !isSingleRow -> 8.ppppx
+                !isSingleRow -> gap
                 idx == lastIndex -> 0
-                else -> 8.ppppx
+                else -> gap
             }
             val tv = TextView(context).apply {
                 text = buildString {
@@ -147,7 +166,7 @@ class V3TagFlowView @JvmOverloads constructor(
                         append("  "); append(translated)
                     }
                 }
-                textSize = 13f
+                textSize = chipTextSize
                 setTextColor(palette.textTag)
                 background = tagBgState?.newDrawable()?.mutate()
                 // Trailing × icon for editable chip rows.
@@ -161,8 +180,8 @@ class V3TagFlowView @JvmOverloads constructor(
                     compoundDrawablePadding = 4.ppppx
                 }
                 // Shrink end padding when the × occupies space; otherwise the chip looks lopsided.
-                val endPadding = if (showRemoveIcon) 10.ppppx else 14.ppppx
-                setPaddingRelative(14.ppppx, 7.ppppx, endPadding, 7.ppppx)
+                val endPadding = if (showRemoveIcon) (hPad - 4.ppppx) else hPad
+                setPaddingRelative(hPad, vPad, endPadding, vPad)
                 layoutParams = LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,

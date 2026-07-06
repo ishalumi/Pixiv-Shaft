@@ -184,6 +184,7 @@ class V3Palette(@ColorInt val primary: Int, val isDark: Boolean = true) {
     companion object {
 
         /** Resolve the palette from the current theme's colorPrimary */
+        @JvmStatic
         fun from(context: Context): V3Palette {
             val primary = Common.resolveThemeAttribute(
                 context, androidx.appcompat.R.attr.colorPrimary
