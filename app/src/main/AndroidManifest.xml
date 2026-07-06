@@ -40,7 +40,7 @@
     <application
         android:name=".activities.Shaft"
         android:allowBackup="true"
-        android:appCategory="image"
+        android:appCategory="social"
         android:fullBackupOnly="true"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
