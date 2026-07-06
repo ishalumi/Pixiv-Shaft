@@ -22,7 +22,7 @@
             android:orientation="vertical"
             android:padding="14dp">
 
-            <!-- 上半:封面(左) + 标题/系列(上) + 作者/字数日期/收藏(贴封面底部) -->
+            <!-- 上半:封面(左,收藏数/字数叠在封面 align bottom) + 右侧标题·收藏按钮(首行) / 系列 / 作者·日期(贴封面底部) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -69,9 +69,53 @@
                         android:textStyle="bold"
                         android:visibility="gone"
                         tools:visibility="visible" />
+
+                    <!-- 底部恒暗渐变蒙版:复用发现页图片卡同款 scrim,保证叠在封面上的白字在任意封面上都读得清(日夜通用)。 -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:layout_gravity="bottom"
+                        android:background="@drawable/bg_v3_card_scrim" />
+
+                    <!-- 封面底部信息簇:收藏数(上) + 字数(下),纵向叠放,整簇在封面内横向居中,贴封面 align bottom。 -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|center_horizontal"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="6dp"
+                        android:paddingBottom="7dp">
+
+                        <TextView
+                            android:id="@+id/bookmark_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:drawablePadding="3dp"
+                            android:gravity="center_vertical"
+                            android:maxLines="1"
+                            android:textColor="@android:color/white"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            app:drawableStartCompat="@drawable/ic_favorite_black_24dp"
+                            app:drawableTint="#ff445b"
+                            tools:text="8172" />
+
+                        <TextView
+                            android:id="@+id/how_many_word"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1dp"
+                            android:letterSpacing="0.02"
+                            android:maxLines="1"
+                            android:textColor="@android:color/white"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            tools:text="10842字" />
+                    </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- 高度锁定与封面一致,靠 Space 把作者/信息簇顶到封面底部,消灭右侧空白 -->
+                <!-- 高度锁定与封面一致,靠 Space 把作者/日期簇顶到封面底部,消灭右侧空白 -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="134dp"
@@ -79,17 +123,40 @@
                     android:layout_weight="1"
                     android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/title"
+                    <!-- 首行:标题(左,占宽) + 收藏爱心(最右,与插画卡同款 ic_like_illust_6,顶对齐首行) -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:letterSpacing="-0.02"
-                        android:maxLines="2"
-                        android:textColor="@color/v3_text_1"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        tools:text="死に戻ったら皆んな怒ってたから嘘ついた!" />
+                        android:baselineAligned="false"
+                        android:gravity="top"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/title"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:letterSpacing="-0.02"
+                            android:maxLines="2"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            tools:text="死に戻ったら皆んな怒ってたから嘘ついた!" />
+
+                        <ImageButton
+                            android:id="@+id/like"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="4dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/string_122"
+                            android:padding="@dimen/four_dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_like_illust_6"
+                            app:tint="@color/not_bookmarked"
+                            tools:tint="@color/has_bookmarked" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/series"
@@ -109,7 +176,7 @@
                         android:layout_height="0dp"
                         android:layout_weight="1" />
 
-                    <!-- 贴封面底部:作者(左) ... 右下角字数·日期 / 收藏数·收藏按钮 -->
+                    <!-- 贴封面底部:作者(左) ... 日期(右),日期与作者信息同一横向水平。 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -136,72 +203,28 @@
                             android:textSize="13sp"
                             tools:text="葵由" />
 
-                        <!-- 右下角信息簇:上排字数·日期,下排收藏数紧贴收藏按钮左侧 -->
-                        <LinearLayout
+                        <TextView
+                            android:id="@+id/date"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/how_many_word"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="end"
-                                android:letterSpacing="0.02"
-                                android:maxLines="1"
-                                android:textColor="@color/v3_text_3"
-                                android:textSize="12sp"
-                                android:textStyle="bold"
-                                tools:text="2853字 · 2025-08-12" />
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="end"
-                                android:layout_marginTop="2dp"
-                                android:gravity="center_vertical"
-                                android:orientation="horizontal">
-
-                                <TextView
-                                    android:id="@+id/bookmark_count"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:drawablePadding="4dp"
-                                    android:gravity="center_vertical"
-                                    android:maxLines="1"
-                                    android:textColor="@color/v3_text_2"
-                                    android:textSize="12sp"
-                                    android:textStyle="bold"
-                                    app:drawableStartCompat="@drawable/ic_favorite_black_24dp"
-                                    app:drawableTint="#ff445b"
-                                    tools:text="2224" />
-
-                                <TextView
-                                    android:id="@+id/like"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginStart="6dp"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:paddingHorizontal="10dp"
-                                    android:paddingVertical="6dp"
-                                    android:text="@string/string_122"
-                                    android:textSize="13sp"
-                                    android:textStyle="bold"
-                                    tools:text="收藏" />
-                            </LinearLayout>
-                        </LinearLayout>
+                            android:letterSpacing="0.02"
+                            android:maxLines="1"
+                            android:textColor="@color/v3_text_3"
+                            android:textSize="12sp"
+                            tools:text="2026-03-09" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 标签流:整卡满宽,紧凑 chip(比详情页小一号)。关闭「显示标签」时喂空列表折叠。 -->
+            <!-- 标签流:整卡满宽,紧凑 chip(比详情页小一号),最多 3 行,超出的标签不展示。
+                 关闭「显示标签」时喂空列表折叠。 -->
             <ceui.pixiv.widgets.V3TagFlowView
                 android:id="@+id/novel_tag"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:flexWrap="wrap" />
+                app:flexWrap="wrap"
+                app:maxLine="3" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 </layout>

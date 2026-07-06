@@ -2,8 +2,11 @@ package ceui.lisa.adapters;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.text.TextUtils;
 import android.view.View;
+
+import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
 
@@ -95,23 +98,35 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
         bindView.baseBind.badgeAi.setVisibility(target.isCreatedByAI() ? View.VISIBLE : View.GONE);
         bindView.baseBind.author.setText(target.getUser().getName());
         var date = target.getCreate_date().substring(0, 10);
-        bindView.baseBind.howManyWord.setText(String.format(Locale.getDefault(), "%d字 · %s", target.getText_length(), date));
+        // 字数 + 收藏数纵向叠在封面 align bottom;日期留在作者信息同一横向水平。
+        bindView.baseBind.howManyWord.setText(String.format(Locale.getDefault(), "%d字", target.getText_length()));
+        bindView.baseBind.date.setText(date);
         bindView.baseBind.bookmarkCount.setText(String.valueOf(target.getTotal_bookmarks()));
         // 站长推荐场景:trending repo 把 score 注入 bean。其他 fragment 复用此
         // adapter 时 trendingScore=null,bindTrendingScore 内部走 GONE,无副作用。
         TrendingScoreFormatKt.bindTrendingScore(bindView.baseBind.trendingScore, target.getTrendingScore());
         Glide.with(mContext).load(GlideUtil.getUrl(target.getImage_urls().getMaxImage())).into(bindView.baseBind.cover);
         Glide.with(mContext).load(GlideUtil.getHead(target.getUser())).into(bindView.baseBind.userHead);
-        bindView.baseBind.like.setTextColor(palette.getTextAccent());
+        // 收藏按钮统一成插画卡同款爱心(ic_like_illust_6):已收藏=红,未收藏=灰。
         if (target.isIs_bookmarked()) {
-            bindView.baseBind.like.setText(R.string.string_169);
+            bindView.baseBind.like.setImageTintList(
+                    ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.has_bookmarked)));
         } else {
-            bindView.baseBind.like.setText(R.string.string_170);
+            bindView.baseBind.like.setImageTintList(
+                    ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.not_bookmarked)));
         }
         if (mOnItemClickListener != null) {
             bindView.baseBind.like.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    // 乐观切换爱心颜色(postLikeNovel 只会 setText 到 TextView,ImageButton 得自己刷)。
+                    if (target.isIs_bookmarked()) {
+                        bindView.baseBind.like.setImageTintList(
+                                ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.not_bookmarked)));
+                    } else {
+                        bindView.baseBind.like.setImageTintList(
+                                ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.has_bookmarked)));
+                    }
                     mOnItemClickListener.onItemClick(bindView.baseBind.like, position, 1);
                 }
             });
