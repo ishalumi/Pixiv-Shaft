@@ -25,6 +25,9 @@ class HistoryViewModel(
     private val recordType: Int
 ) : HoldersViewModel() {
 
+    // @Volatile:refreshImpl/loadMoreImpl 在 IO 侧改 _offset,removeHolderById 在主线程改,
+    // 保证跨线程可见性。realistic 稍后再看列表基本单页(不分页),两者并发窗口极窄且只影响分页边界。
+    @Volatile
     private var _offset = 0
 
     override suspend fun refreshImpl(hint: RefreshHint) {
@@ -61,7 +64,7 @@ class HistoryViewModel(
     }
 
     private fun mapper(entity: GeneralEntity): ListItemHolder? {
-        return if (recordType == RecordType.VIEW_ILLUST_HISTORY || recordType == RecordType.BLOCK_ILLUST) {
+        return if (recordType == RecordType.VIEW_ILLUST_HISTORY || recordType == RecordType.BLOCK_ILLUST || recordType == RecordType.WATCH_LATER) {
             val illust = entity.typedObject<Illust>()
             IllustCardHolder(illust)
         } else if (recordType == RecordType.VIEW_USER_HISTORY || recordType == RecordType.BLOCK_USER) {
@@ -76,7 +79,7 @@ class HistoryViewModel(
     }
 
     override fun prepareIdMap(fragmentUniqueId: String) {
-        if (recordType == RecordType.VIEW_ILLUST_HISTORY || recordType == RecordType.BLOCK_ILLUST) {
+        if (recordType == RecordType.VIEW_ILLUST_HISTORY || recordType == RecordType.BLOCK_ILLUST || recordType == RecordType.WATCH_LATER) {
             val filteredList = _itemHolders.value.orEmpty()
                 .filterIsInstance<IllustCardHolder>()
                 .map { it.illust.id }
@@ -89,6 +92,28 @@ class HistoryViewModel(
 
             ArtworksMap.store[fragmentUniqueId] = filteredList
         }
+    }
+
+    // 稍后再看:卡片长按「移出」后即时把该项从当前列表拿掉(纯内存,避免等 DB 删除回查的竞态)。
+    // 同步回退 _offset,让后续 loadMore 不会在页边界漏掉一条。
+    fun removeHolderById(illustId: Long) {
+        val current = _itemHolders.value.orEmpty()
+        val remaining = current.filterNot { it is IllustCardHolder && it.illust.id == illustId }
+        val removed = current.size - remaining.size
+        if (removed > 0) {
+            _offset = (_offset - removed).coerceAtLeast(0)
+        }
+        _itemHolders.value = remaining
+        if (remaining.isEmpty()) {
+            _refreshState.value = RefreshState.LOADED(hasContent = false, hasNext = false)
+        }
+    }
+
+    // 稍后再看:一键清空后把列表清掉并切到空状态。
+    fun clearHolders() {
+        _offset = 0
+        _itemHolders.value = emptyList()
+        _refreshState.value = RefreshState.LOADED(hasContent = false, hasNext = false)
     }
 
     init {

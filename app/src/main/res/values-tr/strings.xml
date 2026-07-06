@@ -2063,4 +2063,20 @@
     <string name="image_host_custom_empty">Proxy adresi boş olamaz</string>
     <string name="image_host_restart_hint">Uygulamayı yeniden başlatın</string>
     <string name="comment_translate_to_zh">Çince\'ye çevir</string>
+    <!-- watch later / Sonra İzle -->
+    <string name="watch_later">Sonra İzle</string>
+    <string name="watch_later_add">Sonra İzle\'ye ekle</string>
+    <string name="watch_later_remove">Sonra İzle\'den kaldır</string>
+    <string name="watch_later_added">Sonra İzle\'ye eklendi</string>
+    <string name="watch_later_removed">Sonra İzle\'den kaldırıldı</string>
+    <string name="watch_later_cleared">Sonra İzle temizlendi</string>
+    <string name="watch_later_empty">Sonra İzle listen boş</string>
+    <string name="watch_later_clear">Listeyi temizle</string>
+    <string name="watch_later_clear_ok">Temizle</string>
+    <string name="watch_later_clear_confirm">Sonra İzle listen temizlensin mi?</string>
+    <string name="watch_later_play_all">Tümünü oynat</string>
+    <string name="watch_later_launch_prompt">Sonra İzle listende %1$d görsel var. Şimdi görüntülensin mi?</string>
+    <string name="watch_later_launch_view">Şimdi görüntüle</string>
+    <string name="watch_later_launch_never">Bir daha hatırlatma</string>
+    <string name="watch_later_setting_title">Açılışta Sonra İzle\'yi hatırlat</string>
 </resources>

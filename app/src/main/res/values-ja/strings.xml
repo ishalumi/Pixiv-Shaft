@@ -2063,4 +2063,20 @@
     <string name="image_host_custom_empty">プロキシ URL を入力してください</string>
     <string name="image_host_restart_hint">アプリを再起動すると反映されます</string>
     <string name="comment_translate_to_zh">中国語に翻訳</string>
+    <!-- watch later / あとで見る -->
+    <string name="watch_later">あとで見る</string>
+    <string name="watch_later_add">あとで見るに追加</string>
+    <string name="watch_later_remove">あとで見るから削除</string>
+    <string name="watch_later_added">あとで見るに追加しました</string>
+    <string name="watch_later_removed">あとで見るから削除しました</string>
+    <string name="watch_later_cleared">あとで見るをクリアしました</string>
+    <string name="watch_later_empty">あとで見るリストは空です</string>
+    <string name="watch_later_clear">リストをクリア</string>
+    <string name="watch_later_clear_ok">クリア</string>
+    <string name="watch_later_clear_confirm">あとで見るリストをクリアしますか？</string>
+    <string name="watch_later_play_all">すべて再生</string>
+    <string name="watch_later_launch_prompt">あとで見るリストに %1$d 件の画像があります。今すぐ見ますか？</string>
+    <string name="watch_later_launch_view">今すぐ見る</string>
+    <string name="watch_later_launch_never">今後表示しない</string>
+    <string name="watch_later_setting_title">起動時にあとで見るを通知</string>
 </resources>

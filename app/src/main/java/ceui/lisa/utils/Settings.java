@@ -233,6 +233,8 @@ public class Settings {
 
     private boolean toastDownloadResult = true; // 默认提示下载结果
 
+    private boolean remindWatchLaterOnLaunch = true; // 启动时提醒「稍后再看」列表(默认开)
+
     private transient boolean r18FilterTempEnableInitialed = false;
     private transient boolean r18FilterTempEnable = false; // 临时开启R18内容过滤
 
@@ -283,6 +285,14 @@ public class Settings {
 
     public void setToastDownloadResult(boolean toastDownloadResult) {
         this.toastDownloadResult = toastDownloadResult;
+    }
+
+    public boolean isRemindWatchLaterOnLaunch() {
+        return remindWatchLaterOnLaunch;
+    }
+
+    public void setRemindWatchLaterOnLaunch(boolean remindWatchLaterOnLaunch) {
+        this.remindWatchLaterOnLaunch = remindWatchLaterOnLaunch;
     }
 
     public int getDownloadWay() {

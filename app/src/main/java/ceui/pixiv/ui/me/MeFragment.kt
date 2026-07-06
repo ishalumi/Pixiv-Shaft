@@ -220,6 +220,7 @@ class MeFragment : Fragment(R.layout.fragment_me) {
             title = R.string.me_section_quick,
             entries = listOf(
                 Entry(R.drawable.ic_history_black_24dp, R.string.view_history, R.id.nav_slideshow),
+                Entry(R.drawable.ic_watch_later_24, R.string.watch_later, R.id.watch_later),
                 Entry(R.drawable.outline_whatshot_24, R.string.prime_tags, R.id.nav_prime_tags),
                 Entry(R.drawable.ic_not_interested_black_24dp, R.string.muted_history, R.id.muted_list),
             ),

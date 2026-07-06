@@ -2063,4 +2063,20 @@
     <string name="image_host_custom_empty">Proxy URL cannot be empty</string>
     <string name="image_host_restart_hint">Restart the app to apply</string>
     <string name="comment_translate_to_zh">Translate to Chinese</string>
+    <!-- watch later -->
+    <string name="watch_later">Watch Later</string>
+    <string name="watch_later_add">Add to Watch Later</string>
+    <string name="watch_later_remove">Remove from Watch Later</string>
+    <string name="watch_later_added">Added to Watch Later</string>
+    <string name="watch_later_removed">Removed from Watch Later</string>
+    <string name="watch_later_cleared">Watch Later cleared</string>
+    <string name="watch_later_empty">Your Watch Later list is empty</string>
+    <string name="watch_later_clear">Clear list</string>
+    <string name="watch_later_clear_ok">Clear</string>
+    <string name="watch_later_clear_confirm">Clear your Watch Later list?</string>
+    <string name="watch_later_play_all">Play all</string>
+    <string name="watch_later_launch_prompt">Your Watch Later list has %1$d image(s). View now?</string>
+    <string name="watch_later_launch_view">View now</string>
+    <string name="watch_later_launch_never">Don\'t remind me</string>
+    <string name="watch_later_setting_title">Remind me about Watch Later on launch</string>
 </resources>

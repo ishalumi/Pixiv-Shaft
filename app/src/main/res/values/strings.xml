@@ -2232,4 +2232,20 @@
     <string name="image_host_custom_empty">反代地址不能为空</string>
     <string name="image_host_restart_hint">重启 App 后生效</string>
     <string name="comment_translate_to_zh">翻译成中文</string>
+    <!-- 稍后再看 (watch later) -->
+    <string name="watch_later">稍后再看</string>
+    <string name="watch_later_add">加入稍后再看</string>
+    <string name="watch_later_remove">移出稍后再看</string>
+    <string name="watch_later_added">已加入稍后再看</string>
+    <string name="watch_later_removed">已移出稍后再看</string>
+    <string name="watch_later_cleared">已清空稍后再看</string>
+    <string name="watch_later_empty">稍后再看列表是空的</string>
+    <string name="watch_later_clear">清空列表</string>
+    <string name="watch_later_clear_ok">清空</string>
+    <string name="watch_later_clear_confirm">确定要清空「稍后再看」列表吗？</string>
+    <string name="watch_later_play_all">播放全部</string>
+    <string name="watch_later_launch_prompt">你的「稍后再看」列表里有 %1$d 张图片，现在查看吗？</string>
+    <string name="watch_later_launch_view">现在查看</string>
+    <string name="watch_later_launch_never">不再提示</string>
+    <string name="watch_later_setting_title">启动时提醒「稍后再看」</string>
 </resources>

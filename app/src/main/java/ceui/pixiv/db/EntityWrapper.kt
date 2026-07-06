@@ -11,6 +11,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 
 
 class EntityWrapper(
@@ -21,6 +22,10 @@ class EntityWrapper(
     private val _blockingUserIds = mutableSetOf<Long>()
     private val _blockingNovelIds = mutableSetOf<Long>()
 
+    // 稍后再看的插画 id,内存缓存用于长按菜单即时判断「已加入 / 未加入」,避免每次查 DB。
+    // 用并发 set:isInWatchLater 在主线程读,insert/delete/clear 在 IO 线程写,普通 HashSet 会有并发读写问题。
+    private val _watchLaterIllustIds: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+
     fun initialize() {
         MainScope().launch {
             withContext(Dispatchers.IO) {
@@ -28,7 +33,8 @@ class EntityWrapper(
 
                 _blockingIllustIds.addAll(database.generalDao().getAllIdsByRecordType(RecordType.BLOCK_ILLUST))
                 _blockingUserIds.addAll(database.generalDao().getAllIdsByRecordType(RecordType.BLOCK_USER))
-                _blockingNovelIds.addAll(database.generalDao().getAllIdsByRecordType(RecordType.BLOCK_USER))
+                _blockingNovelIds.addAll(database.generalDao().getAllIdsByRecordType(RecordType.BLOCK_NOVEL))
+                _watchLaterIllustIds.addAll(database.generalDao().getAllIdsByRecordType(RecordType.WATCH_LATER))
             }
         }
     }
@@ -43,6 +49,8 @@ class EntityWrapper(
                 _blockingUserIds.add(entity.id)
             } else if (entity.recordType == RecordType.BLOCK_NOVEL) {
                 _blockingNovelIds.add(entity.id)
+            } else if (entity.recordType == RecordType.WATCH_LATER) {
+                _watchLaterIllustIds.add(entity.id)
             }
             Timber.d("EntityWrapper insertEntity done ${entity.id}")
         } catch (ex: Exception) {
@@ -60,6 +68,8 @@ class EntityWrapper(
                 _blockingUserIds.remove(id)
             } else if (recordType == RecordType.BLOCK_NOVEL) {
                 _blockingNovelIds.remove(id)
+            } else if (recordType == RecordType.WATCH_LATER) {
+                _watchLaterIllustIds.remove(id)
             }
             Timber.d("EntityWrapper deleteEntity done $id")
         } catch (ex: Exception) {
@@ -142,5 +152,31 @@ class EntityWrapper(
 
     fun isWorkBlocked(illustId: Long): Boolean {
         return _blockingIllustIds.contains(illustId)
+    }
+
+    // ---- 稍后再看 ----
+
+    fun addToWatchLater(context: Context, illust: Illust) {
+        val json = Shaft.sGson.toJson(illust)
+        MainScope().launch(Dispatchers.IO) {
+            insertEntity(context, GeneralEntity(illust.id, json, EntityType.ILLUST, RecordType.WATCH_LATER))
+        }
+    }
+
+    fun removeFromWatchLater(context: Context, illustId: Long) {
+        MainScope().launch(Dispatchers.IO) {
+            deleteEntity(context, RecordType.WATCH_LATER, illustId)
+        }
+    }
+
+    fun clearWatchLater(context: Context) {
+        MainScope().launch(Dispatchers.IO) {
+            AppDatabase.getAppDatabase(context).generalDao().deleteAllByRecordType(RecordType.WATCH_LATER)
+            _watchLaterIllustIds.clear()
+        }
+    }
+
+    fun isInWatchLater(illustId: Long): Boolean {
+        return _watchLaterIllustIds.contains(illustId)
     }
 }

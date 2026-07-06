@@ -500,6 +500,21 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
+            baseBind.remindWatchLater.setChecked(Shaft.sSettings.isRemindWatchLaterOnLaunch());
+            baseBind.remindWatchLater.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Shaft.sSettings.setRemindWatchLaterOnLaunch(isChecked);
+                    Local.setSettings(Shaft.sSettings);
+                }
+            });
+            baseBind.remindWatchLaterRela.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    baseBind.remindWatchLater.performClick();
+                }
+            });
+
             final String searchFilter = Shaft.sSettings.getSearchFilter();
             baseBind.searchFilter.setText(PixivSearchParamUtil.getSizeName(searchFilter));
             baseBind.searchFilterRela.setOnClickListener(new View.OnClickListener() {

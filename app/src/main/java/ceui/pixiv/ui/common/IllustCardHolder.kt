@@ -8,13 +8,16 @@ import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.annotations.ItemHolder
 import ceui.lisa.databinding.CellIllustCardBinding
+import ceui.lisa.utils.Common
 import ceui.lisa.utils.GlideUrlChild
 import ceui.loxia.Illust
 import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressIndicator
 import ceui.loxia.Series
 import ceui.loxia.findActionReceiverOrNull
+import ceui.loxia.requireEntityWrapper
 import ceui.pixiv.ui.detail.showV3Menu
+import ceui.pixiv.ui.watchlater.WatchLaterActionReceiver
 import ceui.pixiv.ui.slideshow.SlideshowLauncher
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.screenWidth
@@ -105,6 +108,8 @@ class IllustCardViewHolder(bd: CellIllustCardBinding) :
      */
     private fun showSlideshowMenu(anchor: View, illust: Illust) {
         val fragment = anchor.findActionReceiverOrNull<androidx.fragment.app.Fragment>() ?: return
+        val entityWrapper = fragment.requireEntityWrapper()
+        val inWatchLater = entityWrapper.isInWatchLater(illust.id)
         fragment.showV3Menu("V3CardMenu") {
             item(
                 anchor.context.getString(R.string.slideshow_play),
@@ -116,6 +121,22 @@ class IllustCardViewHolder(bd: CellIllustCardBinding) :
                     SlideshowLauncher.launchFromIllusts(anchor.context, listOf(illust), 0, true)
                 } else {
                     SlideshowLauncher.launchFromIllusts(anchor.context, list, startIndex, true)
+                }
+            }
+            item(
+                anchor.context.getString(
+                    if (inWatchLater) R.string.watch_later_remove else R.string.watch_later_add
+                ),
+                R.drawable.ic_watch_later_24
+            ) {
+                if (inWatchLater) {
+                    entityWrapper.removeFromWatchLater(anchor.context, illust.id)
+                    anchor.findActionReceiverOrNull<WatchLaterActionReceiver>()
+                        ?.onWatchLaterRemoved(illust.id)
+                    Common.showToast(R.string.watch_later_removed)
+                } else {
+                    entityWrapper.addToWatchLater(anchor.context, illust)
+                    Common.showToast(R.string.watch_later_added)
                 }
             }
         }

@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -38,9 +39,12 @@ import ceui.lisa.interfaces.OnItemClickListener;
 import ceui.lisa.interfaces.OnItemLongClickListener;
 import ceui.lisa.models.IllustsBean;
 import ceui.lisa.page.ScreenUtils;
+import ceui.lisa.utils.Common;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
+import ceui.loxia.Illust;
+import ceui.pixiv.db.EntityWrapper;
 import ceui.pixiv.ui.recommend.TrendingScoreFormatKt;
 import ceui.pixiv.ui.slideshow.SlideshowLauncher;
 
@@ -281,6 +285,26 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
                         SlideshowLauncher.launchFromIllustsBeans(mContext, allItems, position, true);
                         mNormalPopup.dismiss();
                     }
+                });
+
+                // 稍后再看:general_table 存 ceui.loxia.Illust,legacy 这里拿的是 IllustsBean,
+                // 用 Gson 跨序列化转一下(两者字段名一致)。文案按当前是否已在列表切换。
+                EntityWrapper entityWrapper =
+                        ((Shaft) mContext.getApplicationContext()).getEntityWrapper();
+                boolean inWatchLater = entityWrapper.isInWatchLater(illust.getId());
+                ((TextView) popView.findViewById(R.id.watch_later_toggle_text)).setText(
+                        inWatchLater ? R.string.watch_later_remove : R.string.watch_later_add);
+                popView.findViewById(R.id.watch_later_toggle).setOnClickListener(clickView -> {
+                    if (inWatchLater) {
+                        entityWrapper.removeFromWatchLater(mContext, illust.getId());
+                        Common.showToast(R.string.watch_later_removed);
+                    } else {
+                        Illust illustModel = Shaft.sGson.fromJson(
+                                Shaft.sGson.toJson(illust), Illust.class);
+                        entityWrapper.addToWatchLater(mContext, illustModel);
+                        Common.showToast(R.string.watch_later_added);
+                    }
+                    mNormalPopup.dismiss();
                 });
             }
         });

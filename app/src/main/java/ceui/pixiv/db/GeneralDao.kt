@@ -41,4 +41,8 @@ interface GeneralDao {
     // 根据 recordType 返回所有 id 列表
     @Query("SELECT id FROM general_table WHERE recordType = :recordType")
     fun getAllIdsByRecordType(recordType: Int): List<Long>
+
+    // 计数:稍后再看启动提示用,直接 COUNT 而不是把全部 id 拉进内存再 .size
+    @Query("SELECT COUNT(*) FROM general_table WHERE recordType = :recordType")
+    fun getCountByRecordType(recordType: Int): Int
 }

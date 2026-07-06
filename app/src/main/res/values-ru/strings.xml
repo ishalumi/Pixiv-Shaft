@@ -2063,4 +2063,20 @@
     <string name="image_host_custom_empty">URL прокси не может быть пустым</string>
     <string name="image_host_restart_hint">Перезапустите приложение, чтобы применить изменения</string>
     <string name="comment_translate_to_zh">Перевести на китайский</string>
+    <!-- watch later / Смотреть позже -->
+    <string name="watch_later">Смотреть позже</string>
+    <string name="watch_later_add">Добавить в «Смотреть позже»</string>
+    <string name="watch_later_remove">Убрать из «Смотреть позже»</string>
+    <string name="watch_later_added">Добавлено в «Смотреть позже»</string>
+    <string name="watch_later_removed">Убрано из «Смотреть позже»</string>
+    <string name="watch_later_cleared">Список «Смотреть позже» очищен</string>
+    <string name="watch_later_empty">Список «Смотреть позже» пуст</string>
+    <string name="watch_later_clear">Очистить список</string>
+    <string name="watch_later_clear_ok">Очистить</string>
+    <string name="watch_later_clear_confirm">Очистить список «Смотреть позже»?</string>
+    <string name="watch_later_play_all">Воспроизвести все</string>
+    <string name="watch_later_launch_prompt">В списке «Смотреть позже» %1$d изображений. Посмотреть сейчас?</string>
+    <string name="watch_later_launch_view">Смотреть сейчас</string>
+    <string name="watch_later_launch_never">Больше не напоминать</string>
+    <string name="watch_later_setting_title">Напоминать о «Смотреть позже» при запуске</string>
 </resources>
