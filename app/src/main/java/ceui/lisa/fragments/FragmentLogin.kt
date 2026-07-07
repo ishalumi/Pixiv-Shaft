@@ -413,7 +413,13 @@ class FragmentLogin : BaseFragment<ActivityLoginBinding>() {
     }
 
     private fun performLogin(userJson: String) {
-        val exportUser = Shaft.sGson.fromJson(userJson, UserModel::class.java)
+        val exportUser = runCatching {
+            Shaft.sGson.fromJson(userJson, UserModel::class.java)
+        }.getOrNull()
+        if (exportUser?.user == null) {
+            Common.showToast("账号信息格式不正确，导入失败", 3)
+            return
+        }
         Local.saveUser(exportUser)
         Dev.refreshUser = true
         UserEntity().apply {
