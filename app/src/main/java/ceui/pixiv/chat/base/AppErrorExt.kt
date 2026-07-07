@@ -2,6 +2,7 @@ package ceui.pixiv.chat.base
 
 import android.content.Context
 import ceui.lisa.R
+import ceui.pixiv.chat.api.toAppError
 import ceui.pixiv.chat.core.AppError
 
 /**
@@ -35,3 +36,12 @@ fun AppError.toUserMessage(context: Context): String = when (this) {
     is AppError.Server -> debugMessage
     is AppError.Unknown -> debugMessage
 }
+
+/**
+ * One-shot resolution of a raw [Throwable] into a user-facing, localised message:
+ * maps via [toAppError] then [toUserMessage]. Intended for legacy Java call sites
+ * (e.g. `ErrorCtrl`) that only hold a [Throwable] and would otherwise surface a raw
+ * `e.toString()` — or nothing at all — for network/timeout/serialization failures.
+ */
+fun Throwable.toUserMessage(context: Context): String =
+    toAppError().toUserMessage(context)
