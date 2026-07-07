@@ -166,9 +166,11 @@ class StateLayout @JvmOverloads constructor(
             
             val imageView = loadingView!!.findViewById<ImageView>(R.id.iv_loading_spinner)
             val progressDrawable = CircularProgressDrawable(context).apply {
+                // Material 1.14(M3 Expressive)不再在自己的 R.attr 里重声明 colorPrimary,
+                // 改从 AppCompat 取(与 V3Palette 一致;宿主主题 QMUI/AppCompat 提供该属性)。
                 val color = com.google.android.material.color.MaterialColors.getColor(
-                    this@StateLayout, 
-                    com.google.android.material.R.attr.colorPrimary
+                    this@StateLayout,
+                    androidx.appcompat.R.attr.colorPrimary
                 )
                 setColorSchemeColors(color)
                 strokeCap = Paint.Cap.ROUND
