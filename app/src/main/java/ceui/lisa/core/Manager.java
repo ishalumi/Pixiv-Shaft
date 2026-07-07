@@ -157,21 +157,22 @@ public class Manager {
                 content = new ArrayList<>();
             }
 
-            long t0 = System.nanoTime();
             boolean isTaskExist = false;
             for (DownloadItem item : content) {
                 if (item.isSame(bean)) {
                     isTaskExist = true;
                 }
             }
-            long dedupMs = (System.nanoTime() - t0) / 1_000_000;
 
             if (!isTaskExist) {
-                long t1 = System.nanoTime();
-                safeAdd(bean);
-                long safeAddMs = (System.nanoTime() - t1) / 1_000_000;
-                Common.showLog("[PERF] addTask #" + content.size()
-                        + " dedupMs=" + dedupMs + " safeAddMs=" + safeAddMs);
+                // content.add 必须同步(safeAdd 内)：triggerPump 的 getFirstReady 和
+                // QueueDownloadManager.fillSlots 的 footprint 都靠 content 立刻变长。
+                // 但 addTask 跑在主线程(详情页下载按钮),DownloadingEntity 的
+                // Gson(~80KB)+Room insert 若同步执行,会卡在被并发
+                // hasDownloadRecordByIllustId LIKE 全表扫描占满的 SQLite 连接池上 →
+                // 主线程 ANR。故 persistAsync=true：add 同步、持久化挪后台。
+                // (批量版 addTasks 早已整段在 Schedulers.io(),这里对齐它的教训。)
+                safeAdd(bean, true);
             }
             if(DownloadLimitTypeUtil.startTaskWhenCreate()){
                 // 见 triggerPump 的 javadoc —— addTask 是连续调用 hot path
@@ -194,21 +195,43 @@ public class Manager {
     }
 
     private void safeAdd(DownloadItem item) {
+        safeAdd(item, false);
+    }
+
+    /**
+     * @param persistAsync true 时把 DownloadingEntity 的持久化(Gson 序列化 + Room
+     *   insert)丢到 Schedulers.io() 后台执行，只保证 content.add 同步返回。
+     *   addTask 从主线程调用必须传 true —— 同步写 Room 会卡在被并发
+     *   hasDownloadRecordByIllustId LIKE 全表扫描占满的 SQLite 连接池上 → 主线程 ANR。
+     *   addTasks 整段已在 IO 线程,传 false 同步持久化即可(避免每条 fan-out 一个 IO 任务)。
+     */
+    private void safeAdd(DownloadItem item, boolean persistAsync) {
         Common.showLog("Manager safeAdd " + item.getUuid());
         content.add(item);
+        if (persistAsync) {
+            final DownloadItem toPersist = item;
+            Schedulers.io().scheduleDirect(() -> {
+                try {
+                    persistDownloading(toPersist);
+                } catch (Throwable t) {
+                    Common.showLog("safeAdd persistDownloading failed: " + t.getMessage());
+                }
+            });
+        } else {
+            persistDownloading(item);
+        }
+    }
+
+    /**
+     * 写 illust_downloading_table 的崩溃恢复记录 —— 只有 restore() 冷启动时读回,
+     * 用来续未完成的下载。Gson(~80KB) + Room insert 都是重 IO,绝不能在主线程跑。
+     */
+    private void persistDownloading(DownloadItem item) {
         DownloadingEntity entity = new DownloadingEntity();
         entity.setFileName(item.getName());
         entity.setUuid(item.getUuid());
-
-        long t0 = System.nanoTime();
         entity.setTaskGson(Shaft.sGson.toJson(item));
-        long gsonMs = (System.nanoTime() - t0) / 1_000_000;
-
-        long t1 = System.nanoTime();
         AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownloading(entity);
-        long dbMs = (System.nanoTime() - t1) / 1_000_000;
-
-        Common.showLog("[PERF] safeAdd gsonMs=" + gsonMs + " dbInsertMs=" + dbMs);
     }
 
     /**
