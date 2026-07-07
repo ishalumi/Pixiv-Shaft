@@ -64,6 +64,8 @@
     <color name="user_name_horizontal">#A9A9A9</color>
     <color name="white_to_black">#000000</color>
     <color name="fragment_center">#2A2A2A</color>
+    <!-- 插画详情页图片画布底色:夜间维持近黑,不改动原有暗场观感 -->
+    <color name="illust_canvas_bg">#000000</color>
     <color name="fragment_illust_divider">#e3e3e3</color>
     <color name="button_stroke">#434343</color>
 

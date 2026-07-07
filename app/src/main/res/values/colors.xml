@@ -74,6 +74,8 @@
     <color name="user_name_horizontal">#7377ff</color>
     <color name="white_to_black">#FFFFFF</color>
     <color name="fragment_center">#FFFFFF</color>
+    <!-- 插画详情页图片画布底色:日间用柔和的浅薰衣草灰(非纯白),托住图片又不刺眼;夜间见 values-night -->
+    <color name="illust_canvas_bg">#ECEDF3</color>
     <color name="button_stroke">#e8e8f2</color>
 
 
