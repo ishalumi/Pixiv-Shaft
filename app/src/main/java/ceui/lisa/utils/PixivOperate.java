@@ -847,10 +847,8 @@ public class PixivOperate {
                 Common.showLog("gifFile gifFile " + FileUtils.getSize(gifFile));
                 gifEncodingWorkSet.remove(illustsBean.getId());
 
-                Intent intent = new Intent(Params.PLAY_GIF);
-                intent.putExtra(Params.ID, illustsBean.getId());
-                LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
-
+                // 旧的 FragmentSingleUgora 靠 PLAY_GIF 广播刷新播放,页面已删、无接收方;
+                // 内联播放走 UgoiraEngine(collect 进度,不靠广播),故不再发。
                 return null;
             }
         }, new TryCatchObserverImpl<>() {
@@ -881,12 +879,8 @@ public class PixivOperate {
             File toFolder = LegacyFile.gifUnzipFolder(context, illustsBean);
             justUnzipFile(fromZip, toFolder);
 
-            // Notify UI immediately so it can start frame-by-frame playback
-            Intent intent = new Intent(Params.PLAY_GIF);
-            intent.putExtra(Params.ID, illustsBean.getId());
-            LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
-
-            // Encode GIF in background for export/download use case
+            // 旧的 FragmentSingleUgora 靠 PLAY_GIF 广播启动逐帧播放,页面已删、无接收方;
+            // 内联播放走 UgoiraEngine,不靠广播,故不再发。编码 GIF 供导出/下载用。
             encodeGifV2(context, toFolder, illustsBean, autoSave);
         } catch (Exception e) {
             e.printStackTrace();

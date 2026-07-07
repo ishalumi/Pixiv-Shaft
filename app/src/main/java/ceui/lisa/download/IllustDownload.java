@@ -39,6 +39,7 @@ import ceui.lisa.models.ImageUrlsBean;
 import ceui.lisa.models.MetaPagesBean;
 import ceui.lisa.models.NovelBean;
 import ceui.loxia.ObjectPool;
+import ceui.pixiv.ui.bulk.UgoiraEngine;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
 import ceui.lisa.models.NovelDetail;
@@ -77,6 +78,13 @@ public class IllustDownload {
 
     public static void downloadIllustFirstPageWithResolution(IllustsBean illust, String imageResolution, BaseActivity<?> activity) {
         check(activity, () -> {
+            // ugoira 没有静态「第一页」可下:buildDownloadItem 对 gif 返回 null,直接
+            // Manager.addTask(null) 会在 safeAdd 里 null.getUuid() NPE。动图统一走
+            // downloadGif(zip→帧→gif 编码 + 落库)。分辨率对 gif 无意义,忽略。
+            if (illust.isGif()) {
+                downloadGif(illust);
+                return;
+            }
             if (illust.getPage_count() == 1) {
                 DownloadItem item = buildDownloadItem(illust, 0, imageResolution);
                 Common.showToast('1' + Shaft.getContext().getString(R.string.has_been_added));
@@ -90,6 +98,11 @@ public class IllustDownload {
     }
 
     public static void downloadIllustFirstPageWithResolution(IllustsBean illust, String imageResolution) {
+        // 同上:gif 走 downloadGif,避免 buildDownloadItem 返 null → addTask(null) NPE。
+        if (illust.isGif()) {
+            downloadGif(illust);
+            return;
+        }
         if (illust.getPage_count() == 1) {
             DownloadItem item = buildDownloadItem(illust, 0, imageResolution);
             Common.showToast('1' + Shaft.getContext().getString(R.string.has_been_added));
@@ -218,12 +231,34 @@ public class IllustDownload {
         if(!illustsBean.isGif()){
             return;
         }
-        PixivOperate.getGifInfo(illustsBean, new ErrorCtrl<GifResponse>() {
-            @Override
-            public void next(GifResponse gifResponse) {
-                Cache.get().saveModel(Params.ILLUST_ID + "_" + illustsBean.getId(), gifResponse);
-                downloadGif(gifResponse, illustsBean, true);
+        // 播放引擎可能已把这张 ugoira 编成 gif(用户在详情页看过)。命中就直接拷进用户存储,
+        // 跳过重下 zip / 重解压 / 重编上百帧 —— 也避开与引擎抢写同一批缓存文件(gifZip / unzip /
+        // gifResult)的无锁竞争。peek 只在 gif 完全落盘时命中(引擎 .part→rename 原子写),绝不
+        // 会拷到半张;outPutGif 是阻塞拷贝,连同 peek 的文件 stat 一起放后台线程。未命中 / 复用
+        // 失败都回退到原始「下 zip→编码→保存」链路,行为不变。
+        Schedulers.io().scheduleDirect(() -> {
+            File cached = null;
+            try {
+                cached = UgoiraEngine.INSTANCE.peekPlayableGif(illustsBean);
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
+            if (cached != null) {
+                try {
+                    OutPut.outPutGif(Shaft.getContext(), cached, illustsBean);
+                    Common.showLog("[UGOIRA] downloadGif 复用播放引擎缓存 gif id=" + illustsBean.getId());
+                    return;
+                } catch (Throwable t) {
+                    t.printStackTrace(); // 复用失败 → 落到下面完整链路
+                }
+            }
+            PixivOperate.getGifInfo(illustsBean, new ErrorCtrl<GifResponse>() {
+                @Override
+                public void next(GifResponse gifResponse) {
+                    Cache.get().saveModel(Params.ILLUST_ID + "_" + illustsBean.getId(), gifResponse);
+                    downloadGif(gifResponse, illustsBean, true);
+                }
+            });
         });
     }
 

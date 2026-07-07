@@ -147,6 +147,11 @@ public class Manager {
     }
 
     public void addTask(DownloadItem bean) {
+        // 纵深防御:null item 会在 safeAdd 里 null.getUuid() NPE(见 gif 走 buildDownloadItem
+        // 返 null 的历史坑)。调用方本应先过滤,这里再兜一层,任何 null 直接忽略不崩。
+        if (bean == null) {
+            return;
+        }
         synchronized (this) {
             if (content == null) {
                 content = new ArrayList<>();
@@ -245,7 +250,9 @@ public class Manager {
                     existingUrls.add(existing.getUrl());
                 }
                 for (DownloadItem item : list) {
-                    if (!existingUrls.contains(item.getUrl())) {
+                    // 与 addTask 对齐:跳过 null item(gif 走 buildDownloadItem 返 null 的历史坑),
+                    // 否则 item.getUrl() 直接 NPE。调用方本应先过滤,这里兜底。
+                    if (item != null && !existingUrls.contains(item.getUrl())) {
                         safeAdd(item);
                         existingUrls.add(item.getUrl());
                     }
