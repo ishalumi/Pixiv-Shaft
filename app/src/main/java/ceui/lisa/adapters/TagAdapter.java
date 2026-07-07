@@ -65,7 +65,13 @@ public class TagAdapter extends BaseAdapter<ListTrendingtag.TrendTagsBean, RecyT
         bindView.itemView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                IllustsBean illust = allItems.get(position).getIllust();
+                // 用点击时的实时位置：pull-to-refresh 的 clear() 可能在 tap 派发(posted runnable)之后才
+                // 清空列表,直接用 bind 时捕获的 position 会 IndexOutOfBounds。
+                int pos = bindView.getBindingAdapterPosition() - headerSize();
+                if (pos < 0 || pos >= allItems.size()) {
+                    return false;
+                }
+                IllustsBean illust = allItems.get(pos).getIllust();
                 if (illust == null) {
                     return false;
                 }
@@ -79,7 +85,13 @@ public class TagAdapter extends BaseAdapter<ListTrendingtag.TrendTagsBean, RecyT
             }
         });
         if (mOnItemClickListener != null) {
-            bindView.itemView.setOnClickListener(v -> mOnItemClickListener.onItemClick(v, position, 0));
+            bindView.itemView.setOnClickListener(v -> {
+                int pos = bindView.getBindingAdapterPosition() - headerSize();
+                if (pos < 0 || pos >= allItems.size()) {
+                    return;
+                }
+                mOnItemClickListener.onItemClick(v, pos, 0);
+            });
         }
     }
 
