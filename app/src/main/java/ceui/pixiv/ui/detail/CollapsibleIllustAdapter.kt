@@ -14,6 +14,8 @@ import ceui.lisa.adapters.IllustAdapter
 import ceui.lisa.adapters.ViewHolder
 import ceui.lisa.databinding.RecyIllustDetailBinding
 import ceui.lisa.models.IllustsBean
+import ceui.pixiv.utils.ppppx
+import com.blankj.utilcode.util.BarUtils
 
 /**
  * V3-only IllustAdapter that hides all but the first [collapsedCount] pages of a
@@ -39,6 +41,9 @@ class CollapsibleIllustAdapter(
 ) : IllustAdapter(activity, fragment, illust, maxHeight, isForceOriginal) {
 
     private var expanded = false
+
+    /** super 里 [maxHeight] 是 private,这里留一份给折叠封面兜高用(见 [floorCoverHeight])。 */
+    private val coverMaxHeight: Int = maxHeight
 
     val totalPages: Int get() = illust.page_count
     val hiddenCount: Int get() = (totalPages - collapsedCount).coerceAtLeast(0)
@@ -79,8 +84,40 @@ class CollapsibleIllustAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder<RecyIllustDetailBinding>, position: Int) {
         super.onBindViewHolder(holder, position)
+        if (position == 0 && isCollapsible) {
+            floorCoverHeight(holder)
+        }
         bindExpandOverlay(holder, position, fadeIn = false)
     }
+
+    /**
+     * 极端宽比封面(如 8400×2000)的自然高度会缩成顶部一条窄缝:图挤在状态栏/返回键底下,
+     * 「展开剩余 X 张」胶囊([R.id.expand_overlay] alignBottom illust)也顶进 toolbar 里被吃掉
+     * 点击(见反馈截图 #5)。这里把这种窄封面直接拔到 [coverMaxHeight]——与单图封面同一套:
+     * super 已设 FIT_CENTER,宽图在高盒里整体居中,顶栏落在干净的上黑边、胶囊沉到封面底部,
+     * 观感对齐 #6。仅对「自然高度 < 顶栏净空」的宽封面生效;正常/竖封面自然高度远大于阈值,
+     * 原样不动、依旧无黑边贴顶。
+     */
+    private fun floorCoverHeight(holder: ViewHolder<RecyIllustDetailBinding>) {
+        val image = holder.baseBind.illust
+        val lp = image.layoutParams ?: return
+        val natural = lp.height
+        // 自然高度已能让胶囊落在顶栏之下 → 保持贴顶无黑边的默认观感,不动。
+        if (natural <= 0 || natural >= coverToolbarClearance()) return
+        // 否则按单图封面处理:拔到 maxHeight,FIT_CENTER 居中,给足上黑边托住 toolbar。
+        val target = if (coverMaxHeight > 0) coverMaxHeight else coverToolbarClearance()
+        if (natural != target) {
+            lp.height = target
+            image.layoutParams = lp
+        }
+    }
+
+    /**
+     * 顶栏净空阈值 = 状态栏 + [COVER_CLEARANCE_BELOW_STATUS_DP]。
+     * 自然封面高于它就说明胶囊本就落在 toolbar 之下,无需兜高;低于它才判为「极端窄封面」。
+     */
+    private fun coverToolbarClearance(): Int =
+        BarUtils.getStatusBarHeight() + COVER_CLEARANCE_BELOW_STATUS_DP.ppppx
 
     override fun onBindViewHolder(
         holder: ViewHolder<RecyIllustDetailBinding>,
@@ -207,6 +244,9 @@ class CollapsibleIllustAdapter(
     companion object {
         /** How many pages to show before collapsing. */
         const val DEFAULT_COLLAPSED = 1
+
+        /** 判定「极端窄封面」的顶栏净空阈值(dp,状态栏之外)。手机上约兜宽于 2:1 的横封面。 */
+        private const val COVER_CLEARANCE_BELOW_STATUS_DP = 160
 
         /** 1P and 2P are always shown in full; 3P and up get collapsed. */
         fun shouldCollapse(pageCount: Int, collapsedCount: Int = DEFAULT_COLLAPSED): Boolean {
