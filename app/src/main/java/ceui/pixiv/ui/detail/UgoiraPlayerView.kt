@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.util.AttributeSet
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -15,7 +16,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import ceui.lisa.utils.V3Palette
-import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
@@ -45,9 +46,9 @@ import timber.log.Timber
  * 详情页内联 ugoira 播放 View —— 预览图打底 + 进度浮层([UgoiraEngine] 出片后
  * Glide `asGif` 原地播放,出错显示「重试」)。
  *
- * 慢阶段有真实进度:zip 下载走字节级 %,GIF 编码走帧级 %,浮层用**确定进度条 + 百分比**
- * 显示;meta/解压很快,转圈即可。文案复用现成本地化串(下载=正在下载 / 其余=加载中…),
- * 不新增字符串。
+ * 慢阶段有真实进度:zip 下载走字节级 %,GIF 编码走帧级 %,浮层用**确定圆环(复用 item_progress)
+ * + 百分比**显示,进度直接跳值、不做补间动画;meta/解压很快,环停在当前进度即可。文案复用现成
+ * 本地化串(下载=正在下载 / 其余=加载中…),不新增字符串。
  *
  * 完全不认识 Fragment;生命周期靠 [bind] 传入的 [LifecycleOwner](详情页传
  * viewLifecycleOwner),协程挂它的 lifecycleScope,页面销毁自动取消。
@@ -58,31 +59,19 @@ class UgoiraPlayerView @JvmOverloads constructor(
     defStyle: Int = 0,
 ) : FrameLayout(context, attrs, defStyle) {
 
-    // 主题色板(日夜双模):进度条填充 + 重试胶囊都取当前主题色,和详情页「关注 / 下载」等 V3 按钮同源。
+    // 主题色板(日夜双模):重试胶囊取当前主题色,和详情页「关注 / 下载」等 V3 按钮同源。
     private val palette = V3Palette.from(context)
 
     private val imageView = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_CENTER
     }
 
-    // 谷歌 Material 3 Expressive「波浪(wavy)」进度条 —— 官方组件(Material 1.14),不自绘。
-    // 轨道 + 已填充段都圆角,活动段画成蛇行正弦波并流动;determinate 显示下载 %,indeterminate 滚动波(起步/解压)。
-    // 填充色随主题(日夜双模)。注意:Material 进度条**可见时不能切到 indeterminate**(会抛 IllegalStateException),
-    // 故起步态在构造时置好、只在浮层不可见时(startLoad 重置)才回切,见 [startLoad] / [renderProgress]。
-    private val progressBar = LinearProgressIndicator(context).apply {
-        max = 100
-        trackThickness = 4.ppppx
-        trackCornerRadius = 2.ppppx
-        indicatorTrackGapSize = 2.ppppx
-        trackStopIndicatorSize = 0 // 去掉 M3 末端那个小圆点,保持纯波浪线
-        setIndicatorColor(palette.primary)
-        trackColor = V3Palette.withAlpha(0xFFFFFFFF.toInt(), 0.22f)
-        // wavy 形态:振幅 + 波长 + 流动速度
-        waveAmplitude = 4.ppppx
-        setWavelength(20.ppppx)
-        waveSpeed = 24.ppppx
-        isIndeterminate = true // 起步先滚动波,拿到 % 后 setProgressCompat 平滑转确定态
-    }
+    // 进度环复用 item_progress(与插画列表加载圈同款 donut 环,Material CircularProgressIndicator)。
+    // determinate,靠 plain setProgress 直接跳到目标值,**不带进度变化的补间动画**(用户要求);
+    // 不再用 Material 1.14 的波浪条,库已降回 1.12。inflate 复用 item_progress.xml,样式(白色/30dp/
+    // 圆角轨道)与列表加载圈完全一致,不再重复写一份。
+    private val progressBar = LayoutInflater.from(context)
+        .inflate(R.layout.item_progress, this, false) as CircularProgressIndicator
     private val captionText = TextView(context).apply {
         setTextColor(0xFFFFFFFF.toInt())
         textSize = 12f
@@ -98,8 +87,11 @@ class UgoiraPlayerView @JvmOverloads constructor(
         }
         addView(
             progressBar,
-            // 高度 WRAP_CONTENT:让 Material 自己按 轨道厚 + 波振幅 量高,别把波浪裁掉。
-            LinearLayout.LayoutParams(180.ppppx, LinearLayout.LayoutParams.WRAP_CONTENT),
+            // 圆环:wrap x wrap 居中,按 indicatorSize(30dp)量尺寸。
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
         )
         addView(
             captionText,
@@ -205,14 +197,8 @@ class UgoiraPlayerView @JvmOverloads constructor(
             playGif(illust, ready)
             return
         }
-        // 回到起步的滚动波。Material 进度条只有在**不可见**时才能切到 indeterminate(可见时切会抛
-        // IllegalStateException)。浮层此刻仍 GONE(初次 / 上次 hideOverlay 过),安全;极少数「加载中被
-        // rebind、浮层已可见」的情况走 isShown 分支,改用平滑重置到确定态 0,避免抛异常。
-        if (progressBar.isShown) {
-            progressBar.setProgressCompat(0, false)
-        } else {
-            progressBar.isIndeterminate = true
-        }
+        // 起步进度归零。donut 环是 determinate,plain setProgress 直接置 0、无补间动画。
+        progressBar.progress = 0
         overlay.isVisible = true
         Timber.tag(UGOIRA_LOG_TAG).i("[player] illust=%d startLoad", illust.id)
         job = owner.lifecycleScope.launch {
@@ -271,11 +257,10 @@ class UgoiraPlayerView @JvmOverloads constructor(
     private fun renderProgress(p: UgoiraProgress) {
         val pct = p.percent
         if (pct != null) {
-            // setProgressCompat:若当前是起步的滚动波,会平滑过渡到确定态并动画到 pct。
-            progressBar.setProgressCompat(pct, true)
+            // 平铺 setProgress:直接跳到目标值,不做进度变化的补间动画(用户要求)。
+            progressBar.progress = pct
         }
-        // 无 % 的阶段(FETCH_META / EXTRACT):不在此切 indeterminate。起步态已在 startLoad 置为滚动波;
-        // 之后再出现的无 % 阶段(如 EXTRACT 紧接确定态下载)只保持当前进度,不回切——可见时 Material 会崩。
+        // 无 % 的阶段(FETCH_META / EXTRACT)保持当前进度,只更文案。
         // 本地化文案(7 语言均已补):下载=正在下载,编码=压制中(ugoira_encoding),
         // 其余(meta/解压)=加载中…;% 直接拼数字。
         val base = when (p.phase) {
