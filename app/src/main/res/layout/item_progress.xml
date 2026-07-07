@@ -10,11 +10,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
+        android:indeterminate="true"
         app:indicatorColor="@color/white"
         app:indicatorSize="30dp"
         app:trackColor="@color/voice_record_track_color"
         app:trackCornerRadius="4dp"
-        app:indicatorTrackGapSize="0dp"
         app:trackThickness="5dp"
         tools:ignore="ObsoleteLayoutParam" />
 
