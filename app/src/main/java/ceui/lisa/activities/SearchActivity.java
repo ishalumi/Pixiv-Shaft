@@ -66,6 +66,17 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
     protected void initBundle(Bundle bundle) {
         keyWord = bundle.getString(Params.KEY_WORD);
         index = bundle.getInt(Params.INDEX);
+    }
+
+    /**
+     * ViewModel 创建/播种放这里而不是 initBundle：BaseActivity 只在 intent 带 extras 时才调
+     * initBundle，但 initView/initData 里的 TextWatcher、筛选菜单、翻页监听器无条件挂载。
+     * 一旦 Activity 被无 extras 地重建（系统/崩溃重启重投裸 intent），searchModel 就还是 null，
+     * 首个按键 afterTextChanged → pushKeywordFromChipsAndInput 直接 NPE。initModel 无条件调用，
+     * 保证这两个核心 ViewModel 永远先于任何监听器就绪；keyWord/index 缺省时走字段默认值("",0)。
+     */
+    @Override
+    public void initModel() {
         searchModel = new ViewModelProvider(this).get(SearchModel.class);
         hintViewModel = new ViewModelProvider(this).get(SearchHintViewModel.class);
         searchModel.getKeyword().setValue(keyWord);
@@ -73,13 +84,6 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
 
         isPremium = SessionManager.INSTANCE.isPremium();
         searchModel.getIsPremium().setValue(isPremium);
-
-//        searchModel.getNowGo().observe(this, new Observer<String>() {
-//            @Override
-//            public void onChanged(String s) {
-//                baseBind.drawerlayout.closeMenu(true);
-//            }
-//        });
     }
 
     @Override
