@@ -176,9 +176,6 @@ public class Settings {
     //单P作品的文件名是否带P0
     private boolean hasP0 = false;
 
-    //作品详情使用新页面
-    private boolean useFragmentIllust = true;
-
     //作品详情使用V3沉浸式页面
     private boolean useArtworkV3 = false;
 
@@ -473,14 +470,6 @@ public class Settings {
 
     public void setMainViewR18(boolean mainViewR18) {
         this.mainViewR18 = mainViewR18;
-    }
-
-    public boolean isUseFragmentIllust() {
-        return useFragmentIllust;
-    }
-
-    public void setUseFragmentIllust(boolean useFragmentIllust) {
-        this.useFragmentIllust = useFragmentIllust;
     }
 
     public boolean isUseArtworkV3() {

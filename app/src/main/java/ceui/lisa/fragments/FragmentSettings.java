@@ -631,23 +631,6 @@ public class FragmentSettings extends SwipeFragment<FragmentSettingsBinding> {
                 }
             });
 
-            // 新版作品详情
-            baseBind.illustDetailUserNew.setChecked(Shaft.sSettings.isUseFragmentIllust());
-            baseBind.illustDetailUserNew.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    Shaft.sSettings.setUseFragmentIllust(isChecked);
-                    Common.showToast(getString(R.string.string_428), 2);
-                    Local.setSettings(Shaft.sSettings);
-                }
-            });
-            baseBind.illustDetailUserNewRela.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    baseBind.illustDetailUserNew.performClick();
-                }
-            });
-
             // V3沉浸式作品详情
             baseBind.illustDetailV3.setChecked(Shaft.sSettings.isUseArtworkV3());
             applyArtworkV3FabOrderRowVisibility(Shaft.sSettings.isUseArtworkV3(), false);
