@@ -999,7 +999,9 @@ public class Manager {
                 downloadEntity.setFileName(downloadItem.getName());
                 downloadEntity.setDownloadTime(System.currentTimeMillis());
                 downloadEntity.setFilePath(factory.getFileUri().toString());
-                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(downloadEntity);
+                // 已知 illust id，直接 set，insertDownload 就不必再解析 illustGson。
+                downloadEntity.setIllustId(downloadItem.getIllust().getId());
+                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(downloadEntity);
                 Common.showLog("[DL-CACHE] db inserted DownloadEntity fileName=" + downloadEntity.getFileName()
                         + " filePath=" + downloadEntity.getFilePath());
                 ManagerReactive.pokeDoneTable();

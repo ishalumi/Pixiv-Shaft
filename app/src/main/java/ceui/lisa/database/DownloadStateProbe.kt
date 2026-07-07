@@ -19,3 +19,18 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 val downloadProbeDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(1)
+
+/**
+ * “这幅画下过没” 的统一探测入口。优先走 v38 的 illustId 索引（O(log n)）；只有在存量
+ * [DownloadIdBackfill] 尚未跑完时，才对回填不到的老行退回旧的 illustGson LIKE 全表扫描
+ * 兜底，保证回填窗口内徽标不误判。回填一旦完成即永久走索引，彻底摆脱 2GB blob 扫描。
+ *
+ * 阻塞式 DAO 调用，必须在 IO / [downloadProbeDispatcher] 上调。
+ */
+fun DownloadDao.hasDownloadRecord(illustId: Long): Boolean {
+    if (hasDownloadRecordByIllustIdIndexed(illustId)) return true
+    if (!DownloadIdBackfill.isComplete()) {
+        return hasDownloadRecordByIllustId(illustId)
+    }
+    return false
+}

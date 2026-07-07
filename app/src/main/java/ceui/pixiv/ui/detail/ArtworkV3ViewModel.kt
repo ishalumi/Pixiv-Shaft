@@ -13,6 +13,7 @@ import ceui.lisa.activities.Shaft
 import ceui.lisa.core.Mapper
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.downloadProbeDispatcher
+import ceui.lisa.database.hasDownloadRecord
 import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.UserBean
@@ -247,11 +248,11 @@ class ArtworkV3ViewModel(
             val result = withContext(Dispatchers.IO) {
                 try {
                     val dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao()
-                    // hasDownloadRecordByIllustId 是 illustGson blob 全表 LIKE 扫描，
-                    // 串行到单车道，避免多页并发占满 Room 读连接池拖垮主线程 DB → ANR。
+                    // hasDownloadRecord 走 v38 的 illustId 索引（O(log n)），不再扫 2GB illustGson blob；
+                    // 存量回填未完成时才退回旧 LIKE 兜底。仍串行到单车道兜底旧库/回填窗口期。
                     Common.isIllustDownloaded(bean) ||
                             withContext(downloadProbeDispatcher) {
-                                dao.hasDownloadRecordByIllustId(bean.id.toLong())
+                                dao.hasDownloadRecord(bean.id.toLong())
                             }
                 } catch (e: Exception) {
                     Timber.e(e, "downloaded check failed")

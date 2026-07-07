@@ -277,6 +277,11 @@ public class Shaft extends Application implements ServicesProvider {
         // 批量下载持久化队列（v33）：冷启动恢复 + 单并发消费循环
         ceui.pixiv.ui.bulk.QueueDownloadManager.INSTANCE.init(this);
 
+        // v38 illustId 索引列的一次性存量回填：把老下载记录的 illustId 补上，让
+        // “这幅画下过没” 从 illustGson blob 全表 LIKE 扫描（2GB+ 卡）转成走索引。
+        // 后台跑、跑完置标志、幂等；跑完前 hasDownloadRecord 用旧 LIKE 兜底。
+        ceui.lisa.database.DownloadIdBackfill.runIfNeeded(this);
+
         // 社区榜单事件上报（shaft-api-v2）。完全 fire-and-forget，失败静默，
         // 任何崩溃都被它自己捕获。安全顺序：必须在 MMKV.initialize 之后。
         ceui.pixiv.events.EventReporter.INSTANCE.init(this);

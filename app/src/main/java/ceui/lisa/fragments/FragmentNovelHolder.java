@@ -438,7 +438,7 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
                     downloadEntity.setDownloadTime(System.currentTimeMillis());
                     downloadEntity.setFilePath(PathUtils.getInternalAppCachePath());
                     downloadEntity.setIllustGson(Shaft.sGson.toJson(mNovelBean));
-                    AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(downloadEntity);
+                    AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(downloadEntity);
                     Common.showToast(getString(R.string.string_181), 2);
                     baseBind.transformationLayout.finishTransform();
                     return true;

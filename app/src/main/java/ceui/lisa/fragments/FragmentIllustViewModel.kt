@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.downloadProbeDispatcher
+import ceui.lisa.database.hasDownloadRecord
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.loxia.ObjectPool
@@ -50,14 +51,13 @@ class FragmentIllustViewModel(private val illustId: Long) : ViewModel() {
                 val illust = ObjectPool.get<IllustsBean>(illustId).value
                     ?: return@launch
                 val hasLocalFile = Common.isIllustDownloaded(illust)
-                // hasDownloadRecordByIllustId 是 illustGson blob 上的全表 LIKE 扫描，
-                // 串行到单车道 dispatcher，避免多 P 详情页并发探测占满 Room 读连接池
-                // 导致主线程 onCreate 的 DB 查询 ANR。
+                // hasDownloadRecord 走 v38 的 illustId 索引（O(log n)），不再扫 2GB illustGson blob；
+                // 存量回填未完成时才退回旧 LIKE 兜底。仍串行到单车道 dispatcher 兜底旧库/回填窗口期。
                 val hasRecord = if (hasLocalFile) false else withContext(downloadProbeDispatcher) {
                     AppDatabase
                         .getAppDatabase(appContext)
                         .downloadDao()
-                        .hasDownloadRecordByIllustId(illust.id.toLong())
+                        .hasDownloadRecord(illust.id.toLong())
                 }
                 _hasDownload.postValue(hasLocalFile || hasRecord)
             } catch (e: Exception) {

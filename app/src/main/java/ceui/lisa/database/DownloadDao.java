@@ -23,6 +23,20 @@ public interface DownloadDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(DownloadEntity illustTask);
 
+    /**
+     * 统一的下载记录写入口：插入前若 illustId 未定（<=0），先由 illustGson 顶层 "id" 算出，
+     * 保证每条新行都带正确 illustId —— 否则 [DownloadIdBackfill] 跑完后新行 illustId=0，
+     * 索引查不到 → “已下载”徽标误判成没下过。调用方若已知 id 可先 {@code setIllustId(...)}
+     * 跳过解析（Manager 下载完成分支就直接传 illust.id）。所有往 illust_download_table 写
+     * DownloadEntity 的地方都必须走这个而不是裸 {@link #insert(DownloadEntity)}。
+     */
+    default void insertDownload(DownloadEntity entity) {
+        if (entity.getIllustId() <= 0L) {
+            entity.setIllustId(DownloadIdExtractor.extractIllustId(entity.getIllustGson()));
+        }
+        insert(entity);
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertDownloading(DownloadingEntity entity);
 
@@ -74,6 +88,29 @@ public interface DownloadDao {
             "illustGson LIKE '%\"id\":' || :illustId || ',%' OR " +
             "illustGson LIKE '%\"id\":' || :illustId || '}%'")
     boolean hasDownloadRecordByIllustId(long illustId);
+
+    /**
+     * illustId 走索引的 O(log n) 版本，取代 {@link #hasDownloadRecordByIllustId} 对 illustGson
+     * blob 的全表 LIKE 扫描（2GB+ 库单次几百 ms~秒级、还烧 CPU 占读连接 → 详情/头像页发涩）。
+     * v38 起 illust_download_table 有 illustId 索引列（插入即算、存量后台回填）。回填未完成
+     * 期间仍需 LIKE 版兜底，统一入口见 {@code DownloadStateProbeKt.hasDownloadRecord}。
+     */
+    @Query("SELECT COUNT(*) > 0 FROM illust_download_table WHERE illustId = :illustId")
+    boolean hasDownloadRecordByIllustIdIndexed(long illustId);
+
+    // ---- v38 illustId 索引列的存量回填（DownloadIdBackfill 用）----
+
+    /** 还有多少行没回填（illustId 仍是初始的 0）。 */
+    @Query("SELECT COUNT(*) FROM illust_download_table WHERE illustId = 0")
+    int countDownloadsNeedingIdBackfill();
+
+    /** 取一批未回填的行（只带回填要用的 fileName + illustGson）。WHERE illustId=0 走索引，不全表扫。 */
+    @Query("SELECT fileName, illustGson FROM illust_download_table WHERE illustId = 0 LIMIT :limit")
+    List<DownloadIdRow> getDownloadsNeedingIdBackfill(int limit);
+
+    /** 回填单行的 illustId（按主键 fileName 定位）。 */
+    @Query("UPDATE illust_download_table SET illustId = :illustId WHERE fileName = :fileName")
+    void setDownloadIllustId(String fileName, long illustId);
 
     /**
      * 按 fileName(主键)精确取一条下载记录。详情页把每页用 FileCreator.customFileName

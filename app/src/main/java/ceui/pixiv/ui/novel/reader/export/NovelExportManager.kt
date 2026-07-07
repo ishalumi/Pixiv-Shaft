@@ -86,7 +86,7 @@ object NovelExportManager {
                 filePath = success.uri.toString()
                 illustGson = Shaft.sGson.toJson(novel)
             }
-            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(entity)
+            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(entity)
         }.onFailure { Timber.e(it, "recordDownload failed for novel $id") }
     }
 }

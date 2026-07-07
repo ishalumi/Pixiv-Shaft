@@ -341,7 +341,8 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                     downloadTime = System.currentTimeMillis()
                     filePath = handle.uri.toString()
                 }
-                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(entity)
+                // insertDownload 会从 illustGson 顶层 id 补上 illustId（走 v38 索引）。
+                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(entity)
                 ManagerReactive.pokeDoneTable()
                 true
             }.getOrElse { ex ->

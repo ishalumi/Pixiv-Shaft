@@ -48,7 +48,7 @@ import ceui.pixiv.db.synonym.SynonymTargetEntity;
                 SynonymTargetEntity.class, // 同义词词典-目标标签（v36 建表 / v37 加 lastUsedAt, issue #904/#910）
                 SynonymTagEntity.class, // 同义词词典-同义词（v36, issue #904）
         },
-        version = 37,
+        version = 38,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -339,6 +339,21 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    /**
+     * v37 -> v38：给 illust_download_table 加索引列 illustId。
+     * hasDownloadRecordByIllustId 从对 illustGson blob 的全表 LIKE 扫描（30000+ 行、2GB+，
+     * 单次几百 ms~秒级、烧 CPU 又占读连接 → 详情/头像页发涩）改走索引 O(log n)。
+     * ADD COLUMN 是 O(1) 不重写行；存量行 illustId 先留 0，由 DownloadIdBackfill 后台一次性
+     * 回填。索引名必须与 Room 由 @Index("illustId") 生成的一致：index_<table>_<column>。
+     */
+    private static final Migration MIGRATION_37_38 = new Migration(37, 38) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE illust_download_table ADD COLUMN illustId INTEGER NOT NULL DEFAULT 0");
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_illust_download_table_illustId ON illust_download_table(illustId)");
+        }
+    };
+
     private static AppDatabase INSTANCE;
 
     // synchronized：同义词词典（issue #904）让 Rx 后台线程（SelectTagRepo.mapper）也会触发
@@ -365,6 +380,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_34_35) // 注册 34 -> 35 迁移 (search_table.previewIllustsJson)
                             .addMigrations(MIGRATION_35_36) // 注册 35 -> 36 迁移 (同义词词典两张表)
                             .addMigrations(MIGRATION_36_37) // 注册 36 -> 37 迁移 (synonym_target_table.lastUsedAt)
+                            .addMigrations(MIGRATION_37_38) // 注册 37 -> 38 迁移 (illust_download_table.illustId 索引列)
                             .build();
         }
         return INSTANCE;

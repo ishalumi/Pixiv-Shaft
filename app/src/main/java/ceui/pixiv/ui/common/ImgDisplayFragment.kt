@@ -113,7 +113,8 @@ abstract class ImgDisplayFragment(layoutId: Int) : PixivFragment(layoutId) {
                 filePath = file.absolutePath
                 illustGson = Shaft.sGson.toJson(illust)
             }
-            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insert(entity)
+            // insertDownload 会从 illustGson 顶层 id 补上 illustId（走 v38 索引）。
+            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(entity)
         }.onFailure { Timber.e(it, "recordIllustDownload failed for ${displayName()}") }
     }
 
