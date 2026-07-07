@@ -1,16 +1,12 @@
 package ceui.pixiv.ui.bulk
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Process
 import ceui.lisa.activities.Shaft
 import ceui.lisa.cache.Cache
 import ceui.lisa.file.LegacyFile
 import ceui.lisa.http.Retro
-import ceui.lisa.models.FramesBean
 import ceui.lisa.models.GifResponse
 import ceui.lisa.models.IllustsBean
-import ceui.lisa.utils.AnimatedGifEncoder
 import ceui.lisa.utils.Params
 import ceui.pixiv.download.DownloadsRegistry
 import ceui.pixiv.download.config.DownloadItems
@@ -20,14 +16,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import timber.log.Timber
 import java.io.BufferedOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.io.OutputStream
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -75,6 +66,29 @@ suspend fun downloadUgoira(
     val illustId = illust.id
 
     Timber.tag(TAG).i("[UGOIRA] start illust=$illustId title=${illust.title}")
+
+    // 0) 播放引擎可能已经把这条 ugoira 编成 gif 缓存了(用户在详情页看过)。有就直接拷进
+    //    目标,跳过 meta / 下载 zip / 解压 / 重编上百帧——省流量省 CPU。拷贝是纯 IO,不占
+    //    encodeSem(那把锁是给吃满帧 Bitmap 的编码用的)。
+    UgoiraEngine.peekPlayableGif(illust)?.let { cachedGif ->
+        onPhase(UgoiraPhase.ENCODE)
+        val handle = DownloadsRegistry.downloads.open(DownloadItems.ugoira(illust))
+        if (handle == null) {
+            Timber.tag(TAG).i("[UGOIRA] skip: target already exists illust=$illustId")
+            return@withContext
+        }
+        try {
+            BufferedOutputStream(handle.stream).use { bos ->
+                cachedGif.inputStream().use { it.copyTo(bos) }
+            }
+            handle.onFinish()
+            Timber.tag(TAG).i("[UGOIRA] done via 播放引擎缓存 gif illust=$illustId (${cachedGif.length()} bytes) uri=${handle.uri}")
+        } catch (t: Throwable) {
+            runCatching { handle.onAbort() }
+            throw t
+        }
+        return@withContext
+    }
 
     // 1) 元数据：zip url + frame delays。Cache 里如果已经有 GifResponse 直接复用。
     onPhase(UgoiraPhase.FETCH_META)
@@ -145,92 +159,6 @@ suspend fun downloadUgoira(
     }
 }
 
-/**
- * OkHttp 直下 zip 到 [target]。pixiv 服务器要 Referer，否则 403。
- * 写到 .part 临时文件，完成后 rename —— 中途中断不会留 0 字节文件让下次跳过。
- */
-private suspend fun downloadZipTo(url: String, target: File) {
-    val req = Request.Builder()
-        .url(url)
-        .header("Referer", "https://app-api.pixiv.net/")
-        .header("User-Agent", "PixivAndroidApp/5.0.234 (Android 11; Pixel)")
-        .build()
-    ugoiraHttpClient.newCall(req).execute().use { r ->
-        if (!r.isSuccessful) {
-            throw IllegalStateException("zip download HTTP ${r.code} url=$url")
-        }
-        val body = r.body ?: throw IllegalStateException("zip body null url=$url")
-        target.parentFile?.mkdirs()
-        val temp = File(target.parentFile, target.name + ".part")
-        // Response.use 已经会关 body 流，body.byteStream() 不必再嵌套 use
-        FileOutputStream(temp).use { out ->
-            val input = body.byteStream()
-            val buf = ByteArray(16 * 1024)
-            while (true) {
-                coroutineContext.ensureActive()
-                val n = input.read(buf)
-                if (n < 0) break
-                out.write(buf, 0, n)
-            }
-        }
-        if (target.exists()) target.delete()
-        if (!temp.renameTo(target)) {
-            throw IllegalStateException("rename .part → ${target.name} failed")
-        }
-    }
-}
-
-/**
- * 把 [unzipFolder] 里 `001.png / 002.png ...` 帧文件按顺序编进 GIF，写到 [out]。
- * 帧延迟优先取 [GifResponse.ugoira_metadata.frames]（每帧独立），fallback 到
- * [GifResponse.getDelay]（单值），再 fallback 到默认 60ms。
- *
- * 直接 BitmapFactory.decodeFile + recycle —— 同步阻塞，谁调用谁负责进 IO 线程。
- * 100 帧的常见 ugoira 在 Pixel 上 ~1s 完成。
- *
- * **不持有/不关闭 [out]** —— 调用方负责（[BufferedOutputStream.use] / V3 WriteHandle
- * 的 onFinish 收尾）。这里调 [AnimatedGifEncoder.finish] 写出 GIF trailer 即可，
- * 不要再 close。
- */
-private fun encodeFramesToGif(unzipFolder: File, resp: GifResponse, out: OutputStream) {
-    val files = (unzipFolder.listFiles() ?: emptyArray())
-        .filter { it.isFile }
-        .sortedBy {
-            // 文件名形如 "000123.png"；按数字部分排序，避开字典序
-            it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE
-        }
-    if (files.isEmpty()) throw IllegalStateException("no frames to encode in $unzipFolder")
-
-    val frames: List<FramesBean>? = resp.ugoira_metadata?.frames
-    // GifResponse.getDelay() 兜底返回 60，永远 > 0；这里直接用就行
-    val fallbackDelayMs = resp.delay
-    val perFrame = frames != null && frames.size == files.size
-
-    val encoder = AnimatedGifEncoder()
-    encoder.start(out)
-    encoder.setRepeat(0) // 无限循环
-    for ((i, f) in files.withIndex()) {
-        val delay = if (perFrame) frames!![i].delay else fallbackDelayMs
-        encoder.setDelay(delay)
-        val bmp: Bitmap? = BitmapFactory.decodeFile(f.absolutePath)
-        if (bmp != null) {
-            encoder.addFrame(bmp)
-            bmp.recycle()
-        } else {
-            Timber.tag(TAG).w("[UGOIRA] decode frame failed $f")
-        }
-    }
-    encoder.finish()
-}
-
-private const val DEFAULT_DELAY_MS = 60
+// zip 下载 / 帧编码 / OkHttp client 已提到 [UgoiraEngine].kt 的 top-level（internal），
+// 保存链路(本文件)与播放链路([UgoiraEngine])共用同一份,别再各留一份拷贝。
 private const val TAG = "UgoiraTask"
-
-private val ugoiraHttpClient: OkHttpClient by lazy {
-    OkHttpClient.Builder()
-        .followRedirects(true)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)  // 大 ugoira zip 几十 MB，慢网下读超时要松一点
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-}

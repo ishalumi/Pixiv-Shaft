@@ -38,7 +38,7 @@ import java.util.concurrent.Executors
  * - 长按目标标签 / 同义词 chip 进入管理菜单（SynonymOperate）
  * - 词典为空或无作品标签时整个 view 隐藏
  *
- * 共享组件：FragmentIllust / FragmentSingleIllust / ArtworkV3 / FragmentNovelHolder 都挂这一个，
+ * 共享组件：FragmentIllust / ArtworkV3 / FragmentNovelHolder 都挂这一个，
  * 保证多套详情页行为一致。颜色全部走 [V3Palette] + v3_* 资源，日夜双模式自动适配。
  *
  * 线程模型：词典 LiveData 主线程回调 → 匹配计算丢到 [matchExecutor]（词典可能数千组）→

@@ -63,6 +63,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
     }
 
     private var illustAdapter: ceui.lisa.adapters.IllustAdapter? = null
+
+    // ugoira 走独立的内联播放 adapter,不复用 IllustAdapter(illustAdapter 保持 null),
+    // 所以另立一个 guard 防止 illust observer 多次 fire 时重复 addAdapter。
+    private var ugoiraAttached = false
     private lateinit var headerAdapter: ArtworkDetailAdapter
     private lateinit var relatedAdapter: IAdapter
     private lateinit var loadingFooter: LoadingFooterAdapter
@@ -175,7 +179,8 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             // 居中转圈圈只在「还没有内容」时显示——即数据不完整、VM 正回 API 拉完整版的初始阶段。
             // 手动下拉刷新时内容已在(illustAdapter != null),只走 SmartRefreshLayout 自带的下拉转圈,
             // 不再叠一个居中圈。用 SmartRefreshLayout 程序化 autoRefresh 会导致转圈停不下来,故弃用。
-            baseBind.loadingFullDetail.isVisible = refreshing == true && illustAdapter == null
+            baseBind.loadingFullDetail.isVisible =
+                refreshing == true && illustAdapter == null && !ugoiraAttached
         }
 
         setupNavBar(illustId)
@@ -237,6 +242,19 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 // Use 70% of screen height as max — not full screen, so single-page
                 // images don't stretch to fill the entire viewport
                 val maxHeight = (resources.displayMetrics.heightPixels * 0.7f).toInt()
+
+                // ugoira(动图)在这里第一次真正内联进 V3 详情页:换掉静态图 IllustAdapter,
+                // 用 UgoiraPlayerAdapter 自动拉数据→下载→解压→编码→asGif 播放。illustAdapter
+                // 保持 null,靠 ugoiraAttached 防重入。
+                if (illust.isGif()) {
+                    if (!ugoiraAttached) {
+                        ugoiraAttached = true
+                        concatAdapter.addAdapter(0, UgoiraPlayerAdapter(illust, viewLifecycleOwner, maxHeight))
+                        baseBind.loadingFullDetail.isVisible = false
+                    }
+                    return@observe
+                }
+
                 val willCollapse = CollapsibleIllustAdapter.shouldCollapse(illust.page_count)
                 Timber.tag("V3MultiP").d(
                     "[Fragment.createAdapter] page_count=${illust.page_count}, " +

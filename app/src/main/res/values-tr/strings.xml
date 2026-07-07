@@ -85,6 +85,7 @@
     <string name="sure">Evet</string>
     <string name="cancel">İptal</string>
     <string name="now_downloading">İndiriliyor</string>
+    <string name="ugoira_encoding">Kodlanıyor</string>
     <string name="has_download">Tamamlandı</string>
     <string name="has_copyed"> kopyalandı</string>
     <string name="no_info">Bilgi yok</string>

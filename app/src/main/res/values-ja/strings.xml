@@ -85,6 +85,7 @@
     <string name="sure">はい</string>
     <string name="cancel">キャンセル</string>
     <string name="now_downloading">ダウンロード中</string>
+    <string name="ugoira_encoding">エンコード中</string>
     <string name="has_download">ダウンロード済み</string>
     <string name="has_copyed">：クリップボードにコピーしました</string>
     <string name="no_info">情報なし</string>

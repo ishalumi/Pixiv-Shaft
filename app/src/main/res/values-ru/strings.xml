@@ -85,6 +85,7 @@
     <string name="sure">Да</string>
     <string name="cancel">Отмена</string>
     <string name="now_downloading">Скачивание</string>
+    <string name="ugoira_encoding">Кодирование</string>
     <string name="has_download">Готово</string>
     <string name="has_copyed"> скопировано в буфер обмена</string>
     <string name="no_info">Нет информации</string>

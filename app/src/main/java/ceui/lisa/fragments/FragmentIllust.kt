@@ -35,6 +35,7 @@ import ceui.lisa.activities.UActivity
 import ceui.lisa.activities.followUser
 import ceui.lisa.activities.unfollowUser
 import ceui.lisa.adapters.IllustAdapter
+import ceui.pixiv.ui.detail.UgoiraPlayerAdapter
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.FragmentIllustBinding
 import ceui.lisa.dialogs.MuteDialog
@@ -472,8 +473,16 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 })
                 baseBind.recyclerView.layoutManager = LinearLayoutManager(mContext)
                 recyHeight = baseBind.recyclerView.height
-                val adapter = IllustAdapter(mActivity, this@FragmentIllust, illust, recyHeight, false)
-                baseBind.recyclerView.adapter = adapter
+                if (illust.isGif()) {
+                    // ugoira 内联播放:以前 VActivity 把动图甩去独立的 FragmentSingleUgora,
+                    // 现在留在本页,用解耦的 UgoiraPlayerAdapter 进页即自动加载+播放。
+                    val maxHeight = resources.displayMetrics.heightPixels * 3 / 4
+                    baseBind.recyclerView.adapter =
+                        UgoiraPlayerAdapter(illust, viewLifecycleOwner, maxHeight)
+                } else {
+                    val adapter = IllustAdapter(mActivity, this@FragmentIllust, illust, recyHeight, false)
+                    baseBind.recyclerView.adapter = adapter
+                }
                 baseBind.coreLinear.viewTreeObserver.removeOnGlobalLayoutListener(this)
             }
         })

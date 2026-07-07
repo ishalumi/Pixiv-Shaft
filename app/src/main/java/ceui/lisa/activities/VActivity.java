@@ -19,8 +19,6 @@ import ceui.lisa.core.PageData;
 import ceui.lisa.databinding.ActivityViewPagerBinding;
 import ceui.lisa.fragments.FragmentIllust;
 import ceui.lisa.fragments.FragmentImageDetail;
-import ceui.lisa.fragments.FragmentSingleIllust;
-import ceui.lisa.fragments.FragmentSingleUgora;
 import ceui.pixiv.ui.detail.ArtworkV3Fragment;
 import ceui.lisa.helper.DeduplicateArrayList;
 import ceui.lisa.http.NullCtrl;
@@ -79,23 +77,18 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
                     IllustsBean illustsBean = pageData.getList().get(position);
                     if (illustsBean.getId() == 0 || !illustsBean.isVisible()) {
                         return FragmentImageDetail.newInstance(illustsBean.getImage_urls().getMaxImage());
-                    } else if (illustsBean.isGif()) {
-                        return FragmentSingleUgora.newInstance(illustsBean);
                     } else {
+                        // ugoira(动图)不再甩去独立老页 FragmentSingleUgora,和普通插画一样走
+                        // V3 / FragmentIllust,由页面内联的 UgoiraPlayerAdapter 自动播放。
+                        // 旧的 FragmentSingleIllust 兜底页已删,非 V3 一律走 FragmentIllust。
+                        IllustsBean exist = ObjectPool.INSTANCE.getIllust(illustsBean.getId()).getValue();
+                        if (exist == null) {
+                            ObjectPool.INSTANCE.updateIllust(illustsBean);
+                        }
                         if (Shaft.sSettings.isUseArtworkV3()) {
-                            IllustsBean exist = ObjectPool.INSTANCE.getIllust(illustsBean.getId()).getValue();
-                            if (exist == null) {
-                                ObjectPool.INSTANCE.updateIllust(illustsBean);
-                            }
                             return ArtworkV3Fragment.newInstance(illustsBean.getId());
-                        } else if (Shaft.sSettings.isUseFragmentIllust()) {
-                            IllustsBean exist = ObjectPool.INSTANCE.getIllust(illustsBean.getId()).getValue();
-                            if (exist == null) {
-                                ObjectPool.INSTANCE.updateIllust(illustsBean);
-                            }
-                            return FragmentIllust.newInstance(illustsBean.getId());
                         } else {
-                            return FragmentSingleIllust.newInstance(illustsBean);
+                            return FragmentIllust.newInstance(illustsBean.getId());
                         }
                     }
                 }
