@@ -1,6 +1,7 @@
 package ceui.lisa.database;
 
 import androidx.annotation.NonNull;
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
@@ -26,10 +27,12 @@ public final class DownloadEntity implements Serializable {
      * 直接 set 已知 id）；存量行由 {@code DownloadIdBackfill} 一次性后台回填。
      * 0 = 尚未回填，-1 = 解析失败 / 无 id。
      *
-     * 刻意不加 @ColumnInfo(defaultValue)：迁移用 ADD COLUMN ... DEFAULT 0 给存量行补默认值，
-     * 但 entity 侧不声明默认——与本仓已上线的 synonym_target_table.lastUsedAt(v37) 同款，
-     * 这样 Room 的 schema 校验跳过 default 比对（fresh install 无默认 / 升级有默认都能过）。
+     * @ColumnInfo(defaultValue="0") 必须与迁移的 ADD COLUMN ... DEFAULT 0 保持一致：
+     * entity 声明默认 → fresh install 的 CREATE TABLE 与升级迁移都带 DEFAULT 0，schema
+     * 校验一致（真机 v37→v38 验证通过）。**改这里等于改 v38 identity hash，改了必须升版本号**，
+     * 否则已迁到 v38 的设备会报 "Room cannot verify data integrity"（hash 不匹配）崩。
      */
+    @ColumnInfo(defaultValue = "0")
     private long illustId;
 
     public String getFilePath() {
