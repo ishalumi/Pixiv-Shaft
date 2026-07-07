@@ -33,7 +33,6 @@
                 app:indicatorSize="72dp"
                 app:trackColor="#33FFFFFF"
                 app:trackCornerRadius="4dp"
-                app:indicatorTrackGapSize="0dp"
                 app:trackThickness="4dp" />
 
             <TextView
