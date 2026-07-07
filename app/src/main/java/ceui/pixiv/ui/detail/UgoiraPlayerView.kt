@@ -76,11 +76,15 @@ class UgoiraPlayerView @JvmOverloads constructor(
         setTextColor(0xFFFFFFFF.toInt())
         textSize = 12f
         gravity = Gravity.CENTER
+        maxLines = 1 // 单行:换阶段文案时高度不跳
     }
     private val overlay = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         setPadding(20.ppppx, 14.ppppx, 20.ppppx, 14.ppppx)
+        // 固定最小宽度:各阶段文案(加载中… / 正在下载 NN% / 压制中 NN%)和 % 位数变化都在此宽度内,
+        // 黑框不再随文字长短忽大忽小地闪动。文案居中,短文案留白也比一直变宽好。
+        minimumWidth = 180.ppppx
         background = GradientDrawable().apply {
             cornerRadius = 12.ppppx.toFloat()
             setColor(0xB3000000.toInt()) // ~70% 黑,任何底图上都读得清
