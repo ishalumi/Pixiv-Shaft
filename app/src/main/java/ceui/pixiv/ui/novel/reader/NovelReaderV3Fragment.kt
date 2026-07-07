@@ -32,6 +32,7 @@ import ceui.lisa.database.NovelBookmarkEntity
 import ceui.lisa.databinding.FragmentNovelReaderV3Binding
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.NovelBean
+import ceui.lisa.utils.ClipBoardUtils
 import ceui.lisa.utils.Params
 import ceui.loxia.Client
 import ceui.loxia.Novel
@@ -606,9 +607,11 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                     shareNovel(novel)
                 }
                 item(getString(R.string.menu_copy_link), R.drawable.ic_baseline_launch_24) {
-                    val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    cm.setPrimaryClip(ClipData.newPlainText("pixiv-novel", NOVEL_URL_HEAD + novelId))
-                    Toast.makeText(requireContext(), getString(R.string.msg_link_copied), Toast.LENGTH_SHORT).show()
+                    if (ClipBoardUtils.setPrimaryClip(requireContext(), ClipData.newPlainText("pixiv-novel", NOVEL_URL_HEAD + novelId))) {
+                        Toast.makeText(requireContext(), getString(R.string.msg_link_copied), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(requireContext(), getString(R.string.msg_copy_failed), Toast.LENGTH_SHORT).show()
+                    }
                 }
                 item(getString(R.string.menu_copy_novel_text), R.drawable.chat_ic_content_copy) {
                     copyNovelBodyToClipboard()
@@ -1038,9 +1041,11 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
 
     private fun copySelection() {
         val sel = activeSelection ?: return
-        (requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-            .setPrimaryClip(ClipData.newPlainText("novel selection", sel.text))
-        Toast.makeText(requireContext(), getString(R.string.msg_copied), Toast.LENGTH_SHORT).show()
+        if (ClipBoardUtils.setPrimaryClip(requireContext(), ClipData.newPlainText("novel selection", sel.text))) {
+            Toast.makeText(requireContext(), getString(R.string.msg_copied), Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(requireContext(), getString(R.string.msg_copy_failed), Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun shareSelection() {

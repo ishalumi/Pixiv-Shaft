@@ -1,7 +1,6 @@
 package ceui.pixiv.widgets
 
 import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.text.InputType
@@ -19,6 +18,7 @@ import ceui.lisa.R
 import ceui.lisa.activities.SearchActivity
 import ceui.lisa.activities.Shaft
 import ceui.lisa.models.TagsBean
+import ceui.lisa.utils.ClipBoardUtils
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.SearchTypeUtil
@@ -358,10 +358,11 @@ class V3TagFlowView @JvmOverloads constructor(
     }
 
     private fun copyToClipboard(text: String) {
-        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            ?: return
-        cm.setPrimaryClip(ClipData.newPlainText("pixiv-tag", text))
-        Toast.makeText(context, R.string.has_copyed, Toast.LENGTH_SHORT).show()
+        if (ClipBoardUtils.setPrimaryClip(context, ClipData.newPlainText("pixiv-tag", text))) {
+            Toast.makeText(context, R.string.has_copyed, Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, R.string.msg_copy_failed, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun muteTag(name: String, translated: String?) {
