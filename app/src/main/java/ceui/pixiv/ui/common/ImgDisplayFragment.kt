@@ -106,16 +106,21 @@ abstract class ImgDisplayFragment(layoutId: Int) : PixivFragment(layoutId) {
         if (parentFragment !is ViewPagerFragment) return
         val illustId = viewPagerViewModel.illustId.takeIf { it != 0L } ?: return
         val illust = ObjectPool.get<Illust>(illustId).value ?: return
-        runCatching {
-            val entity = DownloadEntity().apply {
-                fileName = displayName()
-                downloadTime = System.currentTimeMillis()
-                filePath = file.absolutePath
-                illustGson = Shaft.sGson.toJson(illust)
-            }
-            // insertDownload 会从 illustGson 顶层 id 补上 illustId（走 v38 索引）。
-            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(entity)
-        }.onFailure { Timber.e(it, "recordIllustDownload failed for ${displayName()}") }
+        val name = displayName()
+        // Room 写入（+insertDownload 内的 id 解析）挪到 IO：调用点在 lifecycleScope.launch 的
+        // 主线程上，大下载库下同步写会卡在 SQLite 连接池 → ANR。
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                val entity = DownloadEntity().apply {
+                    fileName = name
+                    downloadTime = System.currentTimeMillis()
+                    filePath = file.absolutePath
+                    illustGson = Shaft.sGson.toJson(illust)
+                }
+                // insertDownload 会从 illustGson 顶层 id 补上 illustId（走 v38 索引）。
+                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(entity)
+            }.onFailure { Timber.e(it, "recordIllustDownload failed for $name") }
+        }
     }
 
     override fun onDestroyView() {

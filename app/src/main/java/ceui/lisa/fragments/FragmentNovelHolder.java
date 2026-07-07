@@ -433,12 +433,24 @@ public class FragmentNovelHolder extends BaseFragment<FragmentNovelHolderBinding
                     mNovelBean.setLocalSaved(true);
                     String fileName = Params.NOVEL_KEY + mNovelBean.getId();
                     Cache.get().saveModel(fileName, mNovelDetail);
-                    DownloadEntity downloadEntity = new DownloadEntity();
-                    downloadEntity.setFileName(fileName);
-                    downloadEntity.setDownloadTime(System.currentTimeMillis());
-                    downloadEntity.setFilePath(PathUtils.getInternalAppCachePath());
-                    downloadEntity.setIllustGson(Shaft.sGson.toJson(mNovelBean));
-                    AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(downloadEntity);
+                    final String novelGson = Shaft.sGson.toJson(mNovelBean);
+                    final long downloadTime = System.currentTimeMillis();
+                    final String filePath = PathUtils.getInternalAppCachePath();
+                    // Room 写入（+insertDownload 内的 id 解析）挪后台：菜单点击回调在主线程，
+                    // 大下载库下同步写会卡在 SQLite 连接池 → ANR。Schedulers 是 rxjava2（有全局
+                    // error handler），再加显式 try/catch 兜底，后台失败不冒泡。
+                    Schedulers.io().scheduleDirect(() -> {
+                        try {
+                            DownloadEntity downloadEntity = new DownloadEntity();
+                            downloadEntity.setFileName(fileName);
+                            downloadEntity.setDownloadTime(downloadTime);
+                            downloadEntity.setFilePath(filePath);
+                            downloadEntity.setIllustGson(novelGson);
+                            AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertDownload(downloadEntity);
+                        } catch (Throwable t) {
+                            Common.showLog("action_save insertDownload failed: " + t.getMessage());
+                        }
+                    });
                     Common.showToast(getString(R.string.string_181), 2);
                     baseBind.transformationLayout.finishTransform();
                     return true;
