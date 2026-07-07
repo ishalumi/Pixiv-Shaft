@@ -90,6 +90,10 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
                 : Collections.<TagsBean>emptyList();
         bindView.baseBind.novelTag.setCompact(true);
         bindView.baseBind.novelTag.setSearchIndex(1);
+        // 列表卡片:去掉 chip 的「#」前缀,只显示纯 tag 文本;超过 6 个折叠成「+N」块
+        // (参考小说 V3 系列详情页 item),不再靠 maxLine 把最后一个 chip 硬切成半个。
+        bindView.baseBind.novelTag.setShowHashPrefix(false);
+        bindView.baseBind.novelTag.setMaxTags(6);
         bindView.baseBind.novelTag.setJavaTags(tagsToShow);
         // 新版是竖排 LinearLayout,空标签直接 GONE 收掉上方 12dp 间距,不会像旧
         // RelativeLayout 那样丢锚点。

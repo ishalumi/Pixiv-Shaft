@@ -99,6 +99,33 @@ class V3TagFlowView @JvmOverloads constructor(
             }
         }
 
+    /**
+     * 是否给每个 chip 加 `# ` 前缀。默认 true（与详情页 / 搜索页一致）。列表卡片可关掉，
+     * 只显示纯 tag 文本。仅影响本 view 实例，不动其他调用方。
+     */
+    var showHashPrefix: Boolean = true
+        set(value) {
+            if (field != value) {
+                field = value
+                lastSignature = null
+                renderPairs(lastPairs)
+            }
+        }
+
+    /**
+     * 最多展示的 tag 数；超出部分折叠成一个「+N」溢出块（参考小说 V3 系列详情页 item）。
+     * 默认 -1 = 不限、不折叠，保持其他调用方原样。设为正数时同时解除 flexbox 的 maxLine
+     * 行数裁剪，避免最后一个 chip 被硬切，溢出改由「+N」块表达。
+     */
+    var maxTags: Int = -1
+        set(value) {
+            if (field != value) {
+                field = value
+                lastSignature = null
+                renderPairs(lastPairs)
+            }
+        }
+
     private var _editor: EditText? = null
 
     /**
@@ -152,8 +179,16 @@ class V3TagFlowView @JvmOverloads constructor(
         // 它只会把输入框顶得离内容偏远。
         val isSingleRow = flexWrap == com.google.android.flexbox.FlexWrap.NOWRAP
         val bottomGap = if (isSingleRow) 0 else gap
-        val lastIndex = pairs.size - 1
-        pairs.forEachIndexed { idx, (name, translated) ->
+        // tag 上限 + 「+N」折叠（参考小说 V3 系列详情页 item）。maxTags<=0 时不限、不折叠，
+        // 保持其他调用方原样。折叠模式下解除 flexbox 的 maxLine 行裁剪，避免末尾 chip 被硬切，
+        // 超出的数量统一由「+N」块表达。
+        val overflowCount = if (maxTags in 1 until pairs.size) pairs.size - maxTags else 0
+        val visiblePairs = if (overflowCount > 0) pairs.take(maxTags) else pairs
+        if (maxTags > 0 && maxLine != -1) {
+            maxLine = -1
+        }
+        val lastIndex = visiblePairs.size - 1
+        visiblePairs.forEachIndexed { idx, (name, translated) ->
             val endGap = when {
                 !isSingleRow -> gap
                 idx == lastIndex -> 0
@@ -161,7 +196,8 @@ class V3TagFlowView @JvmOverloads constructor(
             }
             val tv = TextView(context).apply {
                 text = buildString {
-                    append("# "); append(name)
+                    if (showHashPrefix) append("# ")
+                    append(name)
                     if (!translated.isNullOrBlank()) {
                         append("  "); append(translated)
                     }
@@ -219,6 +255,26 @@ class V3TagFlowView @JvmOverloads constructor(
             }
             applyTouchScale(tv, 0.94f)
             addView(tv)
+        }
+
+        // 「+N」折叠块：只显示折叠了多少个 tag，不可点击，弱化配色（textSecondary），
+        // 与小说 V3 系列详情页 item 一致。
+        if (overflowCount > 0) {
+            val more = TextView(context).apply {
+                text = "+$overflowCount"
+                textSize = chipTextSize
+                setTextColor(palette.textSecondary)
+                background = tagBgState?.newDrawable()?.mutate()
+                setPaddingRelative(hPad, vPad, hPad, vPad)
+                layoutParams = LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    setMargins(0, 0, gap, bottomGap)
+                    flexShrink = 0f
+                }
+            }
+            addView(more)
         }
 
         if (showRemoveIcon) {
