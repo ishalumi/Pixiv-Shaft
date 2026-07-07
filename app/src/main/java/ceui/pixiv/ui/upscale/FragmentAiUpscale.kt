@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment
 import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.utils.Common
+import com.github.panpf.sketch.loadImage
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import java.io.File
 import java.io.FileOutputStream
@@ -165,7 +166,7 @@ class FragmentAiUpscale : Fragment() {
         // Update UI: show preview
         emptyState.visibility = View.GONE
         previewState.visibility = View.VISIBLE
-        imagePreview.setImageURI(Uri.fromFile(tempFile))
+        imagePreview.loadImage(tempFile)
 
         resolutionText.text = getString(
             R.string.string_ai_upscale_resolution,
