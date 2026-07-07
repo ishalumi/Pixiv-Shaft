@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import ceui.lisa.database.AppDatabase
+import ceui.lisa.database.downloadProbeDispatcher
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.loxia.ObjectPool
@@ -14,6 +15,7 @@ import ceui.loxia.fetchFullIllustDetail
 import ceui.loxia.isFullDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -48,10 +50,15 @@ class FragmentIllustViewModel(private val illustId: Long) : ViewModel() {
                 val illust = ObjectPool.get<IllustsBean>(illustId).value
                     ?: return@launch
                 val hasLocalFile = Common.isIllustDownloaded(illust)
-                val hasRecord = if (hasLocalFile) false else AppDatabase
-                    .getAppDatabase(appContext)
-                    .downloadDao()
-                    .hasDownloadRecordByIllustId(illust.id.toLong())
+                // hasDownloadRecordByIllustId 是 illustGson blob 上的全表 LIKE 扫描，
+                // 串行到单车道 dispatcher，避免多 P 详情页并发探测占满 Room 读连接池
+                // 导致主线程 onCreate 的 DB 查询 ANR。
+                val hasRecord = if (hasLocalFile) false else withContext(downloadProbeDispatcher) {
+                    AppDatabase
+                        .getAppDatabase(appContext)
+                        .downloadDao()
+                        .hasDownloadRecordByIllustId(illust.id.toLong())
+                }
                 _hasDownload.postValue(hasLocalFile || hasRecord)
             } catch (e: Exception) {
                 Timber.w(e, "refreshDownloadState failed illustId=%d", illustId)

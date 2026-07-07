@@ -49,6 +49,7 @@ import com.zhy.view.flowlayout.FlowLayout
 import com.zhy.view.flowlayout.TagAdapter
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
@@ -98,10 +99,15 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             if (detail != null) displayWebUserDetail(detail)
         }
 
-        val entity = AppDatabase.getAppDatabase(this).searchDao().getUserMuteEntityByID(userId)
-        mUserViewModel.isUserMuted.value = entity != null
-        val block = AppDatabase.getAppDatabase(this).searchDao().getBlockMuteEntityByID(userId)
-        mUserViewModel.isUserBlocked.value = block != null
+        // 屏蔽/拉黑标记走 Room。别在 onCreate 里同步查 —— 会阻塞主线程，一旦 Room 读连接池
+        // 被后台的下载探测占满就 ANR（同 UActivity 现场）。挪到 IO 线程 postValue 回来。
+        lifecycleScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getAppDatabase(applicationContext).searchDao()
+            val muted = dao.getUserMuteEntityByID(userId) != null
+            val blocked = dao.getBlockMuteEntityByID(userId) != null
+            mUserViewModel.isUserMuted.postValue(muted)
+            mUserViewModel.isUserBlocked.postValue(blocked)
+        }
 
         ObjectPool.get<UserBean>(userId.toLong()).observe(this) { user ->
             updateFollowState(user)

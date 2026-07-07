@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import ceui.lisa.activities.Shaft
 import ceui.lisa.core.Mapper
 import ceui.lisa.database.AppDatabase
+import ceui.lisa.database.downloadProbeDispatcher
 import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.UserBean
@@ -246,8 +247,12 @@ class ArtworkV3ViewModel(
             val result = withContext(Dispatchers.IO) {
                 try {
                     val dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao()
+                    // hasDownloadRecordByIllustId 是 illustGson blob 全表 LIKE 扫描，
+                    // 串行到单车道，避免多页并发占满 Room 读连接池拖垮主线程 DB → ANR。
                     Common.isIllustDownloaded(bean) ||
-                            dao.hasDownloadRecordByIllustId(bean.id.toLong())
+                            withContext(downloadProbeDispatcher) {
+                                dao.hasDownloadRecordByIllustId(bean.id.toLong())
+                            }
                 } catch (e: Exception) {
                     Timber.e(e, "downloaded check failed")
                     false
