@@ -26,6 +26,7 @@
 
             <ceui.pixiv.ui.detail.GradientTextView
                 android:id="@+id/stat_views"
+                style="@style/textMontserratBold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="-0.03"
@@ -63,6 +64,7 @@
 
             <ceui.pixiv.ui.detail.GradientTextView
                 android:id="@+id/stat_bookmarks"
+                style="@style/textMontserratBold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="-0.03"
