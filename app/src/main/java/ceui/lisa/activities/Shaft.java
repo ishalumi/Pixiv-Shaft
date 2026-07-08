@@ -186,6 +186,21 @@ public class Shaft extends Application implements ServicesProvider {
                         Timber.w(t, "Suppressed Glide GifDrawable null-bitmap draw on main thread");
                         continue;
                     }
+                    // android.widget.Magnifier.getPosition() NPE：读 selectable/editable
+                    // TextView 时长按拖动选择手柄会弹出系统文本放大镜（Magnifier）。拖动过程中
+                    // view 被 detach / 布局重算，框架内部的 source Rect 变 null，下一帧放大镜位置
+                    // 更新（走主线程 Handler 回调，正是本处重入的 Looper.loop）就在 getPosition()
+                    // 里读 Rect.left NPE。小说阅读器 ReaderTextBlockView / NovelScrollReaderView
+                    // 开了 setTextIsSelectable(true)，是唯一触发路径；放大镜是框架内部对象，host app
+                    // 没有公开 API 能按 view 关掉它，也无法阻止这个 race。丢一帧放大镜好过崩进程——
+                    // 下次拖动会重建。用 stack 帧判定而非 message：ART 的 helpful-NPE 文案随 API
+                    // 版本变，而 android.widget.Magnifier 里绝不会跑应用自己的代码，帧判定既稳又
+                    // 绝不会吞掉 app 自身的 NPE。
+                    if (t instanceof NullPointerException
+                            && hasStackFrame(t, "android.widget.Magnifier")) {
+                        Timber.w(t, "Suppressed text-selection Magnifier NPE on main thread");
+                        continue;
+                    }
                     // RecyclerView "Inconsistency detected. Invalid view holder adapter
                     // position"：predictive-animation 预布局(dispatchLayoutStep1)在
                     // SmartRefreshLayout + ViewPager 快速滑动 / 重入布局下，RecyclerView 内部
