@@ -1344,6 +1344,10 @@
     <string name="novel_meta_type">Novel</string>
     <string name="novel_meta_word_count">%1$s字</string>
     <string name="novel_meta_chapter_count">%1$d篇</string>
+    <string name="manga_series_meta_type">Manga</string>
+    <string name="manga_series_episode_count">%1$d话</string>
+    <string name="manga_series_chip_content_count">话数  %1$s</string>
+    <string name="manga_series_page_count">%1$d页</string>
     <string name="novel_series_section_works">作品列表</string>
     <string name="novel_section_tags">标签</string>
     <string name="novel_section_caption">简介</string>

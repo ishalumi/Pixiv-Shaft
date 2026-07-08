@@ -37,7 +37,9 @@ class ComicSeriesListViewModel(
     sealed class State {
         object Idle : State()
         object Loading : State()
-        data class Loaded(val illusts: List<Illust>) : State()
+        // total = 系列总话数(series_work_count)，firstIllustId = 第1话 id。漫画系列一般
+        // 「最新在前」降序，靠 first_illust 反查方向后把列表标成真实话号。
+        data class Loaded(val illusts: List<Illust>, val total: Int, val firstIllustId: Long?) : State()
         data class Error(val message: String) : State()
     }
 
@@ -52,18 +54,25 @@ class ComicSeriesListViewModel(
                 runCatching {
                     val all = mutableListOf<Illust>()
                     var lastOrder: Int? = null
+                    var total = 0
+                    var firstIllustId: Long? = null
                     for (i in 0 until MAX_PAGES) {
                         val resp = Client.appApi.getIllustSeries(seriesId, lastOrder)
+                        // 话数取 series_work_count（漫画系列专用字段，非 content_count）。
+                        if (i == 0) {
+                            total = resp.illust_series_detail?.series_work_count ?: 0
+                            firstIllustId = resp.illust_series_first_illust?.id
+                        }
                         resp.illusts?.let { all.addAll(it) }
                         if (resp.next_url == null) break
                         lastOrder = all.size
                     }
-                    all
+                    Triple(all.toList(), total, firstIllustId)
                 }
             }
             result.fold(
-                onSuccess = { illusts ->
-                    _state.value = State.Loaded(illusts)
+                onSuccess = { (illusts, total, firstIllustId) ->
+                    _state.value = State.Loaded(illusts, total, firstIllustId)
                 },
                 onFailure = { ex ->
                     Timber.e(ex, "ComicSeriesListViewModel load failed series=$seriesId")
@@ -129,7 +138,7 @@ class ComicSeriesListSheet : BottomSheetDialogFragment() {
                     if (state.illusts.isEmpty()) {
                         showEmpty(getString(R.string.series_sheet_empty))
                     } else {
-                        showList(state.illusts)
+                        showList(state.illusts, state.total, state.firstIllustId)
                     }
                 }
                 is ComicSeriesListViewModel.State.Error -> {
@@ -158,16 +167,20 @@ class ComicSeriesListSheet : BottomSheetDialogFragment() {
         binding.count.isVisible = false
     }
 
-    private fun showList(illusts: List<Illust>) {
+    private fun showList(illusts: List<Illust>, total: Int, firstIllustId: Long?) {
         binding.loading.isVisible = false
         binding.empty.isVisible = false
         binding.count.text = getString(R.string.series_sheet_count, illusts.size)
         binding.count.isVisible = true
         val currentIndex = illusts.indexOfFirst { it.id == currentIllustId }
         val accent = ceui.lisa.utils.Common.resolveThemeAttribute(requireContext(), androidx.appcompat.R.attr.colorPrimary)
+        // 方向判定：漫画系列默认「最新在前」降序，列表首个若正好是第1话才当升序。
+        val descending = firstIllustId == null || illusts.isEmpty() ||
+                illusts.first().id != firstIllustId
+        val effectiveTotal = if (total > 0) total else illusts.size
         binding.list.isVisible = true
         binding.list.layoutManager = LinearLayoutManager(requireContext())
-        binding.list.adapter = SeriesAdapter(illusts, currentIndex, accent) { illust ->
+        binding.list.adapter = SeriesAdapter(illusts, currentIndex, accent, descending, effectiveTotal) { illust ->
             val intent = Intent(requireContext(), TemplateActivity::class.java).apply {
                 putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画阅读")
                 putExtra(Params.ILLUST_ID, illust.id)
@@ -187,6 +200,8 @@ class ComicSeriesListSheet : BottomSheetDialogFragment() {
         private val illusts: List<Illust>,
         private val currentIndex: Int,
         private val accent: Int,
+        private val descending: Boolean,
+        private val total: Int,
         private val onClick: (Illust) -> Unit,
     ) : RecyclerView.Adapter<SeriesAdapter.VH>() {
 
@@ -205,7 +220,12 @@ class ComicSeriesListSheet : BottomSheetDialogFragment() {
             val isCurrent = position == currentIndex
             val textPrimary = ContextCompat.getColor(ctx, R.color.v3_text_1)
             val textSecondary = ContextCompat.getColor(ctx, R.color.v3_text_3)
-            holder.binding.index.text = "${position + 1}"
+            // 降序列表标真实话号：第 0 个 = 最新 = 第 total 话；升序退回 position+1。
+            holder.binding.index.text = if (descending && total > 0) {
+                "${(total - position).coerceAtLeast(1)}"
+            } else {
+                "${position + 1}"
+            }
             holder.binding.seriesTitle.text = illust.title.orEmpty()
             holder.binding.seriesTitle.setTypeface(
                 holder.binding.seriesTitle.typeface,

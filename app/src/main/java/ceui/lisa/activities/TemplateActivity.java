@@ -355,8 +355,16 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new FragmentNewNovels();
                 case "漫画系列作品":
                     return FragmentMangaSeries.newInstance(intent.getIntExtra(Params.USER_ID, 0));
-                case "漫画系列详情":
-                    return FragmentMangaSeriesDetail.newInstance(intent.getIntExtra(Params.MANGA_SERIES_ID, 0));
+                case "漫画系列详情": {
+                    // 迁到 V3 漫画系列详情页 IllustSeriesFragment（标题优先的单话列表，
+                    // 不再是旧瀑布流）。系列 id 兼容旧调用的 MANGA_SERIES_ID(int) 与
+                    // 新 ARG_SERIES_ID(long)。
+                    long sid = intent.getLongExtra(
+                            ceui.pixiv.ui.detail.IllustSeriesFragment.ARG_SERIES_ID, 0L);
+                    if (sid == 0L) sid = intent.getIntExtra(Params.MANGA_SERIES_ID, 0);
+                    if (sid == 0L) sid = intent.getIntExtra(Params.ID, 0);
+                    return ceui.pixiv.ui.detail.IllustSeriesFragment.Companion.newInstance(sid);
+                }
                 case "小说系列作品":
                     return new FragmentNovelSeries();
                 case "精华列":

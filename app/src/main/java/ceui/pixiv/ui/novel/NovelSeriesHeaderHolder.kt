@@ -14,6 +14,7 @@ import ceui.lisa.databinding.CellNovelSeriesHeroBinding
 import ceui.lisa.databinding.CellNovelSeriesProfileBinding
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.ShareIllust
+import ceui.lisa.utils.V3Palette
 import ceui.loxia.NovelSeriesDetail
 import ceui.loxia.ProgressImageButton
 import ceui.loxia.findActionReceiverOrNull
@@ -81,20 +82,24 @@ class NovelSeriesHeroViewHolder(bd: CellNovelSeriesHeroBinding) :
                 ?.onClickToggleWatchlist(v as ProgressImageButton)
         }
 
-        // Meta line
-        binding.metaContentCount.text =
-            context.getString(R.string.novel_meta_chapter_count, series.content_count)
+        // Meta badge —— type · 篇数 · 字数，做成醒目的 V3 accent 胶囊（对齐漫画系列页）。
+        val parts = mutableListOf(
+            context.getString(R.string.novel_meta_type),
+            context.getString(R.string.novel_meta_chapter_count, series.content_count),
+        )
         if (series.total_character_count > 0) {
-            binding.metaCharCount.text = context.getString(
-                R.string.novel_meta_word_count,
-                fmt.format(series.total_character_count),
+            parts.add(
+                context.getString(
+                    R.string.novel_meta_word_count,
+                    fmt.format(series.total_character_count),
+                )
             )
-            binding.metaCharCount.isVisible = true
-            binding.metaDot2.isVisible = true
-        } else {
-            binding.metaCharCount.isVisible = false
-            binding.metaDot2.isVisible = false
         }
+        val density = context.resources.displayMetrics.density
+        val palette = V3Palette.from(context)
+        binding.metaBadge.text = parts.joinToString("  ·  ")
+        binding.metaBadge.background = palette.pillSecondary(999f, (1 * density).toInt())
+        binding.metaBadge.setTextColor(palette.textAccent)
 
         // 系列已发布章节时显示"阅读最新一话(#N)"。
         val latestId = holder.latestNovelId

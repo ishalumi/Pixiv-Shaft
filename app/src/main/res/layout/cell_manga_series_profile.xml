@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 漫画系列「作品档案」卡片。镜像 cell_novel_series_profile，去掉总字数 chip，
+     集数标签走 manga_series_chip_content_count（话数），系列链接指向
+     pixiv 漫画系列 URL（由 ViewHolder 拼）。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:background="@drawable/v3_glass_surface_xl">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:letterSpacing="0.12"
+            android:text="@string/novel_profile_title"
+            android:textAllCaps="true"
+            android:textColor="@color/v3_text_3"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/info_chips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:flexWrap="wrap">
+
+            <TextView
+                android:id="@+id/chip_series_id"
+                style="@style/NovelInfoChip"
+                tools:text="系列ID  12345" />
+
+            <TextView
+                android:id="@+id/chip_author"
+                style="@style/NovelInfoChip"
+                tools:text="作者  Alice" />
+
+            <TextView
+                android:id="@+id/chip_author_id"
+                style="@style/NovelInfoChip"
+                tools:text="作者ID  67890" />
+
+            <TextView
+                android:id="@+id/chip_content_count"
+                style="@style/NovelInfoChip"
+                tools:text="话数  12" />
+
+            <TextView
+                android:id="@+id/chip_series_link"
+                style="@style/NovelInfoChip"
+                tools:text="系列链接" />
+
+            <TextView
+                android:id="@+id/chip_open_series_link"
+                style="@style/NovelInfoChip"
+                tools:text="打开系列链接" />
+
+            <TextView
+                android:id="@+id/chip_user_link"
+                style="@style/NovelInfoChip"
+                tools:text="作者主页" />
+        </com.google.android.flexbox.FlexboxLayout>
+    </LinearLayout>
+</FrameLayout>

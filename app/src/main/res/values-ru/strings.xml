@@ -1258,6 +1258,10 @@
     <string name="novel_meta_type">Роман</string>
     <string name="novel_meta_word_count">%1$s слов</string>
     <string name="novel_meta_chapter_count">%1$d глав</string>
+    <string name="manga_series_meta_type">Manga</string>
+    <string name="manga_series_episode_count">%1$d ч.</string>
+    <string name="manga_series_chip_content_count">Частей  %1$s</string>
+    <string name="manga_series_page_count">%1$d стр.</string>
     <string name="novel_series_section_works">Список работ</string>
     <string name="novel_section_tags">Теги</string>
     <string name="novel_section_caption">Описание</string>

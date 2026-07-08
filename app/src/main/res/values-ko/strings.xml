@@ -1258,6 +1258,10 @@
     <string name="novel_meta_type">소설</string>
     <string name="novel_meta_word_count">%1$s자</string>
     <string name="novel_meta_chapter_count">%1$d편</string>
+    <string name="manga_series_meta_type">Manga</string>
+    <string name="manga_series_episode_count">%1$d화</string>
+    <string name="manga_series_chip_content_count">화수  %1$s</string>
+    <string name="manga_series_page_count">%1$dP</string>
     <string name="novel_series_section_works">작품 목록</string>
     <string name="novel_section_tags">태그</string>
     <string name="novel_section_caption">소개</string>

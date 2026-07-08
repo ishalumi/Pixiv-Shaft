@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 漫画系列详情页 hero 卡片。结构镜像 cell_novel_series_hero，但去掉「总字数」
+     那一段（漫画系列没有字数），类型标签写成 Manga，集数单位由 ViewHolder 用
+     manga_series_episode_count 绑定（N话）。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -27,7 +30,7 @@
             app:layout_constraintEnd_toStartOf="@+id/bookmark"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:text="ある小説シリーズ" />
+            tools:text="漫画シリーズ作品" />
 
         <ceui.loxia.ProgressImageButton
             android:id="@+id/bookmark"
@@ -42,8 +45,8 @@
             app:ptb_progress_width="14dp" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Meta badge: 醒目一点的 V3 胶囊（type · 篇数 · 字数），底色/文字色跑
-         V3Palette 主题色 tint，日夜自适应。文案由 ViewHolder 拼。 -->
+    <!-- Meta badge: 醒目一点的 V3 胶囊（type · 话数），底色/文字色跑 V3Palette
+         主题色 tint，日夜自适应。文案由 ViewHolder 拼，话数拿不到时只显示 Manga。 -->
     <TextView
         android:id="@+id/meta_badge"
         android:layout_width="wrap_content"
@@ -55,11 +58,9 @@
         android:singleLine="true"
         android:textSize="13sp"
         android:textStyle="bold"
-        tools:text="Novel · 19篇 · 136,969字" />
+        tools:text="Manga · 103话" />
 
-    <!-- "阅读最新一话(#N)" — 旧 FragmentNovelSeriesDetail 里很显眼的入口，
-         迁到新页 hero 卡片底部。仅当系列有最新章节时（latestNovelChapterIndex
-         非 null）由 ViewHolder 切换可见。 -->
+    <!-- "阅读最新一话(#N)" —— 仅当系列有最新章节时由 ViewHolder 打开可见。 -->
     <TextView
         android:id="@+id/read_latest"
         android:layout_width="match_parent"

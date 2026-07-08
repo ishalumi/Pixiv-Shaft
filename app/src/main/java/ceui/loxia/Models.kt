@@ -845,6 +845,9 @@ data class NovelSeriesDetail(
     val is_concluded: Boolean? = null,
     val watchlist_added: Boolean? = null,
     val content_count: Int = 0,
+    // 漫画系列接口 /v1/illust/series 的话数字段是 series_work_count（不是小说的
+    // content_count），复用本模型解析 illust_series_detail 时用它拿总话数。
+    val series_work_count: Int = 0,
     val novel_ai_type: Int = 0,
     val total_character_count: Int = 0,
 ) : Parcelable
