@@ -64,7 +64,8 @@ import ceui.lisa.fragments.FragmentSAF;
 import ceui.lisa.fragments.FragmentSB;
 import ceui.lisa.fragments.FragmentSearch;
 import ceui.lisa.fragments.FragmentSearchUser;
-import ceui.lisa.fragments.FragmentSettings;
+import ceui.lisa.fragments.FragmentSettingsHub;
+import ceui.lisa.fragments.SettingsCatalog;
 import ceui.lisa.fragments.FragmentStorage;
 import ceui.lisa.fragments.FragmentUserIllust;
 import ceui.lisa.fragments.FragmentUserIllustByTag;
@@ -135,7 +136,10 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return FragmentWebView.newInstance(title, url, preferPreserve);
                 }
                 case "设置":
-                    return new FragmentSettings();
+                    return new FragmentSettingsHub();
+                case "设置分类":
+                    return SettingsCatalog.fragmentFor(
+                            intent.getStringExtra(SettingsCatalog.EXTRA_CATEGORY));
                 case "推荐用户": {
                     // Paired with FragmentRight#seeMore: the producer stashes
                     // the Feed horizontal preview's snapshot under a random

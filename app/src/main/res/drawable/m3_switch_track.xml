@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3 风格开关轨道：开=主题色实底；关=中性底 + 2dp 描边。52x32 标准 M3 尺寸。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <shape android:shape="rectangle">
+            <size
+                android:width="52dp"
+                android:height="32dp" />
+            <corners android:radius="16dp" />
+            <solid android:color="?attr/colorPrimary" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <size
+                android:width="52dp"
+                android:height="32dp" />
+            <corners android:radius="16dp" />
+            <solid android:color="@color/m3_settings_switch_track_off" />
+            <stroke
+                android:width="2dp"
+                android:color="@color/m3_settings_switch_outline" />
+        </shape>
+    </item>
+</selector>

@@ -2247,4 +2247,13 @@
     <string name="watch_later_clear_ok">清空</string>
     <string name="watch_later_clear_confirm">确定要清空「稍后再看」列表吗？</string>
     <string name="watch_later_play_all">播放全部</string>
+
+    <!-- 两级设置页 -->
+    <string name="settings_search_hint">搜索设置</string>
+    <string name="settings_search_empty">没有找到相关设置</string>
+    <string name="settings_cat_browse">浏览与搜索</string>
+    <string name="settings_cat_viewing">看图与详情</string>
+    <string name="settings_cat_bookmark">收藏与互动</string>
+    <string name="settings_cat_ai">AI 功能</string>
+    <string name="settings_cat_data">备份与缓存</string>
 </resources>

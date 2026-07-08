@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+
+    </data>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/v3_bg"
+        android:orientation="vertical">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/colorPrimary"
+            android:elevation="@dimen/six_dp"
+            android:fitsSystemWindows="true"
+            android:theme="@style/AppTheme.AppBarOverlay"
+            app:navigationIcon="@drawable/ic_arrow_back_white_shadow"
+            app:popupTheme="@style/AppTheme.PopupOverlay"
+            app:title=" "
+            app:titleTextColor="@android:color/white">
+
+            <TextView
+                android:id="@+id/toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/settings_cat_viewing"
+                android:textColor="@color/white"
+                android:textSize="18sp" />
+
+        </androidx.appcompat.widget.Toolbar>
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scroll_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="32dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/parent_linear"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="16dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="16dp">
+
+                <RelativeLayout
+                    android:id="@+id/illust_detail_v3_rela"
+                    style="@style/M3SetRow"
+                    android:background="@drawable/bg_m3_row_top">
+
+                    <LinearLayout style="@style/M3SetTexts">
+
+                        <TextView
+                            style="@style/M3SetTitle"
+                            android:text="@string/illust_detail_v3" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/illust_detail_v3"
+                        style="@style/M3SetSwitch" />
+
+                </RelativeLayout>
+
+                <Space
+                    android:id="@+id/artwork_v3_fab_order_divider"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp" />
+
+                <RelativeLayout
+                    android:id="@+id/artwork_v3_fab_order_rela"
+                    style="@style/M3SetRow"
+                    android:background="@drawable/bg_m3_row_mid">
+
+                    <LinearLayout
+                        style="@style/M3SetTexts"
+                        android:layout_marginEnd="130dp">
+
+                        <TextView
+                            style="@style/M3SetTitle"
+                            android:text="@string/artwork_v3_fab_order_title" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/artwork_v3_fab_order_select"
+                        style="@style/M3SetValue" />
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/transform_type_rela"
+                    style="@style/M3SetRow"
+                    android:background="@drawable/bg_m3_row_mid">
+
+                    <LinearLayout
+                        style="@style/M3SetTexts"
+                        android:layout_marginEnd="130dp">
+
+                        <TextView
+                            style="@style/M3SetTitle"
+                            android:text="@string/string_393" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/transform_type"
+                        style="@style/M3SetValue" />
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/keep_status_bar_when_view_image_rela"
+                    style="@style/M3SetRow"
+                    android:background="@drawable/bg_m3_row_mid">
+
+                    <LinearLayout style="@style/M3SetTexts">
+
+                        <TextView
+                            style="@style/M3SetTitle"
+                            android:text="@string/keep_status_bar_when_view_image" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/keep_status_bar_when_view_image"
+                        style="@style/M3SetSwitch" />
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/illust_detail_keep_screen_on_rela"
+                    style="@style/M3SetRow"
+                    android:background="@drawable/bg_m3_row_mid">
+
+                    <LinearLayout style="@style/M3SetTexts">
+
+                        <TextView
+                            style="@style/M3SetTitle"
+                            android:text="@string/string_451" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/illust_detail_keep_screen_on"
+                        style="@style/M3SetSwitch" />
+
+                </RelativeLayout>
+
+                <RelativeLayout
+                    android:id="@+id/use_custom_double_tap_zoom_rela"
+                    style="@style/M3SetRow"
+                    android:background="@drawable/bg_m3_row_bottom">
+
+                    <LinearLayout style="@style/M3SetTexts">
+
+                        <TextView
+                            style="@style/M3SetTitle"
+                            android:text="@string/use_custom_double_tap_zoom" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/use_custom_double_tap_zoom"
+                        style="@style/M3SetSwitch" />
+
+                </RelativeLayout>
+
+                <LinearLayout
+                    android:id="@+id/use_custom_long_press_reset_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical">
+
+                    <RelativeLayout
+                        android:id="@+id/custom_zoom_scale_rela"
+                        style="@style/M3SetRow"
+                        android:background="@drawable/bg_m3_row_top">
+
+                        <LinearLayout
+                            style="@style/M3SetTexts"
+                            android:layout_marginEnd="150dp">
+
+                            <TextView
+                                android:id="@+id/custom_zoom_scale_title"
+                                style="@style/M3SetTitle"
+                                android:text="@string/custom_zoom_scale_title" />
+
+                            <TextView
+                                android:id="@+id/custom_zoom_scale_title_link"
+                                style="@style/M3SetDesc"
+                                android:text="@string/custom_zoom_scale_link_text"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageButton
+                                android:id="@+id/custom_zoom_scale_decrease"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/custom_zoom_scale_decrease_desc"
+                                android:src="@android:drawable/ic_media_previous" />
+
+                            <TextView
+                                android:id="@+id/custom_zoom_scale_display"
+                                android:layout_width="52dp"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:text="1.8"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <ImageButton
+                                android:id="@+id/custom_zoom_scale_increase"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/custom_zoom_scale_increase_desc"
+                                android:src="@android:drawable/ic_media_next" />
+
+                        </LinearLayout>
+
+                    </RelativeLayout>
+
+                    <RelativeLayout
+                        android:id="@+id/use_custom_three_level_zoom_rela"
+                        style="@style/M3SetRow"
+                        android:background="@drawable/bg_m3_row_mid">
+
+                        <LinearLayout style="@style/M3SetTexts">
+
+                            <TextView
+                                android:id="@+id/use_custom_three_level_zoom_title"
+                                style="@style/M3SetTitle"
+                                android:text="@string/use_three_level_zoom_title" />
+
+                            <TextView
+                                android:id="@+id/three_level_zoom_link"
+                                style="@style/M3SetDesc"
+                                android:text="@string/three_level_zoom_link_text"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/use_custom_three_level_zoom"
+                            style="@style/M3SetSwitch" />
+
+                    </RelativeLayout>
+
+                    <RelativeLayout
+                        android:id="@+id/use_custom_long_press_reset_rela"
+                        style="@style/M3SetRow"
+                        android:background="@drawable/bg_m3_row_bottom">
+
+                        <LinearLayout style="@style/M3SetTexts">
+
+                            <TextView
+                                android:id="@+id/use_custom_long_press_reset_title"
+                                style="@style/M3SetTitle"
+                                android:text="@string/use_custom_long_press_reset" />
+
+                            <TextView
+                                android:id="@+id/use_custom_long_press_reset_link"
+                                style="@style/M3SetDesc"
+                                android:text="@string/use_custom_long_press_reset_link_text"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/use_custom_long_press_reset"
+                            style="@style/M3SetSwitch" />
+
+                    </RelativeLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+    </LinearLayout>
+
+</layout>

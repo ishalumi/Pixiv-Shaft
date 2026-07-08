@@ -2078,4 +2078,13 @@
     <string name="watch_later_clear_ok">クリア</string>
     <string name="watch_later_clear_confirm">あとで見るリストをクリアしますか？</string>
     <string name="watch_later_play_all">すべて再生</string>
+
+    <!-- 两级设置页 -->
+    <string name="settings_search_hint">設定を検索</string>
+    <string name="settings_search_empty">該当する設定が見つかりません</string>
+    <string name="settings_cat_browse">閲覧と検索</string>
+    <string name="settings_cat_viewing">画像表示と詳細</string>
+    <string name="settings_cat_bookmark">ブックマークと操作</string>
+    <string name="settings_cat_ai">AI 機能</string>
+    <string name="settings_cat_data">バックアップとキャッシュ</string>
 </resources>

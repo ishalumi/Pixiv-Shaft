@@ -520,6 +520,88 @@
         <item name="android:shadowRadius">2</item>
         <item name="android:visibility">gone</item>
     </style>
+
+    <!-- ── MD3-E 设置页 ─────────────────────────────────────────── -->
+
+    <!-- 分段分组里的一行（背景按位置用 bg_m3_row_top/mid/bottom/single） -->
+    <style name="M3SetRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:minHeight">60dp</item>
+        <item name="android:paddingStart">18dp</item>
+        <item name="android:paddingEnd">18dp</item>
+        <item name="android:paddingTop">13dp</item>
+        <item name="android:paddingBottom">13dp</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <!-- 行内文字列（标题+描述），给右侧开关/值留出空间 -->
+    <style name="M3SetTexts">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_centerVertical">true</item>
+        <item name="android:layout_marginEnd">64dp</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="M3SetTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/v3_text_1</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="M3SetDesc">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:textColor">@color/v3_text_2</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- 右侧当前值（可点行的 value 文本） -->
+    <style name="M3SetValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_alignParentEnd">true</item>
+        <item name="android:layout_centerVertical">true</item>
+        <item name="android:maxWidth">150dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- 右侧箭头（导航行），可带状态文字 -->
+    <style name="M3SetArrow" parent="M3SetValue">
+        <item name="android:drawableEnd">@drawable/ic_arrow_right</item>
+        <item name="android:drawablePadding">@dimen/six_dp</item>
+    </style>
+
+    <!-- MD3 风格开关 -->
+    <style name="M3SetSwitch">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_alignParentEnd">true</item>
+        <item name="android:layout_centerVertical">true</item>
+        <item name="track">@drawable/m3_switch_track</item>
+        <item name="android:thumb">@drawable/m3_switch_thumb</item>
+        <item name="android:background">@null</item>
+    </style>
+
+    <!-- 分类页内的小节标题 -->
+    <style name="M3SetHeader">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">18dp</item>
+        <item name="android:layout_marginTop">22dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
 </resources>
 
 

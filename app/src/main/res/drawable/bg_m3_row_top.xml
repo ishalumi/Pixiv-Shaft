@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3-E 分段行背景（组内首行）：上 20dp / 下 5dp。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?android:attr/colorControlHighlight">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/v3_menu_bg" />
+            <corners
+                android:topLeftRadius="20dp"
+                android:topRightRadius="20dp"
+                android:bottomLeftRadius="5dp"
+                android:bottomRightRadius="5dp" />
+            <stroke
+                android:width="0.5dp"
+                android:color="@color/v3_border_2" />
+        </shape>
+    </item>
+</ripple>

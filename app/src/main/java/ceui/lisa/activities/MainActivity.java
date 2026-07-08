@@ -409,7 +409,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "通知中心");
         } else if (id == R.id.nav_manage) {
-            ceui.lisa.utils.LayoutPrewarmer.prewarm(this, R.layout.fragment_settings);
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "设置");
         } else if (id == R.id.nav_prime_tags) {

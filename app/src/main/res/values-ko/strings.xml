@@ -2078,4 +2078,13 @@
     <string name="watch_later_clear_ok">비우기</string>
     <string name="watch_later_clear_confirm">나중에 보기 목록을 비우시겠습니까?</string>
     <string name="watch_later_play_all">모두 재생</string>
+
+    <!-- 两级设置页 -->
+    <string name="settings_search_hint">설정 검색</string>
+    <string name="settings_search_empty">일치하는 설정이 없습니다</string>
+    <string name="settings_cat_browse">탐색 및 검색</string>
+    <string name="settings_cat_viewing">이미지 보기 및 상세</string>
+    <string name="settings_cat_bookmark">북마크 및 상호작용</string>
+    <string name="settings_cat_ai">AI 기능</string>
+    <string name="settings_cat_data">백업 및 캐시</string>
 </resources>

@@ -2078,4 +2078,13 @@
     <string name="watch_later_clear_ok">Clear</string>
     <string name="watch_later_clear_confirm">Clear your Watch Later list?</string>
     <string name="watch_later_play_all">Play all</string>
+
+    <!-- 两级设置页 -->
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_search_empty">No matching settings found</string>
+    <string name="settings_cat_browse">Browsing &amp; search</string>
+    <string name="settings_cat_viewing">Viewer &amp; details</string>
+    <string name="settings_cat_bookmark">Bookmarks &amp; actions</string>
+    <string name="settings_cat_ai">AI features</string>
+    <string name="settings_cat_data">Backup &amp; cache</string>
 </resources>

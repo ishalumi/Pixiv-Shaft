@@ -276,5 +276,10 @@
     <!-- 站长推荐 score pill 字色:琥珀金 + 强阴影,任何封面底都能看清。 -->
     <color name="trending_score_amber">#FFD54F</color>
 
+
+    <!-- MD3-E 设置页 -->
+    <color name="m3_settings_switch_track_off">#E4E1EC</color>
+    <color name="m3_settings_switch_outline">#797685</color>
+    <color name="m3_settings_icon_circle">#ECEAF6</color>
 </resources>
 

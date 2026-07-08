@@ -2078,4 +2078,13 @@
     <string name="watch_later_clear_ok">Temizle</string>
     <string name="watch_later_clear_confirm">Sonra İzle listen temizlensin mi?</string>
     <string name="watch_later_play_all">Tümünü oynat</string>
+
+    <!-- 两级设置页 -->
+    <string name="settings_search_hint">Ayarlarda ara</string>
+    <string name="settings_search_empty">Eşleşen ayar bulunamadı</string>
+    <string name="settings_cat_browse">Gezinme ve arama</string>
+    <string name="settings_cat_viewing">Görüntüleyici ve ayrıntılar</string>
+    <string name="settings_cat_bookmark">Favoriler ve etkileşim</string>
+    <string name="settings_cat_ai">Yapay zekâ özellikleri</string>
+    <string name="settings_cat_data">Yedekleme ve önbellek</string>
 </resources>

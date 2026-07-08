@@ -150,4 +150,9 @@
     <!-- 用户首页 关注 / P友 数字 — 夜间保持原先的浅色 accent。 -->
     <color name="v3_stat_following_num">#A5B4FC</color>
     <color name="v3_stat_mypixiv_num">#2DD4A8</color>
+
+    <!-- MD3-E 设置页 -->
+    <color name="m3_settings_switch_track_off">#33323C</color>
+    <color name="m3_settings_switch_outline">#94919E</color>
+    <color name="m3_settings_icon_circle">#282640</color>
 </resources>

@@ -2078,4 +2078,13 @@
     <string name="watch_later_clear_ok">Очистить</string>
     <string name="watch_later_clear_confirm">Очистить список «Смотреть позже»?</string>
     <string name="watch_later_play_all">Воспроизвести все</string>
+
+    <!-- 两级设置页 -->
+    <string name="settings_search_hint">Поиск настроек</string>
+    <string name="settings_search_empty">Настройки не найдены</string>
+    <string name="settings_cat_browse">Просмотр и поиск</string>
+    <string name="settings_cat_viewing">Просмотр изображений и детали</string>
+    <string name="settings_cat_bookmark">Закладки и действия</string>
+    <string name="settings_cat_ai">Функции ИИ</string>
+    <string name="settings_cat_data">Резервное копирование и кэш</string>
 </resources>

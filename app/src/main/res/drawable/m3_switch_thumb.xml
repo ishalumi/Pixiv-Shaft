@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3 风格开关滑块：开=24dp 白圆（onPrimary）；关=16dp outline 色小圆。总尺寸 32dp 与轨道等高。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <layer-list>
+            <item
+                android:bottom="4dp"
+                android:left="4dp"
+                android:right="4dp"
+                android:top="4dp">
+                <shape android:shape="oval">
+                    <size
+                        android:width="24dp"
+                        android:height="24dp" />
+                    <solid android:color="@android:color/white" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item
+                android:bottom="8dp"
+                android:left="8dp"
+                android:right="8dp"
+                android:top="8dp">
+                <shape android:shape="oval">
+                    <size
+                        android:width="16dp"
+                        android:height="16dp" />
+                    <solid android:color="@color/m3_settings_switch_outline" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>
