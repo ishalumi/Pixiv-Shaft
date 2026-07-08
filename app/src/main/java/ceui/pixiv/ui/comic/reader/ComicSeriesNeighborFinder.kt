@@ -17,9 +17,9 @@ object ComicSeriesNeighborFinder {
     ): Long? {
         val entry = runCatching { SeriesCache.loadIllustSeries(seriesId, maxPages) }.getOrNull()
             ?: return null
-        val ids = entry.orderedIds
-        val idx = ids.indexOf(currentIllustId)
+        val items = entry.items
+        val idx = items.indexOfFirst { it.id == currentIllustId }
         if (idx < 0) return null
-        return if (forward) ids.getOrNull(idx + 1) else ids.getOrNull(idx - 1)
+        return if (forward) items.getOrNull(idx + 1)?.id else items.getOrNull(idx - 1)?.id
     }
 }

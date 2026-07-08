@@ -54,7 +54,7 @@ class ComicSeriesListViewModel(
                 runCatching {
                     // 走 SeriesCache：翻页找相邻话时已经拉过就直接命中，不再重复整条系列拉一遍。
                     val entry = SeriesCache.loadIllustSeries(seriesId, MAX_PAGES)
-                    Triple(SeriesCache.illustsOf(entry), entry.total, entry.firstEpisodeId)
+                    Triple(entry.items, entry.total, entry.firstEpisodeId)
                 }
             }
             result.fold(

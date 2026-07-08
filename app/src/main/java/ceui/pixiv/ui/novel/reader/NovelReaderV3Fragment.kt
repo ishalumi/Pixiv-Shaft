@@ -935,16 +935,15 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
             // CancellationException 必须重新抛出（用户在请求期间退出 reader → view 销毁 →
             // scope 取消）：runCatching 吞掉它会继续执行到下面 neighbor == null 分支的
             // requireContext()，而此时 fragment 已 detach，必抛 IllegalStateException crash。
-            val neighborId = runCatching {
+            val neighbor = runCatching {
                 // 整条系列走 SeriesCache 进程内缓存：第一次翻页拉一次，之后翻页 / 开选话
-                // sheet 全部命中，不再每次重拉。
-                val entry = SeriesCache.loadNovelSeries(seriesId)
-                val ids = entry.orderedIds
-                val idx = ids.indexOf(novelId)
+                // sheet 全部命中，不再每次重拉。单话实体直接存在缓存里，从 items 取。
+                val items = SeriesCache.loadNovelSeries(seriesId).items
+                val idx = items.indexOfFirst { it.id == novelId }
                 if (idx < 0) null
-                else if (forward) ids.getOrNull(idx + 1) else ids.getOrNull(idx - 1)
+                else if (forward) items.getOrNull(idx + 1) else items.getOrNull(idx - 1)
             }.onFailure { if (it is CancellationException) throw it }.getOrNull()
-            if (neighborId == null || neighborId == 0L) {
+            if (neighbor == null || neighbor.id == 0L) {
                 Toast.makeText(
                     requireContext(),
                     if (forward) getString(R.string.msg_last_chapter) else getString(R.string.msg_first_chapter),
@@ -952,18 +951,17 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 ).show()
                 return@launch
             }
-            val neighborTitle = ObjectPool.get<Novel>(neighborId).value?.title.orEmpty()
             Toast.makeText(
                 requireContext(),
                 getString(
                     if (forward) R.string.msg_jump_next_in_series else R.string.msg_jump_prev_in_series,
-                    neighborTitle,
+                    neighbor.title.orEmpty(),
                 ),
                 Toast.LENGTH_SHORT,
             ).show()
             val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
                 putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "小说正文")
-                putExtra(Params.NOVEL_ID, neighborId)
+                putExtra(Params.NOVEL_ID, neighbor.id)
             }
             startActivity(intent)
             activity?.finish()

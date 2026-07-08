@@ -57,7 +57,7 @@ class SeriesListViewModel(
                 runCatching {
                     // 走 SeriesCache：阅读器翻页找相邻话时已经拉过就直接命中，不再重复拉整条系列。
                     val entry = SeriesCache.loadNovelSeries(seriesId)
-                    Triple(SeriesCache.novelsOf(entry), entry.total, entry.firstEpisodeId)
+                    Triple(entry.items, entry.total, entry.firstEpisodeId)
                 }
             }
             result.fold(
