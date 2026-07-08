@@ -25,6 +25,11 @@ class FragmentSettingsHub : BaseFragment<FragmentSettingsHubBinding>() {
     override fun initData() {
         baseBind.toolbar.setNavigationOnClickListener { mActivity.finish() }
 
+        // 搜索胶囊底色跟随主题色（同分类行的隐约 tint）
+        val palette = ceui.lisa.utils.V3Palette.from(mContext)
+        (baseBind.searchBar.background.mutate() as? android.graphics.drawable.GradientDrawable)
+            ?.setColor(palette.cardFill)
+
         buildCategoryList()
 
         baseBind.searchClear.setOnClickListener { baseBind.searchInput.setText("") }
@@ -54,15 +59,22 @@ class FragmentSettingsHub : BaseFragment<FragmentSettingsHubBinding>() {
         container.removeAllViews()
         val inflater = LayoutInflater.from(mContext)
         val categories = SettingsCatalog.categories
+        // icon 圆底也联动主题色：在行底 cardFill 上再混入一截 primary，比行底稍显色
+        val palette = ceui.lisa.utils.V3Palette.from(mContext)
+        val iconCircle = androidx.core.graphics.ColorUtils.blendARGB(
+            palette.cardFill, palette.primary, if (palette.isDark) 0.16f else 0.14f)
         categories.forEachIndexed { index, category ->
             val row = inflater.inflate(R.layout.item_settings_category, container, false)
             row.setBackgroundResource(backgroundFor(index, categories.size))
+            (row.findViewById<View>(R.id.category_icon_wrap).background.mutate()
+                    as? android.graphics.drawable.GradientDrawable)?.setColor(iconCircle)
             row.findViewById<ImageView>(R.id.category_icon).setImageResource(category.iconRes)
             row.findViewById<TextView>(R.id.category_title).text = getString(category.titleRes)
             row.findViewById<TextView>(R.id.category_subtitle).text = subtitleFor(category)
             row.setOnClickListener {
                 SettingsCatalog.open(mContext, category)
             }
+            SettingsCatalog.applyThemedRowBg(row)
             container.addView(row)
         }
     }
@@ -109,6 +121,7 @@ class FragmentSettingsHub : BaseFragment<FragmentSettingsHubBinding>() {
             row.setOnClickListener {
                 SettingsCatalog.open(mContext, entry.category, entry.idName)
             }
+            SettingsCatalog.applyThemedRowBg(row)
             container.addView(row)
         }
     }

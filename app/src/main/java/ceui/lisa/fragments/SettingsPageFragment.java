@@ -23,6 +23,8 @@ public abstract class SettingsPageFragment<T extends ViewDataBinding> extends Ba
         if (toolbar != null) {
             toolbar.setNavigationOnClickListener(v -> mActivity.finish());
         }
+        // 行底色跟随主题色（同 V3 搜索 sheet 卡片的隐约 tint）
+        SettingsCatalog.applyThemedRowBg(view);
         SettingsCatalog.maybeHighlight(this, view);
     }
 }

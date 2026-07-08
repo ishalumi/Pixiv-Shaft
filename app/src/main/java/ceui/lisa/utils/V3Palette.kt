@@ -180,13 +180,20 @@ class V3Palette(@ColorInt val primary: Int, val isDark: Boolean = true) {
      * 浅色：去饱和后提到极浅，得到一块"带主题色调的白底"。外加一条 12% 主题色 hairline，
      * 替代静态 [ceui.lisa.R.drawable.bg_v3_settings_card]（固定中性 v3_menu_bg，切主题色不动）。
      */
-    /** Settings-card / 悬浮胶囊的不透明底色 —— 隐约带主题色（日夜双模），见 [settingsCardBg]。 */
-    @ColorInt val cardFill: Int = if (isDark) darken(desaturate(primary, 0.42f), 0.14f)
-    else lighten(desaturate(primary, 0.60f), 0.955f)
+    /**
+     * Settings-card / 悬浮胶囊的不透明底色 —— 隐约带主题色（日夜双模），见 [settingsCardBg]。
+     * tint 强度刻意压得很低（饱和度只保留一小截）：能看出"和主题色有关系"即可，
+     * 不能一眼读出主题色本身（樱桃粉夜间此前 42% 饱和度算出 #32151C，太粉，被打回）。
+     */
+    @ColorInt val cardFill: Int = if (isDark) darken(desaturate(primary, 0.16f), 0.135f)
+    else lighten(desaturate(primary, 0.50f), 0.96f)
+
+    /** 与 [cardFill] 配套的 12% 主题色 hairline。 */
+    @ColorInt val cardHairline: Int = if (isDark) withAlpha(ensureLightEnough(primary, 0.60f), 0.12f)
+    else withAlpha(ensureDarkEnough(primary, 0.40f), 0.12f)
 
     fun settingsCardBg(radiusPx: Float, strokePx: Int): GradientDrawable {
-        val hairline = if (isDark) withAlpha(ensureLightEnough(primary, 0.60f), 0.12f)
-        else withAlpha(ensureDarkEnough(primary, 0.40f), 0.12f)
+        val hairline = cardHairline
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radiusPx
