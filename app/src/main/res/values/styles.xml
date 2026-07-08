@@ -46,6 +46,19 @@
         <item name="enableEdgeToEdge">true</item>
     </style>
 
+    <!-- reader / novel / comic 的下载·导出·设置类 sheet 共用:开启 edgeToEdge,让 dialog
+         window 画到手势导航栏底下。配合各 sheet 的 letDrawBehindNavBar()(清掉 Material 给
+         design_bottom_sheet 垫的 nav inset padding),sheet 内容背景就能一路延伸进底部 safe
+         area,消除底部露出后面页面的空隙。
+         注意 parent 必须是 ThemeOverlay.App.BottomSheetDialog(它的 bottomSheetStyle 走老 design
+         库的 Widget.Design.BottomSheet.Modal)。若 parent 用 ThemeOverlay.Material3.BottomSheetDialog,
+         其默认 Widget.Material3.BottomSheet.Modal 的 BottomSheetBehavior 会去读本 App 主题里
+         缺失的 Material3 motion 属性,inflate 直接崩(design_bottom_sheet_dialog line #47)。
+         与 ThemeOverlay.V3.BottomSheetDialog 等价,只是命名更中性、给非 V3 包复用。 -->
+    <style name="ThemeOverlay.App.BottomSheetDialog.EdgeToEdge" parent="ThemeOverlay.App.BottomSheetDialog">
+        <item name="enableEdgeToEdge">true</item>
+    </style>
+
     <style name="UpdateBottomSheetStyle" parent="Widget.Design.BottomSheet.Modal">
         <item name="android:background">@drawable/bg_update_bottom_sheet</item>
     </style>

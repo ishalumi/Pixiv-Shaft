@@ -18,6 +18,9 @@ interface ExportFormatCallback {
 
 class ExportSheet : BottomSheetDialogFragment() {
 
+    // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+    override fun getTheme(): Int = R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -42,6 +45,8 @@ class ExportSheet : BottomSheetDialogFragment() {
 
     override fun onStart() {
         super.onStart()
+        // applyTransparentBackground 内部已顺带把 sheet 背景铺到屏幕底(letDrawBehindNavBar),
+        // 消除底部 nav bar 那条透明缝/黑条。
         ReaderSheetUi.applyTransparentBackground(this)
     }
 

@@ -32,6 +32,7 @@ import ceui.pixiv.ui.novel.reader.settings.PresetFonts
 import ceui.pixiv.ui.novel.reader.settings.ReaderFont
 import ceui.pixiv.ui.novel.reader.settings.ReaderSettings
 import ceui.pixiv.ui.novel.reader.settings.ReaderTheme
+import ceui.pixiv.utils.letDrawBehindNavBar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -49,7 +50,11 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        return BottomSheetDialog(requireContext()).apply {
+        // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+        return BottomSheetDialog(
+            requireContext(),
+            R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge,
+        ).apply {
             behavior.skipCollapsed = true
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
             setOnShowListener {
@@ -57,6 +62,8 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
                     com.google.android.material.R.id.design_bottom_sheet,
                 )
                 sheet?.setBackgroundColor(Color.TRANSPARENT)
+                // 让 sheet 背景铺到屏幕底,消除底部 nav bar 那条透明缝/黑条。
+                sheet?.letDrawBehindNavBar()
             }
         }
     }

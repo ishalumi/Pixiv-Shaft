@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import ceui.lisa.R
+import ceui.pixiv.utils.makeSheetTransparentAndFillNavBar
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 /**
@@ -26,6 +27,9 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
  * 不能跨包复用，所以直接取 v3_* color 资源重建一次。
  */
 class SeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
+
+    // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+    override fun getTheme(): Int = R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge
 
     enum class Action { Picker, AllSeparate, MergeOne }
 
@@ -43,7 +47,6 @@ class SeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
         val ctx = requireContext()
         val density = ctx.resources.displayMetrics.density
 
-        val bg = ContextCompat.getColor(ctx, R.color.v3_bg)
         val divider = ContextCompat.getColor(ctx, R.color.v3_surface_2)
         val handleColor = ContextCompat.getColor(ctx, R.color.v3_surface_3)
         val textPrimary = ContextCompat.getColor(ctx, R.color.v3_text_1)
@@ -51,7 +54,10 @@ class SeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(bg)
+            // 圆角 + 日夜自适配底色由自绘 drawable 负责(design_bottom_sheet 会被设透明);
+            // 这样内容背景能一路铺进底部 safe area,暗色模式也不会露白。
+            setBackgroundResource(R.drawable.reader_settings_sheet_bg)
+            clipToOutline = true
             setPadding(0, (12 * density).toInt(), 0, (24 * density).toInt())
         }
 
@@ -116,6 +122,12 @@ class SeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
             root.addView(buildRow(ctx, density, row, textPrimary, textSecondary))
         }
         return root
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // 自绘背景 sheet:设透明 design_bottom_sheet + 内容背景铺进底部 safe area。
+        makeSheetTransparentAndFillNavBar()
     }
 
     private data class Row(

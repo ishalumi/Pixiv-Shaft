@@ -15,6 +15,7 @@ import ceui.lisa.databinding.ItemReaderChapterRowBinding
 import ceui.lisa.databinding.SheetReaderChaptersBinding
 import ceui.pixiv.ui.novel.reader.NovelReaderV3ViewModel
 import ceui.pixiv.ui.novel.reader.paginate.ChapterOutlineEntry
+import ceui.pixiv.utils.letDrawBehindNavBar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -24,6 +25,9 @@ interface ChapterSheetCallback {
 }
 
 class ChapterListSheet : BottomSheetDialogFragment() {
+
+    // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+    override fun getTheme(): Int = R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge
 
     private var _binding: SheetReaderChaptersBinding? = null
     private val binding get() = _binding!!
@@ -148,11 +152,15 @@ internal object ReaderSheetUi {
             state = BottomSheetBehavior.STATE_EXPANDED
             skipCollapsed = true
         }
+        // 让 sheet 背景铺到屏幕底,消除底部 nav bar 那条透明缝/黑条。
+        sheet.letDrawBehindNavBar()
     }
 
     fun applyTransparentBackground(fragment: BottomSheetDialogFragment) {
         val dialog = fragment.dialog as? BottomSheetDialog ?: return
         val sheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet) ?: return
         sheet.setBackgroundColor(Color.TRANSPARENT)
+        // 让 sheet 背景铺到屏幕底,消除底部 nav bar 那条透明缝/黑条。
+        sheet.letDrawBehindNavBar()
     }
 }

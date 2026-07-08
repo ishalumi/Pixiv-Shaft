@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import ceui.lisa.R
+import ceui.pixiv.utils.makeSheetTransparentAndFillNavBar
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 /**
@@ -27,6 +28,9 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
  * 三个 sheet 统一到 V3 配色，这里也走同一调）。
  */
 class CrossSeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
+
+    // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+    override fun getTheme(): Int = R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge
 
     enum class Option { Pick, All, Merge }
 
@@ -47,7 +51,10 @@ class CrossSeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(palette.background)
+            // 圆角 + 日夜自适配底色由自绘 drawable 负责(design_bottom_sheet 会被设透明);
+            // 这样内容背景能一路铺进底部 safe area,暗色模式也不会露白。
+            setBackgroundResource(R.drawable.reader_settings_sheet_bg)
+            clipToOutline = true
             setPadding(0, (12 * density).toInt(), 0, (16 * density).toInt())
         }
 
@@ -112,6 +119,12 @@ class CrossSeriesDownloadOptionsSheet : BottomSheetDialogFragment() {
             root.addView(buildRow(ctx, palette, rowTitle, rowDesc, density, option))
         }
         return root
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // 自绘背景 sheet:设透明 design_bottom_sheet + 内容背景铺进底部 safe area。
+        makeSheetTransparentAndFillNavBar()
     }
 
     private fun buildRow(

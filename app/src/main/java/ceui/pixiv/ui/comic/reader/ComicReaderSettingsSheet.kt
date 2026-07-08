@@ -17,6 +17,7 @@ import ceui.lisa.databinding.ItemReaderSettingSegmentedBinding
 import ceui.lisa.databinding.ItemReaderSettingSliderBinding
 import ceui.lisa.databinding.ItemReaderSettingSwitchBinding
 import ceui.lisa.databinding.SheetComicReaderSettingsBinding
+import ceui.pixiv.utils.letDrawBehindNavBar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -31,12 +32,18 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
     private var surfaceColor: Int = 0x1A000000
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        return BottomSheetDialog(requireContext()).apply {
+        // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+        return BottomSheetDialog(
+            requireContext(),
+            R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge,
+        ).apply {
             behavior.skipCollapsed = true
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
             setOnShowListener {
                 val sheet = findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
                 sheet?.setBackgroundColor(Color.TRANSPARENT)
+                // 让 sheet 背景铺到屏幕底,消除底部 nav bar 那条透明缝/黑条。
+                sheet?.letDrawBehindNavBar()
             }
         }
     }

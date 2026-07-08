@@ -25,6 +25,9 @@ interface BookmarkSheetCallback {
 
 class BookmarksSheet : BottomSheetDialogFragment() {
 
+    // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
+    override fun getTheme(): Int = R.style.ThemeOverlay_App_BottomSheetDialog_EdgeToEdge
+
     private var _binding: SheetReaderBookmarksBinding? = null
     private val binding get() = _binding!!
 
