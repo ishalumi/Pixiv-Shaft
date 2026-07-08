@@ -11,6 +11,7 @@ import ceui.loxia.NovelSeriesResp
 import ceui.loxia.ObjectPool
 import ceui.loxia.RefreshHint
 import ceui.loxia.RefreshState
+import ceui.loxia.SeriesCache
 import ceui.loxia.User
 import ceui.pixiv.ui.common.ArtworkV3Holder
 import ceui.pixiv.ui.common.DataSource
@@ -179,6 +180,10 @@ class NovelSeriesViewModel(
 
     override suspend fun refreshImpl(hint: RefreshHint) {
         super.refreshImpl(hint)
+        // 用户下拉刷新时清掉本系列的 SeriesCache，让阅读器翻页 / 选话 sheet 下次拿到最新话。
+        if (hint == RefreshHint.PullToRefresh) {
+            SeriesCache.invalidate(seriesId)
+        }
         val context = Shaft.getContext()
         val resp = Client.appApi.getNovelSeries(seriesId)
         _series.value = resp
