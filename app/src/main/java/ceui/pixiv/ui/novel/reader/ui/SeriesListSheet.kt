@@ -18,8 +18,8 @@ import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.lisa.databinding.ItemReaderSeriesRowBinding
 import ceui.lisa.databinding.SheetReaderSeriesBinding
-import ceui.loxia.Client
 import ceui.loxia.Novel
+import ceui.loxia.SeriesCache
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,21 +55,9 @@ class SeriesListViewModel(
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val all = mutableListOf<Novel>()
-                    var lastOrder: Int? = null
-                    var total = 0
-                    var firstNovelId: Long? = null
-                    for (i in 0 until MAX_PAGES) {
-                        val resp = Client.appApi.getNovelSeries(seriesId, lastOrder)
-                        if (i == 0) {
-                            total = resp.novel_series_detail?.content_count ?: 0
-                            firstNovelId = resp.novel_series_first_novel?.id
-                        }
-                        resp.novels?.let { all.addAll(it) }
-                        if (resp.next_url == null) break
-                        lastOrder = all.size
-                    }
-                    Triple(all.toList(), total, firstNovelId)
+                    // 走 SeriesCache：阅读器翻页找相邻话时已经拉过就直接命中，不再重复拉整条系列。
+                    val entry = SeriesCache.loadNovelSeries(seriesId)
+                    Triple(SeriesCache.novelsOf(entry), entry.total, entry.firstEpisodeId)
                 }
             }
             result.fold(
@@ -85,8 +73,6 @@ class SeriesListViewModel(
     }
 
     companion object {
-        private const val MAX_PAGES = 5
-
         fun factory(seriesId: Long): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {

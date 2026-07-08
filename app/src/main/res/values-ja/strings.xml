@@ -1473,7 +1473,6 @@
     <string name="comic_reader_no_series">シリーズに属していません</string>
     <string name="comic_reader_series_first">シリーズの最初です</string>
     <string name="comic_reader_series_last">シリーズの最後です</string>
-    <string name="comic_reader_series_loading">シリーズを検索中…</string>
     <string name="comic_reader_long_press_open_advanced">詳細表示（AI / 翻訳）</string>
     <string name="comic_reader_total_minutes">%1$d 分間読書しました</string>
     <string name="comic_reader_enter">漫画を読む</string>

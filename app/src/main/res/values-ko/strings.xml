@@ -1473,7 +1473,6 @@
     <string name="comic_reader_no_series">시리즈에 속하지 않음</string>
     <string name="comic_reader_series_first">시리즈의 첫 화입니다</string>
     <string name="comic_reader_series_last">시리즈의 마지막 화입니다</string>
-    <string name="comic_reader_series_loading">시리즈를 찾는 중…</string>
     <string name="comic_reader_long_press_open_advanced">고급 보기 (AI / 번역)</string>
     <string name="comic_reader_total_minutes">총 %1$d 분 읽음</string>
     <string name="comic_reader_enter">만화 읽기</string>

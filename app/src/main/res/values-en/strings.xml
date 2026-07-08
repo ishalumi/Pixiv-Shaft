@@ -1473,7 +1473,6 @@
     <string name="comic_reader_no_series">Not part of a series</string>
     <string name="comic_reader_series_first">First in series</string>
     <string name="comic_reader_series_last">Last in series</string>
-    <string name="comic_reader_series_loading">Looking up series…</string>
     <string name="comic_reader_long_press_open_advanced">Advanced view (AI / translation)</string>
     <string name="comic_reader_total_minutes">Read for %1$d min</string>
     <string name="comic_reader_enter">Read manga</string>

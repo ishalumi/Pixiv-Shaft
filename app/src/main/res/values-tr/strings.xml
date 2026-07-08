@@ -1473,7 +1473,6 @@
     <string name="comic_reader_no_series">Bir seriye ait değil</string>
     <string name="comic_reader_series_first">Serinin ilki</string>
     <string name="comic_reader_series_last">Serinin sonu</string>
-    <string name="comic_reader_series_loading">Seri aranıyor…</string>
     <string name="comic_reader_long_press_open_advanced">Gelişmiş görünüm (AI / çeviri)</string>
     <string name="comic_reader_total_minutes">%1$d dakika okundu</string>
     <string name="comic_reader_enter">Manga oku</string>

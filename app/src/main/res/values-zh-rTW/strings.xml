@@ -1475,7 +1475,6 @@
     <string name="comic_reader_no_series">此作品不屬於任何系列</string>
     <string name="comic_reader_series_first">已是系列第一篇</string>
     <string name="comic_reader_series_last">已是系列最後一篇</string>
-    <string name="comic_reader_series_loading">正在尋找系列⋯</string>
     <string name="comic_reader_long_press_open_advanced">進階檢視（AI / 翻譯）</string>
     <string name="comic_reader_total_minutes">已閱讀 %1$d 分鐘</string>
     <string name="comic_reader_enter">閱讀漫畫</string>

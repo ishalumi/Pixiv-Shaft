@@ -1473,7 +1473,6 @@
     <string name="comic_reader_no_series">Не входит в серию</string>
     <string name="comic_reader_series_first">Первая в серии</string>
     <string name="comic_reader_series_last">Последняя в серии</string>
-    <string name="comic_reader_series_loading">Ищем серию…</string>
     <string name="comic_reader_long_press_open_advanced">Расширенный просмотр (ИИ / перевод)</string>
     <string name="comic_reader_total_minutes">Прочитано %1$d мин</string>
     <string name="comic_reader_enter">Читать мангу</string>

@@ -21,8 +21,8 @@ import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.databinding.ItemReaderSeriesRowBinding
 import ceui.lisa.databinding.SheetReaderSeriesBinding
 import ceui.lisa.utils.Params
-import ceui.loxia.Client
 import ceui.loxia.Illust
+import ceui.loxia.SeriesCache
 import ceui.pixiv.ui.novel.reader.ui.ReaderSheetUi
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.Dispatchers
@@ -52,22 +52,9 @@ class ComicSeriesListViewModel(
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val all = mutableListOf<Illust>()
-                    var lastOrder: Int? = null
-                    var total = 0
-                    var firstIllustId: Long? = null
-                    for (i in 0 until MAX_PAGES) {
-                        val resp = Client.appApi.getIllustSeries(seriesId, lastOrder)
-                        // 话数取 series_work_count（漫画系列专用字段，非 content_count）。
-                        if (i == 0) {
-                            total = resp.illust_series_detail?.series_work_count ?: 0
-                            firstIllustId = resp.illust_series_first_illust?.id
-                        }
-                        resp.illusts?.let { all.addAll(it) }
-                        if (resp.next_url == null) break
-                        lastOrder = all.size
-                    }
-                    Triple(all.toList(), total, firstIllustId)
+                    // 走 SeriesCache：翻页找相邻话时已经拉过就直接命中，不再重复整条系列拉一遍。
+                    val entry = SeriesCache.loadIllustSeries(seriesId, MAX_PAGES)
+                    Triple(SeriesCache.illustsOf(entry), entry.total, entry.firstEpisodeId)
                 }
             }
             result.fold(

@@ -37,6 +37,7 @@ import ceui.lisa.utils.Params
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.loxia.ObjectPool
+import ceui.loxia.SeriesCache
 import ceui.pixiv.ui.common.ImageUrlViewer
 import ceui.pixiv.ui.common.NOVEL_URL_HEAD
 import ceui.pixiv.ui.common.shareNovel
@@ -923,8 +924,8 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
 
     /**
      * 系列作品的单篇切换——在没有章节 outline 或 outline 已走到头时接力。
-     * 拉全系列列表（<=5 页 / 150 篇上限防失控），找当前位置，跳到邻居。
-     * 返回 true 表示已发起跳转（已启动新 activity），调用方不要再 toast。
+     * 整条系列走 [SeriesCache]（进程内缓存，最多 10 页），找当前位置跳到邻居；只有第一次
+     * 翻页真正打网络，之后全命中。返回 true 表示已发起跳转，调用方不要再 toast。
      */
     private fun tryJumpSeriesNeighbor(forward: Boolean): Boolean {
         val novelId = resolveNovelId()
@@ -934,20 +935,16 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
             // CancellationException 必须重新抛出（用户在请求期间退出 reader → view 销毁 →
             // scope 取消）：runCatching 吞掉它会继续执行到下面 neighbor == null 分支的
             // requireContext()，而此时 fragment 已 detach，必抛 IllegalStateException crash。
-            val neighbor = runCatching {
-                val all = mutableListOf<Novel>()
-                var lastOrder: Int? = null
-                for (i in 0 until 5) {
-                    val resp = Client.appApi.getNovelSeries(seriesId, lastOrder)
-                    resp.novels?.let { all.addAll(it) }
-                    if (resp.next_url == null) break
-                    lastOrder = all.size
-                }
-                val idx = all.indexOfFirst { it.id == novelId }
-                if (idx < 0) return@runCatching null
-                if (forward) all.getOrNull(idx + 1) else all.getOrNull(idx - 1)
+            val neighborId = runCatching {
+                // 整条系列走 SeriesCache 进程内缓存：第一次翻页拉一次，之后翻页 / 开选话
+                // sheet 全部命中，不再每次重拉。
+                val entry = SeriesCache.loadNovelSeries(seriesId)
+                val ids = entry.orderedIds
+                val idx = ids.indexOf(novelId)
+                if (idx < 0) null
+                else if (forward) ids.getOrNull(idx + 1) else ids.getOrNull(idx - 1)
             }.onFailure { if (it is CancellationException) throw it }.getOrNull()
-            if (neighbor == null) {
+            if (neighborId == null || neighborId == 0L) {
                 Toast.makeText(
                     requireContext(),
                     if (forward) getString(R.string.msg_last_chapter) else getString(R.string.msg_first_chapter),
@@ -955,17 +952,18 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 ).show()
                 return@launch
             }
+            val neighborTitle = ObjectPool.get<Novel>(neighborId).value?.title.orEmpty()
             Toast.makeText(
                 requireContext(),
                 getString(
                     if (forward) R.string.msg_jump_next_in_series else R.string.msg_jump_prev_in_series,
-                    neighbor.title.orEmpty(),
+                    neighborTitle,
                 ),
                 Toast.LENGTH_SHORT,
             ).show()
             val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
                 putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "小说正文")
-                putExtra(Params.NOVEL_ID, neighbor.id)
+                putExtra(Params.NOVEL_ID, neighborId)
             }
             startActivity(intent)
             activity?.finish()

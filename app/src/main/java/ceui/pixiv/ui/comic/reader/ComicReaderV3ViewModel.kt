@@ -168,7 +168,7 @@ class ComicReaderV3ViewModel(val illustId: Long) : ViewModel() {
     /** 系列上下篇 intent：UseCase 返回 Outcome → 转 UiEvent。 */
     fun jumpSeriesNeighbor(forward: Boolean) {
         val state = _loadState.value as? LoadState.Loaded ?: return
-        _events.tryEmit(UiEvent.Toast(ceui.lisa.R.string.comic_reader_series_loading))
+        // 系列走 SeriesCache 缓存后，翻页基本是即时的，不再需要「正在查找系列…」的等待 toast。
         jumpSeries.invoke(viewModelScope, state.illust, forward) { outcome ->
             when (outcome) {
                 JumpComicSeriesUseCase.Outcome.NoSeries ->
