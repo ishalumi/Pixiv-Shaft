@@ -831,7 +831,6 @@
     <string name="theme_nowUsing">（使用中）</string>
     <string name="core_string_novel_marker">しおり</string>
     <string name="toast_download_result">ダウンロード完了時に通知</string>
-    <string name="title_activity_home">HomeActivity</string>
     <string name="title_home">Home</string>
     <string name="show_reply">返信を表示</string>
     <string name="comments">コメント</string>

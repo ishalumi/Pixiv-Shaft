@@ -62,12 +62,6 @@
                 android:name="autoStoreLocales"
                 android:value="true" />
         </service>
-        <activity
-            android:name="ceui.pixiv.ui.common.HomeActivity"
-            android:exported="false"
-            android:label="@string/title_activity_home"
-            android:theme="@style/HomeAppTheme" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

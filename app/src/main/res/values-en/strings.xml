@@ -831,7 +831,6 @@
     <string name="theme_nowUsing">(In use)</string>
     <string name="core_string_novel_marker">Markers</string>
     <string name="toast_download_result">Show an in-app notice when downloads complete</string>
-    <string name="title_activity_home">HomeActivity</string>
     <string name="title_home">Home</string>
     <string name="show_reply">Show replies</string>
     <string name="comments">Comments</string>

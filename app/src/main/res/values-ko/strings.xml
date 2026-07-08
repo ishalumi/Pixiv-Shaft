@@ -831,7 +831,6 @@
     <string name="theme_nowUsing">(사용 중)</string>
     <string name="core_string_novel_marker">책갈피</string>
     <string name="toast_download_result">다운로드 완료 시 앱 내 알림 표시</string>
-    <string name="title_activity_home">HomeActivity</string>
     <string name="title_home">Home</string>
     <string name="show_reply">답글 보기</string>
     <string name="comments">댓글</string>

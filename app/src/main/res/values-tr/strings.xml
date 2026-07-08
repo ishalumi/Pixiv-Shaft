@@ -831,7 +831,6 @@
     <string name="theme_nowUsing">(Kullanılıyor)</string>
     <string name="core_string_novel_marker">Roman yer imi</string>
     <string name="toast_download_result">İndirme tamamlanınca uygulama içinde bildirim göster</string>
-    <string name="title_activity_home">HomeActivity</string>
     <string name="title_home">Home</string>
     <string name="show_reply">Yanıtları göster</string>
     <string name="comments">Yorumlar</string>

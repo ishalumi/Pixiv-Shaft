@@ -321,20 +321,14 @@ fun Fragment.setUpToolbar(binding: LayoutToolbarBinding, content: ViewGroup) {
         }
     } else {
         binding.toolbarLayout.isVisible = true
-        if (activity is HomeActivity) {
-            binding.naviBack.setOnClick {
-                findNavController().popBackStack()
-            }
-        } else {
-            binding.toolbarLayout.background = ColorDrawable(
-                Common.resolveThemeAttribute(
-                    requireContext(),
-                    androidx.appcompat.R.attr.colorPrimary
-                )
+        binding.toolbarLayout.background = ColorDrawable(
+            Common.resolveThemeAttribute(
+                requireContext(),
+                androidx.appcompat.R.attr.colorPrimary
             )
-            binding.naviBack.setOnClick {
-                requireActivity().finish()
-            }
+        )
+        binding.naviBack.setOnClick {
+            requireActivity().finish()
         }
         binding.naviMore.setOnClick {
             requireActivity().findCurrentFragmentOrNull()?.view?.animateWiggle()

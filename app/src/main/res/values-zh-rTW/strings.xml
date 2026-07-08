@@ -833,7 +833,6 @@
     <string name="theme_nowUsing">（正在使用）</string>
     <string name="core_string_novel_marker">小說書籤</string>
     <string name="toast_download_result">下載完成 APP 內提示</string>
-    <string name="title_activity_home">HomeActivity</string>
     <string name="title_home">Home</string>
     <string name="show_reply">查看回覆</string>
     <string name="comments">評論</string>

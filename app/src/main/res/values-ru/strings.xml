@@ -831,7 +831,6 @@
     <string name="theme_nowUsing">(используется)</string>
     <string name="core_string_novel_marker">Метки</string>
     <string name="toast_download_result">Показывать уведомление после завершения загрузки</string>
-    <string name="title_activity_home">HomeActivity</string>
     <string name="title_home">Home</string>
     <string name="show_reply">Показать ответы</string>
     <string name="comments">Комментарии</string>
