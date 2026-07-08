@@ -280,6 +280,10 @@ class ArtworkDetailAdapter(
             val d = ctx.resources.displayMetrics.density
             b.seriesStrip.background = palette.seriesStripBg(20f * d)
             b.seriesIcon.background = palette.seriesIconBg(10f * d)
+            // 文字跟随主题:浅色条底白字会糊,改主题色压深(日夜双模)
+            b.seriesName.setTextColor(palette.seriesStripText)
+            b.seriesLabel.setTextColor(palette.seriesStripText)
+            b.seriesChevron.setTextColor(palette.seriesStripText)
             b.root.setOnClickListener {
                 val intent = Intent(ctx, TemplateActivity::class.java)
                 intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画系列详情")

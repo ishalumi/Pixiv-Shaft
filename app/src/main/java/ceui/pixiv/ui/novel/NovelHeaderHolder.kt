@@ -50,6 +50,10 @@ class NovelHeaderViewHolder(bd: CellNovelHeaderBinding) :
         val palette = V3Palette.from(context)
         binding.seriesStrip.background = palette.seriesStripBg(20f * d)
         binding.seriesIcon.background = palette.seriesIconBg(10f * d)
+        // 文字跟随主题:浅色条底白字会糊,改主题色压深(日夜双模)
+        binding.seriesName.setTextColor(palette.seriesStripText)
+        binding.seriesLabel.setTextColor(palette.seriesStripText)
+        binding.seriesChevron.setTextColor(palette.seriesStripText)
         binding.seriesStrip.setOnClick { sender ->
             liveNovel.value?.series?.let { series ->
                 sender.findActionReceiverOrNull<NovelSeriesActionReceiver>()

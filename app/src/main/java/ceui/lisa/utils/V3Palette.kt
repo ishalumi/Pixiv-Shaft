@@ -61,6 +61,14 @@ class V3Palette(@ColorInt val primary: Int, val isDark: Boolean = true) {
         withAlpha(ensureLightEnough(primary, 0.68f), 0.70f)
     else withAlpha(ensureDarkEnough(primary, 0.35f), 0.70f)
 
+    /**
+     * Series strip 正文文字(系列名/label/chevron 共用) —— 深色模式白字压在暗靛蓝渐变条上;
+     * 浅色模式条底被 [seriesStripBg] tint 成浅粉,白字会糊,改主题色压深(L≤0.30)保证可读。
+     * label 靠 XML 里 0.7 view alpha 再降一档灰度,不必单独配色。
+     */
+    @ColorInt val seriesStripText: Int = if (isDark) 0xFFFFFFFF.toInt()
+        else ensureDarkEnough(primary, 0.30f)
+
     // ── scroll progress gradient ────────────────────────────────────
 
     /** Scroll progress bar: primary → shifted hue → gold */
