@@ -10,6 +10,7 @@ import ceui.lisa.annotations.ItemHolder
 import ceui.lisa.databinding.CellNovelHeaderBinding
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Params
+import ceui.lisa.utils.V3Palette
 import ceui.loxia.Novel
 import ceui.loxia.ObjectPool
 import ceui.loxia.Series
@@ -44,6 +45,11 @@ class NovelHeaderViewHolder(bd: CellNovelHeaderBinding) :
             openTagBookmarkForNovel(sender, novel)
             true
         }
+        // 系列条背景跟随主题色(与 artwork V3 详情页一致),不再用写死的紫/蓝渐变
+        val d = context.resources.displayMetrics.density
+        val palette = V3Palette.from(context)
+        binding.seriesStrip.background = palette.seriesStripBg(20f * d)
+        binding.seriesIcon.background = palette.seriesIconBg(10f * d)
         binding.seriesStrip.setOnClick { sender ->
             liveNovel.value?.series?.let { series ->
                 sender.findActionReceiverOrNull<NovelSeriesActionReceiver>()

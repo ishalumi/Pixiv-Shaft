@@ -279,6 +279,7 @@ class ArtworkDetailAdapter(
             // Apply themed series strip
             val d = ctx.resources.displayMetrics.density
             b.seriesStrip.background = palette.seriesStripBg(20f * d)
+            b.seriesIcon.background = palette.seriesIconBg(10f * d)
             b.root.setOnClickListener {
                 val intent = Intent(ctx, TemplateActivity::class.java)
                 intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画系列详情")
