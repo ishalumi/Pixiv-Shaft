@@ -1,11 +1,16 @@
 package ceui.pixiv.ui.search.v3
 
 import android.app.Dialog
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -62,7 +67,8 @@ abstract class V3BottomSheetBase : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        applyThemeCardTint(view)
+        // 分段样式要等子类在自己的 onViewCreated 里把行显隐 / 动态行都定完再套，post 一拍。
+        view.post { applySegmentedCardStyle() }
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.updatePadding(bottom = bars.bottom)
@@ -72,16 +78,81 @@ abstract class V3BottomSheetBase : BottomSheetDialogFragment() {
     }
 
     /**
-     * 把布局里 `android:tag="v3_card"` 的 settings 卡片底色换成 [V3Palette.settingsCardBg]，
-     * 让卡片底色隐约跟随主题色（XML 里的 bg_v3_settings_card 是固定中性底，切主题色不动）。
-     * 每张卡片单独 new 一个 drawable，避免共享实例的 bounds/state 冲突。
+     * 把 `android:tag="v3_card"` 的 settings 卡片重排成新版设置页同款 MD3-E 分段分组：
+     * 卡容器去掉整卡底，卡内每一行单独套 [V3Palette.cardFill] 底 + 分段圆角
+     * （段首 20dp / 段中 5dp / 段尾 20dp，同 bg_m3_row_*），行间 1dp 分割线转成 2dp 透明间隙。
+     *
+     * 子类里行的显隐（illust/novel 模式）会影响首尾判定，所以在 base 的 [onViewCreated]
+     * 里 post 执行；之后再动态改行显隐的 sheet（如 DateRangePickerSheet 的「清除日期」行）
+     * 改完自己再调一次这个方法。
+     *
+     * 分类规则（只看 visibility != GONE 的直接子 view）：
+     * - 纯 View（1dp 分割线）→ 2dp 透明间隙；
+     * - ViewGroup 或可点击的 TextView（文字动作行）→ 分段行；
+     * - 不可点击的 TextView（卡内小节标题）→ 断段，自身不套底。
      */
-    private fun applyThemeCardTint(root: View) {
-        val d = root.resources.displayMetrics.density
-        val radius = 14f * d
-        val stroke = (0.5f * d).roundToInt().coerceAtLeast(1)
-        forEachTagged(root, V3_CARD_TAG) {
-            it.background = palette.settingsCardBg(radius, stroke)
+    protected fun applySegmentedCardStyle() {
+        val root = view ?: return
+        forEachTagged(root, V3_CARD_TAG) { card ->
+            if (card is ViewGroup) restyleCardSegments(card)
+        }
+    }
+
+    private fun restyleCardSegments(card: ViewGroup) {
+        val d = card.resources.displayMetrics.density
+        val gapPx = (2 * d).roundToInt()
+        val strokePx = (0.5f * d).roundToInt().coerceAtLeast(1)
+        val radiusBig = 20f * d
+        val radiusSmall = 5f * d
+
+        card.background = null
+        if (card is android.widget.LinearLayout) card.clipToOutline = false
+
+        val segments = mutableListOf<List<View>>()
+        var current = mutableListOf<View>()
+        for (i in 0 until card.childCount) {
+            val child = card.getChildAt(i)
+            if (child.visibility == View.GONE) continue
+            when {
+                child !is ViewGroup && child !is TextView -> {
+                    // 1dp 分割线 → 2dp 透明间隙（保留 view 本体，业务代码还会切它的显隐）
+                    child.background = null
+                    (child.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                        lp.height = gapPx
+                        lp.marginStart = 0
+                        lp.marginEnd = 0
+                        child.layoutParams = lp
+                    }
+                }
+                child is ViewGroup || child.isClickable -> current.add(child)
+                else -> {
+                    // 卡内小节标题：断段
+                    if (current.isNotEmpty()) {
+                        segments.add(current)
+                        current = mutableListOf()
+                    }
+                }
+            }
+        }
+        if (current.isNotEmpty()) segments.add(current)
+
+        val highlight = TypedValue().let { tv ->
+            card.context.theme.resolveAttribute(android.R.attr.colorControlHighlight, tv, true)
+            tv.data
+        }
+        for (segment in segments) {
+            segment.forEachIndexed { idx, row ->
+                val top = if (idx == 0) radiusBig else radiusSmall
+                val bottom = if (idx == segment.size - 1) radiusBig else radiusSmall
+                val shape = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadii = floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom)
+                    setColor(palette.cardFill)
+                    setStroke(strokePx, palette.cardHairline)
+                }
+                // 行原本的 ?attr/selectableItemBackground 被换掉，用 ripple 包住保留按压反馈
+                row.background = RippleDrawable(ColorStateList.valueOf(highlight), shape, null)
+            }
         }
     }
 

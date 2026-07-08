@@ -113,6 +113,8 @@ class DateRangePickerSheet : V3BottomSheetBase() {
         val hasDates = draftStart != null || draftEnd != null
         binding.clearDivider.isVisible = hasDates
         binding.btnClearDates.isVisible = hasDates
+        // 「清除日期」行显隐变化会改变段尾归属，重套分段圆角
+        applySegmentedCardStyle()
     }
 
     private fun bindDateRow(row: CellSearchFilterRowBinding, date: String?, titleRes: Int, unsetRes: Int) {
