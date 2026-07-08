@@ -211,26 +211,32 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 Timber.tag("V3MultiP").d("[Fragment.observe] incomplete bean, wait for full detail (illustId=$illustId)")
                 return@observe
             }
-            val metaPagesInfo = try {
-                val mp = illust.meta_pages
-                if (mp == null) "null" else "size=${mp.size}"
-            } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
-            val metaSingleInfo = try {
-                if (illust.meta_single_page == null) "null"
-                else "original=${illust.meta_single_page.original_image_url?.take(80) ?: "null"}"
-            } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
-            Timber.tag("V3MultiP").d(
-                "[Fragment.observe] emission #$observerEmissionCount, " +
-                    "illustId=$illustId, page_count=${illust.page_count}, " +
-                    "width=${illust.width}, height=${illust.height}, " +
-                    "meta_pages=$metaPagesInfo, meta_single_page=$metaSingleInfo, " +
-                    "image_urls.large=${illust.image_urls?.large?.take(80) ?: "null"}, " +
-                    "adapterAlreadyCreated=${illustAdapter != null}"
-            )
+            // 逐次 emission 的 meta 探针日志只在 debug 包跑(release 里 Timber 照样 plant,
+            // 这些字符串拼接每次 observer fire 都白执行)。
+            if (ceui.lisa.BuildConfig.IS_DEBUG_MODE) {
+                val metaPagesInfo = try {
+                    val mp = illust.meta_pages
+                    if (mp == null) "null" else "size=${mp.size}"
+                } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
+                val metaSingleInfo = try {
+                    if (illust.meta_single_page == null) "null"
+                    else "original=${illust.meta_single_page.original_image_url?.take(80) ?: "null"}"
+                } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
+                Timber.tag("V3MultiP").d(
+                    "[Fragment.observe] emission #$observerEmissionCount, " +
+                        "illustId=$illustId, page_count=${illust.page_count}, " +
+                        "width=${illust.width}, height=${illust.height}, " +
+                        "meta_pages=$metaPagesInfo, meta_single_page=$metaSingleInfo, " +
+                        "image_urls.large=${illust.image_urls?.large?.take(80) ?: "null"}, " +
+                        "adapterAlreadyCreated=${illustAdapter != null}"
+                )
+            }
             if (illustAdapter == null) {
                 // Dump the full illust JSON once per page open — for debugging
                 // server-side shape changes / missing fields. Tag: V3IllustJson.
-                runCatching {
+                // 只在 debug 包做:Timber 是无条件 plant 的,release 里这段会把整个 illust
+                // (多P作品几十KB)在主线程全量 Gson 序列化再分块打日志,每次开页白烧一遍。
+                if (ceui.lisa.BuildConfig.IS_DEBUG_MODE) runCatching {
                     val json = Shaft.sGson.toJson(illust)
                     // Logcat truncates each line around 4k chars; chunk so multi-page
                     // works with long tag arrays still show in full.

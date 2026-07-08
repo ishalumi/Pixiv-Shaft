@@ -98,14 +98,17 @@ class ArtworkV3ViewModel(
 
     private val illustBeanObserver = Observer<IllustsBean> { bean ->
         if (bean != null) {
-            val mpInfo = try {
-                if (bean.meta_pages == null) "null" else "size=${bean.meta_pages.size}"
-            } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
-            Timber.tag("V3MultiP").d(
-                "[ViewModel.illustBeanObserver] FIRE illustId=$illustId, " +
-                    "page_count=${bean.page_count}, w=${bean.width}, h=${bean.height}, " +
-                    "meta_pages=$mpInfo, prevIllustBeanWasNull=${illustBean == null}"
-            )
+            // meta 探针日志只在 debug 包跑(Timber 无条件 plant,release 里这些拼接白执行)
+            if (ceui.lisa.BuildConfig.IS_DEBUG_MODE) {
+                val mpInfo = try {
+                    if (bean.meta_pages == null) "null" else "size=${bean.meta_pages.size}"
+                } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
+                Timber.tag("V3MultiP").d(
+                    "[ViewModel.illustBeanObserver] FIRE illustId=$illustId, " +
+                        "page_count=${bean.page_count}, w=${bean.width}, h=${bean.height}, " +
+                        "meta_pages=$mpInfo, prevIllustBeanWasNull=${illustBean == null}"
+                )
+            }
             illustBean = bean
             // 精简/网页来源的 bean 缺分页图等必要字段,用它建多图分页会残缺。先回 API 拉完整版
             // (页面转圈圈),拉到后整体覆盖 ObjectPool,observer 带完整数据再次 fire 时正常渲染。

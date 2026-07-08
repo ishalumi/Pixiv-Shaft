@@ -266,13 +266,15 @@
                                     android:visibility="gone" />
                             </LinearLayout>
 
-                            <!-- 内联统计条:关注 · 好P友 · 收藏,每段可点 -->
+                            <!-- 内联统计条:关注 · 好P友 · 收藏,每段可点。
+                                 数字(18sp Montserrat)和标签(12sp CJK)字体盒高度差异大,
+                                 center_vertical 会让基线错位看起来没对齐,必须走基线对齐:
+                                 容器靠 baselineAlignedChildIndex 把数字的基线暴露出去。 -->
                             <LinearLayout
                                 android:id="@+id/stats_strip"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="16dp"
-                                android:gravity="center_vertical"
                                 android:orientation="horizontal">
 
                                 <LinearLayout
@@ -280,7 +282,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:gravity="center_vertical"
+                                    android:baselineAlignedChildIndex="0"
                                     android:orientation="horizontal"
                                     android:paddingVertical="2dp">
 
@@ -317,7 +319,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:gravity="center_vertical"
+                                    android:baselineAlignedChildIndex="0"
                                     android:orientation="horizontal"
                                     android:paddingVertical="2dp">
 
@@ -356,7 +358,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:gravity="center_vertical"
+                                    android:baselineAlignedChildIndex="0"
                                     android:orientation="horizontal"
                                     android:paddingVertical="2dp"
                                     android:visibility="gone">
