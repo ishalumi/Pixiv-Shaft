@@ -2087,4 +2087,8 @@
     <string name="settings_cat_bookmark">Favoriler ve etkileşim</string>
     <string name="settings_cat_ai">Yapay zekâ özellikleri</string>
     <string name="settings_cat_data">Yedekleme ve önbellek</string>
+    <!-- 侧边栏分组标题 -->
+    <string name="drawer_section_discover">Gezinti ve keşif</string>
+    <string name="drawer_section_mine">Bana ait</string>
+    <string name="drawer_section_records">Kayıtlar ve yönetim</string>
 </resources>

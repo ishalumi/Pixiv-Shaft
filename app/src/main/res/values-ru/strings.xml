@@ -2087,4 +2087,8 @@
     <string name="settings_cat_bookmark">Закладки и действия</string>
     <string name="settings_cat_ai">Функции ИИ</string>
     <string name="settings_cat_data">Резервное копирование и кэш</string>
+    <!-- 侧边栏分组标题 -->
+    <string name="drawer_section_discover">Обзор и рекомендации</string>
+    <string name="drawer_section_mine">Моё</string>
+    <string name="drawer_section_records">Записи и управление</string>
 </resources>

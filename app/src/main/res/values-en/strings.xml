@@ -2087,4 +2087,8 @@
     <string name="settings_cat_bookmark">Bookmarks &amp; actions</string>
     <string name="settings_cat_ai">AI features</string>
     <string name="settings_cat_data">Backup &amp; cache</string>
+    <!-- 侧边栏分组标题 -->
+    <string name="drawer_section_discover">Browse &amp; discover</string>
+    <string name="drawer_section_mine">Mine</string>
+    <string name="drawer_section_records">Records &amp; management</string>
 </resources>

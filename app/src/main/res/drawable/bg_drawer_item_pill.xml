@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3 navigation drawer 条目：平时透明，按压时全宽 28dp 胶囊 ripple（mask-only）。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?android:attr/colorControlHighlight">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/white" />
+            <corners android:radius="28dp" />
+        </shape>
+    </item>
+</ripple>

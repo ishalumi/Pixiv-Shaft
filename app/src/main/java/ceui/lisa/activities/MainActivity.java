@@ -12,10 +12,12 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
@@ -26,9 +28,9 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentPagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
+import com.blankj.utilcode.util.BarUtils;
 import com.bumptech.glide.Glide;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.navigation.NavigationView;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction;
 import com.tbruyelle.rxpermissions3.RxPermissions;
@@ -58,13 +60,9 @@ import ceui.pixiv.session.SessionManager;
 /**
  * 主页
  */
-public class MainActivity extends BaseActivity<ActivityCoverBinding>
-        implements NavigationView.OnNavigationItemSelectedListener {
+public class MainActivity extends BaseActivity<ActivityCoverBinding> {
 
     public static final String[] ALL_SELECT_WAY = new String[]{"图库选图", "文件管理器选图"};
-    private ImageView userHead;
-    private TextView username;
-    private TextView user_email;
     private long mExitTime;
     private Fragment[] baseFragments = null;
 
@@ -72,7 +70,7 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         @Override
         public void onReceive(android.content.Context context, Intent intent) {
             android.util.Log.d("Discovery/Gate", "received PROFILE_READY broadcast");
-            updateDiscoveryVisibility();
+            buildDrawerMenu();
         }
     };
 
@@ -89,42 +87,24 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
     @Override
     protected void initView() {
         baseBind.drawerLayout.setScrimColor(Color.TRANSPARENT);
-        baseBind.navView.setNavigationItemSelectedListener(this);
-        // 发现入口默认隐藏，画像完备后才展示
-        baseBind.navView.getMenu().findItem(R.id.nav_discovery).setVisible(false);
-        updateDiscoveryVisibility();
-        // 试验性分区:
-        //   github 渠道 release 保留「批量下载 Debug」(存储占用诊断) +「操作记录」(用户自查动作历史) +「站长推荐」;其它调试入口仅 debug 可见。
-        //   google play 渠道为合规起见整段隐藏;且服务端依赖入口(站长推荐 / 操作记录)在任何 google build 都不展示。
-        boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
-        boolean isLite = ceui.lisa.BuildConfig.IS_LITE;
-        if (isLite && !isDebugBuild) {
-            baseBind.navView.getMenu().findItem(R.id.nav_experimental_section).setVisible(false);
-        } else {
-            // 当前最热 / 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
-            baseBind.navView.getMenu().findItem(R.id.nav_current_hot).setVisible(!isLite);
-            baseBind.navView.getMenu().findItem(R.id.nav_site_recommend).setVisible(!isLite);
-            baseBind.navView.getMenu().findItem(R.id.nav_event_history).setVisible(!isLite);
-            // 标签热度导出:纯调试工具,只在 debug build 放出(menu 里默认 visible=false)。
-            baseBind.navView.getMenu().findItem(R.id.nav_tag_popular_export).setVisible(isDebugBuild);
-            // 聊天室 / 广场入口由「设置 - 试验性」开关控制,默认关闭;onResume 时再刷新一次。
-            updateExperimentalEntriesVisibility();
-        }
-        // 通知中心走 pixiv 官方 API,google play release 渠道为合规起见隐藏整个入口。
-        if (isLite && !isDebugBuild) {
-            baseBind.navView.getMenu().findItem(R.id.nav_notifications).setVisible(false);
-        }
+
+        // 抽屉整体 edge-to-edge:顶部补 status bar,底部补 nav bar(BaseActivity 开了 EdgeToEdge)
+        baseBind.drawerContent.setPaddingRelative(
+                baseBind.drawerContent.getPaddingStart(),
+                BarUtils.getStatusBarHeight() + dp(12),
+                baseBind.drawerContent.getPaddingEnd(),
+                BarUtils.getNavBarHeight() + dp(24));
+        // MD3 modal drawer:容器右缘 28dp 圆角(outline 来自 bg_drawer_sheet)
+        baseBind.navView.setClipToOutline(true);
+        buildDrawerMenu();
 
         // 监听画像构建完成，刷新发现入口可见性
         android.content.IntentFilter profileFilter = new android.content.IntentFilter(
                 ceui.pixiv.db.discovery.ProfileManager.ACTION_PROFILE_READY);
         LocalBroadcastManager.getInstance(this).registerReceiver(profileReadyReceiver, profileFilter);
 
-        userHead = baseBind.navView.getHeaderView(0).findViewById(R.id.user_head);
-        username = baseBind.navView.getHeaderView(0).findViewById(R.id.user_name);
-        user_email = baseBind.navView.getHeaderView(0).findViewById(R.id.user_email);
         initDrawerHeader();
-        userHead.setOnClickListener(new View.OnClickListener() {
+        baseBind.drawerHeader.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent userIntent = new Intent(mContext, UActivity.class);
@@ -133,7 +113,7 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
                 baseBind.drawerLayout.closeDrawer(GravityCompat.START);
             }
         });
-        userHead.setOnLongClickListener(new View.OnLongClickListener() {
+        baseBind.userHead.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
                 boolean filterEnable = Shaft.sSettings.isR18FilterTempEnable();
@@ -338,54 +318,134 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         }
     }
 
-    /**
-     * 每次打开侧边栏时重新检查画像是否完备，决定发现入口是否可见。
-     */
-    private void updateDiscoveryVisibility() {
-        ceui.pixiv.db.discovery.UserProfile profile = ceui.pixiv.db.discovery.ProfileManager.INSTANCE.cached();
-        if (profile == null) {
-            baseBind.navView.getMenu().findItem(R.id.nav_discovery).setVisible(false);
-            android.util.Log.d("Discovery/Gate", "profile=null, hide discovery");
-            return;
+    /** 侧边栏一条入口:分发 id + 图标 + 标题 + 可见性门控。 */
+    private static class DrawerEntry {
+        final int id;
+        final int iconRes;
+        final int titleRes;
+        final boolean visible;
+
+        DrawerEntry(int id, int iconRes, int titleRes, boolean visible) {
+            this.id = id;
+            this.iconRes = iconRes;
+            this.titleRes = titleRes;
+            this.visible = visible;
         }
-        int tagCount = profile.getTagScores().size();
-        int seedCount = profile.getSeedIllusts().size();
-        int strongAuthors = 0;
-        for (Float v : profile.getAuthorScores().values()) {
-            if (v >= 3f) strongAuthors++;
+
+        DrawerEntry(int id, int iconRes, int titleRes) {
+            this(id, iconRes, titleRes, true);
         }
-        boolean ready = profile.isReady();
-        baseBind.navView.getMenu().findItem(R.id.nav_discovery).setVisible(ready);
-        android.util.Log.d("Discovery/Gate", "isReady=" + ready
-                + " | tags=" + tagCount + "/15"
-                + " seeds=" + seedCount + "/5"
-                + " strongAuthors=" + strongAuthors + "/10");
     }
 
     /**
-     * 聊天室 / 广场入口可见性 = 「设置 - 试验性」对应开关。google play release 整段试验性分区隐藏,
-     * 此时不参与(与 initView 的渠道 gate 保持一致)。从设置页返回时 onResume 会再调一次。
+     * 重建侧边栏分组(MD3-E 分段样式,同设置页)。所有入口的可见性门控收口在这里:
+     * - 发现:画像完备(PROFILE_READY 广播 / onResume 时重建)
+     * - 试验性分区:github 渠道 release 保留(其中 聊天室/广场 跟「设置 - 试验性」开关,
+     *   标签热度导出 仅 debug);google play 渠道为合规起见整段隐藏。
+     * - 当前最热 / 站长推荐 / 操作记录 / 通知中心:服务端或官方 API 依赖,google flavor 不展示。
+     * 行按可见项重新生成,分段圆角(top/mid/bottom/single)永远贴合,不存在隐藏行破角问题。
      */
-    private void updateExperimentalEntriesVisibility() {
+    private void buildDrawerMenu() {
         boolean isDebugBuild = ceui.lisa.BuildConfig.DEBUG;
         boolean isLite = ceui.lisa.BuildConfig.IS_LITE;
-        if (isLite && !isDebugBuild) {
+        boolean experimentalAllowed = !(isLite && !isDebugBuild);
+
+        ceui.pixiv.db.discovery.UserProfile profile = ceui.pixiv.db.discovery.ProfileManager.INSTANCE.cached();
+        boolean discoveryReady = profile != null && profile.isReady();
+        android.util.Log.d("Discovery/Gate", "buildDrawerMenu, discoveryReady=" + discoveryReady);
+
+        LinearLayout sections = baseBind.drawerSections;
+        sections.removeAllViews();
+
+        addDrawerSection(sections, R.string.drawer_section_discover, new DrawerEntry[]{
+                new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery, discoveryReady),
+                new DrawerEntry(R.id.nav_prime_tags, R.drawable.outline_whatshot_24, R.string.prime_tags),
+                new DrawerEntry(R.id.nav_pinned_tags, R.drawable.ic_baseline_bookmark_24, R.string.pinned_tags),
+                new DrawerEntry(R.id.nav_new_work, R.drawable.ic_fiber_new_black_24dp, R.string.latest_work),
+                new DrawerEntry(R.id.nav_feature, R.drawable.ic_huangguan, R.string.string_248),
+                new DrawerEntry(R.id.nav_current_hot, R.drawable.ic_equalizer_black_24dp, R.string.current_hot, !isLite),
+                new DrawerEntry(R.id.nav_site_recommend, R.drawable.ic_baseline_star_24, R.string.site_recommend, !isLite),
+        });
+
+        addDrawerSection(sections, R.string.drawer_section_mine, new DrawerEntry[]{
+                new DrawerEntry(R.id.main_page, R.drawable.ic_home_black_24dp, R.string.user_main_page),
+                new DrawerEntry(R.id.illust_star, R.drawable.ic_baseline_palette_24, R.string.string_319),
+                new DrawerEntry(R.id.novel_star, R.drawable.ic_baseline_menu_book_24, R.string.string_320),
+                new DrawerEntry(R.id.watch_later, R.drawable.ic_watch_later_24, R.string.watch_later),
+                new DrawerEntry(R.id.watchlist, R.drawable.ic_fiber_new_black_24dp, R.string.watchlist),
+                new DrawerEntry(R.id.novel_markers, R.drawable.ic_baseline_bookmark_24, R.string.core_string_novel_marker),
+                new DrawerEntry(R.id.follow_user, R.drawable.ic_baseline_how_to_reg_24, R.string.string_321),
+                new DrawerEntry(R.id.nav_fans, R.drawable.ic_supervisor_account_black_24dp, R.string.string_322),
+                new DrawerEntry(R.id.new_work, R.drawable.ic_baseline_post_work_48, R.string.string_444),
+        });
+
+        addDrawerSection(sections, R.string.drawer_section_records, new DrawerEntry[]{
+                new DrawerEntry(nav_gallery, R.drawable.ic_file_download_black_24dp, R.string.download_manager),
+                new DrawerEntry(nav_slideshow, R.drawable.ic_history_black_24dp, R.string.view_history),
+                new DrawerEntry(R.id.nav_notifications, R.drawable.ic_notifications_black_24dp, R.string.notifications_and_info, experimentalAllowed),
+                new DrawerEntry(R.id.muted_list, R.drawable.ic_not_interested_black_24dp, R.string.muted_history),
+                new DrawerEntry(R.id.nav_event_history, R.drawable.ic_baseline_list_24, R.string.event_history, !isLite),
+        });
+
+        addDrawerSection(sections, R.string.the_others, new DrawerEntry[]{
+                new DrawerEntry(R.id.nav_ai_upscale, R.drawable.baseline_auto_awesome_24, R.string.string_ai_upscale_standalone),
+                new DrawerEntry(R.id.nav_reverse, R.drawable.ic_collections_black_24dp, R.string.search_image_origin),
+                new DrawerEntry(R.id.nav_manage, R.drawable.ic_baseline_settings_24, R.string.app_settings),
+                new DrawerEntry(R.id.nav_share, R.drawable.ic_error_black_24dp, R.string.about_app),
+        });
+
+        addDrawerSection(sections, R.string.experimental_section, new DrawerEntry[]{
+                new DrawerEntry(R.id.nav_local_novel, R.drawable.ic_baseline_menu_book_24, R.string.local_novel_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_chat_room, R.drawable.ic_chat_black_24dp, R.string.chat_drawer_entry,
+                        experimentalAllowed && Shaft.sSettings.isShowChatRoomEntry()),
+                new DrawerEntry(R.id.nav_plaza, R.drawable.ic_plaza_forum_24, R.string.plaza_drawer_entry,
+                        experimentalAllowed && Shaft.sSettings.isShowPlazaEntry()),
+                new DrawerEntry(R.id.nav_debug_bulk_dl, R.drawable.ic_baseline_settings_24, R.string.debug_bulk_dl_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_saf_perf_test, R.drawable.ic_baseline_settings_24, R.string.saf_perf_test_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_network_test, R.drawable.ic_baseline_settings_24, R.string.nav_network_test_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_tag_popular_export, R.drawable.ic_baseline_settings_24, R.string.tag_popular_export_entry, isDebugBuild),
+        });
+    }
+
+    /**
+     * 生成一个分组(MD3 drawer section):分割线 + 小节标题 + 透明底胶囊行。
+     * 全组不可见则整组(含分割线/标题)不出现。
+     */
+    private void addDrawerSection(LinearLayout parent, int titleRes, DrawerEntry[] entries) {
+        java.util.List<DrawerEntry> visible = new java.util.ArrayList<>();
+        for (DrawerEntry entry : entries) {
+            if (entry.visible) {
+                visible.add(entry);
+            }
+        }
+        if (visible.isEmpty()) {
             return;
         }
-        baseBind.navView.getMenu().findItem(R.id.nav_chat_room).setVisible(Shaft.sSettings.isShowChatRoomEntry());
-        baseBind.navView.getMenu().findItem(R.id.nav_plaza).setVisible(Shaft.sSettings.isShowPlazaEntry());
+        LayoutInflater inflater = LayoutInflater.from(this);
+        if (parent.getChildCount() > 0) {
+            parent.addView(inflater.inflate(R.layout.item_drawer_divider, parent, false));
+        }
+        TextView header = (TextView) inflater.inflate(R.layout.item_drawer_section, parent, false);
+        header.setText(titleRes);
+        parent.addView(header);
+        for (DrawerEntry entry : visible) {
+            View row = inflater.inflate(R.layout.item_drawer_row, parent, false);
+            ((ImageView) row.findViewById(R.id.drawer_row_icon)).setImageResource(entry.iconRes);
+            ((TextView) row.findViewById(R.id.drawer_row_title)).setText(entry.titleRes);
+            row.setOnClickListener(v -> {
+                handleDrawerAction(entry.id);
+                baseBind.drawerLayout.closeDrawer(GravityCompat.START);
+            });
+            parent.addView(row);
+        }
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density);
     }
 
     public DrawerLayout getDrawer() {
         return baseBind.drawerLayout;
-    }
-
-    @SuppressLint("NonConstantResourceId")
-    @Override
-    public boolean onNavigationItemSelected(MenuItem item) {
-        handleDrawerAction(item.getItemId());
-        baseBind.drawerLayout.closeDrawer(GravityCompat.START);
-        return true;
     }
 
     /**
@@ -544,10 +604,10 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
         if (SessionManager.INSTANCE.isLoggedIn() && SessionManager.INSTANCE.getLoggedInUser() != null) {
             Glide.with(mContext)
                     .load(GlideUtil.getHead(SessionManager.INSTANCE.getLoggedInUser()))
-                    .into(userHead);
-            username.setText(SessionManager.INSTANCE.getLoggedInUser().getName());
+                    .into(baseBind.userHead);
+            baseBind.userName.setText(SessionManager.INSTANCE.getLoggedInUser().getName());
             String mailAddress = SessionManager.INSTANCE.getMailAddress();
-            user_email.setText(TextUtils.isEmpty(mailAddress) ?
+            baseBind.userEmail.setText(TextUtils.isEmpty(mailAddress) ?
                     mContext.getString(R.string.no_mail_address) : mailAddress);
         }
     }
@@ -607,8 +667,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding>
             initDrawerHeader();
             Dev.refreshUser = false;
         }
-        updateDiscoveryVisibility();
-        updateExperimentalEntriesVisibility();
+        // 发现入口(画像)/ 聊天室 / 广场开关可能在别的页面变化,回来时重建抽屉
+        buildDrawerMenu();
     }
 
     @Override

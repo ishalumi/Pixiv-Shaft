@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3 modal navigation drawer 容器：右缘 28dp 大圆角（配合 setClipToOutline）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_bg" />
+    <corners
+        android:topRightRadius="28dp"
+        android:bottomRightRadius="28dp" />
+</shape>

@@ -2087,4 +2087,8 @@
     <string name="settings_cat_bookmark">ブックマークと操作</string>
     <string name="settings_cat_ai">AI 機能</string>
     <string name="settings_cat_data">バックアップとキャッシュ</string>
+    <!-- 侧边栏分组标题 -->
+    <string name="drawer_section_discover">探索と発見</string>
+    <string name="drawer_section_mine">マイコンテンツ</string>
+    <string name="drawer_section_records">記録と管理</string>
 </resources>

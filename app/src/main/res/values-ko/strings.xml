@@ -2087,4 +2087,8 @@
     <string name="settings_cat_bookmark">북마크 및 상호작용</string>
     <string name="settings_cat_ai">AI 기능</string>
     <string name="settings_cat_data">백업 및 캐시</string>
+    <!-- 侧边栏分组标题 -->
+    <string name="drawer_section_discover">탐색 및 발견</string>
+    <string name="drawer_section_mine">내 콘텐츠</string>
+    <string name="drawer_section_records">기록 및 관리</string>
 </resources>

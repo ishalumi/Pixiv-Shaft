@@ -36,15 +36,109 @@
 
         </RelativeLayout>
 
-        <com.google.android.material.navigation.NavigationView
+        <!-- 侧边栏：MD3 modal navigation drawer（替代 NavigationView+menu）。
+             容器右缘 28dp 圆角（代码里 setClipToOutline），条目为透明底胶囊行，
+             分组行按可见性在 MainActivity.buildDrawerMenu 里动态生成；
+             顶部 status bar / 底部 nav bar padding 运行时用 BarUtils 补。 -->
+        <LinearLayout
             android:id="@+id/nav_view"
-            android:layout_width="wrap_content"
+            android:layout_width="304dp"
             android:layout_height="match_parent"
-            app:insetForeground="@android:color/transparent"
             android:layout_gravity="start"
-            android:fitsSystemWindows="true"
-            app:headerLayout="@layout/nav_header_main"
-            app:menu="@menu/activity_main_drawer" />
+            android:background="@drawable/bg_drawer_sheet"
+            android:clickable="true"
+            android:orientation="vertical">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/drawer_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp">
+
+                    <!-- 账号区：整块点开自己主页；头像长按沿用 R-18 临时过滤开关 -->
+                    <RelativeLayout
+                        android:id="@+id/drawer_header"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_drawer_item_pill"
+                        android:clickable="true"
+                        android:paddingStart="16dp"
+                        android:paddingTop="14dp"
+                        android:paddingEnd="16dp"
+                        android:paddingBottom="14dp">
+
+                        <de.hdodenhof.circleimageview.CircleImageView
+                            android:id="@+id/user_head"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:layout_centerVertical="true"
+                            android:contentDescription="@string/nav_header_desc"
+                            android:src="@drawable/avatar"
+                            app:civ_border_color="?attr/colorPrimary"
+                            app:civ_border_width="1.5dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="14dp"
+                            android:layout_marginEnd="26dp"
+                            android:layout_toEndOf="@id/user_head"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/user_name"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textColor="@color/v3_text_1"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/user_email"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:text="@string/nav_header_subtitle"
+                                android:textColor="@color/v3_text_2"
+                                android:textSize="13sp" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:drawableEnd="@drawable/ic_arrow_right"
+                            android:importantForAccessibility="no" />
+
+                    </RelativeLayout>
+
+                    <LinearLayout
+                        android:id="@+id/drawer_sections"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                </LinearLayout>
+
+            </ScrollView>
+
+        </LinearLayout>
 
     </androidx.drawerlayout.widget.DrawerLayout>
 </layout>

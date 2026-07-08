@@ -2089,4 +2089,8 @@
     <string name="settings_cat_bookmark">收藏與互動</string>
     <string name="settings_cat_ai">AI 功能</string>
     <string name="settings_cat_data">備份與快取</string>
+    <!-- 侧边栏分组标题 -->
+    <string name="drawer_section_discover">瀏覽與探索</string>
+    <string name="drawer_section_mine">我的</string>
+    <string name="drawer_section_records">記錄與管理</string>
 </resources>

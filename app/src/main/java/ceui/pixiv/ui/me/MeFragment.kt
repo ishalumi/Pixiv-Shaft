@@ -201,7 +201,7 @@ class MeFragment : Fragment(R.layout.fragment_me) {
     private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or ((alpha and 0xFF) shl 24)
 
     /**
-     * 与 menu/activity_main_drawer.xml 对齐:常用主入口 + 我的收藏(原 string_318)+
+     * 与 MainActivity.buildDrawerMenu(侧边栏)对齐:常用主入口 + 我的收藏(原 string_318)+
      * 其它(the_others)+ 试验性(experimental_section,debug only 项目同 MainActivity)。
      */
     private fun sections(): List<Section> {
