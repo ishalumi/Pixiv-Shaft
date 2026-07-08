@@ -93,28 +93,41 @@ class UserV3IllustTabFragment : Fragment(), UserIllustFirstPageListener {
             startActivity(intent)
         }
         filterBar.setJavaTags(top)
+        // 折叠必须在展示之前完成:之前是先可见渲染全量 chip 再 post 折叠,
+        // 中间一两帧用户会看到七八行 tag 闪现又缩回去。FlexboxLayout 在 measure
+        // 阶段就产出 flexLines,不需要真的上屏 —— 离屏量好、同步收敛,再淡入。
+        trimToTwoRowsOffscreen()
+        filterBar.alpha = 0f
         filterBar.isVisible = true
-        filterBar.post { trimToTwoRows() }
+        filterBar.animate().alpha(1f).setDuration(250).start()
     }
 
     /**
-     * 真·行数限制:让 flexbox 先自然换行,读 flexLines 数出前 2 行实际能容纳的 chip 数,
-     * 超出的用一个「+N」块表达(V3TagFlowView.maxTags)。既不像 maxLine 那样硬切末尾 chip,
-     * 也不拍脑袋定死数量 —— 放得下几个就显示几个。
+     * 真·行数限制:离屏 measure 让 flexbox 自然换行,读 flexLines 数出前 2 行实际能
+     * 容纳的 chip 数,超出的用一个「+N」块表达(V3TagFlowView.maxTags)。既不像 maxLine
+     * 那样硬切末尾 chip,也不拍脑袋定死数量 —— 放得下几个就显示几个。
+     * 全程在 view 可见之前完成,不产生任何中间态帧。
      */
-    private fun trimToTwoRows() {
-        if (view == null || !filterBar.isVisible || filterBar.width == 0) return
+    private fun trimToTwoRowsOffscreen() {
+        // filterBar 是 LinearLayout 里的 match_parent 无 margin,宽度即父容器宽度
+        val width = (view?.width ?: 0)
+        if (width <= 0) return
+        fun measuredLines(): Int {
+            filterBar.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            return filterBar.flexLines.size
+        }
+        if (measuredLines() <= 2) return                  // 已经 ≤2 行,无需折叠
         val lines = filterBar.flexLines
-        if (lines.size <= 2) return                       // 已经 ≤2 行,无需折叠
         val firstTwo = lines[0].itemCount + lines[1].itemCount
-        val target = (firstTwo - 1).coerceAtLeast(1)      // 留一个位给「+N」块
-        if (filterBar.maxTags == target) return           // 防抖:已折到目标就停
+        var target = (firstTwo - 1).coerceAtLeast(1)      // 留一个位给「+N」块
         filterBar.maxTags = target                        // setter 内部重渲染 + 追加「+N」
-        // 「+N」块占位可能把第 2 行再挤出一个 → 收敛校验一次
-        filterBar.post {
-            if (view != null && filterBar.flexLines.size > 2 && filterBar.maxTags > 1) {
-                filterBar.maxTags = filterBar.maxTags - 1
-            }
+        // 「+N」块占位可能把第 2 行再挤出一个 → 递减收敛
+        while (measuredLines() > 2 && target > 1) {
+            target -= 1
+            filterBar.maxTags = target
         }
     }
 
