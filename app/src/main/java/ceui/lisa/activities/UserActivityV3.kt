@@ -4,7 +4,6 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import androidx.core.view.isVisible
@@ -15,17 +14,12 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import ceui.lisa.R
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ActivityUserV3Binding
-import ceui.lisa.databinding.ItemV3NavTagBinding
-import ceui.lisa.fragments.FragmentUserIllust
 import ceui.lisa.fragments.FragmentUserManga
 import ceui.lisa.helper.UserIllustJumpHelper
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.http.Retro
-import ceui.lisa.core.Mapper
-import ceui.lisa.model.ListIllust
 import ceui.lisa.models.UserBean
 import ceui.lisa.models.UserDetailResponse
-import ceui.lisa.models.UserFollowDetail
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
@@ -45,8 +39,6 @@ import com.google.android.material.tabs.TabLayoutMediator
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.scwang.smart.refresh.header.MaterialHeader
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog.MenuDialogBuilder
-import com.zhy.view.flowlayout.FlowLayout
-import com.zhy.view.flowlayout.TagAdapter
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +46,15 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
 private const val KEY_HAS_MANGA_TAB = "user_v3_has_manga_tab"
-private const val MAX_ILLUST_TAG_CHIPS = 20 // issue #569: 高频 tag 药丸最多展示数
+private const val KEY_HAS_NOVEL_TAB = "user_v3_has_novel_tab"
+/**
+ * 插画列表(FragmentUserIllust)首屏加载完后回调宿主(UserV3IllustTabFragment / 其他实现方),
+ * 让「标签筛选条」复用同一份数据聚合 tag,避免再单独打一次 user/illusts。
+ * 宿主非本类型时(如 TemplateActivity 独立复用该 fragment)回调被忽略。
+ */
+interface UserIllustFirstPageListener {
+    fun onUserIllustFirstPage(illusts: List<ceui.lisa.models.IllustsBean>)
+}
 
 class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
 
@@ -62,21 +62,28 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     private lateinit var mUserViewModel: UserViewModel
     private lateinit var palette: V3Palette
 
-    private enum class TabKind { ILLUST, MANGA, INFO }
+    // Tab 期望顺序:插画 · [漫画] · [小说] · 收藏 · 资料。
+    // 收藏 / 资料 常驻;漫画 / 小说 是条件 tab(有对应作品才插)。
+    private enum class TabKind { ILLUST, MANGA, NOVEL, COLLECTION, INFO }
 
-    // 漫画 tab 是否插入要等 getUserDetail 返回后才知道 (profile.total_manga),
-    // 所以先 2 tab 起步,有漫画再 notifyItemInserted 把它塞中间。
-    // 旋转 / 进程重建时,从 savedInstanceState 提前恢复 MANGA,避免 FragmentStateAdapter
-    // 把旋转前保存的 MANGA fragment state 当成「已废弃」清掉。
-    private val tabKinds = mutableListOf(TabKind.ILLUST, TabKind.INFO)
+    // 漫画 / 小说 tab 是否插入要等 getUserDetail 返回才知道 (total_manga / total_novels),
+    // 所以先常驻 3 tab 起步,有漫画/小说再 notifyItemInserted 塞进对应位置。
+    // 旋转 / 进程重建时,从 savedInstanceState 提前恢复,避免 FragmentStateAdapter
+    // 把旋转前保存的条件 tab fragment state 当成「已废弃」清掉。
+    private val tabKinds = mutableListOf(TabKind.ILLUST, TabKind.COLLECTION, TabKind.INFO)
     private var pagerAdapter: FragmentStateAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 在 super.onCreate 之前预插 MANGA,这样 BaseActivity.onCreate 里跑 setupViewPager 时
-        // FragmentStateAdapter 看到的 itemId 集合就包含 MANGA,旋转前保存的 fragment state
-        // 才会被恢复而不是当成「已废弃」被清掉。
+        // 在 super.onCreate 之前预插条件 tab,这样 BaseActivity.onCreate 里跑 setupViewPager 时
+        // FragmentStateAdapter 看到的 itemId 集合就包含它们,旋转前保存的 fragment state
+        // 才会被恢复而不是当成「已废弃」被清掉。顺序:MANGA 先(ILLUST 之后),NOVEL 后(COLLECTION 之前)。
         if (savedInstanceState?.getBoolean(KEY_HAS_MANGA_TAB, false) == true) {
             if (!tabKinds.contains(TabKind.MANGA)) tabKinds.add(1, TabKind.MANGA)
+        }
+        if (savedInstanceState?.getBoolean(KEY_HAS_NOVEL_TAB, false) == true) {
+            if (!tabKinds.contains(TabKind.NOVEL)) {
+                tabKinds.add(tabKinds.indexOf(TabKind.COLLECTION), TabKind.NOVEL)
+            }
         }
         super.onCreate(savedInstanceState)
     }
@@ -84,6 +91,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_HAS_MANGA_TAB, tabKinds.contains(TabKind.MANGA))
+        outState.putBoolean(KEY_HAS_NOVEL_TAB, tabKinds.contains(TabKind.NOVEL))
     }
 
     override fun initLayout(): Int = R.layout.activity_user_v3
@@ -118,6 +126,22 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         palette = V3Palette.from(this)
         baseBind.toolbar.setPadding(0, Shaft.statusHeight, 0, 0)
         baseBind.toolbar.setNavigationOnClickListener { finish() }
+
+        // 内嵌列表(插画/漫画/小说/收藏)默认背景是 fragment_center(日#FFFFFF/夜#2A2A2A),与页面
+        // v3_bg(日#FAFAFA/夜#08080C)有肉眼可辨色差,交界处出现色彩断层。运行时把列表背景统一刷成
+        // v3_bg(recursive=true 连带覆盖收藏 Tab 的子 fragment),只影响本页,不动共享的 fragment_base_list。
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(
+                    fm: androidx.fragment.app.FragmentManager,
+                    f: Fragment,
+                    v: View,
+                    savedInstanceState: Bundle?,
+                ) {
+                    v.findViewById<View?>(R.id.refreshLayout)?.setBackgroundColor(getColor(R.color.v3_bg))
+                }
+            }, true
+        )
 
         // Banner 占位渐变跟随主题色(无 banner 图时露出),XML 里的静态紫渐变只是占位。
         baseBind.bannerPlaceholder.background = palette.bannerPlaceholder()
@@ -226,22 +250,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                     baseBind.progress.visibility = View.INVISIBLE
                 }
             })
-        Retro.getAppApi().getFollowDetail(userId)
-            .subscribeOn(Schedulers.newThread())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(object : NullCtrl<UserFollowDetail>() {
-                override fun success(userFollowDetail: UserFollowDetail) {
-                    var followStatus = AppLevelViewModel.FollowUserStatus.NOT_FOLLOW
-                    if (userFollowDetail.isPublicFollow) {
-                        followStatus = AppLevelViewModel.FollowUserStatus.FOLLOWED_PUBLIC
-                    } else if (userFollowDetail.isPrivateFollow) {
-                        followStatus = AppLevelViewModel.FollowUserStatus.FOLLOWED_PRIVATE
-                    } else if (userFollowDetail.isFollow) {
-                        followStatus = AppLevelViewModel.FollowUserStatus.FOLLOWED
-                    }
-                    Shaft.appViewModel.updateFollowUserStatus(userId, followStatus)
-                }
-            })
+        // 不再进页就拉 user/follow/detail:它只为把「已关注」细分成 公开/非公开 写进
+        // AppLevelViewModel.followUserStatus,而 getFollowUserLiveData 全仓没有任何读者 —— 纯死数据。
+        // 关注按钮的显隐由 user/detail 的 is_followed 驱动,足够了。
 
         // Fetch supplementary data from Web API (bio HTML, badges, social links)
         lifecycleScope.launch {
@@ -261,8 +272,11 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             override fun getItemCount(): Int = tabKinds.size
 
             override fun createFragment(position: Int): Fragment = when (tabKinds[position]) {
-                TabKind.ILLUST -> FragmentUserIllust.newInstance(userId, false)
+                // 插画 tab 用包装 fragment:标签筛选条在页面内部,跟随 ViewPager 横滑
+                TabKind.ILLUST -> UserV3IllustTabFragment.newInstance(userId)
                 TabKind.MANGA -> FragmentUserManga.newInstance(userId, false)
+                TabKind.NOVEL -> ceui.lisa.fragments.FragmentUserNovel.newInstance(userId)
+                TabKind.COLLECTION -> UserV3CollectionFragment.newInstance(userId)
                 TabKind.INFO -> UserV3InfoFragment()
             }
 
@@ -273,27 +287,33 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 tabKinds.any { it.ordinal.toLong() == itemId }
         }
         baseBind.viewPager.adapter = pagerAdapter
-        // Tab 离屏保活,左右切换时不重建 view,体验更稳
-        baseBind.viewPager.offscreenPageLimit = (tabKinds.size - 1).coerceAtLeast(1)
+        // 不预加载离屏 tab:进主页只拉 user/detail,漫画/小说/收藏等内容按需在滑到该 tab 时
+        // 才创建 fragment 发请求。保持 ViewPager2 默认 offscreenPageLimit(懒加载),不再强设成
+        // 全 tab 保活 —— 那会一进主页就把所有 tab 的接口全打一遍。
 
         TabLayoutMediator(baseBind.tabLayout, baseBind.viewPager) { tab, position ->
             tab.text = when (tabKinds[position]) {
                 TabKind.ILLUST -> getString(R.string.string_246)
                 TabKind.MANGA -> getString(R.string.string_233)
+                TabKind.NOVEL -> getString(R.string.string_237)
+                TabKind.COLLECTION -> getString(R.string.v3_label_bookmarks)
                 TabKind.INFO -> getString(R.string.v3_label_profile_details)
             }
         }.attach()
     }
 
-    private fun ensureMangaTab(totalManga: Int) {
-        if (totalManga <= 0 || tabKinds.contains(TabKind.MANGA)) return
-        // 保留用户当前所在 tab,别因为插入新 tab 把人「踢」到 MANGA
+    /**
+     * 条件 tab(漫画/小说)按需插入到指定位置。保留用户当前所在 tab,别因为插入新 tab 把人「踢」走。
+     * MANGA 插 ILLUST 之后(index 1),NOVEL 插 COLLECTION 之前 —— 由调用方给 insertIndex。
+     */
+    private fun ensureConditionalTab(kind: TabKind, insertIndex: Int) {
+        if (tabKinds.contains(kind) || insertIndex < 0 || insertIndex > tabKinds.size) return
         val currentId = baseBind.viewPager.currentItem
             .takeIf { it in tabKinds.indices }
             ?.let { tabKinds[it].ordinal.toLong() }
-        tabKinds.add(1, TabKind.MANGA)
-        pagerAdapter?.notifyItemInserted(1)
-        baseBind.viewPager.offscreenPageLimit = (tabKinds.size - 1).coerceAtLeast(1)
+        tabKinds.add(insertIndex, kind)
+        pagerAdapter?.notifyItemInserted(insertIndex)
+        // 不动 offscreenPageLimit —— 保持懒加载,新插入的 tab 也只在滑到时才请求
         // TabLayoutMediator 自身监听 adapter dataset 变化,会自动 re-populate tabs
         if (currentId != null) {
             val restored = tabKinds.indexOfFirst { it.ordinal.toLong() == currentId }
@@ -326,8 +346,11 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         val profile = data.profile
         val user = data.user
 
-        // 跟 UActivity 一致:有漫画作品才在中间插一个漫画 tab
-        ensureMangaTab(profile.total_manga)
+        // 有漫画/小说作品才插对应条件 tab。MANGA 在插画之后,NOVEL 在收藏之前。
+        if (profile.total_manga > 0) ensureConditionalTab(TabKind.MANGA, 1)
+        if (profile.total_novels > 0) {
+            ensureConditionalTab(TabKind.NOVEL, tabKinds.indexOf(TabKind.COLLECTION))
+        }
 
         // Banner
         val bannerUrl = profile.background_image_url
@@ -380,7 +403,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         baseBind.moreAction.visibility = View.VISIBLE
         baseBind.moreAction.setOnClickListener { showMoreMenu(data, isSelf) }
 
-        // Stats row (following + mypixiv)
+        // 内联统计条:关注 · 好P友 · 收藏,每段可点
         val fmt = NumberFormat.getInstance()
         baseBind.statFollowingNum.text = fmt.format(profile.total_follow_users)
         baseBind.statMypixivNum.text = fmt.format(profile.total_mypixiv_users)
@@ -398,10 +421,19 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             startActivity(intent)
         }
 
-        // Navigation tags
-        setupNavTags(data, isSelf)
-        // issue #569: 按 Tag 筛选画师插画
-        setupIllustTags(data)
+        // 收藏数:有公开收藏或本人才显示,点击直接切到「收藏」Tab(旧版是折叠头里的导航药丸)
+        val bookmarks = profile.total_illust_bookmarks_public
+        if (bookmarks > 0 || isSelf) {
+            baseBind.statBookmarkNum.text = fmt.format(bookmarks)
+            baseBind.statBookmarkSep.isVisible = true
+            baseBind.statBookmark.isVisible = true
+            baseBind.statBookmark.setOnClickListener {
+                val idx = tabKinds.indexOf(TabKind.COLLECTION)
+                if (idx >= 0) baseBind.viewPager.setCurrentItem(idx, false)
+            }
+        }
+
+        // 标签筛选条(issue #569)不再单独请求 —— 改由插画列表首屏回调 onUserIllustFirstPage 驱动,复用同一份数据
     }
 
     private fun displayWebUserDetail(detail: WebUserDetail) {
@@ -453,16 +485,6 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         }
     }
 
-    /** 导航区 / 插画标签 共用的药丸背景(主题描边)。issue #569 前是两处内联拷贝。 */
-    private fun navChipPill(dp: Float): android.graphics.drawable.GradientDrawable {
-        return android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-            cornerRadius = 999f * dp
-            setColor(0x08FFFFFF)
-            setStroke((1 * dp).toInt(), palette.alpha20)
-        }
-    }
-
     private fun makeBadgeBg(dp: Float, strokeColor: Int): android.graphics.drawable.GradientDrawable {
         return android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.RECTANGLE
@@ -472,138 +494,8 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         }
     }
 
-    private fun setupNavTags(data: UserDetailResponse, isSelf: Boolean) {
-        val profile = data.profile
-        val tags = mutableListOf<Pair<String, String>>()  // label -> fragment/count
-        val counts = mutableListOf<Int>()
-
-        if (profile.total_illusts > 0) {
-            tags.add(getString(R.string.string_246) to "插画作品")
-            counts.add(profile.total_illusts)
-        }
-        if (profile.total_manga > 0) {
-            tags.add(getString(R.string.string_233) to "漫画作品")
-            counts.add(profile.total_manga)
-        }
-        if (profile.total_illust_series > 0) {
-            tags.add(getString(R.string.string_230) to "漫画系列作品")
-            counts.add(profile.total_illust_series)
-        }
-        if (profile.total_novels > 0) {
-            tags.add(getString(R.string.string_237) to "小说作品")
-            counts.add(profile.total_novels)
-        }
-        if (profile.total_novel_series > 0) {
-            tags.add(getString(R.string.string_257) to "小说系列作品")
-            counts.add(profile.total_novel_series)
-        }
-        if (profile.total_illust_bookmarks_public > 0 || isSelf) {
-            tags.add(getString(R.string.string_164) to "插画/漫画收藏")
-            counts.add(profile.total_illust_bookmarks_public)
-        }
-        tags.add(getString(R.string.string_192) to "小说收藏")
-        counts.add(0)
-        tags.add(getString(R.string.string_436) to "相关用户")
-        counts.add(0)
-
-        if (tags.isNotEmpty()) {
-            baseBind.navLabel.visibility = View.VISIBLE
-            baseBind.navTags.visibility = View.VISIBLE
-
-            baseBind.navTags.adapter = object : TagAdapter<Pair<String, String>>(tags) {
-                override fun getView(
-                    parent: FlowLayout,
-                    position: Int,
-                    item: Pair<String, String>?
-                ): View {
-                    val binding = ItemV3NavTagBinding.inflate(
-                        LayoutInflater.from(mContext), parent, false
-                    )
-                    binding.tagName.text = item?.first ?: ""
-                    // Themed pill border
-                    val dp = resources.displayMetrics.density
-                    binding.root.background = navChipPill(dp)
-                    val count = counts.getOrNull(position) ?: 0
-                    if (count > 0) {
-                        binding.tagCount.visibility = View.VISIBLE
-                        binding.tagCount.text = NumberFormat.getInstance().format(count)
-                        binding.tagCount.setTextColor(palette.textAccent)
-                        binding.tagCount.background = palette.tagCountBg(999f * dp)
-                    }
-                    return binding.root
-                }
-            }
-            baseBind.navTags.setOnTagClickListener { _, position, _ ->
-                val intent = Intent(mContext, TemplateActivity::class.java)
-                intent.putExtra(Params.USER_ID, data.user.userId)
-                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, tags[position].second)
-                startActivity(intent)
-                true
-            }
-        }
-    }
-
-    /**
-     * issue #569: 按 Tag 筛选画师插画。拉首页插画聚合出高频 tag,以导航区同款药丸展示;
-     * 点击打开网页 ajax 驱动的筛选页(跨全部作品)。tag 数据本就在每条作品里,只需一次 app-api。
-     */
-    private fun setupIllustTags(data: UserDetailResponse) {
-        if (data.profile == null || data.profile.total_illusts <= 0) return
-        val userId = data.user.id
-        Retro.getAppApi().getUserSubmitIllust(userId, Params.TYPE_ILLUST)
-            .subscribeOn(Schedulers.newThread())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(object : NullCtrl<ListIllust>() {
-                override fun success(resp: ListIllust) {
-                    if (baseBind == null) return
-                    // 跟全局列表一致地过滤被屏蔽的作品/tag(用户设置必须全局适配):含屏蔽 tag 的作品
-                    // 会被整条移除,其 tag 自然不进聚合,屏蔽 tag 不会冒出来当 chip。
-                    Mapper<ListIllust>().apply(resp)
-                    val illusts = resp.illusts ?: return
-                    // name -> (展示名, 计数);展示名优先翻译,筛选仍用原始 name
-                    val freq = LinkedHashMap<String, Pair<String, Int>>()
-                    for (ill in illusts) {
-                        val tags = ill.tags ?: continue
-                        for (t in tags) {
-                            val name = t.name ?: continue
-                            if (name.isBlank()) continue
-                            val disp = t.translated_name?.takeIf { it.isNotBlank() } ?: name
-                            val prev = freq[name]
-                            freq[name] = disp to ((prev?.second ?: 0) + 1)
-                        }
-                    }
-                    if (freq.isEmpty()) return
-                    val top = freq.entries
-                        .sortedByDescending { it.value.second }
-                        .take(MAX_ILLUST_TAG_CHIPS)
-                        .map { it.value.first to it.key } // (展示名, 原始 name)
-                    renderIllustTagChips(top, userId)
-                }
-            })
-    }
-
-    private fun renderIllustTagChips(chips: List<Pair<String, String>>, userId: Int) {
-        if (chips.isEmpty()) return
-        baseBind.illustTagLabel.visibility = View.VISIBLE
-        baseBind.illustTagFlow.visibility = View.VISIBLE
-        baseBind.illustTagFlow.adapter = object : TagAdapter<Pair<String, String>>(chips) {
-            override fun getView(parent: FlowLayout, position: Int, item: Pair<String, String>?): View {
-                val binding = ItemV3NavTagBinding.inflate(LayoutInflater.from(mContext), parent, false)
-                binding.tagName.text = item?.first ?: ""
-                val dp = resources.displayMetrics.density
-                binding.root.background = navChipPill(dp)
-                return binding.root
-            }
-        }
-        baseBind.illustTagFlow.setOnTagClickListener { _, position, _ ->
-            val intent = Intent(mContext, TemplateActivity::class.java)
-            intent.putExtra(Params.USER_ID, userId)
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "插画标签作品")
-            intent.putExtra(Params.KEY_WORD, chips[position].second)
-            startActivity(intent)
-            true
-        }
-    }
+    // 标签筛选条(issue #569)已整体迁入 UserV3IllustTabFragment —— 它住在插画 Tab 页面内部,
+    // 跟随 ViewPager 横滑,数据复用插画列表首屏(onUserIllustFirstPage),进主页零额外请求。
 
     private fun showMoreMenu(data: UserDetailResponse, isSelf: Boolean) {
         val isMuted = mUserViewModel.isUserMuted.value == true

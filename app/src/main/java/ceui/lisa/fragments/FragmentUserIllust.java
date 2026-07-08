@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import java.util.List;
 
 import ceui.lisa.R;
+import ceui.lisa.activities.UserIllustFirstPageListener;
 import ceui.lisa.adapters.BaseAdapter;
 import ceui.lisa.adapters.IAdapter;
 import ceui.lisa.core.RemoteRepo;
@@ -81,6 +82,16 @@ public class FragmentUserIllust extends NetListFragment<FragmentBaseListBinding,
     public void onFirstLoaded(List<IllustsBean> response) {
         super.onFirstLoaded(response);
         scrollToTargetDate(response);
+        // 把首屏数据交给宿主聚合「标签筛选条」,免得宿主再单独打一次 user/illusts。
+        // 优先父 fragment(UserV3IllustTabFragment 包装模式),退回 activity;
+        // 宿主都非该类型(如 TemplateActivity 独立复用本 fragment)时回调被忽略。
+        if (response != null) {
+            if (getParentFragment() instanceof UserIllustFirstPageListener) {
+                ((UserIllustFirstPageListener) getParentFragment()).onUserIllustFirstPage(response);
+            } else if (getActivity() instanceof UserIllustFirstPageListener) {
+                ((UserIllustFirstPageListener) getActivity()).onUserIllustFirstPage(response);
+            }
+        }
     }
 
     private void scrollToTargetDate(List<IllustsBean> items) {
@@ -165,7 +176,9 @@ public class FragmentUserIllust extends NetListFragment<FragmentBaseListBinding,
                 downloadAllItem.setVisible(true);
             }
         });
-        if (vm.getTotalIllusts().getValue() == null) {
+        // 只在 toolbar 真实可见(TemplateActivity 独立页)时才拉数量 —— 内嵌在 UserActivityV3 时
+        // showToolbar=false、菜单永远不可见,别为一个看不见的按钮多打一次 user/detail(宿主已拉过)。
+        if (showToolbar && vm.getTotalIllusts().getValue() == null) {
             Retro.getAppApi().getUserDetail(userID)
                     .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())

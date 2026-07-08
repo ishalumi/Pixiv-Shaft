@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 画师主页「插画」Tab 容器:顶部标签筛选条(跟随页面横滑) + 下方内嵌插画列表。
+     筛选条放页面内而不是 AppBar 的 pinned 区 —— 否则左右切 tab 时列表滑走了它还钉着不动。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/v3_bg"
+    android:orientation="vertical">
+
+    <!-- 紧凑小号 chip 换行堆叠,行数由 UserV3IllustTabFragment 用 flexLines 折叠到最多 2 行
+         (「+N」块表达溢出),不用 maxLine —— 它会把末行放不下的 chip 硬切成半个。 -->
+    <ceui.pixiv.widgets.V3TagFlowView
+        android:id="@+id/illust_filter_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="20dp"
+        android:visibility="gone"
+        app:flexWrap="wrap" />
+
+    <FrameLayout
+        android:id="@+id/illust_list_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

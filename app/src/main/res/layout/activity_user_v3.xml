@@ -14,126 +14,120 @@
         android:layout_height="match_parent"
         app:srlEnableLoadMore="false">
 
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/v3_bg">
-
-        <com.google.android.material.appbar.AppBarLayout
-            android:id="@+id/app_bar"
+        <androidx.coordinatorlayout.widget.CoordinatorLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            android:theme="@style/AppTheme.AppBarOverlay"
-            app:elevation="0dp">
+            android:layout_height="match_parent"
+            android:background="@color/v3_bg">
 
-            <com.google.android.material.appbar.CollapsingToolbarLayout
-                android:id="@+id/toolbar_layout"
+            <com.google.android.material.appbar.AppBarLayout
+                android:id="@+id/app_bar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:contentScrim="@color/v3_bg"
-                app:layout_scrollFlags="scroll|exitUntilCollapsed"
-                app:statusBarScrim="@android:color/transparent"
-                app:titleEnabled="false">
+                android:background="@android:color/transparent"
+                android:theme="@style/AppTheme.AppBarOverlay"
+                app:elevation="0dp">
 
-                <!-- 整个 TabLayout 之上的内容都放进 CTL,一起 collapse;banner 维持 300dp。 -->
-                <LinearLayout
+                <com.google.android.material.appbar.CollapsingToolbarLayout
+                    android:id="@+id/toolbar_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    app:contentScrim="@color/v3_bg"
+                    app:layout_scrollFlags="scroll|exitUntilCollapsed"
+                    app:statusBarScrim="@android:color/transparent"
+                    app:titleEnabled="false">
 
-                    <!-- Banner 段: 图片固定 300dp,profile_header 覆盖在底部 -->
-                    <FrameLayout
+                    <!-- 身份区:banner 矮条 + 头像下凸 + 名字 + 内联统计,一起随 CTL collapse。
+                         clipChildren=false 让头像能下凸画到 banner 之外。 -->
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="300dp">
+                        android:layout_height="wrap_content"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
+                        android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/banner_placeholder"
+                        <!-- Banner 矮条 190dp,头像/关注按钮压在其下沿 -->
+                        <FrameLayout
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:background="@drawable/bg_v3_banner_placeholder" />
+                            android:layout_height="190dp"
+                            android:clipChildren="false">
 
-                        <ImageView
-                            android:id="@+id/banner_image"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:scaleType="centerCrop"
-                            android:visibility="gone" />
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="160dp"
-                            android:layout_gravity="bottom"
-                            android:background="@drawable/bg_v3_banner_gradient" />
-
-                        <!-- Profile header (avatar 半压 banner 下沿) -->
-                        <LinearLayout
-                            android:id="@+id/profile_header"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="bottom"
-                            android:orientation="vertical"
-                            android:paddingHorizontal="20dp"
-                            android:paddingBottom="16dp">
-
-                            <!-- Avatar row -->
-                            <LinearLayout
+                            <View
+                                android:id="@+id/banner_placeholder"
                                 android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/bg_v3_banner_placeholder" />
+
+                            <ImageView
+                                android:id="@+id/banner_image"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone" />
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="120dp"
+                                android:layout_gravity="bottom"
+                                android:background="@drawable/bg_v3_banner_gradient" />
+
+                            <!-- Avatar (premium ring) 左下,下凸 42dp 压 banner 下沿 -->
+                            <FrameLayout
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:gravity="bottom"
-                                android:orientation="horizontal">
-
-                                <!-- Avatar with premium ring -->
-                                <FrameLayout
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content">
-
-                                    <View
-                                        android:id="@+id/premium_ring"
-                                        android:layout_width="94dp"
-                                        android:layout_height="94dp"
-                                        android:background="@drawable/bg_v3_avatar_ring_premium"
-                                        android:visibility="gone" />
-
-                                    <de.hdodenhof.circleimageview.CircleImageView
-                                        android:id="@+id/user_avatar"
-                                        android:layout_width="88dp"
-                                        android:layout_height="88dp"
-                                        android:layout_gravity="center"
-                                        android:scaleType="centerCrop"
-                                        app:civ_border_color="?attr/colorPrimary"
-                                        app:civ_border_width="1.5dp" />
-
-                                    <FrameLayout
-                                        android:id="@+id/premium_badge"
-                                        android:layout_width="24dp"
-                                        android:layout_height="24dp"
-                                        android:layout_gravity="bottom|end"
-                                        android:background="@drawable/bg_v3_premium_badge"
-                                        android:visibility="gone">
-
-                                        <TextView
-                                            android:layout_width="wrap_content"
-                                            android:layout_height="wrap_content"
-                                            android:layout_gravity="center"
-                                            android:text="★"
-                                            android:textColor="#1A1A2E"
-                                            android:textSize="12sp" />
-                                    </FrameLayout>
-                                </FrameLayout>
+                                android:layout_gravity="bottom|start"
+                                android:layout_marginStart="20dp"
+                                android:layout_marginBottom="-42dp">
 
                                 <View
-                                    android:layout_width="0dp"
-                                    android:layout_height="0dp"
-                                    android:layout_weight="1" />
+                                    android:id="@+id/premium_ring"
+                                    android:layout_width="94dp"
+                                    android:layout_height="94dp"
+                                    android:layout_gravity="center"
+                                    android:background="@drawable/bg_v3_avatar_ring_premium"
+                                    android:visibility="gone" />
 
-                                <!-- Actions: message + follow -->
+                                <de.hdodenhof.circleimageview.CircleImageView
+                                    android:id="@+id/user_avatar"
+                                    android:layout_width="88dp"
+                                    android:layout_height="88dp"
+                                    android:layout_gravity="center"
+                                    android:scaleType="centerCrop"
+                                    app:civ_border_color="?attr/colorPrimary"
+                                    app:civ_border_width="1.5dp" />
+
+                                <FrameLayout
+                                    android:id="@+id/premium_badge"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="bottom|end"
+                                    android:background="@drawable/bg_v3_premium_badge"
+                                    android:visibility="gone">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_gravity="center"
+                                        android:text="★"
+                                        android:textColor="#1A1A2E"
+                                        android:textSize="12sp" />
+                                </FrameLayout>
+                            </FrameLayout>
+
+                            <!-- 私信 + 关注 右下,底边下沉到与头像同一基线(跟 avatar 一样下凸 42dp) -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|end"
+                                android:layout_marginEnd="20dp"
+                                android:layout_marginBottom="-42dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
                                 <ImageView
                                     android:id="@+id/msg_btn"
                                     android:layout_width="42dp"
                                     android:layout_height="42dp"
                                     android:layout_marginEnd="8dp"
-                                    android:layout_marginBottom="8dp"
                                     android:background="@drawable/bg_v3_msg_btn"
                                     android:padding="10dp"
                                     android:src="@drawable/ic_baseline_mail_outline_24"
@@ -143,8 +137,7 @@
                                 <FrameLayout
                                     android:id="@+id/follow_layout"
                                     android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginBottom="8dp">
+                                    android:layout_height="wrap_content">
 
                                     <ceui.loxia.ProgressTextButton
                                         android:id="@+id/follow"
@@ -152,7 +145,7 @@
                                         android:layout_height="42dp"
                                         android:background="@drawable/bg_v3_pill_primary"
                                         android:gravity="center"
-                                        android:paddingHorizontal="28dp"
+                                        android:paddingHorizontal="30dp"
                                         android:text="@string/follow"
                                         android:textColor="@color/v3_text_1"
                                         android:textSize="13sp"
@@ -167,7 +160,7 @@
                                         android:layout_height="42dp"
                                         android:background="@drawable/bg_v3_pill_secondary"
                                         android:gravity="center"
-                                        android:paddingHorizontal="28dp"
+                                        android:paddingHorizontal="30dp"
                                         android:text="@string/unfollow"
                                         android:textColor="#E6C4B5FD"
                                         android:textSize="13sp"
@@ -177,12 +170,23 @@
                                         app:ptb_progress_width="14dp" />
                                 </FrameLayout>
                             </LinearLayout>
+                        </FrameLayout>
+
+                        <!-- Profile 文本区:banner 之下,顶部留白避让下凸的头像 -->
+                        <LinearLayout
+                            android:id="@+id/profile_header"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingStart="20dp"
+                            android:paddingTop="52dp"
+                            android:paddingEnd="20dp"
+                            android:paddingBottom="18dp">
 
                             <!-- Name + Official badge -->
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="14dp"
                                 android:gravity="center_vertical"
                                 android:orientation="horizontal">
 
@@ -191,8 +195,11 @@
                                     style="@style/textMontserratSemiBold"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
+                                    android:maxWidth="280dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
                                     android:textColor="@color/v3_text_1"
-                                    android:textSize="24sp"
+                                    android:textSize="25sp"
                                     android:textStyle="bold"
                                     tools:text="ひとはﾁｬﾝ" />
 
@@ -212,23 +219,23 @@
                                     android:visibility="gone" />
                             </LinearLayout>
 
-                            <!-- Handle + ID -->
+                            <!-- Handle -->
                             <TextView
                                 android:id="@+id/user_handle"
                                 style="@style/textMontserratMedium"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
+                                android:layout_marginTop="3dp"
                                 android:textColor="@color/v3_text_3"
                                 android:textSize="13sp"
-                                tools:text="@hitohachan · ID: 62059105" />
+                                tools:text="@hitohachan" />
 
-                            <!-- Web-only badges row -->
+                            <!-- Web-only badges row (互相关注 / 好P友) -->
                             <LinearLayout
                                 android:id="@+id/badges_row"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="8dp"
+                                android:layout_marginTop="10dp"
                                 android:orientation="horizontal"
                                 android:visibility="gone">
 
@@ -258,199 +265,194 @@
                                     android:textStyle="bold"
                                     android:visibility="gone" />
                             </LinearLayout>
-                        </LinearLayout>
 
-                    </FrameLayout>
-
-                    <!-- Stats + Quick Nav (banner 之下,仍在 CTL 内,跟 banner 一起滚) -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:paddingHorizontal="20dp"
-                        android:paddingTop="16dp"
-                        android:paddingBottom="16dp">
-
-                        <!-- Stats Row (following + mypixiv only) -->
-                        <LinearLayout
-                            android:id="@+id/stats_row"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:background="@drawable/bg_v3_surface"
-                            android:orientation="horizontal"
-                            android:paddingVertical="16dp">
-
+                            <!-- 内联统计条:关注 · 好P友 · 收藏,每段可点 -->
                             <LinearLayout
-                                android:id="@+id/stat_following"
-                                android:layout_width="0dp"
+                                android:id="@+id/stats_strip"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
+                                android:layout_marginTop="16dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
 
-                                <TextView
-                                    android:id="@+id/stat_following_num"
-                                    style="@style/textMontserratBold"
+                                <LinearLayout
+                                    android:id="@+id/stat_following"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:textColor="@color/v3_stat_following_num"
-                                    android:textSize="20sp"
-                                    android:textStyle="bold"
-                                    tools:text="16" />
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal"
+                                    android:paddingVertical="2dp">
+
+                                    <TextView
+                                        android:id="@+id/stat_following_num"
+                                        style="@style/textMontserratBold"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textColor="@color/v3_stat_following_num"
+                                        android:textSize="18sp"
+                                        android:textStyle="bold"
+                                        tools:text="111" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="5dp"
+                                        android:text="@string/v3_label_following"
+                                        android:textColor="@color/v3_text_3"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:letterSpacing="0.1"
-                                    android:text="@string/v3_label_following"
-                                    android:textAllCaps="true"
+                                    android:layout_marginHorizontal="12dp"
+                                    android:alpha="0.5"
+                                    android:text="·"
                                     android:textColor="@color/v3_text_3"
-                                    android:textSize="9sp"
-                                    android:textStyle="bold" />
-                            </LinearLayout>
+                                    android:textSize="16sp" />
 
-                            <LinearLayout
-                                android:id="@+id/stat_mypixiv"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/stat_mypixiv_num"
-                                    style="@style/textMontserratBold"
+                                <LinearLayout
+                                    android:id="@+id/stat_mypixiv"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:textColor="@color/v3_stat_mypixiv_num"
-                                    android:textSize="20sp"
-                                    android:textStyle="bold"
-                                    tools:text="3" />
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal"
+                                    android:paddingVertical="2dp">
+
+                                    <TextView
+                                        android:id="@+id/stat_mypixiv_num"
+                                        style="@style/textMontserratBold"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textColor="@color/v3_stat_mypixiv_num"
+                                        android:textSize="18sp"
+                                        android:textStyle="bold"
+                                        tools:text="0" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="5dp"
+                                        android:text="@string/v3_label_mypixiv"
+                                        android:textColor="@color/v3_text_3"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
 
                                 <TextView
+                                    android:id="@+id/stat_bookmark_sep"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:letterSpacing="0.1"
-                                    android:text="@string/v3_label_mypixiv"
-                                    android:textAllCaps="true"
+                                    android:layout_marginHorizontal="12dp"
+                                    android:alpha="0.5"
+                                    android:text="·"
                                     android:textColor="@color/v3_text_3"
-                                    android:textSize="9sp"
-                                    android:textStyle="bold" />
+                                    android:textSize="16sp"
+                                    android:visibility="gone" />
+
+                                <LinearLayout
+                                    android:id="@+id/stat_bookmark"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal"
+                                    android:paddingVertical="2dp"
+                                    android:visibility="gone">
+
+                                    <TextView
+                                        android:id="@+id/stat_bookmark_num"
+                                        style="@style/textMontserratBold"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textColor="@color/v3_text_1"
+                                        android:textSize="18sp"
+                                        android:textStyle="bold"
+                                        tools:text="147" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="5dp"
+                                        android:text="@string/v3_label_bookmarks"
+                                        android:textColor="@color/v3_text_3"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>
-
-                        <!-- Quick Navigation Tags -->
-                        <TextView
-                            android:id="@+id/nav_label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
-                            android:letterSpacing="0.12"
-                            android:text="@string/v3_label_navigate"
-                            android:textAllCaps="true"
-                            android:textColor="@color/v3_text_3"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:visibility="gone" />
-
-                        <com.zhy.view.flowlayout.TagFlowLayout
-                            android:id="@+id/nav_tags"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:visibility="gone" />
-
-                        <!-- issue #569: 按 Tag 筛选该画师插画作品 -->
-                        <TextView
-                            android:id="@+id/illust_tag_label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
-                            android:letterSpacing="0.12"
-                            android:text="@string/v3_label_illust_tags"
-                            android:textAllCaps="true"
-                            android:textColor="@color/v3_text_3"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:visibility="gone" />
-
-                        <com.zhy.view.flowlayout.TagFlowLayout
-                            android:id="@+id/illust_tag_flow"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:visibility="gone" />
 
                     </LinearLayout>
 
-                </LinearLayout>
+                    <!-- Toolbar 仍挂 CTL 里(collapseMode=pin),但 CTL flags=scroll,会跟 CTL 一起滚出 -->
+                    <androidx.appcompat.widget.Toolbar
+                        android:id="@+id/toolbar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:layout_collapseMode="pin"
+                        app:navigationIcon="@drawable/ic_arrow_back_white_shadow">
 
-                <!-- Toolbar 仍挂在 CTL 里(collapseMode=pin),但 CTL flags=scroll,所以会跟 CTL 一起滚出去 -->
-                <androidx.appcompat.widget.Toolbar
-                    android:id="@+id/toolbar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:layout_collapseMode="pin"
-                    app:navigationIcon="@drawable/ic_arrow_back_white_shadow">
+                        <TextView
+                            android:id="@+id/toolbar_title"
+                            style="@style/textMontserratBold"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:alpha="0.0"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="18sp" />
 
-                    <TextView
-                        android:id="@+id/toolbar_title"
-                        style="@style/textMontserratBold"
+                        <ImageView
+                            android:id="@+id/more_action"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:layout_gravity="end"
+                            android:padding="10dp"
+                            android:src="@drawable/ic_more_vert_black_24dp"
+                            android:visibility="gone"
+                            app:tint="@color/v3_text_1" />
+                    </androidx.appcompat.widget.Toolbar>
+
+                    <!-- Loading indicator -->
+                    <ProgressBar
+                        android:id="@+id/progress"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
-                        android:alpha="0.0"
-                        android:ellipsize="end"
-                        android:singleLine="true"
-                        android:textColor="@color/v3_text_1"
-                        android:textSize="18sp" />
+                        android:indeterminateTint="@color/v3_text_1"
+                        android:visibility="invisible" />
 
-                    <ImageView
-                        android:id="@+id/more_action"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:layout_gravity="end"
-                        android:padding="10dp"
-                        android:src="@drawable/ic_more_vert_black_24dp"
-                        android:visibility="gone"
-                        app:tint="@color/v3_text_1" />
-                </androidx.appcompat.widget.Toolbar>
+                </com.google.android.material.appbar.CollapsingToolbarLayout>
 
-                <!-- Loading indicator -->
-                <ProgressBar
-                    android:id="@+id/progress"
-                    android:layout_width="wrap_content"
+                <!-- Pinned tab strip between header & paged content -->
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/tab_layout"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:indeterminateTint="@color/v3_text_1"
-                    android:visibility="invisible" />
+                    android:background="@color/v3_bg"
+                    app:tabGravity="fill"
+                    app:tabIndicatorColor="@color/v3_text_1"
+                    app:tabIndicatorFullWidth="false"
+                    app:tabMode="fixed"
+                    app:tabSelectedTextColor="@color/v3_text_1"
+                    app:tabTextColor="@color/v3_text_3" />
 
-            </com.google.android.material.appbar.CollapsingToolbarLayout>
+                <!-- 标签筛选条已迁入插画 Tab 页面内部(fragment_user_v3_illust_tab.xml)——
+                     放这里(pinned 区)会导致左右切 tab 时列表滑走了它还钉着不动。 -->
 
-            <!-- Pinned tab strip between header & paged content -->
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tab_layout"
+            </com.google.android.material.appbar.AppBarLayout>
+
+            <!-- Paged content: 插画 / 漫画 / 小说 / 收藏 / 资料 -->
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/view_pager"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:background="@color/v3_bg"
-                app:tabGravity="fill"
-                app:tabIndicatorColor="@color/v3_text_1"
-                app:tabIndicatorFullWidth="false"
-                app:tabMode="fixed"
-                app:tabSelectedTextColor="@color/v3_text_1"
-                app:tabTextColor="@color/v3_text_3" />
+                app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-        </com.google.android.material.appbar.AppBarLayout>
-
-        <!-- Paged content: 插画 / 资料 -->
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/view_pager"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/v3_bg"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+        </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     </com.scwang.smart.refresh.layout.SmartRefreshLayout>
 </layout>
