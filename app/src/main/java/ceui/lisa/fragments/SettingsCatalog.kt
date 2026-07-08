@@ -211,6 +211,11 @@ object SettingsCatalog {
         val target = root.findViewById<View>(viewId) ?: return
         val scroll = root.findViewById<NestedScrollView>(R.id.scroll_view) ?: return
         root.post {
+            // 条件隐藏的行（如 V3 关闭时的 FAB 顺序、词典关闭时的管理入口）此刻是 GONE：
+            // 没有布局位置，滚动/闪烁都是错的，直接正常打开页面即可。
+            if (!target.isShown || target.height == 0) {
+                return@post
+            }
             var y = 0
             var v: View = target
             while (v !== scroll) {
