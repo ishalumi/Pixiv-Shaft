@@ -176,7 +176,9 @@
                     app:trackThickness="3dp" />
             </FrameLayout>
 
+            <!-- 颜色只是深色模式默认值,浅色模式下由 ArtworkV3Fragment 按 palette.floatingPillContent 重刷 -->
             <View
+                android:id="@+id/fab_divider"
                 android:layout_width="1dp"
                 android:layout_height="24dp"
                 android:layout_marginHorizontal="2dp"

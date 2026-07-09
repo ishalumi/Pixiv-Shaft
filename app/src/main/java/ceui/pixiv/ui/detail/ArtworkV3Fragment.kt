@@ -390,15 +390,24 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         }
 
         // 悬浮操作胶囊底色跟随主题色（原 bg_v3_fab_bar 固定 #CC1A1A2E,切主题色不动）——
-        // 同 settings 卡片 tint,保留悬浮半透明。
+        // 同 settings 卡片 tint,保留悬浮半透明。前景(图标/分隔线/进度环)不能写死白色:
+        // 浅色模式胶囊底是"带主题色调的白",白图标隐形,统一走 palette.floatingPillContent。
         baseBind.fabBar.background = headerAdapter.palette.floatingPillBg(
             999f * resources.displayMetrics.density
         )
+        val pillContent = headerAdapter.palette.floatingPillContent
+        baseBind.fabDownload.imageTintList = ColorStateList.valueOf(pillContent)
+        baseBind.fabDivider.setBackgroundColor(
+            ceui.lisa.utils.V3Palette.withAlpha(pillContent, 0.20f)
+        )
+        baseBind.fabDownloadProgress.setIndicatorColor(pillContent)
+        baseBind.fabDownloadProgress.trackColor =
+            ceui.lisa.utils.V3Palette.withAlpha(pillContent, 0.20f)
 
         viewModel.isBookmarked.observe(viewLifecycleOwner) { bookmarked ->
             baseBind.fabBookmark.imageTintList = android.content.res.ColorStateList.valueOf(
                 if (bookmarked) mContext.getColor(R.color.has_bookmarked)
-                else android.graphics.Color.WHITE
+                else pillContent
             )
         }
 
@@ -414,7 +423,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         if (view == null) return
         when (state) {
             DownloadFab.Idle ->
-                paintFab(R.drawable.ic_file_download_black_24dp, Color.WHITE)
+                paintFab(
+                    R.drawable.ic_file_download_black_24dp,
+                    headerAdapter.palette.floatingPillContent,
+                )
             DownloadFab.Done ->
                 paintFab(R.drawable.ic_file_download_done_24dp, mContext.getColor(R.color.has_downloaded))
             is DownloadFab.Downloading -> {

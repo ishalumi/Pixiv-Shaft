@@ -213,6 +213,14 @@ class V3Palette(@ColorInt val primary: Int, val isDark: Boolean = true) {
             setColor(withAlpha(cardFill, alpha))
         }
 
+    /**
+     * [floatingPillBg] 胶囊上的前景（图标/分隔线/进度环）—— 胶囊底是 [cardFill] tint：
+     * 深色模式近黑靛蓝，保持纯白；浅色模式底是"带主题色调的白"，白图标会隐形，
+     * 压深主题色（同 [seriesStripText] 的日夜策略）。
+     */
+    @ColorInt val floatingPillContent: Int = if (isDark) 0xFFFFFFFF.toInt()
+    else ensureDarkEnough(primary, 0.40f)
+
     // ── convenience ─────────────────────────────────────────────────
 
     /** Apply accent-colored follow button drawable */
