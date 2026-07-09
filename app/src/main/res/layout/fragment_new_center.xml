@@ -325,58 +325,6 @@
 
                     </LinearLayout>
 
-                    <!-- ============ 本月收藏(站长推荐,shaft-api-v2,Lite GONE) ============ -->
-                    <LinearLayout
-                        android:id="@+id/siteSection"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal"
-                            android:paddingStart="20dp"
-                            android:paddingTop="24dp"
-                            android:paddingEnd="16dp"
-                            android:paddingBottom="12dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:letterSpacing="0.01"
-                                android:text="@string/site_recommend"
-                                android:textColor="@color/v3_text_1"
-                                android:textSize="17sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/siteMore"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:gravity="center"
-                                android:stateListAnimator="@animator/button_press_alpha"
-                                android:text="@string/string_167"
-                                android:textColor="?attr/colorPrimary"
-                                android:textSize="13sp"
-                                app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
-                                app:drawableTint="?attr/colorPrimary" />
-
-                        </LinearLayout>
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/siteRail"
-                            android:layout_width="match_parent"
-                            android:layout_height="180dp"
-                            android:clipToPadding="false"
-                            android:overScrollMode="never"
-                            android:paddingStart="20dp"
-                            android:paddingEnd="8dp" />
-
-                    </LinearLayout>
-
                     <!-- ============ 当前最热(shaft-api-v2,Lite GONE) ============ -->
                     <LinearLayout
                         android:id="@+id/recentSection"
@@ -420,6 +368,58 @@
 
                         <androidx.recyclerview.widget.RecyclerView
                             android:id="@+id/recentRail"
+                            android:layout_width="match_parent"
+                            android:layout_height="180dp"
+                            android:clipToPadding="false"
+                            android:overScrollMode="never"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- ============ 本月收藏(站长推荐,shaft-api-v2,Lite GONE) ============ -->
+                    <LinearLayout
+                        android:id="@+id/siteSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="20dp"
+                            android:paddingTop="24dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="12dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:letterSpacing="0.01"
+                                android:text="@string/site_recommend"
+                                android:textColor="@color/v3_text_1"
+                                android:textSize="17sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/siteMore"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:stateListAnimator="@animator/button_press_alpha"
+                                android:text="@string/string_167"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="13sp"
+                                app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
+                                app:drawableTint="?attr/colorPrimary" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/siteRail"
                             android:layout_width="match_parent"
                             android:layout_height="180dp"
                             android:clipToPadding="false"
