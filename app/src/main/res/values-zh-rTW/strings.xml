@@ -1729,6 +1729,10 @@
     <string name="current_hot">當前最熱</string>
     <string name="artist_rank">繪師榜</string>
     <string name="artist_rank_title">繪師收藏總榜</string>
+    <string name="artist_avg_rank">繪師均分榜</string>
+    <string name="artist_avg_rank_title">繪師平均收藏榜</string>
+    <string name="view_rank">瀏覽量榜</string>
+    <string name="view_rank_title">全站瀏覽量榜</string>
     <string name="recent_window_live">即時</string>
     <string name="recent_window_day">日榜</string>
     <string name="recent_window_week">週榜</string>

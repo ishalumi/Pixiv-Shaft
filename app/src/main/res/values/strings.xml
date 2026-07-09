@@ -1871,6 +1871,10 @@
     <string name="current_hot">当前最热</string>
     <string name="artist_rank">画师榜</string>
     <string name="artist_rank_title">画师收藏总榜</string>
+    <string name="artist_avg_rank">画师均分榜</string>
+    <string name="artist_avg_rank_title">画师平均收藏榜</string>
+    <string name="view_rank">浏览量榜</string>
+    <string name="view_rank_title">全站浏览量榜</string>
     <!-- 当前最热的窗口下拉(实时流 / 实时日·周·月榜) -->
     <string name="recent_window_live">实时</string>
     <string name="recent_window_day">日榜</string>

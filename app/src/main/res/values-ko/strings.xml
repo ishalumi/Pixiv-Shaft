@@ -1727,6 +1727,10 @@
     <string name="current_hot">지금 인기</string>
     <string name="artist_rank">작가 순위</string>
     <string name="artist_rank_title">작가 북마크 종합 순위</string>
+    <string name="artist_avg_rank">평균 순위</string>
+    <string name="artist_avg_rank_title">작가 평균 북마크 순위</string>
+    <string name="view_rank">조회수 순위</string>
+    <string name="view_rank_title">전체 조회수 순위</string>
     <string name="recent_window_live">실시간</string>
     <string name="recent_window_day">일간</string>
     <string name="recent_window_week">주간</string>

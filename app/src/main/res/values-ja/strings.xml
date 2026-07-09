@@ -1727,6 +1727,10 @@
     <string name="current_hot">急上昇</string>
     <string name="artist_rank">絵師ランキング</string>
     <string name="artist_rank_title">絵師ブックマーク総合ランキング</string>
+    <string name="artist_avg_rank">平均ランキング</string>
+    <string name="artist_avg_rank_title">絵師平均ブックマークランキング</string>
+    <string name="view_rank">閲覧数ランキング</string>
+    <string name="view_rank_title">全体閲覧数ランキング</string>
     <string name="recent_window_live">リアルタイム</string>
     <string name="recent_window_day">日間</string>
     <string name="recent_window_week">週間</string>

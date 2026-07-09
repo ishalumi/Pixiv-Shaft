@@ -1727,6 +1727,10 @@
     <string name="current_hot">Trending Now</string>
     <string name="artist_rank">Top Artists</string>
     <string name="artist_rank_title">Artist Bookmark Leaderboard</string>
+    <string name="artist_avg_rank">Avg Bookmarks</string>
+    <string name="artist_avg_rank_title">Artists by Avg Bookmarks</string>
+    <string name="view_rank">Most Viewed</string>
+    <string name="view_rank_title">Most Viewed Works</string>
     <string name="recent_window_live">Live</string>
     <string name="recent_window_day">Daily ranking</string>
     <string name="recent_window_week">Weekly ranking</string>

@@ -22,11 +22,14 @@ import timber.log.Timber
  * 清零关注/收藏态:payload 里的 is_followed / is_bookmarked 是上报榜单那个客户端当时的状态,跟
  * 当前用户无关,全清成 false 让用户能以自己名义关注/收藏(同 Trending/Recent repo)。
  */
-class ArtistRankRepo : RemoteRepo<ListUser>() {
+class ArtistRankRepo(
+    /** total=总收藏榜 / avg=平均收藏榜(质量派)。 */
+    private val sort: String = "total",
+) : RemoteRepo<ListUser>() {
 
     override fun initApi(): Observable<ListUser> {
         return Observable.fromCallable {
-            buildListUser(runBlocking { ShaftApiV2Client.service.discoverArtists() })
+            buildListUser(runBlocking { ShaftApiV2Client.service.discoverArtists(sort = sort) })
         }.subscribeOn(Schedulers.io())
     }
 

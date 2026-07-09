@@ -79,6 +79,8 @@ interface ShaftApiV2 {
         val computed_at: Long,
         /** 完整 IllustsBean / NovelBean JSON，仅 include_meta=1 时存在。 */
         val bean: JsonObject?,
+        /** 仅 most-viewed 榜返回:该作 pixiv 总浏览数(其它榜单无此字段,默认 0)。 */
+        val view_count: Int = 0,
     )
 
     /**
@@ -148,11 +150,36 @@ interface ShaftApiV2 {
     suspend fun discoverArtists(
         @Query("limit") limit: Int = 30,
         @Query("offset") offset: Int = 0,
+        /** total=总收藏榜 / avg=平均收藏榜(质量派,作品≥20)。 */
+        @Query("sort") sort: String = "total",
     ): ArtistRankResponse
+
+    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL,已带 sort)。 */
+    @GET
+    suspend fun discoverArtistsByUrl(@Url url: String): ArtistRankResponse
+
+    /**
+     * 全站浏览量榜 —— 单作按 pixiv 总浏览数排(含 R-18)。item 复用 [TrendingWorkItem]
+     * (target_id/bookmark_count/bean;服务端另带 view_count)。翻页跟随 next_url。
+     */
+    @GET("api/v1/discover/most-viewed")
+    suspend fun mostViewed(
+        @Query("type") type: String = "illust",
+        @Query("limit") limit: Int = 30,
+        @Query("offset") offset: Int = 0,
+    ): MostViewedResponse
 
     /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL)。 */
     @GET
-    suspend fun discoverArtistsByUrl(@Url url: String): ArtistRankResponse
+    suspend fun mostViewedByUrl(@Url url: String): MostViewedResponse
+
+    data class MostViewedResponse(
+        val type: String,
+        val limit: Int,
+        val items: List<TrendingWorkItem>,
+        val offset: Int? = null,
+        val next_url: String? = null,
+    )
 
     data class ArtistRankResponse(
         val user_previews: List<ArtistPreviewItem> = listOf(),

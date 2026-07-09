@@ -1727,6 +1727,10 @@
     <string name="current_hot">Şu An Popüler</string>
     <string name="artist_rank">En İyi Sanatçılar</string>
     <string name="artist_rank_title">Sanatçı Beğeni Sıralaması</string>
+    <string name="artist_avg_rank">Ortalama</string>
+    <string name="artist_avg_rank_title">Ortalama Beğeniye Göre Sanatçılar</string>
+    <string name="view_rank">En Çok Görüntülenen</string>
+    <string name="view_rank_title">En Çok Görüntülenen Eserler</string>
     <string name="recent_window_live">Canlı</string>
     <string name="recent_window_day">Günlük</string>
     <string name="recent_window_week">Haftalık</string>
