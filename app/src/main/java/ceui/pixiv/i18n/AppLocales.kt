@@ -153,12 +153,27 @@ object AppLocales {
      */
     fun localizedContext(base: Context, tag: String?): Context {
         val locale = resolveLocale(tag)
-        val cfg = Configuration(base.resources.configuration)
+        val cfg = localeOnlyOverride(locale)
+        return base.createConfigurationContext(cfg)
+    }
+
+    /**
+     * 只覆盖 locale 的 override Configuration：用 **空** [Configuration]，其余字段全留 UNDEFINED，
+     * 交给 [Context.createConfigurationContext] 的 delta 合并从 base 实时继承。
+     *
+     * 关键：绝不能 `Configuration(base.resources.configuration)` 整份拷贝——那会把当下的 `uiMode`
+     * （含日夜位）一并钉死。AppCompat 的 `MODE_NIGHT_FOLLOW_SYSTEM` 解析"系统当前是不是深色"时是拿
+     * Application context 的 Resources 去问的，而 Application 进程级唯一、永不重建，一旦它的 uiMode 被
+     * 钉死，系统切深浅色时 app 纹丝不动，只有下次冷启才追上（见 [wrapWithSavedLocale] 的复用方）。
+     * 空 config 里 uiMode = UI_MODE_*_UNDEFINED(0)，被 delta 合并当作"未 override"跳过，从而继续跟随系统。
+     */
+    private fun localeOnlyOverride(locale: Locale): Configuration {
+        val cfg = Configuration()
         cfg.setLocale(locale)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             cfg.setLocales(LocaleList(locale))
         }
-        return base.createConfigurationContext(cfg)
+        return cfg
     }
 
     /**
@@ -174,12 +189,9 @@ object AppLocales {
         return try {
             val tag = savedTag() ?: return base
             val locale = Locale.forLanguageTag(tag)
-            val cfg = Configuration(base.resources.configuration)
-            cfg.setLocale(locale)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                cfg.setLocales(LocaleList(locale))
-            }
-            base.createConfigurationContext(cfg)
+            // 只覆盖 locale，uiMode 等其余字段继续跟随系统，否则 MODE_NIGHT_FOLLOW_SYSTEM 会失效，
+            // 见 [localeOnlyOverride] 的详解。
+            base.createConfigurationContext(localeOnlyOverride(locale))
         } catch (t: Throwable) {
             base
         }
