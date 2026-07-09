@@ -1869,6 +1869,8 @@
     <string name="experimental_section">试验性</string>
     <string name="site_recommend">本月收藏</string>
     <string name="current_hot">当前最热</string>
+    <string name="artist_rank">画师榜</string>
+    <string name="artist_rank_title">画师收藏总榜</string>
     <!-- 当前最热的窗口下拉(实时流 / 实时日·周·月榜) -->
     <string name="recent_window_live">实时</string>
     <string name="recent_window_day">日榜</string>

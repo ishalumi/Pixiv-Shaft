@@ -139,6 +139,37 @@ interface ShaftApiV2 {
     )
 
     /**
+     * 画师收藏总榜 —— 按画师全部作品的 pixiv 总收藏数求和排名(含 R-18)。服务端回 pixiv
+     * user_previews 形状。user / illusts 都是原始 pixiv JSON(JsonObject),由 [ArtistRankRepo]
+     * 用 Shaft.sGson 反序列化成 UserBean / IllustsBean(和 TrendingWorksRepo 一致,不用 Retrofit
+     * 默认 Gson),拼成 ListUser 复用现成「画师 + 3 预览图」列表。翻页跟随 next_url。
+     */
+    @GET("api/v1/discover/artists")
+    suspend fun discoverArtists(
+        @Query("limit") limit: Int = 30,
+        @Query("offset") offset: Int = 0,
+    ): ArtistRankResponse
+
+    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL)。 */
+    @GET
+    suspend fun discoverArtistsByUrl(@Url url: String): ArtistRankResponse
+
+    data class ArtistRankResponse(
+        val user_previews: List<ArtistPreviewItem> = listOf(),
+        val next_url: String? = null,
+    )
+
+    data class ArtistPreviewItem(
+        /** 原始 pixiv user JSON(id/name/account/profile_image_urls)。 */
+        val user: JsonObject?,
+        /** 该画师 top-N 代表作的完整 pixiv illust JSON。 */
+        val illusts: List<JsonObject> = listOf(),
+        val user_id: Long = 0,
+        val total_bookmarks: Long = 0,
+        val work_count: Int = 0,
+    )
+
+    /**
      * 当前客户端自己的操作日志。client_id 是本地生成的 sha256(UUID)，只能查到自己的事件。
      * - eventType: null=全部；bookmark / unbookmark / download / follow / unfollow
      * - before: 上一页最后一条的 id（服务端按 id DESC 排），首页传 null

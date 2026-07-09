@@ -1725,6 +1725,8 @@
     <string name="experimental_section">Экспериментальное</string>
     <string name="site_recommend">Закладки за месяц</string>
     <string name="current_hot">Сейчас в тренде</string>
+    <string name="artist_rank">Топ художников</string>
+    <string name="artist_rank_title">Рейтинг художников по закладкам</string>
     <string name="recent_window_live">В реальном времени</string>
     <string name="recent_window_day">За день</string>
     <string name="recent_window_week">За неделю</string>

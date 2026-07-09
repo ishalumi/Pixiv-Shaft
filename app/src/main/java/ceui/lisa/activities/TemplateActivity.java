@@ -429,6 +429,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new ceui.pixiv.ui.recommend.FragmentRecentRecommend();
                 case "站长推荐":
                     return new ceui.pixiv.ui.recommend.FragmentSiteRecommend();
+                case "画师榜":
+                    return new ceui.pixiv.ui.recommend.FragmentArtistRank();
                 case "操作记录":
                     return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 case "批量下载Debug":

@@ -86,10 +86,11 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         setupRail(baseBind.siteRail, 4, 180);
         setupRail(baseBind.recentRail, 4, 180);
 
-        // 本月收藏 / 当前最热走自建 shaft-api-v2,Lite 渠道不展示 —— 整段 GONE(不占位、不加载)。
+        // 本月收藏 / 当前最热 / 画师榜走自建 shaft-api-v2,Lite 渠道不展示 —— GONE(不占位、不加载)。
         if (BuildConfig.IS_LITE) {
             baseBind.siteSection.setVisibility(View.GONE);
             baseBind.recentSection.setVisibility(View.GONE);
+            baseBind.catArtistRank.setVisibility(View.GONE);
         }
 
         // ── 「查看全部」跳原来的整页 ──
@@ -103,6 +104,7 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         baseBind.bigNovel.setOnClickListener(v -> openFragmentKeepStatusBar("推荐小说"));
 
         // ── 更多分类:旧跳转卡降级成一排 chip ──
+        baseBind.catArtistRank.setOnClickListener(v -> openFragment("画师榜"));
         baseBind.catWalk.setOnClickListener(v -> openFragment("画廊"));
         baseBind.catFollowNovel.setOnClickListener(v -> openFragment("关注者的小说"));
         baseBind.catDiscovery.setOnClickListener(v -> openFragment("发现"));
@@ -121,6 +123,7 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         // 比 chip 的 pillSecondary(20%)明显更抢眼,跟随主题色、日夜双模。
         styleBigModule(baseBind.bigManga, baseBind.bigMangaIconWrap, palette);
         styleBigModule(baseBind.bigNovel, baseBind.bigNovelIconWrap, palette);
+        styleCatChip(baseBind.catArtistRank, palette, R.drawable.ic_setcat_person);
         styleCatChip(baseBind.catWalk, palette, R.drawable.ic_collections_black_24dp);
         styleCatChip(baseBind.catFollowNovel, palette, R.drawable.ic_baseline_bookmark_24);
         styleCatChip(baseBind.catDiscovery, palette, R.drawable.ic_baseline_explore_24);
