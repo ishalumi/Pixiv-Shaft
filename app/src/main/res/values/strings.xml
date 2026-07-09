@@ -113,6 +113,7 @@
     <string name="download_manager">下载管理</string>
     <string name="recommend_illust">推荐作品</string>
     <string name="recommend_novel">推荐小说</string>
+    <string name="recommend_manga">推荐漫画</string>
 
     <!-- V3 Spotlight 小组件 -->
     <string name="v3_widget_spotlight_label">Pixiv 推荐 大图</string>

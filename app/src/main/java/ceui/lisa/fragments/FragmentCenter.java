@@ -98,9 +98,11 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         baseBind.siteMore.setOnClickListener(v -> openFragment("站长推荐"));
         baseBind.recentMore.setOnClickListener(v -> openFragment("当前最热"));
 
+        // ── 重点模块:漫画 / 小说 —— 置顶大卡,和下面的小分类 chip 分开(用户反馈:别混在一起) ──
+        baseBind.bigManga.setOnClickListener(v -> openFragment("推荐漫画"));
+        baseBind.bigNovel.setOnClickListener(v -> openFragmentKeepStatusBar("推荐小说"));
+
         // ── 更多分类:旧跳转卡降级成一排 chip ──
-        baseBind.catManga.setOnClickListener(v -> openFragment("推荐漫画"));
-        baseBind.catNovel.setOnClickListener(v -> openFragmentKeepStatusBar("推荐小说"));
         baseBind.catWalk.setOnClickListener(v -> openFragment("画廊"));
         baseBind.catFollowNovel.setOnClickListener(v -> openFragment("关注者的小说"));
         baseBind.catDiscovery.setOnClickListener(v -> openFragment("发现"));
@@ -115,8 +117,10 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         // 更多分类 chip 提升存在感:主题色 tint 胶囊 + accent 文字 + 前导图标,跟随主题色、日夜双模,
         // 从原来"淡灰几乎隐形"变成清晰可点(pillSecondary=20% 主题色底 + 30% 描边,不刺眼)。
         V3Palette palette = V3Palette.from(mContext);
-        styleCatChip(baseBind.catManga, palette, R.drawable.ic_baseline_palette_24);
-        styleCatChip(baseBind.catNovel, palette, R.drawable.ic_baseline_menu_book_24);
+        // 漫画 / 小说 大卡:主题色 tint 卡底(seriesStripBg,~35% 主题色)+ 实心图标底(seriesIconBg),
+        // 比 chip 的 pillSecondary(20%)明显更抢眼,跟随主题色、日夜双模。
+        styleBigModule(baseBind.bigManga, baseBind.bigMangaIconWrap, palette);
+        styleBigModule(baseBind.bigNovel, baseBind.bigNovelIconWrap, palette);
         styleCatChip(baseBind.catWalk, palette, R.drawable.ic_collections_black_24dp);
         styleCatChip(baseBind.catFollowNovel, palette, R.drawable.ic_baseline_bookmark_24);
         styleCatChip(baseBind.catDiscovery, palette, R.drawable.ic_baseline_explore_24);
@@ -217,6 +221,15 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
             TextViewCompat.setCompoundDrawableTintList(chip,
                     ColorStateList.valueOf(palette.getTextAccent()));
         }
+    }
+
+    /**
+     * 「漫画 / 小说」重点大卡:主题色 tint 的卡底 + 实心图标底,按主题色 tint、日夜双模。
+     * 圆角 18(卡)/12(图标底),和 V3 其余圆角语言一致。
+     */
+    private void styleBigModule(View card, View iconWrap, V3Palette palette) {
+        card.setBackground(palette.seriesStripBg(DensityUtil.dp2px(18.0f)));
+        iconWrap.setBackground(palette.seriesIconBg(DensityUtil.dp2px(12.0f)));
     }
 
     private void openFragment(String dataType) {

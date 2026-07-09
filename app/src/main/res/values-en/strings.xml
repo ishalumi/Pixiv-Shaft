@@ -106,6 +106,7 @@
     <string name="download_manager">Download Manager</string>
     <string name="recommend_illust">Recommended works</string>
     <string name="recommend_novel">Recommended Novels</string>
+    <string name="recommend_manga">Recommended Manga</string>
     <string name="v3_widget_spotlight_label">Pixiv Recommend · Large</string>
     <string name="v3_widget_spotlight_description">A hand-picked recommendation refreshed periodically</string>
     <string name="v3_widget_loading_title">Picking an artwork…</string>
