@@ -2,8 +2,10 @@ package ceui.lisa.fragments
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.view.View
+import androidx.core.graphics.ColorUtils
 import ceui.lisa.BuildConfig
 import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
@@ -14,6 +16,7 @@ import ceui.lisa.update.UpdateBottomSheet
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.PackageUtils
 import ceui.lisa.utils.Params
+import ceui.lisa.utils.V3Palette
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog.MenuDialogBuilder
 import com.scwang.smart.refresh.layout.SmartRefreshLayout
@@ -36,6 +39,17 @@ class FragmentAboutApp : SwipeFragment<FragmentAboutBinding>() {
 
         baseBind.appVersion.text = "%s (%s) "
             .format(Common.getAppVersionName(mContext), Common.getAppVersionCode(mContext))
+
+        if (BuildConfig.IS_LITE) {
+            // lite 版没有更新/版本历史两行，版本行独立成单行圆角卡
+            baseBind.versionRela.setBackgroundResource(R.drawable.bg_m3_row_single)
+        }
+        val palette = V3Palette.from(mContext)
+        val iconCircle = ColorUtils.blendARGB(
+            palette.cardFill, palette.primary, if (palette.isDark) 0.16f else 0.14f
+        )
+        (baseBind.githubIconWrap.background.mutate() as? GradientDrawable)?.setColor(iconCircle)
+        SettingsCatalog.applyThemedRowBg(baseBind.parentLinear)
 
         if (!BuildConfig.IS_LITE) {
             baseBind.githubUpdateSection.visibility = View.VISIBLE

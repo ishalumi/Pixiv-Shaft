@@ -50,7 +50,7 @@
                     app:civ_border_color="@color/always_white"
                     app:civ_border_width="2dp"
                     android:contentDescription="@null"
-                    android:src="@drawable/avatar" />
+                    android:src="@drawable/no_profile" />
 
                 <LinearLayout
                     android:layout_width="0dp"

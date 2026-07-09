@@ -34,7 +34,7 @@
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="48dp"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/avatar"
+                    android:src="@drawable/no_profile"
                     app:civ_border_color="#12345678"
                     app:civ_border_width="1dp">
 
