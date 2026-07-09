@@ -97,24 +97,26 @@
 
                             <TextView
                                 android:id="@+id/user_name"
+                                style="@style/textMontserratSemiBold"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:ellipsize="end"
                                 android:maxLines="1"
                                 android:textColor="@color/v3_text_1"
-                                android:textSize="20sp"
+                                android:textSize="19sp"
                                 android:textStyle="bold" />
 
                             <TextView
                                 android:id="@+id/user_email"
+                                style="@style/textMontserratMedium"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
+                                android:layout_marginTop="1dp"
                                 android:ellipsize="end"
                                 android:maxLines="1"
                                 android:text="@string/nav_header_subtitle"
                                 android:textColor="@color/v3_text_2"
-                                android:textSize="13sp" />
+                                android:textSize="12sp" />
 
                         </LinearLayout>
 

@@ -357,38 +357,36 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
         LinearLayout sections = baseBind.drawerSections;
         sections.removeAllViews();
 
-        // 发现分组瘦身:「最新 / 热度标签 / 特辑 / 本月收藏 / 当前最热」已铺进「发现」tab
-        // (FragmentCenter 的内容货架),侧边栏不再重复入口。留「发现」(算法流)+「置顶标签」
-        // ——前者只在 tab 里作二级 chip,后者 tab 没有承载。点击 handler 保留(深链兜底,无害)。
-        addDrawerSection(sections, R.string.drawer_section_discover, new DrawerEntry[]{
-                new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery, discoveryReady),
-                new DrawerEntry(R.id.nav_pinned_tags, R.drawable.ic_baseline_bookmark_24, R.string.pinned_tags),
-        });
-
+        // 「浏览与发现」独立小组已撤:发现内容(最新/热度标签/特辑/本月收藏/当前最热)已铺进
+        // 「发现」tab 的内容货架,「置顶标签」是用户自己钉的标签、并入「我的」;「发现」(算法流)
+        // 只作深链兜底、gate 后极少可见,收在「我的」末尾。点击 handler 全部保留。
+        // 「个人主页」入口去掉——顶部账号整块点击即进自己主页,不再重复一行。
         addDrawerSection(sections, R.string.drawer_section_mine, new DrawerEntry[]{
-                new DrawerEntry(R.id.main_page, R.drawable.ic_home_black_24dp, R.string.user_main_page),
                 new DrawerEntry(R.id.illust_star, R.drawable.ic_baseline_palette_24, R.string.string_319),
                 new DrawerEntry(R.id.novel_star, R.drawable.ic_baseline_menu_book_24, R.string.string_320),
                 new DrawerEntry(R.id.watch_later, R.drawable.ic_watch_later_24, R.string.watch_later),
+                new DrawerEntry(R.id.nav_pinned_tags, R.drawable.ic_baseline_bookmark_24, R.string.pinned_tags),
                 new DrawerEntry(R.id.watchlist, R.drawable.ic_fiber_new_black_24dp, R.string.watchlist),
                 new DrawerEntry(R.id.novel_markers, R.drawable.ic_baseline_bookmark_24, R.string.core_string_novel_marker),
                 new DrawerEntry(R.id.follow_user, R.drawable.ic_baseline_how_to_reg_24, R.string.string_321),
                 new DrawerEntry(R.id.nav_fans, R.drawable.ic_supervisor_account_black_24dp, R.string.string_322),
                 new DrawerEntry(R.id.new_work, R.drawable.ic_baseline_post_work_48, R.string.string_444),
+                new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery, discoveryReady),
         });
 
+        // 高频入口前置:浏览历史 排在「记录与管理」首位,设置 排在「其他」首位。
         addDrawerSection(sections, R.string.drawer_section_records, new DrawerEntry[]{
-                new DrawerEntry(nav_gallery, R.drawable.ic_file_download_black_24dp, R.string.download_manager),
                 new DrawerEntry(nav_slideshow, R.drawable.ic_history_black_24dp, R.string.view_history),
+                new DrawerEntry(nav_gallery, R.drawable.ic_file_download_black_24dp, R.string.download_manager),
                 new DrawerEntry(R.id.nav_notifications, R.drawable.ic_notifications_black_24dp, R.string.notifications_and_info, experimentalAllowed),
                 new DrawerEntry(R.id.muted_list, R.drawable.ic_not_interested_black_24dp, R.string.muted_history),
                 new DrawerEntry(R.id.nav_event_history, R.drawable.ic_baseline_list_24, R.string.event_history, !isLite),
         });
 
         addDrawerSection(sections, R.string.the_others, new DrawerEntry[]{
+                new DrawerEntry(R.id.nav_manage, R.drawable.ic_baseline_settings_24, R.string.app_settings),
                 new DrawerEntry(R.id.nav_ai_upscale, R.drawable.baseline_auto_awesome_24, R.string.string_ai_upscale_standalone),
                 new DrawerEntry(R.id.nav_reverse, R.drawable.ic_collections_black_24dp, R.string.search_image_origin),
-                new DrawerEntry(R.id.nav_manage, R.drawable.ic_baseline_settings_24, R.string.app_settings),
                 new DrawerEntry(R.id.nav_share, R.drawable.ic_error_black_24dp, R.string.about_app),
         });
 
