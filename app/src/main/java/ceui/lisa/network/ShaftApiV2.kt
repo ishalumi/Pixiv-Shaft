@@ -120,6 +120,25 @@ interface ShaftApiV2 {
     )
 
     /**
+     * 发现页首屏聚合。一次请求拿回两条 shaft-api-v2 货架(本月收藏 / 当前最热),替掉之前各打
+     * 一枪的两个来回。每条 shelf.items 复用 [TrendingWorkItem] 形状,item.bean 直接是完整
+     * IllustsBean JSON。只回每条首屏 top-N(货架在 tab 里是截断预览);「查看全部」仍走各自分页
+     * 接口。整包服务端 60s 缓存,下拉刷新照拉(慢变量,tab 首屏无需实时)。
+     */
+    @GET("api/v1/discover")
+    suspend fun discover(): DiscoverResponse
+
+    data class DiscoverResponse(
+        val computed_at: Long,
+        val site: DiscoverShelf,
+        val recent: DiscoverShelf,
+    )
+
+    data class DiscoverShelf(
+        val items: List<TrendingWorkItem>,
+    )
+
+    /**
      * 当前客户端自己的操作日志。client_id 是本地生成的 sha256(UUID)，只能查到自己的事件。
      * - eventType: null=全部；bookmark / unbookmark / download / follow / unfollow
      * - before: 上一页最后一条的 id（服务端按 id DESC 排），首页传 null

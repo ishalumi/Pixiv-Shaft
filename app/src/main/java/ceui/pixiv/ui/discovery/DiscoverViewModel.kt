@@ -4,29 +4,32 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ceui.lisa.activities.Shaft
 import ceui.lisa.core.RemoteRepo
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
+import ceui.lisa.network.ShaftApiV2
+import ceui.lisa.network.ShaftApiV2Client
 import ceui.lisa.repo.LatestIllustRepo
 import ceui.pixiv.ui.prime.PrimeTagIndexItem
-import ceui.pixiv.ui.recommend.RecentWorksRepo
-import ceui.pixiv.ui.recommend.TrendingWorksRepo
 import com.blankj.utilcode.util.Utils
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * 发现页(FragmentCenter)各内容货架的数据持有者。把侧边栏「发现」分组的内容直接铺进 tab:
  *   · [primeTags]   热度标签 —— 本地策展 asset(prime_index.json),离线秒开
  *   · [latest]      最新     —— [LatestIllustRepo] getNewWorks(全站新投稿)
- *   · [siteRecommend] 本月收藏 —— [TrendingWorksRepo] shaft-api-v2 周收藏榜(非 Lite)
- *   · [recentHot]   当前最热 —— [RecentWorksRepo] shaft-api-v2 实时收藏流(非 Lite)
+ *   · [siteRecommend] 本月收藏 —— shaft-api-v2 周收藏榜(非 Lite)
+ *   · [recentHot]   当前最热 —— shaft-api-v2 实时收藏流(非 Lite)
  *
- * 每条货架只拉一页、截断到 [RAIL_LIMIT] 张;点「查看全部」跳原来的整页(零新后端)。
+ * 上面两条 shaft-api-v2 货架合并成一个 /discover 聚合请求([loadDiscover]),不再各打一枪两个来回。
+ * 每条货架只拉一页、截断到 [RAIL_LIMIT] 张;点「查看全部」跳各自整页(仍走各自分页接口)。
  * 数据存这里而非 Fragment 字段:tab 来回切不重拉,配置变更后货架还在。
  */
 class DiscoverViewModel : ViewModel() {
@@ -56,11 +59,56 @@ class DiscoverViewModel : ViewModel() {
     fun reload(includeServerShelves: Boolean) {
         loadTags()
         loadIllustRail(LatestIllustRepo("illust"), _latest)
-        // 站长推荐(本月收藏)/ 当前最热走自建 shaft-api-v2,Lite 渠道不展示这两条。
+        // 本月收藏 / 当前最热 / 隐藏神作 三条 shaft-api-v2 货架合并成一个 /discover 请求;
+        // Lite 渠道不展示这三条。
         if (includeServerShelves) {
-            loadIllustRail(TrendingWorksRepo("illust", RAIL_LIMIT), _siteRecommend)
-            loadIllustRail(RecentWorksRepo("illust", RAIL_LIMIT), _recentHot)
+            loadDiscover()
         }
+    }
+
+    /**
+     * 一个 /discover 聚合请求,填两条 shaft-api-v2 货架(替掉之前 2 个独立请求)。
+     * 失败整体静默塌陷:两条都发空 → 收起货架,不弹 toast(后台货架不打扰前台)。
+     * 每条 bean 的收藏态清成 false(payload 里是上报者的态,跟当前用户无关),user==null
+     * 的脏数据剔掉(RAdapter 直取 user.name / 头像,null 会 NPE)。
+     */
+    private fun loadDiscover() {
+        viewModelScope.launch {
+            val resp = withContext(Dispatchers.IO) {
+                try {
+                    ShaftApiV2Client.service.discover()
+                } catch (e: Throwable) {
+                    Timber.tag("Discover").w(e, "discover aggregate failed")
+                    null
+                }
+            }
+            _siteRecommend.value = parseShelf(resp?.site?.items) { it.score.toFloat() }
+            _recentHot.value = parseShelf(resp?.recent?.items) { it.bookmark_count.toFloat() }
+        }
+    }
+
+    /**
+     * 把一条 shelf 的 item 列表解析成可渲染的 [IllustsBean]:bean JSON → Gson,热度值由
+     * [scoreOf] 决定(本月收藏取加权 score、当前最热/隐藏神作取 bookmark_count),露左上角 pill。
+     */
+    private fun parseShelf(
+        items: List<ShaftApiV2.TrendingWorkItem>?,
+        scoreOf: (ShaftApiV2.TrendingWorkItem) -> Float,
+    ): List<IllustsBean> {
+        if (items.isNullOrEmpty()) return emptyList()
+        val gson = Shaft.sGson
+        return items.mapNotNull { item ->
+            item.bean?.let { json ->
+                try {
+                    gson.fromJson(json, IllustsBean::class.java).apply {
+                        trendingScore = scoreOf(item)
+                        setIs_bookmarked(false)
+                    }
+                } catch (e: Throwable) {
+                    null
+                }
+            }
+        }.filter { it.user != null }.take(RAIL_LIMIT)
     }
 
     private fun loadIllustRail(
