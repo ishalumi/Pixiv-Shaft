@@ -357,14 +357,12 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
         LinearLayout sections = baseBind.drawerSections;
         sections.removeAllViews();
 
+        // 发现分组瘦身:「最新 / 热度标签 / 特辑 / 本月收藏 / 当前最热」已铺进「发现」tab
+        // (FragmentCenter 的内容货架),侧边栏不再重复入口。留「发现」(算法流)+「置顶标签」
+        // ——前者只在 tab 里作二级 chip,后者 tab 没有承载。点击 handler 保留(深链兜底,无害)。
         addDrawerSection(sections, R.string.drawer_section_discover, new DrawerEntry[]{
                 new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery, discoveryReady),
-                new DrawerEntry(R.id.nav_prime_tags, R.drawable.outline_whatshot_24, R.string.prime_tags),
                 new DrawerEntry(R.id.nav_pinned_tags, R.drawable.ic_baseline_bookmark_24, R.string.pinned_tags),
-                new DrawerEntry(R.id.nav_new_work, R.drawable.ic_fiber_new_black_24dp, R.string.latest_work),
-                new DrawerEntry(R.id.nav_feature, R.drawable.ic_huangguan, R.string.string_248),
-                new DrawerEntry(R.id.nav_current_hot, R.drawable.ic_equalizer_black_24dp, R.string.current_hot, !isLite),
-                new DrawerEntry(R.id.nav_site_recommend, R.drawable.ic_baseline_star_24, R.string.site_recommend, !isLite),
         });
 
         addDrawerSection(sections, R.string.drawer_section_mine, new DrawerEntry[]{

@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 「发现」tab —— V3 重设计。
-     · 页面底色统一 v3_bg;顶部 header 固定不滚(标题 + 常驻搜索胶囊),下方 pivision + 分类卡滚动。
-     · 状态栏图标:MainActivity 走 EdgeToEdge auto()(跟随日夜),v3_bg header 在浅/深两模式对比都好。
-     · 分类卡改成满铺缩略图 + 底部压暗 scrim + 统一左下白色标题(替掉旧版硬阴影 + 忽上忽下的标签)。 -->
+<!-- 「发现」tab —— V3 内容货架重设计。
+     旧版是「一堆跳转卡」;这版把侧边栏「发现」分组的真实内容直接铺进 tab:每个板块 = 标题 +
+     「查看全部」+ 横向缩略图货架,一屏纵向滚动。全部复用现有 repo,「查看全部」跳原来的整页。
+     · 顶部 header 固定不滚(抽屉 + 大标题「发现」+ 搜索图标),下方货架滚动。
+     · 货架顺序:热度标签(本地策展)→ 最新 → 特辑(pixivision)→ 本月收藏 → 当前最热 → 更多分类。
+     · 本月收藏 / 当前最热走自建 shaft-api-v2,Lite 渠道整段 GONE(代码里按 BuildConfig.IS_LITE)。
+     · 缩略图货架卡复用排行榜 hero 卡样式(recy_rank_illust_horizontal / recy_discover_tag):
+       圆角 16 + 底部 scrim + 白标题,日夜自适应。 -->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <data>
 
@@ -24,7 +27,7 @@
             android:layout_height="1dp"
             android:background="@color/v3_bg" />
 
-        <!-- Header 行:抽屉入口 + 大标题「发现」 -->
+        <!-- Header 行:抽屉入口 + 大标题「发现」+ 搜索(和「推荐」tab 一致) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -54,7 +57,6 @@
                 android:textSize="24sp"
                 android:textStyle="bold" />
 
-            <!-- 搜索入口:挪到 header 右上角,和「推荐」tab 的搜索图标一致 -->
             <ImageButton
                 android:id="@+id/searchBar"
                 android:layout_width="44dp"
@@ -73,29 +75,243 @@
             android:layout_height="0dp"
             android:layout_weight="1">
 
+            <!-- clipToPadding=false:内容滚动时贴着视口底边裁切,而不是被 24dp paddingBottom 提前
+                 24dp 切一刀(那会在底部悬空一条「莫名其妙的裁切痕迹」)。padding 只用来给末尾留出滚动余量。 -->
             <androidx.core.widget.NestedScrollView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:clipToPadding="false"
                 android:overScrollMode="never"
-                android:paddingBottom="20dp">
+                android:paddingBottom="24dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <!-- pixivision 推荐横条(子 fragment) -->
+                    <!-- ============ 特辑(pixivision 子 fragment,置顶) ============
+                         pixivision 子 fragment 自带品牌 logo + 「查看更多」头,不再另加「特辑」文字标题。
+                         它的 see_more 已经跳 pixivision 列表,无需再接一个「查看全部」。logo marginTop=24 与
+                         其余货架头间距一致。 -->
                     <FrameLayout
                         android:id="@+id/fragment_pivision"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
 
-                    <!-- 分区小标题 -->
+                    <!-- ============ 热度标签 ============ -->
+                    <LinearLayout
+                        android:id="@+id/tagSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="20dp"
+                            android:paddingTop="24dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="12dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:letterSpacing="0.01"
+                                android:text="@string/prime_tags"
+                                android:textColor="@color/v3_text_1"
+                                android:textSize="17sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tagMore"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:stateListAnimator="@animator/button_press_alpha"
+                                android:text="@string/string_167"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="13sp"
+                                app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
+                                app:drawableTint="?attr/colorPrimary" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/tagRail"
+                            android:layout_width="match_parent"
+                            android:layout_height="120dp"
+                            android:clipToPadding="false"
+                            android:overScrollMode="never"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- ============ 最新 ============ -->
+                    <LinearLayout
+                        android:id="@+id/latestSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="20dp"
+                            android:paddingTop="24dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="12dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:letterSpacing="0.01"
+                                android:text="@string/latest_work"
+                                android:textColor="@color/v3_text_1"
+                                android:textSize="17sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/latestMore"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:stateListAnimator="@animator/button_press_alpha"
+                                android:text="@string/string_167"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="13sp"
+                                app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
+                                app:drawableTint="?attr/colorPrimary" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/latestRail"
+                            android:layout_width="match_parent"
+                            android:layout_height="180dp"
+                            android:clipToPadding="false"
+                            android:overScrollMode="never"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- ============ 本月收藏(站长推荐,shaft-api-v2,Lite GONE) ============ -->
+                    <LinearLayout
+                        android:id="@+id/siteSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="20dp"
+                            android:paddingTop="24dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="12dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:letterSpacing="0.01"
+                                android:text="@string/site_recommend"
+                                android:textColor="@color/v3_text_1"
+                                android:textSize="17sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/siteMore"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:stateListAnimator="@animator/button_press_alpha"
+                                android:text="@string/string_167"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="13sp"
+                                app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
+                                app:drawableTint="?attr/colorPrimary" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/siteRail"
+                            android:layout_width="match_parent"
+                            android:layout_height="180dp"
+                            android:clipToPadding="false"
+                            android:overScrollMode="never"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- ============ 当前最热(shaft-api-v2,Lite GONE) ============ -->
+                    <LinearLayout
+                        android:id="@+id/recentSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="20dp"
+                            android:paddingTop="24dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="12dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:letterSpacing="0.01"
+                                android:text="@string/current_hot"
+                                android:textColor="@color/v3_text_1"
+                                android:textSize="17sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/recentMore"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:stateListAnimator="@animator/button_press_alpha"
+                                android:text="@string/string_167"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="13sp"
+                                app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
+                                app:drawableTint="?attr/colorPrimary" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/recentRail"
+                            android:layout_width="match_parent"
+                            android:layout_height="180dp"
+                            android:clipToPadding="false"
+                            android:overScrollMode="never"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- ============ 更多分类(旧跳转卡降级成一排 chip) ============ -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="20dp"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="24dp"
                         android:layout_marginBottom="12dp"
                         android:letterSpacing="0.06"
                         android:text="@string/string_76"
@@ -103,232 +319,123 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <!-- Row 1: 推荐漫画 · 推荐小说 -->
-                    <LinearLayout
+                    <com.google.android.flexbox.FlexboxLayout
                         android:layout_width="match_parent"
-                        android:layout_height="128dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginStart="20dp"
                         android:layout_marginEnd="20dp"
-                        android:orientation="horizontal">
+                        app:flexWrap="wrap">
 
-                        <FrameLayout
-                            android:id="@+id/manga"
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_v3_discover_card"
+                        <TextView
+                            android:id="@+id/catManga"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="9dp"
+                            android:layout_marginBottom="9dp"
+                            android:background="@drawable/bg_v3_chip"
                             android:clickable="true"
                             android:focusable="true"
-                            android:foreground="@drawable/v3_ripple_card22"
-                            android:stateListAnimator="@animator/button_press_scale">
+                            android:paddingStart="15dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="15dp"
+                            android:paddingBottom="9dp"
+                            android:stateListAnimator="@animator/button_press_scale"
+                            android:text="@string/type_manga"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="13sp" />
 
-                            <ImageView
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:contentDescription="@null"
-                                android:scaleType="centerCrop"
-                                android:src="@drawable/main_novel" />
-
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="72dp"
-                                android:layout_gravity="bottom"
-                                android:background="@drawable/bg_v3_card_scrim" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="bottom|start"
-                                android:layout_margin="14dp"
-                                android:text="@string/type_manga"
-                                android:textColor="@color/always_white"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                        </FrameLayout>
-
-                        <FrameLayout
-                            android:id="@+id/novel"
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_v3_discover_card"
+                        <TextView
+                            android:id="@+id/catNovel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="9dp"
+                            android:layout_marginBottom="9dp"
+                            android:background="@drawable/bg_v3_chip"
                             android:clickable="true"
                             android:focusable="true"
-                            android:foreground="@drawable/v3_ripple_card22"
-                            android:stateListAnimator="@animator/button_press_scale">
+                            android:paddingStart="15dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="15dp"
+                            android:paddingBottom="9dp"
+                            android:stateListAnimator="@animator/button_press_scale"
+                            android:text="@string/type_novel"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="13sp" />
 
-                            <ImageView
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:contentDescription="@null"
-                                android:scaleType="centerCrop"
-                                android:src="@drawable/main_manga" />
-
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="72dp"
-                                android:layout_gravity="bottom"
-                                android:background="@drawable/bg_v3_card_scrim" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="bottom|start"
-                                android:layout_margin="14dp"
-                                android:text="@string/type_novel"
-                                android:textColor="@color/always_white"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                        </FrameLayout>
-
-                    </LinearLayout>
-
-                    <!-- Row 2: 画廊 · 关注者的小说 -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="128dp"
-                        android:layout_marginStart="20dp"
-                        android:layout_marginTop="12dp"
-                        android:layout_marginEnd="20dp"
-                        android:orientation="horizontal">
-
-                        <FrameLayout
-                            android:id="@+id/walk_through"
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_v3_discover_card"
+                        <TextView
+                            android:id="@+id/catWalk"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="9dp"
+                            android:layout_marginBottom="9dp"
+                            android:background="@drawable/bg_v3_chip"
                             android:clickable="true"
                             android:focusable="true"
-                            android:foreground="@drawable/v3_ripple_card22"
-                            android:stateListAnimator="@animator/button_press_scale">
+                            android:paddingStart="15dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="15dp"
+                            android:paddingBottom="9dp"
+                            android:stateListAnimator="@animator/button_press_scale"
+                            android:text="@string/type_walk_through"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="13sp" />
 
-                            <ImageView
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:contentDescription="@null"
-                                android:scaleType="centerCrop"
-                                android:src="@drawable/center_1" />
-
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="72dp"
-                                android:layout_gravity="bottom"
-                                android:background="@drawable/bg_v3_card_scrim" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="bottom|start"
-                                android:layout_margin="14dp"
-                                android:text="@string/type_walk_through"
-                                android:textColor="@color/always_white"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                        </FrameLayout>
-
-                        <FrameLayout
-                            android:id="@+id/follow_novels"
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_v3_discover_card"
+                        <TextView
+                            android:id="@+id/catFollowNovel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="9dp"
+                            android:layout_marginBottom="9dp"
+                            android:background="@drawable/bg_v3_chip"
                             android:clickable="true"
                             android:focusable="true"
-                            android:foreground="@drawable/v3_ripple_card22"
-                            android:stateListAnimator="@animator/button_press_scale">
+                            android:paddingStart="15dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="15dp"
+                            android:paddingBottom="9dp"
+                            android:stateListAnimator="@animator/button_press_scale"
+                            android:text="@string/string_196"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="13sp" />
 
-                            <ImageView
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:contentDescription="@null"
-                                android:scaleType="centerCrop"
-                                android:src="@drawable/center_2" />
-
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="72dp"
-                                android:layout_gravity="bottom"
-                                android:background="@drawable/bg_v3_card_scrim" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="bottom|start"
-                                android:layout_margin="14dp"
-                                android:text="@string/string_196"
-                                android:textColor="@color/always_white"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                        </FrameLayout>
-
-                    </LinearLayout>
-
-                    <!-- Row 3: Web 首页(仅 github 渠道,Lite 里整行 GONE) -->
-                    <LinearLayout
-                        android:id="@+id/web_street_row"
-                        android:layout_width="match_parent"
-                        android:layout_height="72dp"
-                        android:layout_marginStart="20dp"
-                        android:layout_marginTop="12dp"
-                        android:layout_marginEnd="20dp"
-                        android:orientation="horizontal">
-
-                        <FrameLayout
-                            android:id="@+id/web_street"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:background="@drawable/bg_v3_discover_card"
+                        <TextView
+                            android:id="@+id/catDiscovery"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="9dp"
+                            android:layout_marginBottom="9dp"
+                            android:background="@drawable/bg_v3_chip"
                             android:clickable="true"
                             android:focusable="true"
-                            android:foreground="@drawable/v3_ripple_card22"
-                            android:stateListAnimator="@animator/button_press_scale">
+                            android:paddingStart="15dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="15dp"
+                            android:paddingBottom="9dp"
+                            android:stateListAnimator="@animator/button_press_scale"
+                            android:text="@string/string_discovery"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="13sp" />
 
-                            <!-- 静态紫渐变仅作占位/设计态,运行时被 V3Palette.bannerPlaceholder() 换成主题色渐变 -->
-                            <View
-                                android:id="@+id/web_street_placeholder"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:background="@drawable/bg_v3_banner_placeholder" />
+                        <!-- Web 首页:仅 github 渠道,Lite 里 GONE(占位功能,Coming soon) -->
+                        <TextView
+                            android:id="@+id/catWeb"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="9dp"
+                            android:layout_marginBottom="9dp"
+                            android:background="@drawable/bg_v3_chip"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:paddingStart="15dp"
+                            android:paddingTop="9dp"
+                            android:paddingEnd="15dp"
+                            android:paddingBottom="9dp"
+                            android:stateListAnimator="@animator/button_press_scale"
+                            android:text="@string/street_title"
+                            android:textColor="@color/v3_text_1"
+                            android:textSize="13sp" />
 
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical|start"
-                                android:layout_marginStart="20dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Web 首页"
-                                    android:textColor="@color/v3_text_1"
-                                    android:textSize="16sp"
-                                    android:textStyle="bold"
-                                    tools:ignore="HardcodedText" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="Coming soon"
-                                    android:textColor="@color/v3_text_2"
-                                    android:textSize="12sp"
-                                    tools:ignore="HardcodedText" />
-
-                            </LinearLayout>
-
-                        </FrameLayout>
-
-                    </LinearLayout>
+                    </com.google.android.flexbox.FlexboxLayout>
 
                 </LinearLayout>
 

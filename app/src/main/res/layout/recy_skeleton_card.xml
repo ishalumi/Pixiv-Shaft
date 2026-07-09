@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 货架骨架图单卡:宽度由 SkeletonRailAdapter 按各货架卡宽设定(120/180dp),高度撑满固定高的 rail。
+     底是 v3_surface_2 圆角块,上叠 ShimmerOverlayView 微光扫动,和详情页同一套 shimmer。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="120dp"
+    android:layout_height="match_parent">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_v3_skeleton_card" />
+
+    <ceui.pixiv.ui.detail.ShimmerOverlayView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

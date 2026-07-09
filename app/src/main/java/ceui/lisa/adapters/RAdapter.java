@@ -3,6 +3,7 @@ package ceui.lisa.adapters;
 import android.content.Context;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 
 import java.util.List;
 
@@ -24,15 +25,18 @@ public class RAdapter extends BaseAdapter<IllustsBean, RecyRankIllustHorizontalB
 
     @Override
     public void bindData(IllustsBean target, ViewHolder<RecyRankIllustHorizontalBinding> bindView, int position) {
-        bindView.baseBind.title.setText(allItems.get(position).getTitle());
-        bindView.baseBind.author.setText(allItems.get(position).getUser().getName());
-        // 排行榜 hero 卡是首页最显眼的两张大图,用 large(600x1200_90)而不是 medium(540_70),
-        // centerCrop 到 180dp 卡里明显更清晰;URL 缺失时 getUrl 返 null 交给 Glide 兜底。
-        Glide.with(mContext).load(GlideUtil.getUrl(allItems.get(position)
-                .getImage_urls().getLarge()))
+        IllustsBean bean = allItems.get(position);
+        bindView.baseBind.title.setText(bean.getTitle());
+        // user / image_urls / profile_image_urls 都可能为 null(精简·网页来源 bean,见 #569;发现页
+        // 站长推荐/当前最热的 shaft-api-v2 上报 bean 也可能缺字段)。链式 getter 直接点会 NPE 崩,
+        // 改走判空:author 前判 user;图片走 GlideUtil.getLargeImage / getHead —— 内部对 image_urls /
+        // profile_image_urls 为 null 时返 null 交 Glide 兜底,不崩。对完整 bean 行为不变。
+        bindView.baseBind.author.setText(bean.getUser() != null ? bean.getUser().getName() : "");
+        // 排行榜 hero 卡用 large(600x1200_90)比 medium(540_70)在 180dp 卡里更清晰。
+        Glide.with(mContext).load(GlideUtil.getLargeImage(bean))
+                .transition(DrawableTransitionOptions.withCrossFade())
                 .into(bindView.baseBind.illustImage);
-        Glide.with(mContext).load(GlideUtil.getUrl(allItems.get(position)
-                .getUser().getProfile_image_urls().getMedium()))
+        Glide.with(mContext).load(GlideUtil.getHead(bean.getUser()))
                 .placeholder(R.color.light_bg).error(R.drawable.no_profile).into(bindView.baseBind.userHead);
         if (mOnItemClickListener != null) {
             bindView.itemView.setOnClickListener(v -> mOnItemClickListener.onItemClick(v, position, 0));

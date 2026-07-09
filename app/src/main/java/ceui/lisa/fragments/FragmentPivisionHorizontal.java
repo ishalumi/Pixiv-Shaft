@@ -21,7 +21,7 @@ import ceui.lisa.models.SpotlightArticlesBean;
 import ceui.lisa.repo.PivisionRepo;
 import ceui.lisa.utils.DensityUtil;
 import ceui.lisa.utils.Params;
-import ceui.lisa.view.LinearItemHorizontalDecoration;
+import ceui.lisa.view.HorizontalSpaceDecoration;
 import jp.wasabeef.recyclerview.animators.BaseItemAnimator;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
@@ -56,15 +56,16 @@ public class FragmentPivisionHorizontal extends NetListFragment<FragmentPivision
 
     @Override
     public void initRecyclerView() {
-        baseBind.recyclerView.addItemDecoration(new LinearItemHorizontalDecoration(DensityUtil.dp2px(12.0f)));
+        baseBind.recyclerView.addItemDecoration(new HorizontalSpaceDecoration(DensityUtil.dp2px(12.0f)));
         LinearLayoutManager manager = new LinearLayoutManager(mContext, LinearLayoutManager.HORIZONTAL, false);
         baseBind.recyclerView.setLayoutManager(manager);
         baseBind.recyclerView.setHasFixedSize(true);
         ViewGroup.LayoutParams layoutParams = baseBind.recyclerView.getLayoutParams();
         layoutParams.width = MATCH_PARENT;
+        // 卡高即 article_horizontal_height;原来 +24dp 是给旧 decoration 的上下 inset 留的,
+        // 现在换成只留右间距的 HorizontalSpaceDecoration,不再需要那 24dp,否则货架底部空一截。
         layoutParams.height =
-                mContext.getResources().getDimensionPixelSize(R.dimen.article_horizontal_height) +
-                mContext.getResources().getDimensionPixelSize(R.dimen.twenty_four_dp);
+                mContext.getResources().getDimensionPixelSize(R.dimen.article_horizontal_height);
         baseBind.recyclerView.setLayoutParams(layoutParams);
     }
 
