@@ -359,8 +359,9 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
 
         // 「浏览与发现」独立小组已撤:发现内容(最新/热度标签/特辑/本月收藏/当前最热)已铺进
         // 「发现」tab 的内容货架,「置顶标签」是用户自己钉的标签、并入「我的」;「发现」(算法流)
-        // 只作深链兜底、gate 后极少可见,收在「我的」末尾。点击 handler 全部保留。
+        // 只作深链兜底、gate 后极少可见,挪进「试验性」分区。点击 handler 全部保留。
         // 「个人主页」入口去掉——顶部账号整块点击即进自己主页,不再重复一行。
+        // 「投稿」(pixiv upload.php 网页链接)已整体移除。
         addDrawerSection(sections, R.string.drawer_section_mine, new DrawerEntry[]{
                 new DrawerEntry(R.id.illust_star, R.drawable.ic_baseline_palette_24, R.string.string_319),
                 new DrawerEntry(R.id.novel_star, R.drawable.ic_baseline_menu_book_24, R.string.string_320),
@@ -370,8 +371,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
                 new DrawerEntry(R.id.novel_markers, R.drawable.ic_baseline_bookmark_24, R.string.core_string_novel_marker),
                 new DrawerEntry(R.id.follow_user, R.drawable.ic_baseline_how_to_reg_24, R.string.string_321),
                 new DrawerEntry(R.id.nav_fans, R.drawable.ic_supervisor_account_black_24dp, R.string.string_322),
-                new DrawerEntry(R.id.new_work, R.drawable.ic_baseline_post_work_48, R.string.string_444),
-                new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery, discoveryReady),
         });
 
         // 高频入口前置:浏览历史 排在「记录与管理」首位,设置 排在「其他」首位。
@@ -391,6 +390,8 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
         });
 
         addDrawerSection(sections, R.string.experimental_section, new DrawerEntry[]{
+                new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery,
+                        experimentalAllowed && discoveryReady),
                 new DrawerEntry(R.id.nav_local_novel, R.drawable.ic_baseline_menu_book_24, R.string.local_novel_entry, experimentalAllowed),
                 new DrawerEntry(R.id.nav_chat_room, R.drawable.ic_chat_black_24dp, R.string.chat_drawer_entry,
                         experimentalAllowed && Shaft.sSettings.isShowChatRoomEntry()),
@@ -520,12 +521,6 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "我的关注");
             intent.putExtra("hideStatusBar", false);
-        } else if (id == R.id.new_work) {
-            intent = new Intent(mContext, TemplateActivity.class);
-            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "网页链接");
-            intent.putExtra(Params.URL, "https://www.pixiv.net/upload.php");
-            intent.putExtra(Params.TITLE, getString(R.string.string_444));
-            intent.putExtra(Params.PREFER_PRESERVE, true);
         } else if (id == R.id.nav_current_hot) {
             intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "当前最热");

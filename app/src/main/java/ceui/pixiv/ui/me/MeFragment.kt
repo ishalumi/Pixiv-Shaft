@@ -213,7 +213,6 @@ class MeFragment : Fragment(R.layout.fragment_me) {
                 Entry(R.drawable.ic_fiber_new_black_24dp, R.string.watchlist, R.id.watchlist),
                 Entry(R.drawable.ic_baseline_bookmark_24, R.string.core_string_novel_marker, R.id.novel_markers),
                 Entry(R.drawable.ic_baseline_how_to_reg_24, R.string.string_321, R.id.follow_user),
-                Entry(R.drawable.ic_baseline_post_work_48, R.string.string_444, R.id.new_work),
             ),
         )
         val quickAccess = Section(
