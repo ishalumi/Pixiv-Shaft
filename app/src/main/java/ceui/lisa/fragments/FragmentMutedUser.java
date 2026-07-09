@@ -96,7 +96,7 @@ public class FragmentMutedUser extends LocalListFragment<FragmentBaseListBinding
                                 AppDatabase.getAppDatabase(mContext).searchDao().deleteAllMutedUsers();
                                 Common.showToast(getString(R.string.string_220));
                                 mAdapter.clear();
-                                emptyRela.setVisibility(View.VISIBLE);
+                                setEmptyStateVisible(true);
                                 dialog.dismiss();
                             }
                         })

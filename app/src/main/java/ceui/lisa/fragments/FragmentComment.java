@@ -257,7 +257,7 @@ public class FragmentComment extends NetListFragment<FragmentCommentBinding,
                 public void success(CommentHolder commentHolder) {
                     if (allItems.size() == 0) {
                         mRecyclerView.setVisibility(View.VISIBLE);
-                        emptyRela.setVisibility(View.INVISIBLE);
+                        setEmptyStateVisible(false);
                     }
 
                     ReplyCommentBean replyCommentBean = commentHolder.getComment();

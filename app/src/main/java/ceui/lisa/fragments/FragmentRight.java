@@ -302,7 +302,7 @@ public class FragmentRight extends NetListFragment<FragmentNewRightBinding, List
 
     @Override
     public void forceRefresh() {
-        emptyRela.setVisibility(View.INVISIBLE);
+        setEmptyStateVisible(false);
         super.forceRefresh();
     }
 }

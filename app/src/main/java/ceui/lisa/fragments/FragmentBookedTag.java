@@ -302,9 +302,9 @@ public class FragmentBookedTag extends NetListFragment<FragmentBookedTagBinding,
         mAdapter.notifyDataSetChanged();
         if (emptyRela != null) {
             if (allItems.isEmpty() && !q.isEmpty()) {
-                emptyRela.setVisibility(View.VISIBLE);
+                setEmptyStateVisible(true);
             } else if (!allItems.isEmpty()) {
-                emptyRela.setVisibility(View.INVISIBLE);
+                setEmptyStateVisible(false);
             }
         }
     }

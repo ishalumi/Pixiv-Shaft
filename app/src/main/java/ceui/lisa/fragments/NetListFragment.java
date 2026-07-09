@@ -136,7 +136,7 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
 //        }
 
         if (!mRemoteRepo.localData()) {
-            emptyRela.setVisibility(View.INVISIBLE);
+            setEmptyStateVisible(false);
             if(isLoading) {
                 //自动加载下一页进行中(#729)又触发下拉刷新时，结束刷新动画避免转圈卡死
                 mRefreshLayout.finishRefresh();
@@ -180,7 +180,7 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                         int afterLoadSize = getStartSize();
                         onFirstLoaded(mResponseList);
                         mRecyclerView.setVisibility(View.VISIBLE);
-                        emptyRela.setVisibility(View.INVISIBLE);
+                        setEmptyStateVisible(false);
                         mAdapter.notifyItemRangeInserted(beforeLoadSize, afterLoadSize - beforeLoadSize);
                         Common.showLog("trace 777 " + mAdapter.getItemCount() + " allItems.size():" + allItems.size() + " modelSize:" + mModel.getContent().size());
                     } else {
@@ -261,7 +261,7 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
                         //首页被整页屏蔽时 fresh() 会隐藏列表，自动加载找回内容后恢复显示 (#729)
                         if (mRecyclerView.getVisibility() != View.VISIBLE) {
                             mRecyclerView.setVisibility(View.VISIBLE);
-                            emptyRela.setVisibility(View.INVISIBLE);
+                            setEmptyStateVisible(false);
                         }
                         mAdapter.notifyItemRangeInserted(beforeLoadSize, afterLoadSize - beforeLoadSize);
                     }

@@ -89,7 +89,7 @@ public class FragmentHistory extends LocalListFragment<FragmentBaseListBinding,
                                             mAdapter.notifyItemRangeChanged(position, allItems.size() - position);
                                             if (allItems.size() == 0) {
                                                 mRecyclerView.setVisibility(View.INVISIBLE);
-                                                emptyRela.setVisibility(View.VISIBLE);
+                                                setEmptyStateVisible(true);
                                             }
                                             Common.showToast(getString(R.string.string_220));
                                             dialog.dismiss();
@@ -177,7 +177,7 @@ public class FragmentHistory extends LocalListFragment<FragmentBaseListBinding,
                                         Common.showToast(getString(R.string.string_220));
                                         dialog.dismiss();
                                         mAdapter.clear();
-                                        emptyRela.setVisibility(View.VISIBLE);
+                                        setEmptyStateVisible(true);
                                     }
                                 })
                                 .show();

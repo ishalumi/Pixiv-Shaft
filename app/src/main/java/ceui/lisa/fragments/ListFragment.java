@@ -51,6 +51,7 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
     protected RefreshLayout mRefreshLayout;
     protected ImageView noData;
     protected RelativeLayout emptyRela;
+    protected View emptyScroller;
     protected TextView noDataText, noDataErrorDetail;
     protected BaseAdapter<?, ? extends ViewDataBinding> mAdapter;
     protected List<Item> allItems = null;
@@ -101,10 +102,11 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
         mRefreshLayout.setHeaderMaxDragRate(1.5f); // 最大下拉位置
         noData = rootView.findViewById(R.id.no_data);
         emptyRela = rootView.findViewById(R.id.no_data_rela);
+        emptyScroller = rootView.findViewById(R.id.emptyScroller);
         noDataText = rootView.findViewById(R.id.no_data_text);
         noDataErrorDetail = rootView.findViewById(R.id.no_data_error_detail);
         emptyRela.setOnClickListener(v -> {
-            emptyRela.setVisibility(View.INVISIBLE);
+            setEmptyStateVisible(false);
             mRefreshLayout.autoRefresh();
         });
         mRefreshLayout.setRefreshHeader(mModel.getBaseRepo().enableRefresh() ?
@@ -356,7 +358,7 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
                 noDataErrorDetail.setVisibility(View.VISIBLE);
             }
             mRecyclerView.setVisibility(View.INVISIBLE);
-            emptyRela.setVisibility(View.VISIBLE);
+            setEmptyStateVisible(true);
         } else {
             Common.showToast(message);
         }
@@ -373,6 +375,23 @@ public abstract class ListFragment<Layout extends ViewDataBinding, Item>
             noDataErrorDetail.setVisibility(View.GONE);
         }
         mRecyclerView.setVisibility(View.INVISIBLE);
-        emptyRela.setVisibility(View.VISIBLE);
+        setEmptyStateVisible(true);
+    }
+
+    /**
+     * 空态/错误态显隐统一收口:fragment_base_list 把空态包进了 NestedScrollView
+     * (@id/emptyScroller),让空态下的拖动也能驱动宿主 CoordinatorLayout/AppBar 联动
+     * (否则 UserActivityV3 这类折叠头页面在空态下头部"凝固"拖不动),两层必须同步显隐。
+     * 包装层隐藏用 GONE:fragment_base_list 被 ~50 个列表页共用,INVISIBLE 会让这层
+     * 满屏 NestedScrollView 白白参与每次 measure/layout。
+     * 其他布局没有这层包装(emptyScroller 为 null)时退化为只切 no_data_rela,行为不变。
+     */
+    protected void setEmptyStateVisible(boolean visible) {
+        if (emptyRela != null) {
+            emptyRela.setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
+        }
+        if (emptyScroller != null) {
+            emptyScroller.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
     }
 }

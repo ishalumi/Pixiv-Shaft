@@ -47,21 +47,49 @@
             android:background="@color/fragment_center"
             android:layout_height="match_parent">
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerView"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:fadeScrollbars="false">
+                android:layout_height="match_parent">
 
-            </androidx.recyclerview.widget.RecyclerView>
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fadeScrollbars="false">
+
+                </androidx.recyclerview.widget.RecyclerView>
+
+                <!-- 空态/错误态包一层 NestedScrollView:空态下 RecyclerView 是 INVISIBLE,普通 View
+                     不参与 nested scroll,宿主 CoordinatorLayout/AppBar(如 UserActivityV3 头部)
+                     拖不动像"凝固"。NestedScrollView 即使内容不满一屏,拖动也会
+                     dispatchNestedPreScroll 驱动 AppBar。必须放在 SmartRefreshLayout 内部:
+                     它的下拉溢出才会喂给 SmartRefreshLayout,空态/失败页保住"下拉重试"手势。
+                     隐藏用 GONE(不白占 measure/layout),显隐与 no_data_rela 同步,
+                     统一走 ListFragment.setEmptyStateVisible()。 -->
+                <androidx.core.widget.NestedScrollView
+                    android:id="@+id/emptyScroller"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fillViewport="true"
+                    android:visibility="gone">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <include
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            layout="@layout/empty_layout" />
+
+                    </FrameLayout>
+
+                </androidx.core.widget.NestedScrollView>
+
+            </FrameLayout>
 
         </com.scwang.smart.refresh.layout.SmartRefreshLayout>
-
-        <include
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            layout="@layout/empty_layout" />
 
     </RelativeLayout>
 </layout>

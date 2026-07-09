@@ -85,7 +85,7 @@ class FragmentFeature : LocalListFragment<FragmentBaseListBinding, FeatureEntity
                             Common.showToast(getString(R.string.string_220))
                             dialog.dismiss()
                             mAdapter.clear()
-                            emptyRela.visibility = View.VISIBLE
+                            setEmptyStateVisible(true)
                         }
                         .show()
                     return true

@@ -67,7 +67,7 @@ public class FragmentMutedObjects extends LocalListFragment<FragmentBaseListBind
                                             mAdapter.notifyItemRangeChanged(position, allItems.size() - position);
                                             if (allItems.size() == 0) {
                                                 mRecyclerView.setVisibility(View.INVISIBLE);
-                                                emptyRela.setVisibility(View.VISIBLE);
+                                                setEmptyStateVisible(true);
                                             }
                                             Common.showToast(getString(R.string.string_220));
                                             dialog.dismiss();
