@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MD3-E 连接式分段按钮的外框轨道:中性淡底 + 14dp 圆角,选中段(bg_reader_segment_option)
+     以 11dp 圆角主题色胶囊浮在其上。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/v3_surface_2" />
+    <corners android:radius="14dp" />
+</shape>

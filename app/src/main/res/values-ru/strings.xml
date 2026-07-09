@@ -1080,6 +1080,11 @@
     <string name="setting_letter_spacing">Межбуквенный интервал</string>
     <string name="setting_bold">Жирный</string>
     <string name="setting_font_weight">Насыщенность шрифта</string>
+    <string name="setting_font_family">Шрифт</string>
+    <string name="setting_theme_preset">Палитра</string>
+    <string name="comic_group_read">Чтение</string>
+    <string name="setting_group_brightness">Яркость</string>
+    <string name="setting_group_interaction">Управление</string>
     <string name="setting_follow_dark">Следовать тёмной теме системы</string>
     <string name="setting_system_brightness">Системная яркость</string>
     <string name="setting_custom_brightness">Своя яркость</string>

@@ -2,26 +2,23 @@ package ceui.pixiv.ui.novel.reader.ui
 
 import android.app.Dialog
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.TypedValue
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentReaderSettingsBinding
+import ceui.lisa.databinding.ItemReaderFontChipBinding
+import ceui.lisa.databinding.ItemReaderSegmentOptionBinding
 import ceui.lisa.databinding.ItemReaderSettingScrollBinding
 import ceui.lisa.databinding.ItemReaderSettingSegmentedBinding
 import ceui.lisa.databinding.ItemReaderSettingSliderBinding
 import ceui.lisa.databinding.ItemReaderSettingSwitchBinding
+import ceui.lisa.databinding.ItemReaderThemeSwatchBinding
 import ceui.pixiv.ui.novel.reader.model.FlipMode
 import ceui.pixiv.ui.novel.reader.model.ReadingDirection
 import ceui.pixiv.ui.novel.reader.model.ImagePlacement
@@ -29,7 +26,6 @@ import ceui.pixiv.ui.novel.reader.model.ImageScaleMode
 import ceui.pixiv.ui.novel.reader.model.ScreenOrientation
 import ceui.pixiv.ui.novel.reader.paginate.TypefaceProvider
 import ceui.pixiv.ui.novel.reader.settings.PresetFonts
-import ceui.pixiv.ui.novel.reader.settings.ReaderFont
 import ceui.pixiv.ui.novel.reader.settings.ReaderSettings
 import ceui.pixiv.ui.novel.reader.settings.ReaderTheme
 import ceui.pixiv.utils.letDrawBehindNavBar
@@ -40,9 +36,10 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 /**
  * BottomSheet panel exposing every live-tunable reader setting: typography,
  * theme, flip mode, screen, and image handling. Layout lives in XML
- * (fragment_reader_settings.xml + section_* + item_*); this class only wires
- * the dynamic pieces (slider ranges, segmented button lists, theme / font
- * swatches) and pipes changes into [ReaderSettings].
+ * (fragment_reader_settings.xml + section_* + item_*, MD3-E 分组卡); this class
+ * only wires the dynamic pieces (slider ranges, segmented options, theme / font
+ * swatches inflated from item_* via ViewBinding) and pipes changes into
+ * [ReaderSettings]. 选中/激活态全部由 XML selector 承载,不在运行时拼 drawable。
  */
 class ReaderSettingsPanel : BottomSheetDialogFragment() {
 
@@ -75,9 +72,6 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
     ): View {
         _binding = FragmentReaderSettingsBinding.inflate(inflater, container, false)
         val ctx = requireContext()
-        primaryColor = ceui.lisa.utils.Common.resolveThemeAttribute(ctx, androidx.appcompat.R.attr.colorPrimary)
-        textColor1 = ContextCompat.getColor(ctx, R.color.v3_text_1)
-        surfaceColor = ContextCompat.getColor(ctx, R.color.v3_surface_2)
         bindTypography(ctx)
         bindTheme(ctx)
         bindFlip(ctx)
@@ -85,10 +79,6 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
         bindImage(ctx)
         return binding.root
     }
-
-    private var primaryColor: Int = 0xFF686BDD.toInt()
-    private var textColor1: Int = Color.BLACK
-    private var surfaceColor: Int = 0x1A000000
 
     override fun onDestroyView() {
         super.onDestroyView()
@@ -150,8 +140,11 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
     private fun bindFlip(ctx: Context) {
         val s = binding.sectionFlip
         val flipRow = s.rowFlipMode
+        val flipDivider = s.dividerFlipMode
+        val flipVisibility = { horizontal: Boolean -> if (horizontal) View.VISIBLE else View.GONE }
         val isHorizontal = ReaderSettings.readingDirection == ReadingDirection.Horizontal
-        flipRow.root.visibility = if (isHorizontal) View.VISIBLE else View.GONE
+        flipRow.root.visibility = flipVisibility(isHorizontal)
+        flipDivider.visibility = flipVisibility(isHorizontal)
 
         s.rowReadingDirection.bindSegmented(
             ctx, getString(R.string.setting_reading_direction),
@@ -159,7 +152,9 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
             ReaderSettings.readingDirection,
         ) {
             ReaderSettings.readingDirection = it
-            flipRow.root.visibility = if (it == ReadingDirection.Horizontal) View.VISIBLE else View.GONE
+            val vis = flipVisibility(it == ReadingDirection.Horizontal)
+            flipRow.root.visibility = vis
+            flipDivider.visibility = vis
         }
         flipRow.bindSegmented(
             ctx, getString(R.string.setting_flip_animation),
@@ -290,137 +285,70 @@ class ReaderSettingsPanel : BottomSheetDialogFragment() {
         labelText.text = label
         val container = buttonsContainer
         container.removeAllViews()
+        val inflater = LayoutInflater.from(ctx)
         options.forEach { (text, value) ->
-            val button = Button(ctx).apply {
-                this.text = text
-                isAllCaps = false
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT).apply {
-                    weight = 1f
-                    marginEnd = dp(ctx, 6f)
-                }
-                tag = value
-                setOnClickListener {
-                    @Suppress("UNCHECKED_CAST")
-                    val v = tag as T
-                    onChange(v)
-                    applySegmentSelection(container, v)
+            val option = ItemReaderSegmentOptionBinding.inflate(inflater, container, false)
+            val tv = option.root as TextView
+            tv.text = text
+            tv.tag = value
+            tv.isSelected = value == current
+            tv.setOnClickListener {
+                onChange(value)
+                for (i in 0 until container.childCount) {
+                    val child = container.getChildAt(i)
+                    child.isSelected = child.tag == value
                 }
             }
-            container.addView(button)
-        }
-        applySegmentSelection(container, current)
-    }
-
-    private fun <T> applySegmentSelection(container: LinearLayout, selected: T) {
-        for (i in 0 until container.childCount) {
-            val b = container.getChildAt(i) as Button
-            val isSelected = b.tag == selected
-            b.background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(container.context, 6f).toFloat()
-                setColor(if (isSelected) primaryColor else surfaceColor)
-            }
-            b.setTextColor(if (isSelected) Color.WHITE else textColor1)
+            container.addView(tv)
         }
     }
 
     // ---- Theme picker -----------------------------------------------------
 
     private fun ItemReaderSettingScrollBinding.bindThemePicker(ctx: Context) {
-        labelText.text = getString(R.string.reader_section_theme)
+        labelText.text = getString(R.string.setting_theme_preset)
         val inner = itemsContainer
         inner.removeAllViews()
-        val size = dp(ctx, 56f)
-        val selectedId = ReaderSettings.themeId
-        val items = mutableListOf<View>()
+        val inflater = LayoutInflater.from(ctx)
+        val rings = mutableListOf<Pair<String, View>>()
         ReaderTheme.PRESETS.forEach { theme ->
-            val swatch = FrameLayout(ctx).apply {
-                layoutParams = LinearLayout.LayoutParams(size, size + dp(ctx, 24f)).apply {
-                    marginEnd = dp(ctx, 14f)
-                }
-            }
-            val circle = View(ctx).apply {
-                layoutParams = FrameLayout.LayoutParams(size, size)
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(theme.backgroundColor)
-                    setStroke(
-                        dp(ctx, 2f),
-                        if (theme.id == selectedId) primaryColor else 0x22000000,
-                    )
-                }
-            }
-            val text = TextView(ctx).apply {
-                this.text = theme.displayName
-                setTextColor(textColor1)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
-                )
-            }
-            swatch.addView(circle)
-            swatch.addView(text)
-            swatch.setOnClickListener {
+            val item = ItemReaderThemeSwatchBinding.inflate(inflater, inner, false)
+            item.swatchLabel.text = theme.displayName
+            // 圆点颜色是数据(每个主题的背景色),tint 到 XML oval 上,不在运行时拼 drawable。
+            item.swatchCircle.backgroundTintList = ColorStateList.valueOf(theme.backgroundColor)
+            item.swatchRing.isSelected = theme.id == ReaderSettings.themeId
+            item.root.setOnClickListener {
                 ReaderSettings.themeId = theme.id
-                items.forEach { v ->
-                    val c = (v as FrameLayout).getChildAt(0)
-                    val bg = c.background as GradientDrawable
-                    val id = v.tag as String
-                    bg.setStroke(dp(ctx, 2f), if (id == theme.id) primaryColor else surfaceColor)
-                }
+                rings.forEach { (id, ring) -> ring.isSelected = id == theme.id }
             }
-            swatch.tag = theme.id
-            items += swatch
-            inner.addView(swatch)
+            rings += theme.id to item.swatchRing
+            inner.addView(item.root)
         }
     }
 
     // ---- Font picker ------------------------------------------------------
 
     private fun ItemReaderSettingScrollBinding.bindFontPicker(ctx: Context) {
-        labelText.text = getString(R.string.reader_section_typography)
+        labelText.text = getString(R.string.setting_font_family)
         val inner = itemsContainer
         inner.removeAllViews()
-        val fonts: List<ReaderFont> = PresetFonts.BUILT_IN
-        val items = mutableListOf<View>()
-        fonts.forEach { font ->
-            val button = TextView(ctx).apply {
-                text = font.displayName
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setPadding(dp(ctx, 16f), dp(ctx, 10f), dp(ctx, 16f), dp(ctx, 10f))
-                typeface = TypefaceProvider.resolve(ctx, font.id, 400, false)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { marginEnd = dp(ctx, 10f) }
-                tag = font.id
-            }
-            applyFontButtonBg(button, ReaderSettings.fontId == font.id)
-            button.setOnClickListener {
+        val inflater = LayoutInflater.from(ctx)
+        val chips = mutableListOf<TextView>()
+        PresetFonts.BUILT_IN.forEach { font ->
+            val item = ItemReaderFontChipBinding.inflate(inflater, inner, false)
+            val chip = item.root as TextView
+            chip.text = font.displayName
+            chip.typeface = TypefaceProvider.resolve(ctx, font.id, 400, false)
+            chip.tag = font.id
+            chip.isSelected = ReaderSettings.fontId == font.id
+            chip.setOnClickListener {
                 ReaderSettings.fontId = font.id
-                items.forEach { v ->
-                    val tv = v as TextView
-                    applyFontButtonBg(tv, tv.tag == font.id)
-                }
+                chips.forEach { it.isSelected = it.tag == font.id }
             }
-            items += button
-            inner.addView(button)
+            chips += chip
+            inner.addView(chip)
         }
     }
-
-    private fun applyFontButtonBg(view: TextView, selected: Boolean) {
-        view.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(view.context, 6f).toFloat()
-            setColor(if (selected) primaryColor else surfaceColor)
-        }
-        view.setTextColor(if (selected) Color.WHITE else textColor1)
-    }
-
-    private fun dp(ctx: Context, value: Float): Int =
-        (value * ctx.resources.displayMetrics.density).toInt()
 
     companion object {
         const val TAG = "ReaderSettingsPanel"

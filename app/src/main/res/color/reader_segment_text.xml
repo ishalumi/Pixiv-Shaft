@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 分段按钮 / 字体 chip 文字色:选中=白(压在主题色胶囊上);未选=v3_text_1。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:color="@android:color/white" />
+    <item android:color="@color/v3_text_1" />
+</selector>

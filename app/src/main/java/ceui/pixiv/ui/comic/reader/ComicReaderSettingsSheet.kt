@@ -3,16 +3,14 @@ package ceui.pixiv.ui.comic.reader
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.SeekBar
-import androidx.core.content.ContextCompat
+import android.widget.TextView
 import ceui.lisa.R
+import ceui.lisa.databinding.ItemReaderSegmentOptionBinding
 import ceui.lisa.databinding.ItemReaderSettingSegmentedBinding
 import ceui.lisa.databinding.ItemReaderSettingSliderBinding
 import ceui.lisa.databinding.ItemReaderSettingSwitchBinding
@@ -26,10 +24,6 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
 
     private var _binding: SheetComicReaderSettingsBinding? = null
     private val binding get() = _binding!!
-
-    private var primaryColor: Int = 0xFF686BDD.toInt()
-    private var textColor1: Int = Color.BLACK
-    private var surfaceColor: Int = 0x1A000000
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         // edgeToEdge:让 window 画到导航栏底下,内容背景才能延伸进底部 safe area。
@@ -51,9 +45,6 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = SheetComicReaderSettingsBinding.inflate(inflater, container, false)
         val ctx = requireContext()
-        primaryColor = ceui.lisa.utils.Common.resolveThemeAttribute(ctx, androidx.appcompat.R.attr.colorPrimary)
-        textColor1 = ContextCompat.getColor(ctx, R.color.v3_text_1)
-        surfaceColor = ContextCompat.getColor(ctx, R.color.v3_surface_2)
 
         bindReadingMode(ctx)
         bindDirection(ctx)
@@ -119,18 +110,22 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
     }
 
     private fun bindBrightness() {
+        val toggleCustom = { useSystem: Boolean ->
+            val vis = if (useSystem) View.GONE else View.VISIBLE
+            binding.rowCustomBrightness.root.visibility = vis
+            binding.dividerCustomBrightness.visibility = vis
+        }
         binding.rowSysBrightness.bindSwitch(
             getString(R.string.comic_reader_brightness_system), ComicReaderSettings.useSystemBrightness,
         ) {
             ComicReaderSettings.useSystemBrightness = it
-            binding.rowCustomBrightness.root.visibility = if (it) View.GONE else View.VISIBLE
+            toggleCustom(it)
         }
         binding.rowCustomBrightness.bindFloatSlider(
             getString(R.string.comic_reader_brightness_label), 0.01f, 1f, 99,
             ComicReaderSettings.customBrightness, digits = 2,
         ) { ComicReaderSettings.customBrightness = it }
-        binding.rowCustomBrightness.root.visibility =
-            if (ComicReaderSettings.useSystemBrightness) View.GONE else View.VISIBLE
+        toggleCustom(ComicReaderSettings.useSystemBrightness)
     }
 
     private fun bindSliders() {
@@ -166,7 +161,7 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
         ) { ComicReaderSettings.tapZoneReversed = it }
     }
 
-    // ---- Item binders (same pattern as novel ReaderSettingsPanel) ----------
+    // ---- Item binders (same MD3-E pattern as novel ReaderSettingsPanel) -----
 
     private fun <T> ItemReaderSettingSegmentedBinding.bindSegmented(
         ctx: Context,
@@ -178,37 +173,21 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
         labelText.text = label
         val container = buttonsContainer
         container.removeAllViews()
+        val inflater = LayoutInflater.from(ctx)
         options.forEach { (text, value) ->
-            val button = Button(ctx).apply {
-                this.text = text
-                isAllCaps = false
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT).apply {
-                    weight = 1f
-                    marginEnd = dp(ctx, 6f)
-                }
-                tag = value
-                setOnClickListener {
-                    @Suppress("UNCHECKED_CAST")
-                    val v = tag as T
-                    onChange(v)
-                    applySegmentSelection(container, v)
+            val option = ItemReaderSegmentOptionBinding.inflate(inflater, container, false)
+            val tv = option.root as TextView
+            tv.text = text
+            tv.tag = value
+            tv.isSelected = value == current
+            tv.setOnClickListener {
+                onChange(value)
+                for (i in 0 until container.childCount) {
+                    val child = container.getChildAt(i)
+                    child.isSelected = child.tag == value
                 }
             }
-            container.addView(button)
-        }
-        applySegmentSelection(container, current)
-    }
-
-    private fun <T> applySegmentSelection(container: LinearLayout, selected: T) {
-        for (i in 0 until container.childCount) {
-            val b = container.getChildAt(i) as Button
-            val isSelected = b.tag == selected
-            b.background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(container.context, 6f).toFloat()
-                setColor(if (isSelected) primaryColor else surfaceColor)
-            }
-            b.setTextColor(if (isSelected) Color.WHITE else textColor1)
+            container.addView(tv)
         }
     }
 
@@ -274,9 +253,6 @@ class ComicReaderSettingsSheet : BottomSheetDialogFragment() {
         })
         render()
     }
-
-    private fun dp(ctx: Context, value: Float): Int =
-        (value * ctx.resources.displayMetrics.density).toInt()
 
     companion object { const val TAG = "ComicReaderSettingsSheet" }
 }

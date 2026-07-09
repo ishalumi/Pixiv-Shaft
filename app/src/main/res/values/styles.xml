@@ -602,6 +602,26 @@
         <item name="android:textSize">13sp</item>
     </style>
 
+    <!-- MD3-E 阅读器滑块:主题色激活轨 + 竖胶囊手柄,轨道 6dp。 -->
+    <style name="Widget.Reader.Slider" parent="Widget.AppCompat.SeekBar">
+        <item name="android:progressDrawable">@drawable/reader_slider_progress</item>
+        <item name="android:thumb">@drawable/reader_slider_thumb</item>
+        <item name="android:splitTrack">false</item>
+        <item name="android:thumbOffset">0dp</item>
+        <item name="android:maxHeight">6dp</item>
+        <item name="android:minHeight">6dp</item>
+        <item name="android:paddingStart">3dp</item>
+        <item name="android:paddingEnd">3dp</item>
+    </style>
+
+    <!-- 分组卡内 inset 分割线(起始 18dp 内缩,与行内容对齐)。 -->
+    <style name="ReaderRowDivider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0.5dp</item>
+        <item name="android:layout_marginStart">18dp</item>
+        <item name="android:background">@color/v3_border_2</item>
+    </style>
+
 </resources>
 
 
