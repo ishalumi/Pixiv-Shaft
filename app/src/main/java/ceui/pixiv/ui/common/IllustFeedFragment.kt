@@ -129,7 +129,8 @@ abstract class IllustFeedFragment(
 
     /**
      * 隐藏卡片上的收藏爱心（自己的收藏页 + 「收藏页隐藏收藏按钮」设置，对齐 legacy
-     * IAdapterWithStar）。每次 bind 动态读，设置页改完返回即时生效。
+     * IAdapterWithStar）。每次 bind 动态读：设置变更后新绑定的卡片即生效（滑动复用 /
+     * 下拉刷新），屏幕上已绑定的卡片不会主动重绑——legacy 是建 adapter 时读死，更迟钝。
      */
     protected open val hideLikeButton: Boolean
         get() = false

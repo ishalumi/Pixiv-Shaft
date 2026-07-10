@@ -127,6 +127,10 @@ abstract class FeedFragment(
 
     /** 回顶 + 重新刷新（底栏当前 tab 再点等场景，对齐 legacy ListFragment.forceRefresh）。 */
     fun forceRefresh() {
+        // 宿主（FragmentLeft/FragmentHolder 等）视图重建时会重新 new 一份 fragments 数组，
+        // 而 pager 复用的是 FragmentManager 恢复的旧实例——数组里这份孤儿实例永不 attach。
+        // 无 view 时安全 no-op：孤儿实例上碰 feedViewModel 会在取 ViewModelStore 时抛 ISE
+        if (_binding == null) return
         scrollToTop()
         feedViewModel.refresh()
     }
