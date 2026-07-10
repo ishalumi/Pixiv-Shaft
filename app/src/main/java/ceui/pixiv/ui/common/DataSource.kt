@@ -101,11 +101,7 @@ open class DataSource<Item, T: KListShow<Item>>(
         val nextPageUrl = _nextPageUrl ?: return
         _refreshState.value = RefreshState.LOADING(refreshHint = RefreshHint.LoadMore)
         try {
-            val response = withContext(Dispatchers.IO) {
-                val responseBody = Client.appApi.generalGet(nextPageUrl)
-                val responseJson = responseBody.string()
-                gson.fromJson(responseJson, responseClass)
-            }
+            val response = replayNextUrl(gson, nextPageUrl, requireNotNull(responseClass))
             applyResponse(response, true)
         } catch (ex: Exception) {
             _refreshState.value = RefreshState.ERROR(ex)

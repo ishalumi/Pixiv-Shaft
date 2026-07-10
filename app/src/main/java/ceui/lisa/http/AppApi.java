@@ -87,13 +87,6 @@ public interface AppApi {
     Observable<ListTrendingtag> getHotTags(@Path("type") String type);
 
 
-    /**
-     * 原版app登录时候的背景墙
-     *
-     * @return
-     */
-    @GET("v1/walkthrough/illusts?filter=for_android")
-    Observable<ListIllust> getLoginBg();
 
 
     /**

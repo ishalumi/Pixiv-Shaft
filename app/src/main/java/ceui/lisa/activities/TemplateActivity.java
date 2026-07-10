@@ -73,7 +73,6 @@ import ceui.lisa.fragments.FragmentUserInfo;
 import ceui.lisa.fragments.FragmentUserManga;
 import ceui.lisa.fragments.FragmentUserNovel;
 import ceui.lisa.fragments.FragmentViewPager;
-import ceui.lisa.fragments.FragmentWalkThrough;
 import ceui.lisa.fragments.FragmentWebView;
 import ceui.lisa.fragments.FragmentWhoFollowThisUser;
 import ceui.lisa.fragments.FragmentWorkSpace;
@@ -187,7 +186,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "批量选择":
                     return new ceui.pixiv.ui.bulk.BulkSelectV3Fragment();
                 case "画廊":
-                    return new FragmentWalkThrough();
+                    // feeds 框架版画廊，替代 legacy FragmentWalkThrough
+                    return new ceui.pixiv.ui.home.WalkthroughFeedFragment();
                 case "正在关注":
                     return FragmentFollowUser.newInstance(
                             getIntent().getIntExtra(Params.USER_ID, 0),
