@@ -45,8 +45,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
-private const val KEY_HAS_MANGA_TAB = "user_v3_has_manga_tab"
-private const val KEY_HAS_NOVEL_TAB = "user_v3_has_novel_tab"
+private const val KEY_TAB_KINDS = "user_v3_tab_kinds"
 /**
  * 插画列表(FragmentUserIllust)首屏加载完后回调宿主(UserV3IllustTabFragment / 其他实现方),
  * 让「标签筛选条」复用同一份数据聚合 tag,避免再单独打一次 user/illusts。
@@ -66,11 +65,11 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     // 收藏 / 资料 常驻;漫画 / 小说 是条件 tab(有对应作品才插)。
     private enum class TabKind { ILLUST, MANGA, NOVEL, COLLECTION, INFO }
 
-    // 漫画 / 小说 tab 是否插入要等 getUserDetail 返回才知道 (total_manga / total_novels),
-    // 所以先常驻 3 tab 起步,有漫画/小说再 notifyItemInserted 塞进对应位置。
-    // 旋转 / 进程重建时,从 savedInstanceState 提前恢复,避免 FragmentStateAdapter
-    // 把旋转前保存的条件 tab fragment state 当成「已废弃」清掉。
-    private val tabKinds = mutableListOf(TabKind.ILLUST, TabKind.COLLECTION, TabKind.INFO)
+    // 哪些 tab 该展示要等 getUserDetail 返回才知道 (total_manga / total_novels),
+    // 所以空列表起步,详情到手后一次性建全量 tab —— 不再「3 tab 先上、条件 tab 后插」闪一下。
+    // 旋转 / 进程重建时,从 savedInstanceState 提前恢复完整列表,避免 FragmentStateAdapter
+    // 把旋转前保存的 fragment state 当成「已废弃」清掉。
+    private val tabKinds = mutableListOf<TabKind>()
     private var pagerAdapter: FragmentStateAdapter? = null
 
     // user/detail 返回的确定数量(插画/漫画/小说/公开插画收藏),>0 时追加到 tab label 后面。
@@ -78,24 +77,19 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     private val tabCounts = mutableMapOf<TabKind, Int>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 在 super.onCreate 之前预插条件 tab,这样 BaseActivity.onCreate 里跑 setupViewPager 时
+        // 在 super.onCreate 之前恢复完整 tab 列表,这样 BaseActivity.onCreate 里跑 setupViewPager 时
         // FragmentStateAdapter 看到的 itemId 集合就包含它们,旋转前保存的 fragment state
-        // 才会被恢复而不是当成「已废弃」被清掉。顺序:MANGA 先(ILLUST 之后),NOVEL 后(COLLECTION 之前)。
-        if (savedInstanceState?.getBoolean(KEY_HAS_MANGA_TAB, false) == true) {
-            if (!tabKinds.contains(TabKind.MANGA)) tabKinds.add(1, TabKind.MANGA)
-        }
-        if (savedInstanceState?.getBoolean(KEY_HAS_NOVEL_TAB, false) == true) {
-            if (!tabKinds.contains(TabKind.NOVEL)) {
-                tabKinds.add(tabKinds.indexOf(TabKind.COLLECTION), TabKind.NOVEL)
-            }
+        // 才会被恢复而不是当成「已废弃」被清掉。首次进页(无保存状态)保持空列表,等详情返回再建。
+        savedInstanceState?.getIntArray(KEY_TAB_KINDS)?.let { saved ->
+            tabKinds.clear()
+            saved.mapTo(tabKinds) { TabKind.entries[it] }
         }
         super.onCreate(savedInstanceState)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(KEY_HAS_MANGA_TAB, tabKinds.contains(TabKind.MANGA))
-        outState.putBoolean(KEY_HAS_NOVEL_TAB, tabKinds.contains(TabKind.NOVEL))
+        outState.putIntArray(KEY_TAB_KINDS, tabKinds.map { it.ordinal }.toIntArray())
     }
 
     override fun initLayout(): Int = R.layout.activity_user_v3
@@ -250,6 +244,12 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                     )
                 }
 
+                override fun error(e: Throwable) {
+                    super.error(e)
+                    // user/detail 拉不到时兜底常驻 3 tab(插画/收藏/资料),别让整页空白
+                    buildAllTabs(hasManga = false, hasNovel = false)
+                }
+
                 override fun must() {
                     baseBind.progress.visibility = View.INVISIBLE
                 }
@@ -318,6 +318,17 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         }
     }
 
+    /** 详情到手后一次性建全量 tab。只在列表为空时生效(旋转恢复/刷新路径不重建)。 */
+    private fun buildAllTabs(hasManga: Boolean, hasNovel: Boolean) {
+        if (tabKinds.isNotEmpty()) return
+        tabKinds.add(TabKind.ILLUST)
+        if (hasManga) tabKinds.add(TabKind.MANGA)
+        if (hasNovel) tabKinds.add(TabKind.NOVEL)
+        tabKinds.add(TabKind.COLLECTION)
+        tabKinds.add(TabKind.INFO)
+        pagerAdapter?.notifyItemRangeInserted(0, tabKinds.size)
+    }
+
     /**
      * 条件 tab(漫画/小说)按需插入到指定位置。保留用户当前所在 tab,别因为插入新 tab 把人「踢」走。
      * MANGA 插 ILLUST 之后(index 1),NOVEL 插 COLLECTION 之前 —— 由调用方给 insertIndex。
@@ -362,7 +373,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         val profile = data.profile
         val user = data.user
 
-        // 先记数量再插条件 tab —— TabLayoutMediator repopulate 时 tabTitle 才带得上数字。
+        // 先记数量再建/插 tab —— TabLayoutMediator populate 时 tabTitle 才带得上数字。
         if (profile.total_illusts > 0) tabCounts[TabKind.ILLUST] = profile.total_illusts
         if (profile.total_manga > 0) tabCounts[TabKind.MANGA] = profile.total_manga
         if (profile.total_novels > 0) tabCounts[TabKind.NOVEL] = profile.total_novels
@@ -370,10 +381,15 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             tabCounts[TabKind.COLLECTION] = profile.total_illust_bookmarks_public
         }
 
-        // 有漫画/小说作品才插对应条件 tab。MANGA 在插画之后,NOVEL 在收藏之前。
-        if (profile.total_manga > 0) ensureConditionalTab(TabKind.MANGA, 1)
-        if (profile.total_novels > 0) {
-            ensureConditionalTab(TabKind.NOVEL, tabKinds.indexOf(TabKind.COLLECTION))
+        if (tabKinds.isEmpty()) {
+            // 首次进页:详情到手,一次性建全量 tab(有漫画/小说作品才含对应 tab)
+            buildAllTabs(hasManga = profile.total_manga > 0, hasNovel = profile.total_novels > 0)
+        } else {
+            // 旋转恢复 / 下拉刷新:列表已在,只按需补插条件 tab。MANGA 在插画之后,NOVEL 在收藏之前。
+            if (profile.total_manga > 0) ensureConditionalTab(TabKind.MANGA, 1)
+            if (profile.total_novels > 0) {
+                ensureConditionalTab(TabKind.NOVEL, tabKinds.indexOf(TabKind.COLLECTION))
+            }
         }
         refreshTabTitles()
 
