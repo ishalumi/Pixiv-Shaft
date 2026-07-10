@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import ceui.lisa.R
 import ceui.lisa.activities.UActivity
 import ceui.lisa.databinding.FragmentPixivListBinding
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.lisa.databinding.LayoutToolbarBinding
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.utils.Common
@@ -62,6 +63,7 @@ import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.widgets.RateAppManager
 import ceui.pixiv.widgets.TagsActionReceiver
+import com.blankj.utilcode.util.BarUtils
 import com.scwang.smart.refresh.footer.ClassicsFooter
 import com.scwang.smart.refresh.header.FalsifyFooter
 import com.scwang.smart.refresh.header.FalsifyHeader
@@ -339,6 +341,23 @@ fun Fragment.setUpToolbar(binding: LayoutToolbarBinding, content: ViewGroup) {
             content.updatePadding(0, 0, 0, insets.bottom)
             WindowInsetsCompat.CONSUMED
         }
+    }
+}
+
+/**
+ * fragment_toolbar_feed 的设置页式 AppCompat Toolbar(fragment_webview 5 件套)。
+ * BaseActivity 开了 EdgeToEdge:状态栏 inset 走 BarUtils 手动 padding,不用
+ * fitsSystemWindows(会把 status + nav 两个 inset 都当 padding 套上);[content] 底部让出导航栏。
+ */
+fun Fragment.setUpToolbar(binding: FragmentToolbarFeedBinding, content: ViewGroup) {
+    binding.toolbar.updatePadding(top = BarUtils.getStatusBarHeight())
+    binding.toolbar.setNavigationOnClickListener {
+        requireActivity().finish()
+    }
+    ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+        val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+        content.updatePadding(0, 0, 0, insets.bottom)
+        WindowInsetsCompat.CONSUMED
     }
 }
 

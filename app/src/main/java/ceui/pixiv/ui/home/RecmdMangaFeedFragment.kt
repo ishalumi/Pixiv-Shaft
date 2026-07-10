@@ -17,9 +17,9 @@ class RecmdMangaFeedFragment : RecmdIllustFeedFragment(R.layout.fragment_toolbar
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setUpToolbar(binding.toolbarLayout, feedBinding.feedListView)
+        setUpToolbar(binding, feedBinding.feedListView)
         // 对齐 legacy getToolbarTitle：推荐 + dataType
-        binding.toolbarLayout.naviTitle.text = getString(R.string.recommend) + dataType
+        binding.toolbarTitle.text = getString(R.string.recommend) + dataType
     }
 
     companion object {

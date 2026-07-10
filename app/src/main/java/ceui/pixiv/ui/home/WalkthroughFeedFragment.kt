@@ -31,7 +31,7 @@ class WalkthroughFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_fee
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setUpToolbar(binding.toolbarLayout, feedBinding.feedListView)
-        binding.toolbarLayout.naviTitle.setText(R.string.walkthrough)
+        setUpToolbar(binding, feedBinding.feedListView)
+        binding.toolbarTitle.setText(R.string.walkthrough)
     }
 }
