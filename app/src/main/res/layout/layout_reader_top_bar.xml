@@ -43,11 +43,21 @@
         xmlns:app="http://schemas.android.com/apk/res-auto" />
 
     <ImageButton
-        android:id="@+id/btn_bookmark"
+        android:id="@+id/btn_like"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/reader_desc_bookmark"
+        android:src="@drawable/ic_reader_heart_border"
+        app:tint="#FFFFFF"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+    <ImageButton
+        android:id="@+id/btn_marker"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/reader_desc_marker"
         android:src="@drawable/ic_reader_bookmark_border"
         app:tint="#FFFFFF"
         xmlns:app="http://schemas.android.com/apk/res-auto" />

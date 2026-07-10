@@ -1055,6 +1055,9 @@
     <string name="reader_desc_back">戻る</string>
     <string name="reader_desc_annotations">メモ/ハイライト</string>
     <string name="reader_desc_bookmark">ブックマーク</string>
+    <string name="reader_desc_marker">しおり</string>
+    <string name="msg_marker_added">しおりを挟みました</string>
+    <string name="msg_marker_removed">しおりを外しました</string>
     <string name="reader_desc_more">その他</string>
     <string name="reader_desc_prev_chapter">前の章</string>
     <string name="reader_desc_next_chapter">次の章</string>

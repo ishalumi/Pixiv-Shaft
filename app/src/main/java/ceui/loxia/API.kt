@@ -56,6 +56,21 @@ interface API {
         @Field("novel_id") novel_id: Long
     )
 
+    // pixiv 原版书签（しおり/marker），page 为 1-based 的 [newpage] 分页序号；
+    // 同一小说只有一个书签，重复 add 直接覆盖页码。
+    @FormUrlEncoded
+    @POST("/v1/novel/marker/add")
+    suspend fun addNovelMarker(
+        @Field("novel_id") novel_id: Long,
+        @Field("page") page: Int
+    )
+
+    @FormUrlEncoded
+    @POST("/v1/novel/marker/delete")
+    suspend fun removeNovelMarker(
+        @Field("novel_id") novel_id: Long
+    )
+
     @FormUrlEncoded
     @POST("/v1/illust/bookmark/delete")
     suspend fun removeBookmark(

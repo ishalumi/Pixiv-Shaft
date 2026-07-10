@@ -1055,6 +1055,9 @@
     <string name="reader_desc_back">Назад</string>
     <string name="reader_desc_annotations">Заметки/выделения</string>
     <string name="reader_desc_bookmark">Закладка</string>
+    <string name="reader_desc_marker">Метка</string>
+    <string name="msg_marker_added">Метка добавлена</string>
+    <string name="msg_marker_removed">Метка удалена</string>
     <string name="reader_desc_more">Ещё</string>
     <string name="reader_desc_prev_chapter">Предыдущая глава</string>
     <string name="reader_desc_next_chapter">Следующая глава</string>

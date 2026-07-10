@@ -1057,6 +1057,9 @@
     <string name="reader_desc_back">返回</string>
     <string name="reader_desc_annotations">筆記/標記</string>
     <string name="reader_desc_bookmark">收藏</string>
+    <string name="reader_desc_marker">書籤</string>
+    <string name="msg_marker_added">已加入書籤</string>
+    <string name="msg_marker_removed">已移除書籤</string>
     <string name="reader_desc_more">更多</string>
     <string name="reader_desc_prev_chapter">上一章</string>
     <string name="reader_desc_next_chapter">下一章</string>

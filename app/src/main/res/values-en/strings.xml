@@ -1055,6 +1055,9 @@
     <string name="reader_desc_back">Back</string>
     <string name="reader_desc_annotations">Notes/Highlights</string>
     <string name="reader_desc_bookmark">Bookmark</string>
+    <string name="reader_desc_marker">Marker</string>
+    <string name="msg_marker_added">Marker added</string>
+    <string name="msg_marker_removed">Marker removed</string>
     <string name="reader_desc_more">More</string>
     <string name="reader_desc_prev_chapter">Previous chapter</string>
     <string name="reader_desc_next_chapter">Next chapter</string>

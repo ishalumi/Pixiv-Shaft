@@ -152,7 +152,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         val so = ReaderSearchOverlay(binding.readerSearchOverlay)
 
         wireTopBar(tb)
-        tb.setBookmarkVisible(!isLocalSource)
+        tb.setPixivActionsVisible(!isLocalSource)
         wireBottomBar(rv, bb, ch, so)
         wireReaderView(rv, ch)
         wireSearchOverlay(so)
@@ -241,8 +241,10 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
     private fun wireTopBar(tb: ReaderTopBar) {
         tb.onBackClick = { activity?.finish() }
         tb.onAnnotationsClick = { showAnnotationsSheet() }
-        tb.onBookmarkClick = { togglePixivBookmark() }
-        tb.onBookmarkLongClick = { openTagBookmarkForCurrentNovel() }
+        tb.onLikeClick = { togglePixivBookmark() }
+        tb.onLikeLongClick = { openTagBookmarkForCurrentNovel() }
+        // 丝带图标 = pixiv 原版书签（しおり/marker），不是收藏 —— issue #935。
+        tb.onMarkerClick = { togglePixivMarker() }
         tb.onMoreClick = { showTopMoreMenu() }
     }
 
@@ -400,9 +402,13 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
         }
 
         ObjectPool.get<Novel>(resolveNovelId()).observe(viewLifecycleOwner) { novel ->
-            tb.setBookmarked(novel?.is_bookmarked == true)
+            tb.setLiked(novel?.is_bookmarked == true)
             val title = novel?.title
             if (!title.isNullOrEmpty()) tb.setTitle(title)
+        }
+
+        viewModel.markerPage.observe(viewLifecycleOwner) { page ->
+            tb.setMarked((page ?: 0) > 0)
         }
 
         viewModel.annotations.observe(viewLifecycleOwner) { list ->
@@ -550,6 +556,12 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
     private fun togglePixivBookmark() {
         viewLifecycleOwner.lifecycleScope.launch {
             Toast.makeText(requireContext(), viewModel.toggleBookmark(), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun togglePixivMarker() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            Toast.makeText(requireContext(), viewModel.toggleMarker(), Toast.LENGTH_SHORT).show()
         }
     }
 

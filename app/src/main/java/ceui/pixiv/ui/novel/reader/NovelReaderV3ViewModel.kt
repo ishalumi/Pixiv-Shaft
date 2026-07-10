@@ -80,6 +80,10 @@ class NovelReaderV3ViewModel(
     private val _currentPageIndex = MutableLiveData<Int>(0)
     val currentPageIndex: LiveData<Int> = _currentPageIndex
 
+    /** pixiv 原版书签（しおり/marker）所在页，0 = 未插书签。issue #935。 */
+    private val _markerPage = MutableLiveData(0)
+    val markerPage: LiveData<Int> = _markerPage
+
     /** Live list of highlights / notes the user has added to this novel. */
     val annotations: LiveData<List<NovelAnnotationEntity>> = annotationDao.observeForNovel(novelId)
 
@@ -150,6 +154,7 @@ class NovelReaderV3ViewModel(
                 tokens = parsed.second
                 imageResolver = ImageResolver.of(parsed.first)
                 desiredCharIndex = ReaderProgressStore.loadCharIndex(novelId)
+                _markerPage.postValue(parsed.first.marker?.page ?: 0)
                 _loadState.postValue(LoadState.Loaded(novel, parsed.first, parsed.second))
                 repaginateIfReady()
             }.onFailure { throwable ->
@@ -379,6 +384,48 @@ class NovelReaderV3ViewModel(
                 ctx().getString(R.string.msg_bookmarked)
             }
         }.getOrElse { ctx().getString(R.string.msg_operation_fail, it.message.orEmpty()) }
+    }
+
+    // ---- pixiv marker (原版书签) toggle — issue #935 --------------------------
+
+    /**
+     * 在当前阅读位置插入 / 移除 pixiv 原版书签（しおり）。marker 的 page 是
+     * 1-based 的 `[newpage]` 分页序号，与旧版阅读器（FragmentNovelHolder）及
+     * 「我的-小说书签」列表页共用同一个服务端概念。
+     */
+    suspend fun toggleMarker(): String {
+        if (isLocal) return ctx().getString(R.string.local_novel_bookmark_unsupported)
+        return runCatching {
+            if ((_markerPage.value ?: 0) > 0) {
+                Client.appApi.removeNovelMarker(novelId)
+                updateMarkerState(0)
+                ctx().getString(R.string.msg_marker_removed)
+            } else {
+                val page = pixivPageForCharIndex(desiredCharIndex)
+                Client.appApi.addNovelMarker(novelId, page)
+                updateMarkerState(page)
+                ctx().getString(R.string.msg_marker_added)
+            }
+        }.getOrElse { ctx().getString(R.string.msg_operation_fail, it.message.orEmpty()) }
+    }
+
+    /** charIndex 落在第几个 `[newpage]` 分段里（1-based），无分页符即第 1 页。 */
+    private fun pixivPageForCharIndex(charIndex: Int): Int =
+        tokens.count { it is ContentToken.PageBreak && it.sourceStart <= charIndex } + 1
+
+    /**
+     * 同步内存态：LiveData 驱动顶栏图标，webNovel + NovelTextCache 一起换新，
+     * 否则退出后再进（缓存命中不走网络）会显示 toggle 前的旧书签状态。
+     */
+    private fun updateMarkerState(page: Int) {
+        _markerPage.value = page
+        val web = webNovel ?: return
+        val marker = if (page > 0) {
+            ceui.lisa.models.NovelDetail.NovelMarkerBean().apply { setPage(page) }
+        } else null
+        val updated = web.copy(marker = marker)
+        webNovel = updated
+        NovelTextCache.get(novelId)?.let { NovelTextCache.put(novelId, it.copy(webNovel = updated)) }
     }
 
     // ---- Export --------------------------------------------------------------
