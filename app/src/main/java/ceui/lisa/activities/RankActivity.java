@@ -14,10 +14,10 @@ import java.util.Calendar;
 
 import ceui.lisa.R;
 import ceui.lisa.databinding.ActivityMultiViewPagerBinding;
-import ceui.lisa.fragments.FragmentRankIllust;
 import ceui.lisa.fragments.FragmentRankNovel;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.MyOnTabSelectedListener;
+import ceui.pixiv.ui.rank.RankIllustFeedFragment;
 
 public class RankActivity extends BaseActivity<ActivityMultiViewPagerBinding> implements
         DatePickerDialog.OnDateSetListener {
@@ -75,7 +75,13 @@ public class RankActivity extends BaseActivity<ActivityMultiViewPagerBinding> im
         final String[] titles = getTitles(CHINESE_TITLES, CHINESE_TITLES_MANGA, CHINESE_TITLES_NOVEL);
         final Fragment[] mFragments = getFragments(CHINESE_TITLES, CHINESE_TITLES_MANGA, CHINESE_TITLES_NOVEL);
 
-        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager()) {
+        // feed 版排行榜页靠 onResume 懒加载（ViewPager 预创建的相邻 tab 不该偷偷发请求），
+        // 必须用 RESUME_ONLY_CURRENT 让只有可见 tab 到 RESUMED；小说 tab 仍是 legacy
+        // BaseLazyFragment（setUserVisibleHint 懒加载），保持旧行为。
+        final int pagerBehavior = "小说".equals(dataType)
+                ? FragmentPagerAdapter.BEHAVIOR_SET_USER_VISIBLE_HINT
+                : FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT;
+        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager(), pagerBehavior) {
             @Override
             public Fragment getItem(int i) {
                 return mFragments[i];
@@ -117,12 +123,14 @@ public class RankActivity extends BaseActivity<ActivityMultiViewPagerBinding> im
         if ("插画".equals(dataType)) {
             mFragments = new Fragment[CHINESE_TITLES.length];
             for (int i = 0; i < CHINESE_TITLES.length; i++) {
-                mFragments[i] = FragmentRankIllust.newInstance(i, queryDate, false);
+                mFragments[i] = RankIllustFeedFragment.newInstance(
+                        RankIllustFeedFragment.ILLUST_MODES[i], queryDate);
             }
         } else if ("漫画".equals(dataType)) {
             mFragments = new Fragment[CHINESE_TITLES_MANGA.length];
             for (int i = 0; i < CHINESE_TITLES_MANGA.length; i++) {
-                mFragments[i] = FragmentRankIllust.newInstance(i, queryDate, true);
+                mFragments[i] = RankIllustFeedFragment.newInstance(
+                        RankIllustFeedFragment.MANGA_MODES[i], queryDate);
             }
         } else if ("小说".equals(dataType)) {
             mFragments = new Fragment[CHINESE_TITLES_NOVEL.length];

@@ -151,6 +151,19 @@ class FeedViewModel<Cursor : Any>(
         _uiState.update { it.copy(append = LoadState.Idle, reachedEnd = cursor == null) }
     }
 
+    /**
+     * 懒加载触发点：还没成功加载过首屏且当前没有在刷新时才发起加载。
+     * 配合 `feedViewModels(autoLoad = false)` 用于 ViewPager 场景——
+     * 相邻 tab 的 Fragment 会被提前创建，数据要等真正可见（onResume）再拉，
+     * 否则会替用户偷偷请求从未打开过的 tab（R18 榜等尤其不该）。
+     * 首屏失败后再次可见会自动重试（对齐 legacy BaseLazyFragment 语义）。
+     */
+    fun ensureLoaded() {
+        val current = _uiState.value
+        if (current.hasLoadedOnce || current.refresh is LoadState.Loading) return
+        refresh()
+    }
+
     /** 追加失败后的手动重试入口（footer 点击）。 */
     fun retryAppend() {
         if (_uiState.value.append is LoadState.Error) {
@@ -219,10 +232,11 @@ inline fun <reified T : FeedItem> FeedViewModel<*>.updateItems(noinline transfor
  */
 fun <Cursor : Any> Fragment.feedViewModels(
     key: String? = null,
+    autoLoad: Boolean = true,
     sourceProvider: () -> FeedSource<Cursor>,
 ): Lazy<FeedViewModel<Cursor>> = lazy(LazyThreadSafetyMode.NONE) {
     val factory = viewModelFactory {
-        initializer { FeedViewModel(sourceProvider()) }
+        initializer { FeedViewModel(sourceProvider(), autoLoad) }
     }
     @Suppress("UNCHECKED_CAST")
     ViewModelProvider(this, factory)

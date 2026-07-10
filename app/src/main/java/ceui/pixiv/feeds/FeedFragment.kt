@@ -102,6 +102,11 @@ abstract class FeedFragment(
         ).show()
     }
 
+    /** 回到列表顶部（tab 双击、toolbar 点击等场景）。view 未创建时安全 no-op。 */
+    fun scrollToTop() {
+        _binding?.feedListView?.smoothScrollToPosition(0)
+    }
+
     /** 已自动接好 [FeedRenderer.spanSize] 的 GridLayoutManager。 */
     protected fun gridLayoutManager(spanCount: Int): GridLayoutManager {
         return GridLayoutManager(requireContext(), spanCount).also { manager ->

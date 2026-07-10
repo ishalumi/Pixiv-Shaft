@@ -187,6 +187,8 @@ interface API {
     @GET("/v1/illust/ranking?filter=for_ios")
     suspend fun getRankingIllusts(
         @Query("mode") mode: String,
+        // 指定日期看往期榜单（日期选择器）；null 时 Retrofit 不带该参数 = 最新一期
+        @Query("date") date: String? = null,
     ): IllustResponse
 
     // 对齐 pixiv iOS app 8.6.5 实际调用——
