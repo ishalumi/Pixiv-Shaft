@@ -33,24 +33,13 @@ class RankIllustFeedFragment : IllustFeedFragment() {
     private val skipR18Filter: Boolean get() = mode.contains("r18")
 
     override val feedViewModel by feedViewModels(autoLoad = false) {
+        // 零捕获约定（见 feedViewModels 文档）：source/mapper 归 VM 长期持有，
+        // 只捕获局部值、映射走伴生函数，不把 Fragment 实例钉进 VM
+        val mode = mode
+        val queryDate = queryDate
+        val skipR18Filter = skipR18Filter
         PixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, isFirstPage ->
-            mapRankPage(resp.displayList, isFirstPage)
-        }
-    }
-
-    private fun mapRankPage(illusts: List<ceui.loxia.Illust>, isFirstPage: Boolean): List<FeedItem> {
-        val pairs = illusts.mapNotNull { illust ->
-            IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
-        }
-        // 对齐 legacy RankIllustRepo：过滤前的整页喂给 DiscoveryPool（它内部自带去重/静音判断）
-        DiscoveryPool.collect(
-            pairs.map { it.second },
-            if (isFirstPage) "rank:$mode" else "rank_next:$mode",
-        )
-        val filterBookmarked = Shaft.sSettings.isFilterRankBookmarked
-        return pairs.mapNotNull { (illust, bean) ->
-            if (filterBookmarked && bean.isIs_bookmarked) return@mapNotNull null
-            IllustFeedItem.of(illust, bean, skipR18Filter)
+            mapRankPage(resp.displayList, isFirstPage, mode, skipR18Filter)
         }
     }
 
@@ -83,6 +72,28 @@ class RankIllustFeedFragment : IllustFeedFragment() {
                     putString(ARG_MODE, mode)
                     putString(ARG_DATE, date)
                 }
+            }
+        }
+
+        /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
+        private fun mapRankPage(
+            illusts: List<ceui.loxia.Illust>,
+            isFirstPage: Boolean,
+            mode: String,
+            skipR18Filter: Boolean,
+        ): List<FeedItem> {
+            val pairs = illusts.mapNotNull { illust ->
+                IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
+            }
+            // 对齐 legacy RankIllustRepo：过滤前的整页喂给 DiscoveryPool（它内部自带去重/静音判断）
+            DiscoveryPool.collect(
+                pairs.map { it.second },
+                if (isFirstPage) "rank:$mode" else "rank_next:$mode",
+            )
+            val filterBookmarked = Shaft.sSettings.isFilterRankBookmarked
+            return pairs.mapNotNull { (illust, bean) ->
+                if (filterBookmarked && bean.isIs_bookmarked) return@mapNotNull null
+                IllustFeedItem.of(illust, bean, skipR18Filter)
             }
         }
     }

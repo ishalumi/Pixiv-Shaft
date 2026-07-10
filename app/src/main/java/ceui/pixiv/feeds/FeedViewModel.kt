@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.WeakHashMap
 
 /**
  * 列表状态机。数据全部住在这里，Fragment 不持有任何数据（进程内配置变更零重载）。
@@ -243,12 +244,21 @@ inline fun <reified T : FeedItem> FeedViewModel<*>.updateItems(noinline transfor
  *
  * ```
  * override val feedViewModel by feedViewModels {
- *     PixivFeedSource({ Client.appApi.getWalkthroughWorks() }) { resp, _ -> ... }
+ *     // 先把 Fragment 属性取成局部值再给 lambda 用（零捕获约定，见下）
+ *     val userId = userId
+ *     PixivFeedSource({ Client.appApi.getUserIllusts(userId) }) { resp, _ -> ... }
  * }
  * ```
  *
- * 同一个 Fragment 需要多个列表 VM 时用 [key] 区分（漏传 key 且游标类型不同会立刻抛错，
- * 不会静默共享同一个 VM）。
+ * ⚠️ 零捕获约定：[sourceProvider] 造出的 FeedSource（含 initialFetch / mapper lambda）
+ * 会被 VM 持有到页面最终销毁，而 VM 比 Fragment 实例活得久（进程内配置变更会重建
+ * Fragment、复用 VM）——lambda 捕获 Fragment / View / Context 就把旋转前的旧实例
+ * 钉在内存里了。需要 Fragment 属性（arguments 等）就在 sourceProvider 体内先读进
+ * 局部 val；映射逻辑复杂就写成伴生对象 / 顶层函数（参考 RecmdIllustFeedFragment）。
+ * mapper 里要用 Context 一律 Shaft.getContext()。
+ *
+ * 同一个 Fragment 需要多个列表 VM 时必须用 [key] 区分：同一 Fragment 实例内
+ * 重复的 key 会立刻抛错（fail-fast），不会静默让两个列表共享同一个 VM。
  *
  * [autoLoad] 传 false 表示懒加载：数据等 tab 真正可见（首次 RESUMED）才拉，
  * [FeedFragment.onResume] 会自动触发 [FeedViewModel.ensureLoaded]，子类无需再写。
@@ -259,15 +269,37 @@ inline fun <reified Cursor : Any> Fragment.feedViewModels(
     key: String? = null,
     autoLoad: Boolean = true,
     noinline sourceProvider: () -> FeedSource<Cursor>,
+): Lazy<FeedViewModel<Cursor>> = feedViewModelsImpl(Cursor::class.java, key, autoLoad, sourceProvider)
+
+/**
+ * 每个 Fragment 实例已占用的列表 VM key（主线程访问）。weak key：
+ * 记录随 Fragment 实例回收，重建的新实例从零开始重新认领。
+ */
+private val claimedFeedVmKeys = WeakHashMap<Fragment, MutableSet<String>>()
+
+@PublishedApi
+internal fun <Cursor : Any> Fragment.feedViewModelsImpl(
+    cursorClass: Class<Cursor>,
+    key: String?,
+    autoLoad: Boolean,
+    sourceProvider: () -> FeedSource<Cursor>,
 ): Lazy<FeedViewModel<Cursor>> = lazy(LazyThreadSafetyMode.NONE) {
-    val factory = viewModelFactory {
-        initializer { FeedViewModel(sourceProvider(), autoLoad, Cursor::class.java) }
+    val storeKey = key ?: FeedViewModel::class.java.name
+    // 同一个 Fragment 实例内第二个同 key 委托是接线错误：两个列表会静默共享一个 VM
+    //（谁先初始化就用谁的数据源，另一个列表显示错误数据）。不论游标类型是否相同都立刻抛错。
+    val claimed = claimedFeedVmKeys.getOrPut(this) { mutableSetOf() }
+    check(claimed.add(storeKey)) {
+        "feedViewModels key 撞车：key=${key ?: "<默认>"} 已被本 Fragment 的另一个列表占用，" +
+                "同一 Fragment 的第二个列表 VM 请显式传 key"
     }
-    val viewModel = ViewModelProvider(this, factory)
-        .get(key ?: FeedViewModel::class.java.name, FeedViewModel::class.java)
-    check(viewModel.cursorClass == null || viewModel.cursorClass == Cursor::class.java) {
-        "feedViewModels key 撞车：key=${key ?: "<默认>"} 已被 Cursor=${viewModel.cursorClass?.name} " +
-                "的列表占用，同一 Fragment 的第二个列表 VM 请显式传 key"
+    val factory = viewModelFactory {
+        initializer { FeedViewModel(sourceProvider(), autoLoad, cursorClass) }
+    }
+    val viewModel = ViewModelProvider(this, factory).get(storeKey, FeedViewModel::class.java)
+    // 跨实例复用（旋转重建拿回旧 VM）时校验游标类型没有漂移
+    check(viewModel.cursorClass == null || viewModel.cursorClass == cursorClass) {
+        "feedViewModels key=${key ?: "<默认>"} 复用到 Cursor=${viewModel.cursorClass?.name} 的旧 VM，" +
+                "与本次声明的 ${cursorClass.name} 不符"
     }
     @Suppress("UNCHECKED_CAST")
     viewModel as FeedViewModel<Cursor>

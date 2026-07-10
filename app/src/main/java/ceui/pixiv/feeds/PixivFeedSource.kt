@@ -14,7 +14,9 @@ import kotlinx.coroutines.withContext
  * - [mapper] 拿到整个响应做条目映射（在 Default 线程执行，禁止碰 View），
  *   所以插 section 头、按响应字段分组、逐条转换/过滤都表达得出来；
  * - [mapper] 允许携带每页副作用（喂 DiscoveryPool、写推荐浏览历史等），但必须容忍
- *   重复执行：刷新会对第一页重放，空页追载会连续调用——副作用要幂等或重放无害。
+ *   重复执行：刷新会对第一页重放，空页追载会连续调用——副作用要幂等或重放无害；
+ * - 本类实例被 [FeedViewModel] 持有到页面最终销毁：[initialFetch] / [mapper] 不要捕获
+ *   Fragment / View / Context，需要的值先取成局部变量（零捕获约定见 [feedViewModels] 文档）。
  */
 class PixivFeedSource<Resp : KListShow<*>>(
     private val initialFetch: suspend () -> Resp,

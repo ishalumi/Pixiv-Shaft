@@ -28,6 +28,9 @@ import kotlinx.coroutines.launch
  * }
  * ```
  *
+ * ⚠️ 数据源 lambda（initialFetch / mapper）不要捕获 Fragment——它归 VM 长期持有，
+ * 会把旋转前的旧 Fragment 实例钉在内存里（零捕获约定详见 [feedViewModels] 文档）。
+ *
  * 需要 toolbar 等额外骨架时传自定义 [contentLayoutId]，布局里
  * `<include layout="@layout/fragment_feed"/>`（id 保持 feed_root）即可。
  */

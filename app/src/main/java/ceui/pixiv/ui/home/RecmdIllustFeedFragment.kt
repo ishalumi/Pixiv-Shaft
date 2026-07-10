@@ -79,9 +79,12 @@ open class RecmdIllustFeedFragment(
     }
 
     override val feedViewModel by feedViewModels {
+        // 零捕获约定（见 feedViewModels 文档）：source/mapper 归 VM 长期持有，
+        // 只捕获局部值、映射走伴生函数，不把 Fragment 实例钉进 VM
+        val dataType = dataType
         val apiType = if (dataType == TYPE_MANGA) "manga" else "illust"
         PixivFeedSource({ Client.appApi.getRecommendedWorksWithRanking(apiType) }) { resp, isFirstPage ->
-            mapRecmdPage(resp.illusts, resp.ranking_illusts, isFirstPage)
+            mapRecmdPage(resp.illusts, resp.ranking_illusts, isFirstPage, dataType)
         }
     }
 
@@ -202,44 +205,6 @@ open class RecmdIllustFeedFragment(
         return listOf(rankHeaderRenderer(), staggerIllustRenderer())
     }
 
-    private fun mapRecmdPage(
-        illusts: List<Illust>,
-        rankingIllusts: List<Illust>,
-        isFirstPage: Boolean,
-    ): List<FeedItem> {
-        val pairs = illusts.mapNotNull { illust ->
-            IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
-        }
-        // 对齐 legacy RecmdIllustRepo：过滤前整页喂 DiscoveryPool（排行榜预览不算）
-        DiscoveryPool.collect(
-            pairs.map { it.second },
-            if (isFirstPage) "recmd:$dataType" else "recmd_next:$dataType",
-        )
-        val listItems = pairs.mapNotNull { (illust, bean) -> IllustFeedItem.of(illust, bean) }
-        if (!isFirstPage) {
-            return listItems
-        }
-        // 首屏前 20 条写入推荐浏览历史（对齐 legacy onFirstLoaded；离线模式/推荐用户页读它）。
-        // mapper 跑在 Default 线程，Room 直接写安全；辅助写失败不打断列表但要留痕
-        runCatching {
-            val dao = AppDatabase.getAppDatabase(Shaft.getContext()).recmdDao()
-            listItems.take(20).forEach { item ->
-                dao.insert(IllustRecmdEntity().apply {
-                    illustID = item.bean.id
-                    illustJson = Shaft.sGson.toJson(item.bean)
-                    time = System.currentTimeMillis()
-                })
-            }
-        }.onFailure { Timber.w(it, "feeds: 推荐浏览历史写入失败") }
-        // 排行榜预览头不做内容过滤（对齐 legacy 直接展示 ranking_illusts）
-        val rankBeans = rankingIllusts.mapNotNull { IllustFeedItem.beanOf(it) }
-        return if (rankBeans.isEmpty()) {
-            listItems
-        } else {
-            listOf(RankPreviewHeaderItem(rankBeans, dataType)) + listItems
-        }
-    }
-
     private fun rankHeaderRenderer() = feedRenderer<RankPreviewHeaderItem, RecyRecmdHeaderBinding>(
         inflate = RecyRecmdHeaderBinding::inflate,
         fullSpan = true,
@@ -287,6 +252,46 @@ open class RecmdIllustFeedFragment(
         fun newInstance(dataType: String): RecmdIllustFeedFragment {
             return RecmdIllustFeedFragment().apply {
                 arguments = Bundle().apply { putString(ARG_DATA_TYPE, dataType) }
+            }
+        }
+
+        /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
+        private fun mapRecmdPage(
+            illusts: List<Illust>,
+            rankingIllusts: List<Illust>,
+            isFirstPage: Boolean,
+            dataType: String,
+        ): List<FeedItem> {
+            val pairs = illusts.mapNotNull { illust ->
+                IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
+            }
+            // 对齐 legacy RecmdIllustRepo：过滤前整页喂 DiscoveryPool（排行榜预览不算）
+            DiscoveryPool.collect(
+                pairs.map { it.second },
+                if (isFirstPage) "recmd:$dataType" else "recmd_next:$dataType",
+            )
+            val listItems = pairs.mapNotNull { (illust, bean) -> IllustFeedItem.of(illust, bean) }
+            if (!isFirstPage) {
+                return listItems
+            }
+            // 首屏前 20 条写入推荐浏览历史（对齐 legacy onFirstLoaded；离线模式/推荐用户页读它）。
+            // mapper 跑在 Default 线程，Room 直接写安全；辅助写失败不打断列表但要留痕
+            runCatching {
+                val dao = AppDatabase.getAppDatabase(Shaft.getContext()).recmdDao()
+                listItems.take(20).forEach { item ->
+                    dao.insert(IllustRecmdEntity().apply {
+                        illustID = item.bean.id
+                        illustJson = Shaft.sGson.toJson(item.bean)
+                        time = System.currentTimeMillis()
+                    })
+                }
+            }.onFailure { Timber.w(it, "feeds: 推荐浏览历史写入失败") }
+            // 排行榜预览头不做内容过滤（对齐 legacy 直接展示 ranking_illusts）
+            val rankBeans = rankingIllusts.mapNotNull { IllustFeedItem.beanOf(it) }
+            return if (rankBeans.isEmpty()) {
+                listItems
+            } else {
+                listOf(RankPreviewHeaderItem(rankBeans, dataType)) + listItems
             }
         }
     }

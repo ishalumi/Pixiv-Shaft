@@ -47,6 +47,8 @@ class HotTagsFeedFragment : FeedFragment() {
     }
 
     override val feedViewModel by feedViewModels(autoLoad = false) {
+        // 零捕获约定（见 feedViewModels 文档）：contentType 取成局部值，不把 Fragment 钉进 VM
+        val contentType = contentType
         PixivFeedSource({ Client.appApi.trendingTags(contentType) }) { resp, _ ->
             resp.trend_tags.mapIndexed { index, trendingTag ->
                 // 详情页 / Glide 走 legacy IllustsBean，映射线程一次性转好
