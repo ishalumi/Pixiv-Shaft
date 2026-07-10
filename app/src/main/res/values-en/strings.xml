@@ -847,6 +847,8 @@
     <string name="related_artworks">Related artworks</string>
     <string name="qq_group_5">QQ Group 5</string>
     <string name="qq_group_6">QQ Group 6</string>
+    <string name="qq_group_7">QQ Group 7</string>
+    <string name="qq_group_8">QQ Group 8</string>
     <string name="cookie_sync_has_been_done">Synced</string>
     <string name="cookie_was_not_synced">Not synced</string>
     <string name="sync_cookies_with_pixiv_net">Sync with pixiv.net</string>

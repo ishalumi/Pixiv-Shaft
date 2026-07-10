@@ -847,6 +847,8 @@
     <string name="related_artworks">관련 작품</string>
     <string name="qq_group_5">QQ 그룹 5</string>
     <string name="qq_group_6">QQ 그룹 6</string>
+    <string name="qq_group_7">QQ 그룹 7</string>
+    <string name="qq_group_8">QQ 그룹 8</string>
     <string name="cookie_sync_has_been_done">동기화 완료</string>
     <string name="cookie_was_not_synced">동기화되지 않음</string>
     <string name="sync_cookies_with_pixiv_net">pixiv.net과 동기화</string>

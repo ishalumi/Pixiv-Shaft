@@ -847,6 +847,8 @@
     <string name="related_artworks">İlgili eserler</string>
     <string name="qq_group_5">QQ Grup 5</string>
     <string name="qq_group_6">QQ Grup 6</string>
+    <string name="qq_group_7">QQ Grup 7</string>
+    <string name="qq_group_8">QQ Grup 8</string>
     <string name="cookie_sync_has_been_done">Senkronize edildi</string>
     <string name="cookie_was_not_synced">Senkronize edilmedi</string>
     <string name="sync_cookies_with_pixiv_net">pixiv.net ile senkronize et</string>

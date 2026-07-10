@@ -847,6 +847,8 @@
     <string name="related_artworks">Похожие иллюстрации</string>
     <string name="qq_group_5">QQ-группа 5</string>
     <string name="qq_group_6">QQ-группа 6</string>
+    <string name="qq_group_7">QQ-группа 7</string>
+    <string name="qq_group_8">QQ-группа 8</string>
     <string name="cookie_sync_has_been_done">Синхронизировано</string>
     <string name="cookie_was_not_synced">Не синхронизировано</string>
     <string name="sync_cookies_with_pixiv_net">Синхронизировать с pixiv.net</string>

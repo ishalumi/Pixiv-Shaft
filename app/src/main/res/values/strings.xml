@@ -885,6 +885,8 @@
     <string name="related_artworks">相关作品</string>
     <string name="qq_group_5">五群</string>
     <string name="qq_group_6">六群</string>
+    <string name="qq_group_7">七群</string>
+    <string name="qq_group_8">八群</string>
     <string name="cookie_sync_has_been_done">已完成同步</string>
     <string name="cookie_was_not_synced">未同步</string>
     <string name="sync_cookies_with_pixiv_net">Pixiv 主站同步</string>

@@ -845,8 +845,10 @@
     <string name="created_tasks">作成したタスク</string>
     <string name="not_selected">未選択</string>
     <string name="related_artworks">関連作品</string>
-    <string name="qq_group_5">第6グループ</string>
-    <string name="qq_group_6">第7グループ</string>
+    <string name="qq_group_5">第5グループ</string>
+    <string name="qq_group_6">第6グループ</string>
+    <string name="qq_group_7">第7グループ</string>
+    <string name="qq_group_8">第8グループ</string>
     <string name="cookie_sync_has_been_done">同期しました</string>
     <string name="cookie_was_not_synced">同期していません</string>
     <string name="sync_cookies_with_pixiv_net">Web版Pixivと同期</string>
