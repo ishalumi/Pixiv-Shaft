@@ -9,8 +9,10 @@ import android.widget.ImageView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestBuilder;
@@ -51,10 +53,44 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
     private static final float MIN_HEIGHT_RATIO = 0.6f;
     private static final float MAX_HEIGHT_RATIO = 2.0f;
 
+    // 只为绑定时实时算列宽用：LayoutManager 的 measure 先于绑定，旋转后拿到的已是新方向的宽度
+    private RecyclerView attachedRecyclerView;
+
     public IAdapter(List<IllustsBean> targetList, Context context) {
         super(targetList, context);
         handleClick();
         handleLongClick();
+    }
+
+    @Override
+    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
+        attachedRecyclerView = recyclerView;
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView);
+        if (attachedRecyclerView == recyclerView) {
+            attachedRecyclerView = null;
+        }
+    }
+
+    /**
+     * 当前每列的实际宽度。Glide 请求尺寸必须显式给：into(ImageView) 对 centerCrop 会在
+     * 解码阶段按「请求尺寸」的宽高比裁位图，而默认请求尺寸取复用卡片上一次布局残留的旧宽高
+     * （旧方向的列宽 × 上一张图的比例），横竖屏来回切后图会被裁得只剩一小块还发糊，且 view
+     * 重新量高后 Glide 不会重发请求。
+     */
+    private int currentColumnWidth() {
+        int listWidth = 0;
+        if (attachedRecyclerView != null && attachedRecyclerView.getLayoutManager() != null) {
+            listWidth = attachedRecyclerView.getLayoutManager().getWidth();
+        }
+        if (listWidth <= 0) {
+            listWidth = mContext.getResources().getDisplayMetrics().widthPixels;
+        }
+        return Math.max(1, listWidth / Shaft.sSettings.getLineCount());
     }
 
     @Override
@@ -139,10 +175,14 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
 //                    .error(getBuilder(target))
 //                    .into(bindView.baseBind.illustImage);
 //        }
+        // 请求宽高比恒等于展示宽高比（当前列宽 × 钳制后比例），与复用卡片残留的旧尺寸解耦
+        int columnWidth = currentColumnWidth();
+        int columnHeight = (int) (columnWidth * ratio);
         requestBuilder
+                .override(columnWidth, columnHeight)
                 .placeholder(R.color.second_light_bg)
                 .transition(DrawableTransitionOptions.withCrossFade())
-                .error(getBuilder(target))
+                .error(getBuilder(target).override(columnWidth, columnHeight))
                 .into(bindView.baseBind.illustImage);
 
         if (target.getPage_count() == 1) {

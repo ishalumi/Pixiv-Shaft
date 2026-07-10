@@ -280,13 +280,24 @@ abstract class IllustFeedFragment(
         } else {
             GlideUtil.getMediumImg(bean)
         }
+        // 请求尺寸必须显式 override：into(ImageView) 对 centerCrop 会在解码阶段按「请求尺寸」
+        // 的宽高比裁位图，而默认请求尺寸取复用卡片上一次布局残留的旧宽高（旧方向的列宽 ×
+        // 上一张图的比例），横竖屏来回切后图会被裁得只剩一小块还发糊，且 view 重新量高后
+        // Glide 不会重发请求。override 成当前列宽 × 钳制后比例，请求宽高比恒等于展示宽高比。
+        // 列宽取 LayoutManager 实时宽度（measure 先于绑定，旋转后已是新方向的值），首帧兜底屏宽。
+        val listWidth = feedBinding.feedListView.layoutManager?.width?.takeIf { it > 0 }
+            ?: resources.displayMetrics.widthPixels
+        val columnWidth = (listWidth / Shaft.sSettings.lineCount).coerceAtLeast(1)
+        val columnHeight = (columnWidth * ratio).toInt()
         Glide.with(cell.binding.illustImage)
             .load(imgUrl)
+            .override(columnWidth, columnHeight)
             .placeholder(R.color.second_light_bg)
             .transition(DrawableTransitionOptions.withCrossFade())
             .error(
                 Glide.with(cell.binding.illustImage)
                     .load(imgUrl)
+                    .override(columnWidth, columnHeight)
                     .placeholder(R.color.second_light_bg)
                     .transition(DrawableTransitionOptions.withCrossFade())
             )
