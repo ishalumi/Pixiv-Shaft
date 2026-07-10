@@ -20,6 +20,7 @@ import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.Params;
 import ceui.pixiv.feeds.FeedFragment;
 import ceui.pixiv.ui.home.RecmdIllustFeedFragment;
+import ceui.pixiv.ui.trending.HotTagsFeedFragment;
 
 public class FragmentLeft extends BaseLazyFragment<FragmentLeftBinding> {
 
@@ -67,9 +68,12 @@ public class FragmentLeft extends BaseLazyFragment<FragmentLeftBinding> {
         };
         mFragments = new Fragment[]{
                 RecmdIllustFeedFragment.newInstance(RecmdIllustFeedFragment.TYPE_ILLUST),
-                FragmentHotTag.newInstance(Params.TYPE_ILLUST)
+                HotTagsFeedFragment.newInstance(Params.TYPE_ILLUST)
         };
-        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), 0) {
+        // BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT：热门标签 tab 靠 onResume 懒加载，
+        // 只有真正可见才发请求（对齐 legacy FragmentHotTag 的 userVisibleHint 语义）
+        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(),
+                FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
             @NonNull
             @Override
             public Fragment getItem(int i) {
