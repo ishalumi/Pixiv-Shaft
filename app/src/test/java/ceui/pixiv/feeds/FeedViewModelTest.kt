@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -279,6 +280,33 @@ class FeedViewModelTest {
         vm.appendItems(listOf(Row(1), Row(4)))
         vm.appendItems(emptyList())
         assertEquals(4, vm.uiState.value.items.size)
+    }
+
+    @Test
+    fun `loadMore with zero new items keeps the items list instance`() = runTest(dispatcher) {
+        // 整页重复时不该造等价新列表：下游按 identity 跳过的扫描（合池等）依赖实例不变
+        val vm = FeedViewModel(FakeSource(listOf(listOf(Row(1)), listOf(Row(1)))))
+        advanceUntilIdle()
+        val before = vm.uiState.value.items
+
+        vm.loadMore()
+        advanceUntilIdle()
+
+        assertSame(before, vm.uiState.value.items)
+        assertTrue(vm.uiState.value.reachedEnd)
+    }
+
+    @Test
+    fun `shouldNotifyRefreshError fires once per error instance`() = runTest(dispatcher) {
+        val vm = FeedViewModel(FakeSource(listOf(listOf(Row(1)))))
+        advanceUntilIdle()
+
+        val error = LoadState.Error(RuntimeException("boom"))
+        assertTrue(vm.shouldNotifyRefreshError(error))
+        // 视图重建（旋转）后重新 render 同一份状态，不该重复提示
+        assertFalse(vm.shouldNotifyRefreshError(error))
+        // 新一次失败是新 Error 实例，恢复提示
+        assertTrue(vm.shouldNotifyRefreshError(LoadState.Error(RuntimeException("boom2"))))
     }
 
     @Test

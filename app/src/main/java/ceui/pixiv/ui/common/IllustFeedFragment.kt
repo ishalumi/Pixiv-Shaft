@@ -1,9 +1,6 @@
 package ceui.pixiv.ui.common
 
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
@@ -12,11 +9,7 @@ import androidx.annotation.LayoutRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
@@ -28,10 +21,8 @@ import ceui.lisa.core.PageData
 import ceui.lisa.databinding.RecyIllustStaggerBinding
 import ceui.lisa.dialogs.MuteDialog
 import ceui.lisa.download.IllustDownload
-import ceui.lisa.helper.AppLevelViewModelHelper
 import ceui.lisa.helper.IllustNovelFilter
 import ceui.lisa.helper.StaggeredManager
-import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.DensityUtil
 import ceui.lisa.utils.GlideUtil
@@ -39,7 +30,6 @@ import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.view.SpacesItemDecoration
 import ceui.loxia.Illust
-import ceui.loxia.ObjectPool
 import ceui.loxia.requireEntityWrapper
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
@@ -53,7 +43,6 @@ import ceui.pixiv.ui.slideshow.SlideshowLauncher
 import ceui.pixiv.utils.setOnClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.UUID
 
@@ -121,90 +110,29 @@ abstract class IllustFeedFragment(
         return if (item is IllustFeedItem) listOf(item.bean) else emptyList()
     }
 
-    /** 收藏状态双向同步：详情页/其他列表点的收藏，经广播回流本列表。 */
-    private val likedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val extras = intent?.extras ?: return
-            val illustId = extras.getInt(Params.ID).toLong()
-            val isLiked = extras.getBoolean(Params.IS_LIKED)
-            feedViewModel.updateItems(IllustFeedItem::class.java) { item ->
-                if (item.illust.id == illustId) item.withBookmarked(isLiked) else item
-            }
-        }
-    }
-
-    /** 详情 pager 用 nextUrl 续拉的页，追加回列表并接管游标。 */
-    private val detailAddDataReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val extras = intent?.extras ?: return
-            if (extras.getString(Params.PAGE_UUID) != syncViewModel.listPageUuid) return
-            val listIllust = extras.getSerializable(Params.CONTENT) as? ListIllust ?: return
-            val fresh = listIllust.list.orEmpty().mapNotNull { feedItemFromBean(it) }
-            feedViewModel.appendItems(fresh)
-            feedViewModel.adoptCursor(listIllust.nextUrl?.takeIf { it.isNotEmpty() })
-        }
-    }
-
-    /** 返回时列表跟到详情页正在看的那张。 */
-    private val detailScrollReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val extras = intent?.extras ?: return
-            if (extras.getString(Params.PAGE_UUID) != syncViewModel.listPageUuid) return
-            val index = extras.getInt(Params.INDEX)
-            feedBinding.feedListView.postDelayed({
-                val adapter = feedAdapter ?: return@postDelayed
-                if (view != null && index in 0 until adapter.itemCount) {
-                    feedBinding.feedListView.smoothScrollToPosition(index)
-                }
-            }, 200L)
-        }
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        LocalBroadcastManager.getInstance(requireContext()).apply {
-            registerReceiver(likedReceiver, IntentFilter(Params.LIKED_ILLUST))
-            registerReceiver(detailAddDataReceiver, IntentFilter(Params.FRAGMENT_ADD_DATA))
-            registerReceiver(detailScrollReceiver, IntentFilter(Params.FRAGMENT_SCROLL_TO_POSITION))
-        }
-
-        // 列表数据落地后把最新 bean 合入 ObjectPool（主线程；对齐 legacy Mapper 的池同步职责，
-        // 否则 V3 详情命中旧池条目会渲染过期的收藏数/爱心），并把作者关注状态灌进
-        // AppLevelViewModel（对齐 legacy NetListFragment 每页 tidyAppViewModel，
-        // UActivity/UserActivityV3 的关注按钮消费它）。按 bean 实例去重：同一实例只合一次，
-        // 刷新产出的同 id 新实例携带更新的服务端数据，必须重新合入——按 id 永久去重会把它挡在池外。
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                var scannedItems: List<FeedItem>? = null
-                feedViewModel.uiState.collect { state ->
-                    // 只有条目列表本身换了才扫描；纯加载态变化（append Loading/Idle）直接跳过
-                    if (state.items === scannedItems) return@collect
-                    scannedItems = state.items
-                    val freshBeans = mutableListOf<IllustsBean>()
-                    state.items.forEach { item ->
-                        poolableBeansOf(item).forEach { bean ->
-                            if (syncViewModel.pooledBeans.put(bean.id.toLong(), bean) !== bean) {
-                                ObjectPool.updateIllust(bean)
-                                freshBeans.add(bean)
-                            }
-                        }
-                    }
-                    if (freshBeans.isNotEmpty()) {
-                        AppLevelViewModelHelper.fill(freshBeans)
-                    }
-                }
-            }
-        }
+        // 广播协同（收藏回流 / 详情 pager 续拉 / 返回跟滚）与 ObjectPool 合池
+        // 拆在独立协作件里，生命周期随 viewLifecycleOwner 自理
+        IllustFeedDetailSync(
+            feedViewModel = feedViewModel,
+            listPageUuid = syncViewModel.listPageUuid,
+            itemFromBean = ::feedItemFromBean,
+            onDetailScrolledTo = ::scrollToDetailPosition,
+        ).bind(requireContext(), viewLifecycleOwner)
+        IllustFeedPoolSync(syncViewModel, ::poolableBeansOf)
+            .bind(viewLifecycleOwner, feedViewModel.uiState)
     }
 
-    override fun onDestroyView() {
-        LocalBroadcastManager.getInstance(requireContext()).apply {
-            unregisterReceiver(likedReceiver)
-            unregisterReceiver(detailAddDataReceiver)
-            unregisterReceiver(detailScrollReceiver)
-        }
-        super.onDestroyView()
+    /** 返回时列表跟到详情页正在看的那张（延迟一拍等转场结束）。 */
+    private fun scrollToDetailPosition(index: Int) {
+        feedBinding.feedListView.postDelayed({
+            val adapter = feedAdapter ?: return@postDelayed
+            if (view != null && index in 0 until adapter.itemCount) {
+                feedBinding.feedListView.smoothScrollToPosition(index)
+            }
+        }, 200L)
     }
 
     override fun onCreateLayoutManager(): RecyclerView.LayoutManager {
@@ -334,12 +262,16 @@ abstract class IllustFeedFragment(
         item.bean.setIs_bookmarked(uiLiked)
         val willBookmark = !uiLiked
         // showRelatedOnStar 时 postLike 收藏成功后会拉相关作品并广播 FRAGMENT_ADD_RELATED_DATA；
-        // index 是 legacy 位置语义（feeds 接收器改按广播里的作品 id 锚定），照传兼容
+        // index 是 legacy 位置语义（feeds 接收器改按广播里的作品 id 锚定），照传兼容；
+        // 带上本列表 uuid，广播只被发起收藏的列表认领（多个推荐页同时存活时不串扰）
         PixivOperate.postLike(
             item.bean,
             if (Shaft.sSettings.isPrivateStar()) Params.TYPE_PRIVATE else Params.TYPE_PUBLIC,
             showRelatedOnStar,
-            feedViewModel.uiState.value.items.indexOf(item),
+            feedViewModel.uiState.value.items.indexOfFirst {
+                it is IllustFeedItem && it.illust.id == item.illust.id
+            },
+            syncViewModel.listPageUuid,
         )
         // 乐观状态写进列表条目而不是只写按钮：滑走再滑回不闪色；成功广播回流后是幂等 no-op
         feedViewModel.updateItems(IllustFeedItem::class.java) {

@@ -26,7 +26,10 @@ import timber.log.Timber
  */
 class FeedViewModel<Cursor : Any>(
     private val source: FeedSource<Cursor>,
-    autoLoad: Boolean = true,
+    /** false = 懒加载：不在创建时拉首屏，由 [FeedFragment] 在首次 RESUMED 时补（见 [feedViewModels]）。 */
+    internal val autoLoad: Boolean = true,
+    /** [feedViewModels] 记录的游标类型，用于检测同 key 复用时的类型冲突；直接构造可不传。 */
+    val cursorClass: Class<Cursor>? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedUiState())
@@ -35,6 +38,7 @@ class FeedViewModel<Cursor : Any>(
     private var nextCursor: Cursor? = null
     private var refreshJob: Job? = null
     private var appendJob: Job? = null
+    private var notifiedRefreshError: LoadState.Error? = null
 
     /** 当前翻页游标快照，用于把分页上下文交接给外部组件（如详情页 pager 续读）。 */
     val currentCursor: Cursor?
@@ -115,7 +119,9 @@ class FeedViewModel<Cursor : Any>(
                     val fresh = page.items.filter { seen.add(it.identity) }
                     _uiState.update { state ->
                         state.copy(
-                            items = state.items + fresh,
+                            // 零新条目时保持列表实例不变：等价新列表会白白触发一轮全量 diff
+                            // 和下游按 identity 跳过的扫描（如 ObjectPool 合池）
+                            items = if (fresh.isEmpty()) state.items else state.items + fresh,
                             reachedEnd = page.nextCursor == null,
                         )
                     }
@@ -153,15 +159,24 @@ class FeedViewModel<Cursor : Any>(
 
     /**
      * 懒加载触发点：还没成功加载过首屏且当前没有在刷新时才发起加载。
-     * 配合 `feedViewModels(autoLoad = false)` 用于 ViewPager 场景——
-     * 相邻 tab 的 Fragment 会被提前创建，数据要等真正可见（onResume）再拉，
-     * 否则会替用户偷偷请求从未打开过的 tab（R18 榜等尤其不该）。
+     * `feedViewModels(autoLoad = false)` 的 VM 由 [FeedFragment.onResume] 自动调用，
+     * 页面无需手写（约定闭环见 [feedViewModels] 文档）。
      * 首屏失败后再次可见会自动重试（对齐 legacy BaseLazyFragment 语义）。
      */
     fun ensureLoaded() {
         val current = _uiState.value
         if (current.hasLoadedOnce || current.refresh is LoadState.Loading) return
         refresh()
+    }
+
+    /**
+     * 「屏幕上有内容兜底时刷新失败」的一次性提示判定：同一个 Error 实例只放行一次。
+     * 已消费标记归 VM（跨视图重建 / 旋转存活），View 层不自己攒状态（UDF 约定）。
+     */
+    fun shouldNotifyRefreshError(error: LoadState.Error): Boolean {
+        if (error === notifiedRefreshError) return false
+        notifiedRefreshError = error
+        return true
     }
 
     /** 追加失败后的手动重试入口（footer 点击）。 */
@@ -228,17 +243,28 @@ inline fun <reified T : FeedItem> FeedViewModel<*>.updateItems(noinline transfor
  * }
  * ```
  *
- * 同一个 Fragment 需要多个列表 VM 时用 [key] 区分。
+ * 同一个 Fragment 需要多个列表 VM 时用 [key] 区分（漏传 key 且游标类型不同会立刻抛错，
+ * 不会静默共享同一个 VM）。
+ *
+ * [autoLoad] 传 false 表示懒加载：数据等 tab 真正可见（首次 RESUMED）才拉，
+ * [FeedFragment.onResume] 会自动触发 [FeedViewModel.ensureLoaded]，子类无需再写。
+ * 用于 ViewPager 场景——相邻 tab 的 Fragment 会被提前创建，不该替用户偷偷请求
+ * 从未打开过的 tab（R18 榜等尤其），宿主 pager 需用 BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT。
  */
-fun <Cursor : Any> Fragment.feedViewModels(
+inline fun <reified Cursor : Any> Fragment.feedViewModels(
     key: String? = null,
     autoLoad: Boolean = true,
-    sourceProvider: () -> FeedSource<Cursor>,
+    noinline sourceProvider: () -> FeedSource<Cursor>,
 ): Lazy<FeedViewModel<Cursor>> = lazy(LazyThreadSafetyMode.NONE) {
     val factory = viewModelFactory {
-        initializer { FeedViewModel(sourceProvider(), autoLoad) }
+        initializer { FeedViewModel(sourceProvider(), autoLoad, Cursor::class.java) }
+    }
+    val viewModel = ViewModelProvider(this, factory)
+        .get(key ?: FeedViewModel::class.java.name, FeedViewModel::class.java)
+    check(viewModel.cursorClass == null || viewModel.cursorClass == Cursor::class.java) {
+        "feedViewModels key 撞车：key=${key ?: "<默认>"} 已被 Cursor=${viewModel.cursorClass?.name} " +
+                "的列表占用，同一 Fragment 的第二个列表 VM 请显式传 key"
     }
     @Suppress("UNCHECKED_CAST")
-    ViewModelProvider(this, factory)
-        .get(key ?: FeedViewModel::class.java.name, FeedViewModel::class.java) as FeedViewModel<Cursor>
+    viewModel as FeedViewModel<Cursor>
 }

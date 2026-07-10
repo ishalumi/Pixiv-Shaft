@@ -38,13 +38,6 @@ class RankIllustFeedFragment : IllustFeedFragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // RankActivity 的 pager 用 BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT，
-        // 只有当前可见 tab 会走到 RESUMED——这里就是懒加载触发点
-        feedViewModel.ensureLoaded()
-    }
-
     private fun mapRankPage(illusts: List<ceui.loxia.Illust>, isFirstPage: Boolean): List<FeedItem> {
         val pairs = illusts.mapNotNull { illust ->
             IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }

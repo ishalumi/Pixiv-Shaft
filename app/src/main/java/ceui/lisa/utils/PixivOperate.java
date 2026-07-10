@@ -175,6 +175,16 @@ public class PixivOperate {
     }
 
     public static void postLike(IllustsBean illustsBean, String starType, boolean showRelated, int index) {
+        postLike(illustsBean, starType, showRelated, index, null);
+    }
+
+    /**
+     * @param sourcePageUuid 发起收藏的列表页 uuid，随 FRAGMENT_ADD_RELATED_DATA 广播回传，
+     *                       让相关作品只被发起收藏的那张列表认领（feeds 页传，legacy 调用点传 null
+     *                       走宽松的按 id 锚定兜底）。
+     */
+    public static void postLike(IllustsBean illustsBean, String starType, boolean showRelated,
+                                int index, String sourcePageUuid) {
         if (illustsBean == null) {
             return;
         }
@@ -262,6 +272,9 @@ public class PixivOperate {
                                 // feeds 版推荐页按被收藏作品 id 锚定插入位置（index 是 legacy
                                 // adapter 位置语义，跨列表广播时不可靠）
                                 intent.putExtra(Params.ID, illustsBean.getId());
+                                if (sourcePageUuid != null) {
+                                    intent.putExtra(Params.PAGE_UUID, sourcePageUuid);
+                                }
                                 LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
 
                                 // 寄生收集：收藏时的相关作品进发现池

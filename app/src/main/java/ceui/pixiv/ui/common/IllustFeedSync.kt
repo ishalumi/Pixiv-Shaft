@@ -1,0 +1,145 @@
+package ceui.pixiv.ui.common
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import ceui.lisa.helper.AppLevelViewModelHelper
+import ceui.lisa.model.ListIllust
+import ceui.lisa.models.IllustsBean
+import ceui.lisa.utils.Params
+import ceui.loxia.ObjectPool
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedUiState
+import ceui.pixiv.feeds.FeedViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * 插画列表与 legacy 详情/收藏链路的广播协同，从 [IllustFeedFragment] 拆出的独立协作件
+ * （不依赖 Fragment 继承，混排页等任何 feeds 页面都能挂）：
+ *
+ * - LIKED_ILLUST：详情页/其他列表点的收藏经广播回流本列表（双向同步）；
+ * - FRAGMENT_ADD_DATA：详情 pager 用 nextUrl 续拉的页追加回列表并接管游标；
+ * - FRAGMENT_SCROLL_TO_POSITION：返回时列表跟到详情页正在看的那张。
+ *
+ * ADD_DATA 的 bean→条目映射是整页 gson 往返，不允许占主线程（广播恰恰在详情页
+ * 滑动动画进行中到达）；这里经 [Channel] 单消费者搬到 Default 线程执行——
+ * 单消费者保证按广播到达顺序追加 + 交接游标，晚到的旧页不会覆盖新游标。
+ *
+ * 生命周期随 viewLifecycleOwner：DESTROYED 时注销接收器并关闭队列，无需手动清理。
+ */
+class IllustFeedDetailSync(
+    private val feedViewModel: FeedViewModel<String>,
+    private val listPageUuid: String,
+    private val itemFromBean: (IllustsBean?) -> IllustFeedItem?,
+    private val onDetailScrolledTo: (Int) -> Unit,
+) {
+
+    fun bind(context: Context, viewLifecycleOwner: LifecycleOwner) {
+        val broadcastManager = LocalBroadcastManager.getInstance(context)
+        val addDataQueue = Channel<ListIllust>(Channel.UNLIMITED)
+
+        val likedReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val extras = intent?.extras ?: return
+                val illustId = extras.getInt(Params.ID).toLong()
+                val isLiked = extras.getBoolean(Params.IS_LIKED)
+                feedViewModel.updateItems(IllustFeedItem::class.java) { item ->
+                    if (item.illust.id == illustId) item.withBookmarked(isLiked) else item
+                }
+            }
+        }
+        val addDataReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val extras = intent?.extras ?: return
+                if (extras.getString(Params.PAGE_UUID) != listPageUuid) return
+                val listIllust = extras.getSerializable(Params.CONTENT) as? ListIllust ?: return
+                addDataQueue.trySend(listIllust)
+            }
+        }
+        val scrollReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val extras = intent?.extras ?: return
+                if (extras.getString(Params.PAGE_UUID) != listPageUuid) return
+                onDetailScrolledTo(extras.getInt(Params.INDEX))
+            }
+        }
+
+        broadcastManager.registerReceiver(likedReceiver, IntentFilter(Params.LIKED_ILLUST))
+        broadcastManager.registerReceiver(addDataReceiver, IntentFilter(Params.FRAGMENT_ADD_DATA))
+        broadcastManager.registerReceiver(
+            scrollReceiver, IntentFilter(Params.FRAGMENT_SCROLL_TO_POSITION)
+        )
+
+        // 用 lifecycleScope 而不是 repeatOnLifecycle：广播到达时本页通常在详情页背后
+        // （STOPPED），追加要照做，返回列表时数据已就位
+        viewLifecycleOwner.lifecycleScope.launch {
+            for (listIllust in addDataQueue) {
+                val fresh = withContext(Dispatchers.Default) {
+                    listIllust.list.orEmpty().mapNotNull(itemFromBean)
+                }
+                feedViewModel.appendItems(fresh)
+                feedViewModel.adoptCursor(listIllust.nextUrl?.takeIf { it.isNotEmpty() })
+            }
+        }
+
+        viewLifecycleOwner.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                broadcastManager.unregisterReceiver(likedReceiver)
+                broadcastManager.unregisterReceiver(addDataReceiver)
+                broadcastManager.unregisterReceiver(scrollReceiver)
+                addDataQueue.close()
+            }
+        })
+    }
+}
+
+/**
+ * 列表数据落地后把最新 bean 合入 ObjectPool（主线程；对齐 legacy Mapper 的池同步职责，
+ * 否则 V3 详情命中旧池条目会渲染过期的收藏数/爱心），并把作者关注状态灌进
+ * AppLevelViewModel（对齐 legacy NetListFragment 每页 tidyAppViewModel，
+ * UActivity/UserActivityV3 的关注按钮消费它）。
+ *
+ * 按 bean 实例去重（[IllustFeedSyncViewModel.pooledBeans]）：同一实例只合一次，
+ * 刷新产出的同 id 新实例携带更新的服务端数据，必须重新合入——按 id 永久去重会把它挡在池外。
+ */
+class IllustFeedPoolSync(
+    private val syncViewModel: IllustFeedSyncViewModel,
+    private val poolableBeansOf: (FeedItem) -> List<IllustsBean>,
+) {
+
+    fun bind(viewLifecycleOwner: LifecycleOwner, uiState: StateFlow<FeedUiState>) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var scannedItems: List<FeedItem>? = null
+                uiState.collect { state ->
+                    // 只有条目列表本身换了才扫描；纯加载态变化（append Loading/Idle）直接跳过
+                    if (state.items === scannedItems) return@collect
+                    scannedItems = state.items
+                    val freshBeans = mutableListOf<IllustsBean>()
+                    state.items.forEach { item ->
+                        poolableBeansOf(item).forEach { bean ->
+                            if (syncViewModel.pooledBeans.put(bean.id.toLong(), bean) !== bean) {
+                                ObjectPool.updateIllust(bean)
+                                freshBeans.add(bean)
+                            }
+                        }
+                    }
+                    if (freshBeans.isNotEmpty()) {
+                        AppLevelViewModelHelper.fill(freshBeans)
+                    }
+                }
+            }
+        }
+    }
+}

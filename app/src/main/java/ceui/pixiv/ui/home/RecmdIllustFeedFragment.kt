@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.LayoutRes
+import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -40,6 +41,10 @@ import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
 import ceui.pixiv.utils.setOnClick
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * 首页「推荐插画」tab / 推荐漫画页（feeds 框架版，替代 legacy FragmentRecmdIllust +
@@ -84,22 +89,32 @@ open class RecmdIllustFeedFragment(
     private val relatedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val extras = intent?.extras ?: return
+            // 只认本列表发起的收藏；legacy 发送方不带 uuid，退回宽松的按 id 锚定兜底
+            val sourceUuid = extras.getString(Params.PAGE_UUID)
+            if (sourceUuid != null && sourceUuid != syncViewModel.listPageUuid) return
             val listIllust = extras.getSerializable(Params.CONTENT) as? ListIllust ?: return
             val anchorId = extras.getInt(Params.ID).toLong()
             if (anchorId <= 0) return
-            val related = listIllust.list.orEmpty().take(5)
-                .onEach { it.isRelated = true }
-                .mapNotNull { feedItemFromBean(it) }
-            if (related.isEmpty()) return
-            feedViewModel.mutateItems { items ->
-                val anchor = items.indexOfFirst { it is IllustFeedItem && it.illust.id == anchorId }
-                if (anchor < 0) return@mutateItems items
-                val existing = items.mapNotNullTo(HashSet()) { (it as? IllustFeedItem)?.illust?.id }
-                val fresh = related.filter { it.illust.id !in existing }
-                if (fresh.isEmpty()) {
-                    items
-                } else {
-                    items.subList(0, anchor + 1) + fresh + items.subList(anchor + 1, items.size)
+            viewLifecycleOwner.lifecycleScope.launch {
+                // bean→条目是逐条 gson 往返，不占主线程
+                val related = withContext(Dispatchers.Default) {
+                    listIllust.list.orEmpty().take(5)
+                        .onEach { it.isRelated = true }
+                        .mapNotNull { feedItemFromBean(it) }
+                }
+                if (related.isEmpty()) return@launch
+                feedViewModel.mutateItems { items ->
+                    val anchor =
+                        items.indexOfFirst { it is IllustFeedItem && it.illust.id == anchorId }
+                    if (anchor < 0) return@mutateItems items
+                    val existing =
+                        items.mapNotNullTo(HashSet()) { (it as? IllustFeedItem)?.illust?.id }
+                    val fresh = related.filter { it.illust.id !in existing }
+                    if (fresh.isEmpty()) {
+                        items
+                    } else {
+                        items.subList(0, anchor + 1) + fresh + items.subList(anchor + 1, items.size)
+                    }
                 }
             }
         }
@@ -149,7 +164,7 @@ open class RecmdIllustFeedFragment(
             return listItems
         }
         // 首屏前 20 条写入推荐浏览历史（对齐 legacy onFirstLoaded；离线模式/推荐用户页读它）。
-        // mapper 跑在 Default 线程，Room 直接写安全
+        // mapper 跑在 Default 线程，Room 直接写安全；辅助写失败不打断列表但要留痕
         runCatching {
             val dao = AppDatabase.getAppDatabase(Shaft.getContext()).recmdDao()
             listItems.take(20).forEach { item ->
@@ -159,7 +174,7 @@ open class RecmdIllustFeedFragment(
                     time = System.currentTimeMillis()
                 })
             }
-        }
+        }.onFailure { Timber.w(it, "feeds: 推荐浏览历史写入失败") }
         // 排行榜预览头不做内容过滤（对齐 legacy 直接展示 ranking_illusts）
         val rankBeans = rankingIllusts.mapNotNull { IllustFeedItem.beanOf(it) }
         return if (rankBeans.isEmpty()) {

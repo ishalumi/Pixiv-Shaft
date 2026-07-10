@@ -12,7 +12,9 @@ import kotlinx.coroutines.withContext
  * - 第一页走类型安全的 Retrofit suspend 接口；
  * - 后续页复用 [replayNextUrl]（与 common/DataSource 同一份协议实现）；
  * - [mapper] 拿到整个响应做条目映射（在 Default 线程执行，禁止碰 View），
- *   所以插 section 头、按响应字段分组、逐条转换/过滤都表达得出来。
+ *   所以插 section 头、按响应字段分组、逐条转换/过滤都表达得出来；
+ * - [mapper] 允许携带每页副作用（喂 DiscoveryPool、写推荐浏览历史等），但必须容忍
+ *   重复执行：刷新会对第一页重放，空页追载会连续调用——副作用要幂等或重放无害。
  */
 class PixivFeedSource<Resp : KListShow<*>>(
     private val initialFetch: suspend () -> Resp,

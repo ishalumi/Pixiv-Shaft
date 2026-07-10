@@ -22,7 +22,9 @@ object DiscoveryPool {
     private const val MAX_POOL_SIZE = 2000
     private const val MAX_RECENT_IDS = 800
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // 单飞并行度：initialize/collect/rescore 全部串行执行，pooledIds/seenIds
+    // 这两个裸 HashSet 的线程安全靠它保证（并发 collect 同时写会竞态）
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
     private val pooledIds = mutableSetOf<Long>()
     private val seenIds = mutableSetOf<Long>()
     private var initialized = false

@@ -47,9 +47,6 @@ abstract class FeedFragment(
     protected var feedAdapter: FeedAdapter? = null
         private set
 
-    /** 刷新出错但屏幕上仍有内容时的轻提示，子类可换成自己的错误处理。 */
-    private var consumedRefreshError: LoadState.Error? = null
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val feedRoot = requireNotNull(view.findViewById<View>(R.id.feed_root)) {
@@ -84,6 +81,16 @@ abstract class FeedFragment(
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 feedViewModel.uiState.collect { state -> render(adapter, state) }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 懒加载 VM（feedViewModels(autoLoad = false)）的首屏在这里补：
+        // 只有真正可见的 tab 会走到 RESUMED（宿主 pager 需 BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT），
+        // ensureLoaded 幂等，失败后再次可见自动重试
+        if (!feedViewModel.autoLoad) {
+            feedViewModel.ensureLoaded()
         }
     }
 
@@ -153,10 +160,11 @@ abstract class FeedFragment(
         binding.feedStateText.text = stateText
         binding.feedStateContainer.isVisible = state.showFullscreenLoading || stateText != null
 
-        // 有内容兜底时的刷新失败只提示一次，不打断浏览
+        // 有内容兜底时的刷新失败只提示一次，不打断浏览；已消费标记在 VM（旋转重建不重复提示）
         val refreshError = state.refresh as? LoadState.Error
-        if (refreshError != null && refreshError !== consumedRefreshError && state.items.isNotEmpty()) {
-            consumedRefreshError = refreshError
+        if (refreshError != null && state.items.isNotEmpty() &&
+            feedViewModel.shouldNotifyRefreshError(refreshError)
+        ) {
             onRefreshFailedWithContent(refreshError.throwable)
         }
     }

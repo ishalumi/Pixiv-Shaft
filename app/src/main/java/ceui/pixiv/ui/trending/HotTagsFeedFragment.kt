@@ -60,11 +60,6 @@ class HotTagsFeedFragment : FeedFragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        feedViewModel.ensureLoaded()
-    }
-
     override fun onCreateLayoutManager(): RecyclerView.LayoutManager {
         return gridLayoutManager(SPAN_COUNT)
     }
