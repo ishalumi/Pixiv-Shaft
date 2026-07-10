@@ -58,6 +58,14 @@ abstract class FeedFragment(
         val binding = FragmentFeedBinding.bind(feedRoot)
         _binding = binding
 
+        // 裸 fragment_feed 自带列表底色（对齐 legacy fragment_base_list 的内容区背景），
+        // 否则宿主布局的装饰背景（如 activity_multi_view_pager 根上的 ?attr/colorPrimary）
+        // 会从透明列表后面整页透出来；自定义 contentLayoutId 的页面（fragment_toolbar_feed
+        // 等 V3 页用 v3_bg）背景归自己的根布局管，这里不越权覆盖。
+        if (view === feedRoot) {
+            feedRoot.setBackgroundResource(R.color.fragment_center)
+        }
+
         val adapter = FeedAdapter(
             renderers = onCreateRenderers() + AppendFooterRenderer { feedViewModel.retryAppend() },
             onNearEnd = { feedViewModel.loadMore() },
