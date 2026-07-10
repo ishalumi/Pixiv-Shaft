@@ -5,7 +5,11 @@ import android.animation.AnimatorListenerAdapter
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -53,6 +57,9 @@ import java.util.UUID
 
 /** 收藏状态局部重绑的 payload 标记（按引用识别），插画 feed 卡片共用。 */
 val PAYLOAD_ILLUST_LIKE_CHANGED = Any()
+
+/** 收藏按钮触感反馈的日志 tag（看设备实际走了哪档模拟）。 */
+private const val HAPTIC_TAG = "LikeHaptic"
 
 /** 瀑布流卡片高度钳制（对齐 legacy IAdapter）：高 = 宽的 0.6~2.0 倍。 */
 private const val MIN_HEIGHT_RATIO = 0.6f
@@ -289,7 +296,7 @@ abstract class IllustFeedFragment(
      * 动画层非 clickable，播放中不挡按钮点击；局部重绑只动静态爱心，不打断动画。
      */
     private fun playLikeBurst(binding: RecyIllustStaggerBinding) {
-        binding.likeButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        playLikePressHaptic(binding.likeButton)
         binding.likeAnim.apply {
             isVisible = true
             progress = 0f
@@ -297,8 +304,66 @@ abstract class IllustFeedFragment(
         }
     }
 
-    /** 取消收藏：静态爱心一个干脆的回弹缩放，不放烟花。 */
+    /**
+     * 模拟 iOS 3D Touch 的段落感触感：先「重而长」（压进去的闷震 THUD），
+     * 停 100ms，再「轻而短」（弹起的细 tick 收尾）。
+     * S(31)+ 用 composition primitives，首选 THUD(1.0)+TICK(0.3)，
+     * 马达不支持 THUD 退 CLICK(1.0)+TICK(0.3)；
+     * O(26)+ 用带振幅 waveform（30ms@满幅 → 100ms → 8ms@60）兜底，
+     * 再往下退化成 KEYBOARD_TAP + 轻 CLOCK_TICK。
+     */
+    protected fun playLikePressHaptic(view: View) {
+        val vibrator = ContextCompat.getSystemService(view.context, Vibrator::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && vibrator != null &&
+            vibrator.areAllPrimitivesSupported(
+                VibrationEffect.Composition.PRIMITIVE_THUD,
+                VibrationEffect.Composition.PRIMITIVE_TICK,
+            )
+        ) {
+            Log.d(HAPTIC_TAG, "composition primitives: THUD(1.0) + 100ms + TICK(0.3)")
+            vibrator.vibrate(
+                VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, 100)
+                    .compose()
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && vibrator != null &&
+            vibrator.areAllPrimitivesSupported(
+                VibrationEffect.Composition.PRIMITIVE_CLICK,
+                VibrationEffect.Composition.PRIMITIVE_TICK,
+            )
+        ) {
+            Log.d(HAPTIC_TAG, "composition primitives (no THUD): CLICK(1.0) + 100ms + TICK(0.3)")
+            vibrator.vibrate(
+                VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f)
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, 100)
+                    .compose()
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator?.hasVibrator() == true) {
+            val effect = if (vibrator.hasAmplitudeControl()) {
+                Log.d(HAPTIC_TAG, "waveform with amplitude: 30ms@255 + 100ms + 8ms@60")
+                // [延迟, 重长 30ms@满幅, 段落间隙 100ms, 轻短 8ms@60]
+                VibrationEffect.createWaveform(
+                    longArrayOf(0, 30, 100, 8), intArrayOf(0, 255, 0, 60), -1
+                )
+            } else {
+                Log.d(HAPTIC_TAG, "waveform no-amplitude: 28ms + 100ms + 8ms")
+                VibrationEffect.createWaveform(longArrayOf(0, 28, 100, 8), -1)
+            }
+            vibrator.vibrate(effect)
+        } else {
+            Log.d(HAPTIC_TAG, "fallback: KEYBOARD_TAP + 100ms + CLOCK_TICK")
+            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            view.postDelayed(
+                { view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }, 100L
+            )
+        }
+    }
+
+    /** 取消收藏：静态爱心一个干脆的回弹缩放，不放烟花；触感只给单下轻 tick。 */
     private fun playUnlikeShrink(button: ImageView) {
+        button.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         button.animate().cancel()
         button.scaleX = 0.6f
         button.scaleY = 0.6f
