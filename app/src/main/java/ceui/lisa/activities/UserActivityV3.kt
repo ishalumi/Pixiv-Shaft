@@ -318,6 +318,10 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         }
     }
 
+    private fun updateTabCount(kind: TabKind, count: Int) {
+        if (count > 0) tabCounts[kind] = count else tabCounts.remove(kind)
+    }
+
     /** 详情到手后一次性建全量 tab。只在列表为空时生效(旋转恢复/刷新路径不重建)。 */
     private fun buildAllTabs(hasManga: Boolean, hasNovel: Boolean) {
         if (tabKinds.isNotEmpty()) return
@@ -374,12 +378,11 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         val user = data.user
 
         // 先记数量再建/插 tab —— TabLayoutMediator populate 时 tabTitle 才带得上数字。
-        if (profile.total_illusts > 0) tabCounts[TabKind.ILLUST] = profile.total_illusts
-        if (profile.total_manga > 0) tabCounts[TabKind.MANGA] = profile.total_manga
-        if (profile.total_novels > 0) tabCounts[TabKind.NOVEL] = profile.total_novels
-        if (profile.total_illust_bookmarks_public > 0) {
-            tabCounts[TabKind.COLLECTION] = profile.total_illust_bookmarks_public
-        }
+        // 归 0 要移除,不然刷新后 label 挂着旧数字和 header 统计条打架。
+        updateTabCount(TabKind.ILLUST, profile.total_illusts)
+        updateTabCount(TabKind.MANGA, profile.total_manga)
+        updateTabCount(TabKind.NOVEL, profile.total_novels)
+        updateTabCount(TabKind.COLLECTION, profile.total_illust_bookmarks_public)
 
         if (tabKinds.isEmpty()) {
             // 首次进页:详情到手,一次性建全量 tab(有漫画/小说作品才含对应 tab)
