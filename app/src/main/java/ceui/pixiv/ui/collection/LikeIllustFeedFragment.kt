@@ -1,0 +1,188 @@
+package ceui.pixiv.ui.collection
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModel
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import ceui.lisa.R
+import ceui.lisa.activities.Shaft
+import ceui.lisa.database.AppDatabase
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.lisa.feature.FeatureEntity
+import ceui.lisa.utils.Common
+import ceui.lisa.utils.Params
+import ceui.loxia.Client
+import ceui.loxia.Illust
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.session.SessionManager
+import ceui.pixiv.ui.common.IllustFeedFragment
+import ceui.pixiv.ui.common.IllustFeedItem
+import ceui.pixiv.ui.common.setUpToolbar
+
+/**
+ * 「某人收藏的插画/漫画」列表页（feeds 框架版，替代 legacy FragmentLikeIllust +
+ * LikeIllustRepo + IAdapterWithStar）。卡片用基类的标准瀑布流插画卡。
+ *
+ * 与 legacy 的行为对齐点：
+ * - starType 公开/私密两 tab（FragmentCollection），私密 tab 懒加载（autoLoad=false，
+ *   宿主 pager 需 BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT），不替用户偷偷请求私密收藏；
+ * - 「按标签筛选」页选完标签广播 FILTER_ILLUST 回流，匹配 starType 才认领并刷新；
+ *   初始标签可由入参带入（同义词词典管理页跳转，issue #904）；
+ * - 「过滤无效收藏」设置：失效作品（!isVisible）由通用过滤链恒过滤（对齐 legacy
+ *   RemoteRepo 的 Mapper），设置补的是 user 缺失/为 0 的残缺条目；
+ * - 自己的收藏页 + 「收藏页隐藏收藏按钮」设置 → 卡片不显示爱心（对齐 IAdapterWithStar）；
+ * - 带 toolbar 形态（TemplateActivity「插画/漫画收藏」）沿用 local_save 菜单，
+ *   只响应「收藏到精华」（legacy 的 jump/add 两项在本页本来就是死的）。
+ */
+class LikeIllustFeedFragment : IllustFeedFragment() {
+
+    private val userId: Int by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getInt(Params.USER_ID)
+    }
+    private val starType: String by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getString(Params.STAR_TYPE) ?: Params.TYPE_PUBLIC
+    }
+    private val showToolbar: Boolean by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getBoolean(Params.FLAG)
+    }
+
+    /** 标签过滤条件归 VM：旋转/视图重建后过滤不丢；source 从这里读，不用捕获 Fragment。 */
+    private val filterViewModel: LikeIllustFilterViewModel by viewModels()
+
+    override val feedViewModel by feedViewModels(autoLoad = false) {
+        // 零捕获约定（见 feedViewModels 文档）：lambda 只捕获局部值和兄弟 VM
+        //（filterViewModel 与列表 VM 同一 ViewModelStore、同生命周期），不捕获 Fragment
+        val userId = userId.toLong()
+        val starType = starType
+        val filter = filterViewModel.also {
+            // 列表 VM 首次创建时才走到这里：用入参初始化标签过滤（issue #904 跳转带初始标签）；
+            // 旋转复用旧 VM 不重跑，保留用户当下改过的过滤条件
+            it.tag = requireArguments().getString(Params.KEY_WORD).orEmpty()
+        }
+        PixivFeedSource({
+            Client.appApi.getUserBookmarkedIllusts(
+                userId, starType, filter.tag.takeIf { tag -> tag.isNotEmpty() }
+            )
+        }) { resp, _ -> mapLikePage(resp.displayList) }
+    }
+
+    /** 自己的收藏页 + 「隐藏收藏按钮」设置 → 卡片不显示爱心；动态读，设置改完回来即时生效。 */
+    override val hideLikeButton: Boolean
+        get() = SessionManager.loggedInUid == userId.toLong() &&
+                Shaft.sSettings.isHideStarButtonAtMyCollection()
+
+    /** 「按标签筛选」页的选择回流：公开/私密两 tab 并存，匹配本页 starType 才认领。 */
+    private val filterReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val extras = intent?.extras ?: return
+            if (extras.getString(Params.STAR_TYPE) != starType) return
+            filterViewModel.tag = extras.getString(Params.CONTENT).orEmpty()
+            forceRefresh()
+        }
+    }
+
+    // showToolbar 是运行时参数：系统重建 Fragment 只走无参构造，不能靠构造器传
+    // contentLayoutId，改在这里按参数选骨架（两张布局都带同结构的 feed_root）
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        val layoutId = if (showToolbar) R.layout.fragment_toolbar_feed else R.layout.fragment_feed
+        return inflater.inflate(layoutId, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        if (showToolbar) {
+            val binding = FragmentToolbarFeedBinding.bind(view)
+            setUpToolbar(binding, feedBinding.feedListView)
+            binding.toolbarTitle.setText(R.string.string_164)
+            binding.toolbar.inflateMenu(R.menu.local_save)
+            binding.toolbar.setOnMenuItemClickListener { item ->
+                if (item.itemId == R.id.action_bookmark) {
+                    saveToFeature()
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(filterReceiver, IntentFilter(Params.FILTER_ILLUST))
+    }
+
+    override fun onDestroyView() {
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(filterReceiver)
+        super.onDestroyView()
+    }
+
+    /** 收藏到精华（对齐 legacy：前 5 条快照入库，uuid 固定 = 同页重复收藏只留一份）。 */
+    private fun saveToFeature() {
+        val entity = FeatureEntity().also {
+            it.uuid = "$userId$DATA_TYPE_FEATURE"
+            it.isShowToolbar = showToolbar
+            it.dataType = DATA_TYPE_FEATURE
+            it.illustJson = Common.cutToJson(currentIllustItems().map { item -> item.bean })
+            it.userID = userId
+            it.starType = starType
+            it.dateTime = System.currentTimeMillis()
+        }
+        AppDatabase.getAppDatabase(requireContext()).downloadDao().insertFeature(entity)
+        Common.showToast("已收藏到精华")
+    }
+
+    companion object {
+        /** legacy 精华功能的 dataType 路由字面量（按它分支重建页面），不是展示文案，别本地化。 */
+        private const val DATA_TYPE_FEATURE = "插画/漫画收藏"
+
+        /** [initialTag] 初始按标签过滤（同义词词典管理页跳转用，issue #904），null/空 = 不过滤。 */
+        @JvmStatic
+        @JvmOverloads
+        fun newInstance(
+            userID: Int,
+            starType: String,
+            showToolbar: Boolean = false,
+            initialTag: String? = null,
+        ): LikeIllustFeedFragment {
+            return LikeIllustFeedFragment().apply {
+                arguments = Bundle().apply {
+                    putInt(Params.USER_ID, userID)
+                    putString(Params.STAR_TYPE, starType)
+                    putBoolean(Params.FLAG, showToolbar)
+                    if (!initialTag.isNullOrEmpty()) {
+                        putString(Params.KEY_WORD, initialTag)
+                    }
+                }
+            }
+        }
+
+        /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
+        private fun mapLikePage(illusts: List<Illust>): List<FeedItem> {
+            // 失效作品（!isVisible）由 IllustFeedItem 的通用过滤链恒过滤；
+            // 「过滤无效收藏」设置补挡 user 缺失/为 0 的残缺条目（对齐 legacy beforeFirstLoad）
+            val filterInvalid = Shaft.sSettings.isFilterInvalidBookmarks
+            return illusts.mapNotNull { illust ->
+                val bean = IllustFeedItem.beanOf(illust) ?: return@mapNotNull null
+                if (filterInvalid && (bean.user == null || bean.user.id == 0)) {
+                    return@mapNotNull null
+                }
+                IllustFeedItem.of(illust, bean)
+            }
+        }
+    }
+}
+
+/** 标签过滤条件（数据归 VM 约定：旋转存活，feed source 直接读它）。空串 = 不过滤。 */
+class LikeIllustFilterViewModel : ViewModel() {
+    var tag: String = ""
+}

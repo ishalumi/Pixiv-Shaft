@@ -7,10 +7,10 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import ceui.lisa.R
-import ceui.lisa.fragments.FragmentLikeIllust
 import ceui.lisa.fragments.FragmentLikeNovel
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
+import ceui.pixiv.ui.collection.LikeIllustFeedFragment
 
 private const val ARG_USER_ID = "collection_user_id"
 private const val STATE_SEGMENT = "collection_segment"
@@ -19,7 +19,7 @@ private const val SEG_NOVEL = 1
 
 /**
  * 画师主页「收藏」Tab —— 顶部分段控件在「插画/漫画收藏」和「小说收藏」间切换,
- * 各自复用现有的 FragmentLikeIllust / FragmentLikeNovel(showToolbar=false)。
+ * 各自复用现有的 LikeIllustFeedFragment / FragmentLikeNovel(showToolbar=false)。
  *
  * 把旧版散在折叠头「导航」药丸里的两个收藏入口收敛进一个 Tab。
  */
@@ -87,7 +87,7 @@ class UserV3CollectionFragment : Fragment() {
     private fun showSegment(seg: Int) {
         val frag = when (seg) {
             SEG_NOVEL -> FragmentLikeNovel.newInstance(userId, Params.TYPE_PUBLIC, false)
-            else -> FragmentLikeIllust.newInstance(userId, Params.TYPE_PUBLIC, false)
+            else -> LikeIllustFeedFragment.newInstance(userId, Params.TYPE_PUBLIC, false)
         }
         childFragmentManager.beginTransaction()
             .replace(R.id.collection_container, frag)

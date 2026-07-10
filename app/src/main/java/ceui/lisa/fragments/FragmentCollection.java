@@ -26,6 +26,7 @@ import ceui.lisa.utils.Params;
 
 import ceui.pixiv.session.SessionManager;
 import ceui.pixiv.ui.bulk.BulkActions;
+import ceui.pixiv.ui.collection.LikeIllustFeedFragment;
 
 import com.qmuiteam.qmui.skin.QMUISkinManager;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
@@ -60,9 +61,9 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
     public void initView() {
         if (type == 0) {
             allPages = new Fragment[]{
-                    FragmentLikeIllust.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
+                    LikeIllustFeedFragment.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
                             Params.TYPE_PUBLIC),
-                    FragmentLikeIllust.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
+                    LikeIllustFeedFragment.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
                             Params.TYPE_PRIVATE)
             };
             CHINESE_TITLES = new String[]{
@@ -138,7 +139,13 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
             }
         });
         baseBind.viewPager.setPageTransformer(true, new DrawerTransformer());
-        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), 0) {
+        // feed 版插画收藏页(type=0)靠 onResume 懒加载，必须 RESUME_ONLY_CURRENT 才不会
+        // 偷偷预载相邻的私密收藏 tab；其余类型仍是 legacy BaseLazyFragment(userVisibleHint)，
+        // 保持旧行为（同 RankActivity 小说 tab 的处理）
+        final int pagerBehavior = type == 0
+                ? FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT
+                : FragmentPagerAdapter.BEHAVIOR_SET_USER_VISIBLE_HINT;
+        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), pagerBehavior) {
             @NonNull
             @Override
             public Fragment getItem(int i) {

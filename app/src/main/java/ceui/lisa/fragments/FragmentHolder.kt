@@ -13,6 +13,8 @@ import ceui.lisa.utils.MyOnTabSelectedListener
 import ceui.lisa.utils.Params
 import ceui.lisa.viewmodel.UserViewModel
 import ceui.loxia.observeEvent
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.ui.collection.LikeIllustFeedFragment
 
 class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
 
@@ -43,7 +45,7 @@ class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
             data.userId.toLong() == SessionManager.loggedInUid -> {
                 titles = arrayOf(getString(R.string.userTab_collection), getString(R.string.userTab_other))
                 items = arrayOf<Fragment>(
-                        FragmentLikeIllust.newInstance(data.userId, Params.TYPE_PUBLIC),
+                        LikeIllustFeedFragment.newInstance(data.userId, Params.TYPE_PUBLIC),
                         FragmentUserRight()
                 )
             }
@@ -66,7 +68,9 @@ class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
         mUserViewModel.refreshEvent.observeEvent(viewLifecycleOwner) {
             if (it > 0) {
                 items.forEach { frag ->
-                    if (frag is NetListFragment<*, *, *>) {
+                    if (frag is FeedFragment) {
+                        frag.forceRefresh()
+                    } else if (frag is NetListFragment<*, *, *>) {
                         frag.refresh()
                     }
                 }

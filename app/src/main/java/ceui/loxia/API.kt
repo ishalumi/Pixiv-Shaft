@@ -139,6 +139,8 @@ interface API {
     suspend fun getUserBookmarkedIllusts(
         @Query("user_id") user_id: Long,
         @Query("restrict") restrict: String,
+        /** 按收藏标签过滤（「按标签筛选」/同义词词典跳转），null = 不过滤。 */
+        @Query("tag") tag: String? = null,
     ): IllustResponse
 
 

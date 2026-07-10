@@ -33,7 +33,6 @@ import ceui.lisa.fragments.FragmentFollowUser;
 import ceui.lisa.fragments.FragmentHistory;
 import ceui.lisa.fragments.FragmentHistoryTabs;
 import ceui.lisa.fragments.FragmentImageDetail;
-import ceui.lisa.fragments.FragmentLikeIllust;
 import ceui.lisa.fragments.FragmentLikeNovel;
 import ceui.lisa.fragments.FragmentListSimpleUser;
 import ceui.lisa.fragments.FragmentLive;
@@ -225,7 +224,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "插画/漫画收藏": {
                     // STAR_TYPE / KEY_WORD 可选：同义词词典管理页跳转时带上（issue #904）
                     String starType = intent.getStringExtra(Params.STAR_TYPE);
-                    return FragmentLikeIllust.newInstance(intent.getIntExtra(Params.USER_ID, 0),
+                    return ceui.pixiv.ui.collection.LikeIllustFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0),
                             starType != null ? starType : Params.TYPE_PUBLIC, true,
                             intent.getStringExtra(Params.KEY_WORD));
                 }

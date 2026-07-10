@@ -127,6 +127,13 @@ abstract class IllustFeedFragment(
         return if (item is IllustFeedItem) listOf(item.bean) else emptyList()
     }
 
+    /**
+     * 隐藏卡片上的收藏爱心（自己的收藏页 + 「收藏页隐藏收藏按钮」设置，对齐 legacy
+     * IAdapterWithStar）。每次 bind 动态读，设置页改完返回即时生效。
+     */
+    protected open val hideLikeButton: Boolean
+        get() = false
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -292,6 +299,7 @@ abstract class IllustFeedFragment(
         cell.binding.trendingScore.bindTrendingScore(bean.trendingScore)
         // 全量绑定可能是复用的卡换了条目：上一条残留的爆发动画/缩放必须清干净
         resetLikeAnim(cell.binding)
+        cell.binding.likeButton.isVisible = !hideLikeButton
         renderLikeState(cell.binding.likeButton, cell.item.illust.is_bookmarked == true)
     }
 
