@@ -115,6 +115,12 @@ interface API {
         @Path("type") type: String,
     ): HomeIllustResponse
 
+    // 首页推荐 tab（feeds 版）：首屏要 ranking_illusts 做横向排行榜预览头
+    @GET("/v1/{type}/recommended?include_ranking_illusts=true&include_privacy_policy=true&filter=for_ios")
+    suspend fun getRecommendedWorksWithRanking(
+        @Path("type") type: String,
+    ): HomeIllustResponse
+
     @GET("/v1/novel/recommended")
     suspend fun getRecmdNovels(
         @Query("include_ranking_illusts") include_ranking_illusts: Boolean = false,

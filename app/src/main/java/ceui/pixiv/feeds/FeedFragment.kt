@@ -107,6 +107,12 @@ abstract class FeedFragment(
         _binding?.feedListView?.smoothScrollToPosition(0)
     }
 
+    /** 回顶 + 重新刷新（底栏当前 tab 再点等场景，对齐 legacy ListFragment.forceRefresh）。 */
+    fun forceRefresh() {
+        scrollToTop()
+        feedViewModel.refresh()
+    }
+
     /** 已自动接好 [FeedRenderer.spanSize] 的 GridLayoutManager。 */
     protected fun gridLayoutManager(spanCount: Int): GridLayoutManager {
         return GridLayoutManager(requireContext(), spanCount).also { manager ->

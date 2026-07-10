@@ -56,7 +56,6 @@ import ceui.lisa.fragments.FragmentNovelMarkers;
 import ceui.lisa.fragments.FragmentNovelSeries;
 import ceui.lisa.fragments.FragmentPopularNovel;
 import ceui.lisa.fragments.FragmentPv;
-import ceui.lisa.fragments.FragmentRecmdIllust;
 import ceui.lisa.fragments.FragmentRecmdUser;
 import ceui.lisa.fragments.FragmentRelatedIllust;
 import ceui.lisa.fragments.FragmentRelatedUser;
@@ -233,7 +232,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "下载管理":
                     return new ceui.pixiv.ui.download.DownloadManagerV3Fragment();
                 case "推荐漫画":
-                    return FragmentRecmdIllust.newInstance("漫画");
+                    return ceui.pixiv.ui.home.RecmdMangaFeedFragment.newInstance();
                 case "热度小说":
                     return FragmentPopularNovel.newInstance(intent.getStringExtra(Params.KEY_WORD));
                 case "推荐小说":

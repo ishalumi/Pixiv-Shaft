@@ -18,10 +18,12 @@ import ceui.lisa.databinding.FragmentLeftBinding;
 import ceui.lisa.utils.MyOnTabSelectedListener;
 import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.Params;
+import ceui.pixiv.feeds.FeedFragment;
+import ceui.pixiv.ui.home.RecmdIllustFeedFragment;
 
 public class FragmentLeft extends BaseLazyFragment<FragmentLeftBinding> {
 
-    private NetListFragment[] mFragments = null;
+    private Fragment[] mFragments = null;
 
     @Override
     public void initLayout() {
@@ -63,8 +65,8 @@ public class FragmentLeft extends BaseLazyFragment<FragmentLeftBinding> {
                 Shaft.getContext().getString(R.string.recommend_illust),
                 Shaft.getContext().getString(R.string.hot_tag)
         };
-        mFragments = new NetListFragment[]{
-                FragmentRecmdIllust.newInstance("插画"),
+        mFragments = new Fragment[]{
+                RecmdIllustFeedFragment.newInstance(RecmdIllustFeedFragment.TYPE_ILLUST),
                 FragmentHotTag.newInstance(Params.TYPE_ILLUST)
         };
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), 0) {
@@ -92,7 +94,12 @@ public class FragmentLeft extends BaseLazyFragment<FragmentLeftBinding> {
 
     public void forceRefresh() {
         try {
-            mFragments[baseBind.viewPager.getCurrentItem()].forceRefresh();
+            Fragment fragment = mFragments[baseBind.viewPager.getCurrentItem()];
+            if (fragment instanceof ListFragment) {
+                ((ListFragment) fragment).forceRefresh();
+            } else if (fragment instanceof FeedFragment) {
+                ((FeedFragment) fragment).forceRefresh();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

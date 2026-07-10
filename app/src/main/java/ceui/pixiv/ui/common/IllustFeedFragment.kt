@@ -28,6 +28,7 @@ import ceui.lisa.core.PageData
 import ceui.lisa.databinding.RecyIllustStaggerBinding
 import ceui.lisa.dialogs.MuteDialog
 import ceui.lisa.download.IllustDownload
+import ceui.lisa.helper.AppLevelViewModelHelper
 import ceui.lisa.helper.IllustNovelFilter
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.model.ListIllust
@@ -106,6 +107,21 @@ abstract class IllustFeedFragment(
         return IllustFeedItem.fromBean(bean)
     }
 
+    /**
+     * 收藏时是否顺带拉取相关作品（FRAGMENT_ADD_RELATED_DATA 广播回流插入列表）。
+     * 只有首页推荐 tab 覆盖为「收藏时显示相关作品」设置，其他列表保持关闭。
+     */
+    protected open val showRelatedOnStar: Boolean
+        get() = false
+
+    /**
+     * 条目里需要合入 ObjectPool / 灌关注状态的 bean。默认取插画条目自身的 bean；
+     * 携带附属 bean 的条目（排行榜预览头等）由子类覆盖补充。
+     */
+    protected open fun poolableBeansOf(item: FeedItem): List<IllustsBean> {
+        return if (item is IllustFeedItem) listOf(item.bean) else emptyList()
+    }
+
     /** 收藏状态双向同步：详情页/其他列表点的收藏，经广播回流本列表。 */
     private val likedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -155,7 +171,9 @@ abstract class IllustFeedFragment(
         }
 
         // 列表数据落地后把最新 bean 合入 ObjectPool（主线程；对齐 legacy Mapper 的池同步职责，
-        // 否则 V3 详情命中旧池条目会渲染过期的收藏数/爱心）。按 bean 实例去重：同一实例只合一次，
+        // 否则 V3 详情命中旧池条目会渲染过期的收藏数/爱心），并把作者关注状态灌进
+        // AppLevelViewModel（对齐 legacy NetListFragment 每页 tidyAppViewModel，
+        // UActivity/UserActivityV3 的关注按钮消费它）。按 bean 实例去重：同一实例只合一次，
         // 刷新产出的同 id 新实例携带更新的服务端数据，必须重新合入——按 id 永久去重会把它挡在池外。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -164,12 +182,17 @@ abstract class IllustFeedFragment(
                     // 只有条目列表本身换了才扫描；纯加载态变化（append Loading/Idle）直接跳过
                     if (state.items === scannedItems) return@collect
                     scannedItems = state.items
+                    val freshBeans = mutableListOf<IllustsBean>()
                     state.items.forEach { item ->
-                        if (item is IllustFeedItem &&
-                            syncViewModel.pooledBeans.put(item.illust.id, item.bean) !== item.bean
-                        ) {
-                            ObjectPool.updateIllust(item.bean)
+                        poolableBeansOf(item).forEach { bean ->
+                            if (syncViewModel.pooledBeans.put(bean.id.toLong(), bean) !== bean) {
+                                ObjectPool.updateIllust(bean)
+                                freshBeans.add(bean)
+                            }
                         }
+                    }
+                    if (freshBeans.isNotEmpty()) {
+                        AppLevelViewModelHelper.fill(freshBeans)
                     }
                 }
             }
@@ -308,9 +331,13 @@ abstract class IllustFeedFragment(
         val uiLiked = item.illust.is_bookmarked == true
         item.bean.setIs_bookmarked(uiLiked)
         val willBookmark = !uiLiked
+        // showRelatedOnStar 时 postLike 收藏成功后会拉相关作品并广播 FRAGMENT_ADD_RELATED_DATA；
+        // index 是 legacy 位置语义（feeds 接收器改按广播里的作品 id 锚定），照传兼容
         PixivOperate.postLike(
             item.bean,
             if (Shaft.sSettings.isPrivateStar()) Params.TYPE_PRIVATE else Params.TYPE_PUBLIC,
+            showRelatedOnStar,
+            feedViewModel.uiState.value.items.indexOf(item),
         )
         // 乐观状态写进列表条目而不是只写按钮：滑走再滑回不闪色；成功广播回流后是幂等 no-op
         feedViewModel.updateItems(IllustFeedItem::class.java) {

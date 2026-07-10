@@ -259,6 +259,9 @@ public class PixivOperate {
                                 Intent intent = new Intent(Params.FRAGMENT_ADD_RELATED_DATA);
                                 intent.putExtra(Params.CONTENT, listIllust);
                                 intent.putExtra(Params.INDEX, index);
+                                // feeds 版推荐页按被收藏作品 id 锚定插入位置（index 是 legacy
+                                // adapter 位置语义，跨列表广播时不可靠）
+                                intent.putExtra(Params.ID, illustsBean.getId());
                                 LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
 
                                 // 寄生收集：收藏时的相关作品进发现池

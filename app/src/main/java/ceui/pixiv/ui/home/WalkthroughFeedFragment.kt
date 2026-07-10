@@ -3,7 +3,7 @@ package ceui.pixiv.ui.home
 import android.os.Bundle
 import android.view.View
 import ceui.lisa.R
-import ceui.lisa.databinding.FragmentWalkthroughFeedBinding
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.loxia.Client
 import ceui.pixiv.feeds.PixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
@@ -19,9 +19,9 @@ import ceui.pixiv.ui.common.viewBinding
  * [IllustFeedFragment]；本类只声明数据源（walkthrough 接口 + 内容过滤链，
  * 整页被滤空时由 FeedViewModel 的空页追载继续翻，#729 语义）和 toolbar。
  */
-class WalkthroughFeedFragment : IllustFeedFragment(R.layout.fragment_walkthrough_feed) {
+class WalkthroughFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_feed) {
 
-    private val binding by viewBinding(FragmentWalkthroughFeedBinding::bind)
+    private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
 
     override val feedViewModel by feedViewModels {
         PixivFeedSource({ Client.appApi.getWalkthroughWorks() }) { resp, _ ->
