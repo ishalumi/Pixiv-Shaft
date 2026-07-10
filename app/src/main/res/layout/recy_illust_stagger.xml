@@ -23,7 +23,10 @@
             android:orientation="vertical">
 
 
-            <ImageView
+            <!-- 高度由 setHeightRatio 在 onMeasure 时按真实列宽算出：旋转/分屏后列宽变了
+                 自动重算。不要改回普通 ImageView + 绑定时写死像素宽高——RecyclerView
+                 复用的卡片会揣着旧方向的绝对尺寸，横竖屏来回切整个瀑布流就乱套 -->
+            <ceui.lisa.view.DynamicHeightImageView
                 android:id="@+id/illust_image"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

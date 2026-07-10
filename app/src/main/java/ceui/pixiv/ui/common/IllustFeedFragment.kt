@@ -33,7 +33,6 @@ import ceui.lisa.helper.IllustNovelFilter
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.model.ListIllust
 import ceui.lisa.models.IllustsBean
-import ceui.lisa.page.ScreenUtils
 import ceui.lisa.utils.DensityUtil
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
@@ -265,24 +264,16 @@ abstract class IllustFeedFragment(
         },
     ) { cell ->
         val bean = cell.item.bean
-        // 高度按元数据比例显式定死（对齐 IAdapter：钳到宽的 0.6~2.0 倍），不等 Glide 量像素
-        val itemWidth = ScreenUtils.getDisplayMetrics().widthPixels / Shaft.sSettings.lineCount
-        val targetHeight = if (bean.width > 0 && bean.height > 0) {
-            val ratio = bean.height.toFloat() / bean.width.toFloat()
-            when {
-                ratio > MAX_HEIGHT_RATIO -> (itemWidth * MAX_HEIGHT_RATIO).toInt()
-                ratio < MIN_HEIGHT_RATIO -> (itemWidth * MIN_HEIGHT_RATIO).toInt()
-                else -> (itemWidth * bean.height.toFloat() / bean.width.toFloat()).toInt()
-            }
+        // 只按元数据驱动宽高比（钳到宽的 0.6~2.0 倍，对齐 IAdapter），不等 Glide 量像素；
+        // 宽度交给瀑布流列自身，DynamicHeightImageView 在 onMeasure 用真实列宽算高——
+        // 绝不写死像素尺寸，否则复用卡片在横竖屏切换后揣着旧方向的尺寸把整列搞乱
+        val ratio = if (bean.width > 0 && bean.height > 0) {
+            (bean.height.toFloat() / bean.width.toFloat())
+                .coerceIn(MIN_HEIGHT_RATIO, MAX_HEIGHT_RATIO)
         } else {
-            itemWidth
+            1f
         }
-        val params = cell.binding.illustImage.layoutParams
-        if (params.width != itemWidth || params.height != targetHeight) {
-            params.width = itemWidth
-            params.height = targetHeight
-            cell.binding.illustImage.layoutParams = params
-        }
+        cell.binding.illustImage.setHeightRatio(ratio)
 
         val imgUrl = if (Shaft.sSettings.isShowLargeThumbnailImage()) {
             GlideUtil.getLargeImage(bean)

@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -38,7 +37,6 @@ import ceui.lisa.interfaces.MultiDownload;
 import ceui.lisa.interfaces.OnItemClickListener;
 import ceui.lisa.interfaces.OnItemLongClickListener;
 import ceui.lisa.models.IllustsBean;
-import ceui.lisa.page.ScreenUtils;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.GlideUtil;
 import ceui.lisa.utils.Params;
@@ -67,20 +65,17 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
     @Override
     public void bindData(IllustsBean target, ViewHolder<RecyIllustStaggerBinding> bindView, int position) {
 
-        float ratio = (float) target.getHeight() / (float) target.getWidth();
-        ViewGroup.LayoutParams params = bindView.baseBind.illustImage.getLayoutParams();
-        int itemWidth =
-                ScreenUtils.getDisplayMetrics().widthPixels / Shaft.sSettings.getLineCount();
-        params.width = itemWidth;
-        if (ratio > MAX_HEIGHT_RATIO) {
-            // 如果图片很窄，但是高度很高，则限制最大高度，是宽的 1.8 倍
-            params.height = (int) (itemWidth * MAX_HEIGHT_RATIO);
-        } else if (ratio < MIN_HEIGHT_RATIO) {
-            params.height = (int) (itemWidth * MIN_HEIGHT_RATIO);
+        // 只按元数据驱动宽高比（钳到宽的 0.6~2.0 倍），宽度交给瀑布流列自身，
+        // DynamicHeightImageView 在 onMeasure 用真实列宽算高——绝不写死像素尺寸，
+        // 否则复用卡片在横竖屏切换后揣着旧方向的尺寸把整列搞乱
+        float ratio;
+        if (target.getWidth() > 0 && target.getHeight() > 0) {
+            ratio = Math.max(MIN_HEIGHT_RATIO, Math.min(MAX_HEIGHT_RATIO,
+                    (float) target.getHeight() / (float) target.getWidth()));
         } else {
-            params.height = (int) ((itemWidth * (float) target.getHeight()) / (float) target.getWidth());
+            ratio = 1f;
         }
-        bindView.baseBind.illustImage.setLayoutParams(params);
+        bindView.baseBind.illustImage.setHeightRatio(ratio);
 //        bindView.baseBind.debugMessage.setText("宽：" + target.getWidth() + "高：" + target.getHeight() + "id: " + target.getId());
 
         if (target.isIs_bookmarked()) {
