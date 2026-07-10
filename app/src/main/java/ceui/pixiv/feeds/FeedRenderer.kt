@@ -12,7 +12,8 @@ import androidx.viewbinding.ViewBinding
  * - 类型安全靠泛型 + 构造时的 Class token 保证，没有反射、没有注解处理器；
  * - Renderer 应当无状态（所有状态在条目和 [FeedCell] 上），可以安全复用/共享。
  *
- * 简单场景用 [feedRenderer] DSL 一行注册，复杂场景（局部刷新、回收清理）继承本类。
+ * 简单场景用 [feedRenderer] DSL 一行注册（局部刷新、回收清理都有对应参数），
+ * 需要携带自有状态或复杂复用逻辑时再继承本类。
  */
 abstract class FeedRenderer<T : FeedItem, VB : ViewBinding>(
     internal val itemClass: Class<T>,
@@ -61,15 +62,23 @@ abstract class FeedRenderer<T : FeedItem, VB : ViewBinding>(
  *     cell.binding.title.text = cell.item.illust.title
  * }
  * ```
+ *
+ * 局部刷新（可选）：[changePayload] 判断两版内容的差异并给出 payload，
+ * [bindPayloads] 消费它做最小化更新；返回 false 表示没处理（例如混入了
+ * 不认识的 payload），框架自动回退全量 [bind]，安全兜底不会漏绑。
  */
 inline fun <reified T : FeedItem, VB : ViewBinding> feedRenderer(
     noinline inflate: (LayoutInflater, ViewGroup, Boolean) -> VB,
     fullSpan: Boolean = false,
     noinline create: ((FeedCell<T, VB>) -> Unit)? = null,
     noinline recycle: ((FeedCell<T, VB>) -> Unit)? = null,
+    noinline changePayload: ((oldItem: T, newItem: T) -> Any?)? = null,
+    noinline bindPayloads: ((FeedCell<T, VB>, payloads: List<Any>) -> Boolean)? = null,
     noinline bind: (FeedCell<T, VB>) -> Unit,
 ): FeedRenderer<T, VB> {
     val isFullSpan = fullSpan
+    val payloadOf = changePayload
+    val bindWithPayloads = bindPayloads
     return object : FeedRenderer<T, VB>(T::class.java, inflate) {
         override val fullSpan: Boolean get() = isFullSpan
 
@@ -79,6 +88,18 @@ inline fun <reified T : FeedItem, VB : ViewBinding> feedRenderer(
 
         override fun onBind(cell: FeedCell<T, VB>) {
             bind(cell)
+        }
+
+        override fun onBind(cell: FeedCell<T, VB>, payloads: List<Any>) {
+            // bindPayloads 返回 true 表示已按 payload 局部处理完；
+            // 返回 false（含遇到不认识的 payload）由框架兜底走全量绑定
+            if (bindWithPayloads == null || !bindWithPayloads(cell, payloads)) {
+                bind(cell)
+            }
+        }
+
+        override fun changePayload(oldItem: T, newItem: T): Any? {
+            return payloadOf?.invoke(oldItem, newItem)
         }
 
         override fun onRecycled(cell: FeedCell<T, VB>) {

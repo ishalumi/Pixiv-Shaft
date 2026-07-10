@@ -167,6 +167,21 @@ class FeedViewModel<Cursor : Any>(
         _uiState.update { it.copy(items = edit(it.items)) }
     }
 
+    /**
+     * 把外部拿到的条目直接追加进列表（详情页 pager 替列表续拉的页等），
+     * 纯内存操作不触发网络。身份去重由本方法保证（对全表 + 入参内部同时去重），
+     * 调用方不需要自己维护「列表内身份唯一」这个 DiffUtil 前置不变量。
+     * 通常与 [adoptCursor] 配套使用：先追加数据，再交接游标。
+     */
+    fun appendItems(newItems: List<FeedItem>) {
+        if (newItems.isEmpty()) return
+        mutateItems { existing ->
+            val seen = existing.mapTo(HashSet()) { it.identity }
+            val fresh = newItems.filter { seen.add(it.identity) }
+            if (fresh.isEmpty()) existing else existing + fresh
+        }
+    }
+
     /** 就地更新某一类条目（点赞 / 收藏切换等），不触发网络重载。 */
     fun <T : FeedItem> updateItems(itemClass: Class<T>, transform: (T) -> T) {
         mutateItems { list ->

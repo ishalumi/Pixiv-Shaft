@@ -263,6 +263,25 @@ class FeedViewModelTest {
     }
 
     @Test
+    fun `appendItems dedups against list and within batch without touching source`() = runTest(dispatcher) {
+        val source = FakeSource(listOf(listOf(Row(1), Row(2))))
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+        val countAfterRefresh = source.loadCount
+
+        // Row(2) 与列表重复、Row(3) 在入参内部重复，都只保留一份；且不发任何网络请求
+        vm.appendItems(listOf(Row(2), Row(3), Row(3), Row(4)))
+
+        assertEquals(listOf(Row(1), Row(2), Row(3), Row(4)), vm.uiState.value.items)
+        assertEquals(countAfterRefresh, source.loadCount)
+
+        // 全部重复 / 空入参都是 no-op
+        vm.appendItems(listOf(Row(1), Row(4)))
+        vm.appendItems(emptyList())
+        assertEquals(4, vm.uiState.value.items.size)
+    }
+
+    @Test
     fun `updateItems mutates in place`() = runTest(dispatcher) {
         val vm = FeedViewModel(FakeSource(listOf(listOf(Row(1, "a"), Row(2, "b")))))
         advanceUntilIdle()

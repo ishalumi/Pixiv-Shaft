@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import androidx.viewbinding.ViewBinding
 
@@ -36,6 +37,9 @@ class FeedAdapter(
         require(viewTypeOf.size == renderers.size) {
             "同一种 FeedItem 类型注册了多个 FeedRenderer"
         }
+        // 数据住在 VM、submitList 的 diff 又是异步的：视图重建后 RecyclerView 恢复滚动位置的
+        // 那次布局 adapter 还空着，pending 位置会被空布局消费丢弃。推迟恢复到首批数据派发之后。
+        stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
     }
 
     override fun getItemViewType(position: Int): Int {

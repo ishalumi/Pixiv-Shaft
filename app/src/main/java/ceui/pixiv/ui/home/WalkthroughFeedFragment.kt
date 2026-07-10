@@ -55,6 +55,9 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+/** 收藏状态局部重绑的 payload 标记（按引用识别）。 */
+private val PAYLOAD_LIKE_CHANGED = Any()
+
 /**
  * 「画廊」页（发现 tab · 其他分类入口），feeds 框架的首个线上页面，替代 legacy FragmentWalkThrough。
  *
@@ -99,14 +102,7 @@ class WalkthroughFeedFragment : FeedFragment(R.layout.fragment_walkthrough_feed)
             if (extras.getString(Params.PAGE_UUID) != syncViewModel.listPageUuid) return
             val listIllust = extras.getSerializable(Params.CONTENT) as? ListIllust ?: return
             val fresh = listIllust.list.orEmpty().mapNotNull { GalleryIllustItem.fromBean(it) }
-            if (fresh.isNotEmpty()) {
-                feedViewModel.mutateItems { existing ->
-                    val seen = existing.mapNotNullTo(HashSet()) {
-                        (it as? GalleryIllustItem)?.illust?.id
-                    }
-                    existing + fresh.filter { seen.add(it.illust.id) }
-                }
-            }
+            feedViewModel.appendItems(fresh)
             feedViewModel.adoptCursor(listIllust.nextUrl?.takeIf { it.isNotEmpty() })
         }
     }
@@ -138,12 +134,19 @@ class WalkthroughFeedFragment : FeedFragment(R.layout.fragment_walkthrough_feed)
         }
 
         // 列表数据落地后把最新 bean 合入 ObjectPool（主线程；对齐 legacy Mapper 的池同步职责，
-        // 否则 V3 详情命中旧池条目会渲染过期的收藏数/爱心）。pooledIds 保证每条只合一次。
+        // 否则 V3 详情命中旧池条目会渲染过期的收藏数/爱心）。按 bean 实例去重：同一实例只合一次，
+        // 刷新产出的同 id 新实例携带更新的服务端数据，必须重新合入——按 id 永久去重会把它挡在池外。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var scannedItems: List<FeedItem>? = null
                 feedViewModel.uiState.collect { state ->
+                    // 只有条目列表本身换了才扫描；纯加载态变化（append Loading/Idle）直接跳过
+                    if (state.items === scannedItems) return@collect
+                    scannedItems = state.items
                     state.items.forEach { item ->
-                        if (item is GalleryIllustItem && syncViewModel.pooledIds.add(item.illust.id)) {
+                        if (item is GalleryIllustItem &&
+                            syncViewModel.pooledBeans.put(item.illust.id, item.bean) !== item.bean
+                        ) {
                             ObjectPool.updateIllust(item.bean)
                         }
                     }
@@ -185,18 +188,38 @@ class WalkthroughFeedFragment : FeedFragment(R.layout.fragment_walkthrough_feed)
         recycle = { cell ->
             Glide.with(cell.binding.illustImage).clear(cell.binding.illustImage)
         },
+        // 只有收藏状态变了 → 局部重绑爱心，不再重发 Glide 请求、不再改 layoutParams
+        //（layoutParams 赋值会 requestLayout，在瀑布流里可能引发整屏 relayout）
+        changePayload = { old, new ->
+            if (old.illust.copy(is_bookmarked = new.illust.is_bookmarked) == new.illust) {
+                PAYLOAD_LIKE_CHANGED
+            } else {
+                null
+            }
+        },
+        bindPayloads = { cell, payloads ->
+            if (payloads.all { it === PAYLOAD_LIKE_CHANGED }) {
+                renderLikeState(cell.binding.likeButton, cell.item.illust.is_bookmarked == true)
+                true
+            } else {
+                false
+            }
+        },
     ) { cell ->
         val illust = cell.item.illust
         // 卡片比例来自作品元数据（square_medium 恒为方图，不能等 Glide 量像素）；极端长/扁图钳到 1:1.8 / 1:0.5
         val width = illust.width
         val height = illust.height
         val params = cell.binding.illustImage.layoutParams as ConstraintLayout.LayoutParams
-        params.dimensionRatio = if (width > 0 && height > 0) {
+        val ratio = if (width > 0 && height > 0) {
             "$width:${height.coerceIn((width * 0.5f).toInt(), (width * 1.8f).toInt())}"
         } else {
             "1:1"
         }
-        cell.binding.illustImage.layoutParams = params
+        if (params.dimensionRatio != ratio) {
+            params.dimensionRatio = ratio
+            cell.binding.illustImage.layoutParams = params
+        }
 
         val urls = illust.image_urls
         val url = if (Shaft.sSettings.isShowLargeThumbnailImage()) urls?.large else urls?.medium
@@ -327,8 +350,11 @@ class WalkthroughSyncViewModel : ViewModel() {
      */
     val listPageUuid: String = UUID.randomUUID().toString()
 
-    /** 已合入 ObjectPool 的作品 id，保证每条只合一次。 */
-    val pooledIds = HashSet<Long>()
+    /**
+     * 已合入 ObjectPool 的 bean 实例（id → 当前代实例）。刷新会产出同 id 的新实例、
+     * 携带更新的服务端数据，实例变了就要重新合入；同一实例重复扫描则跳过。
+     */
+    val pooledBeans = HashMap<Long, IllustsBean>()
 }
 
 /**
