@@ -340,45 +340,6 @@
                                         android:textSize="12sp" />
                                 </LinearLayout>
 
-                                <TextView
-                                    android:id="@+id/stat_bookmark_sep"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginHorizontal="12dp"
-                                    android:alpha="0.5"
-                                    android:text="·"
-                                    android:textColor="@color/v3_text_3"
-                                    android:textSize="16sp"
-                                    android:visibility="gone" />
-
-                                <LinearLayout
-                                    android:id="@+id/stat_bookmark"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:background="?attr/selectableItemBackgroundBorderless"
-                                    android:baselineAlignedChildIndex="0"
-                                    android:orientation="horizontal"
-                                    android:paddingVertical="2dp"
-                                    android:visibility="gone">
-
-                                    <TextView
-                                        android:id="@+id/stat_bookmark_num"
-                                        style="@style/textMontserratBold"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:textColor="@color/v3_text_1"
-                                        android:textSize="18sp"
-                                        android:textStyle="bold"
-                                        tools:text="147" />
-
-                                    <TextView
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginStart="5dp"
-                                        android:text="@string/v3_label_bookmarks"
-                                        android:textColor="@color/v3_text_3"
-                                        android:textSize="12sp" />
-                                </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>
 
@@ -426,16 +387,17 @@
 
                 </com.google.android.material.appbar.CollapsingToolbarLayout>
 
-                <!-- Pinned tab strip between header & paged content -->
+                <!-- Pinned tab strip between header & paged content.
+                     scrollable:tab 数多(漫画/小说都有 + label 带数字)时不挤压,可横向滑动 -->
                 <com.google.android.material.tabs.TabLayout
                     android:id="@+id/tab_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@color/v3_bg"
-                    app:tabGravity="fill"
+                    app:tabGravity="start"
                     app:tabIndicatorColor="@color/v3_text_1"
                     app:tabIndicatorFullWidth="false"
-                    app:tabMode="fixed"
+                    app:tabMode="scrollable"
                     app:tabSelectedTextColor="@color/v3_text_1"
                     app:tabTextColor="@color/v3_text_3" />
 

@@ -465,17 +465,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             startActivity(intent)
         }
 
-        // 收藏数:有公开收藏或本人才显示,点击直接切到「收藏」Tab(旧版是折叠头里的导航药丸)
-        val bookmarks = profile.total_illust_bookmarks_public
-        if (bookmarks > 0 || isSelf) {
-            baseBind.statBookmarkNum.text = fmt.format(bookmarks)
-            baseBind.statBookmarkSep.isVisible = true
-            baseBind.statBookmark.isVisible = true
-            baseBind.statBookmark.setOnClickListener {
-                val idx = tabKinds.indexOf(TabKind.COLLECTION)
-                if (idx >= 0) baseBind.viewPager.setCurrentItem(idx, false)
-            }
-        }
+        // 收藏数不再进统计条 —— 「收藏」tab label 自带数字(updateTabCount)
 
         // 标签筛选条(issue #569)不再单独请求 —— 改由插画列表首屏回调 onUserIllustFirstPage 驱动,复用同一份数据
     }
