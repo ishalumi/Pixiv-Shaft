@@ -1,9 +1,14 @@
 package ceui.pixiv.ui.common
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.View
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import androidx.annotation.LayoutRes
 import androidx.core.content.ContextCompat
@@ -165,7 +170,24 @@ abstract class IllustFeedFragment(
                 showCardMenu(cell.item)
                 true
             }
-            cell.binding.likeButton.setOnClick { toggleLike(cell.item) }
+            cell.binding.likeButton.setOnClick {
+                val willBookmark = cell.item.illust.is_bookmarked != true
+                toggleLike(cell.item)
+                if (willBookmark) {
+                    playLikeBurst(cell.binding)
+                } else {
+                    playUnlikeShrink(cell.binding.likeButton)
+                }
+            }
+            // 动画播完/被取消都收起爆发层，露出下面已经变红的静态爱心
+            cell.binding.likeAnim.addAnimatorListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    cell.binding.likeAnim.isVisible = false
+                }
+            })
+            // lottie 默认 failure listener 会直接抛 IllegalStateException 崩 app；
+            // 动画资源解析失败就静默降级成无动画（静态爱心链路完全不受影响）
+            cell.binding.likeAnim.setFailureListener { }
             // 爱心长按 → 按标签收藏（对齐 IAdapter）
             cell.binding.likeButton.setOnLongClickListener {
                 val bean = cell.item.bean
@@ -180,6 +202,7 @@ abstract class IllustFeedFragment(
         },
         recycle = { cell ->
             Glide.with(cell.binding.illustImage).clear(cell.binding.illustImage)
+            resetLikeAnim(cell.binding)
         },
         changePayload = ::illustLikeChangePayload,
         bindPayloads = { cell, payloads ->
@@ -241,17 +264,58 @@ abstract class IllustFeedFragment(
         cell.binding.pRelated.isVisible = bean.isRelated
         // 只有 trending repo 注入 trendingScore，其他页 null 走 GONE（对齐 IAdapter 复用语义）
         cell.binding.trendingScore.bindTrendingScore(bean.trendingScore)
+        // 全量绑定可能是复用的卡换了条目：上一条残留的爆发动画/缩放必须清干净
+        resetLikeAnim(cell.binding)
         renderLikeState(cell.binding.likeButton, cell.item.illust.is_bookmarked == true)
     }
 
+    /** 未收藏 = 白色空心描边爱心，已收藏 = 红色实心爱心（图上永远配深色圆底座）。 */
     protected fun renderLikeState(button: ImageView, liked: Boolean) {
-        val context = button.context
-        button.imageTintList = ColorStateList.valueOf(
-            ContextCompat.getColor(
-                context,
-                if (liked) R.color.has_bookmarked else R.color.not_bookmarked,
-            )
+        button.setImageResource(
+            if (liked) R.drawable.ic_like_heart_fill else R.drawable.ic_like_heart_outline
         )
+        button.imageTintList = ColorStateList.valueOf(
+            if (liked) {
+                ContextCompat.getColor(button.context, R.color.has_bookmarked)
+            } else {
+                Color.WHITE
+            }
+        )
+    }
+
+    /**
+     * 收藏爆发动画：静态爱心即刻变红（乐观重绑会兜底），上层 72dp Lottie 播
+     * 弹性爱心 + 白闪 + 冲击波圆环 + 三色粒子向作品图上炸开，播完自动收起。
+     * 动画层非 clickable，播放中不挡按钮点击；局部重绑只动静态爱心，不打断动画。
+     */
+    private fun playLikeBurst(binding: RecyIllustStaggerBinding) {
+        binding.likeButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        binding.likeAnim.apply {
+            isVisible = true
+            progress = 0f
+            playAnimation()
+        }
+    }
+
+    /** 取消收藏：静态爱心一个干脆的回弹缩放，不放烟花。 */
+    private fun playUnlikeShrink(button: ImageView) {
+        button.animate().cancel()
+        button.scaleX = 0.6f
+        button.scaleY = 0.6f
+        button.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(280L)
+            .setInterpolator(OvershootInterpolator(2.5f))
+            .start()
+    }
+
+    private fun resetLikeAnim(binding: RecyIllustStaggerBinding) {
+        binding.likeAnim.cancelAnimation()
+        binding.likeAnim.isVisible = false
+        binding.likeButton.animate().cancel()
+        binding.likeButton.scaleX = 1f
+        binding.likeButton.scaleY = 1f
     }
 
     protected fun toggleLike(item: IllustFeedItem) {

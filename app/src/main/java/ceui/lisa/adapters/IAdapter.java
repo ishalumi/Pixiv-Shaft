@@ -3,6 +3,7 @@ package ceui.lisa.adapters;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.widget.ImageView;
@@ -114,24 +115,12 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
         bindView.baseBind.illustImage.setHeightRatio(ratio);
 //        bindView.baseBind.debugMessage.setText("宽：" + target.getWidth() + "高：" + target.getHeight() + "id: " + target.getId());
 
-        if (target.isIs_bookmarked()) {
-            bindView.baseBind.likeButton.setImageTintList(
-                    ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.has_bookmarked)));
-        } else {
-            bindView.baseBind.likeButton.setImageTintList(
-                    ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.not_bookmarked)));
-        }
+        renderLikeState(bindView.baseBind.likeButton, target.isIs_bookmarked());
         bindView.baseBind.likeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 boolean willBookmark = !target.isIs_bookmarked();
-                if (target.isIs_bookmarked()) {
-                    bindView.baseBind.likeButton.setImageTintList(
-                            ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.not_bookmarked)));
-                } else {
-                    bindView.baseBind.likeButton.setImageTintList(
-                            ColorStateList.valueOf(ContextCompat.getColor(mContext, R.color.has_bookmarked)));
-                }
+                renderLikeState(bindView.baseBind.likeButton, willBookmark);
                 if (Shaft.sSettings.isPrivateStar()) {
                     PixivOperate.postLike(target, Params.TYPE_PRIVATE, showRelated, (position + 2));
                 } else {
@@ -343,6 +332,14 @@ public class IAdapter extends BaseAdapter<IllustsBean, RecyIllustStaggerBinding>
                 });
             }
         });
+    }
+
+    /** 与 feeds 的 IllustFeedFragment.renderLikeState 同一套视觉：空心白 ↔ 实心红。 */
+    private void renderLikeState(ImageView button, boolean liked) {
+        button.setImageResource(liked
+                ? R.drawable.ic_like_heart_fill : R.drawable.ic_like_heart_outline);
+        button.setImageTintList(ColorStateList.valueOf(liked
+                ? ContextCompat.getColor(mContext, R.color.has_bookmarked) : Color.WHITE));
     }
 
     private boolean showRelated = false;

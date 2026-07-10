@@ -16,11 +16,14 @@
         android:stateListAnimator="@animator/touch_raise"
         app:cardElevation="0dp">
 
-        <RelativeLayout
+        <!-- FrameLayout 而非 RelativeLayout：wrap_content 的 RelativeLayout 对
+             锚定 parentBottom 的子 view，兄弟边对齐和 margin 都会在首趟测量时
+             解析不可靠（之前爆发层跑到右上角、按钮 bottomMargin 失效都是它）；
+             FrameLayout 的 gravity+margin 布局在最终尺寸上结算，行为可靠 -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/white_and_black"
-            android:orientation="vertical">
+            android:background="@color/white_and_black">
 
 
             <!-- 高度由 setHeightRatio 在 onMeasure 时按真实列宽算出：旋转/分屏后列宽变了
@@ -135,18 +138,38 @@
 
             </LinearLayout>
 
+            <!-- 现代化收藏按钮（feeds 与 legacy IAdapter 共用）：
+                 40dp 深色圆底座 + 4dp 边距（不顶死卡片圆角）+ 24dp 心形 icon。
+                 未收藏 = 白色空心描边，已收藏 = 红色实心（feeds 走 renderLikeState，
+                 legacy 走 IAdapter.renderLikeState，两处切同一对 drawable） -->
             <ImageButton
-                android:layout_width="36dp"
-                android:padding="@dimen/four_dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="@dimen/eight_dp"
                 android:id="@+id/like_button"
                 android:scaleType="fitCenter"
-                android:layout_alignParentEnd="true"
-                android:layout_alignParentBottom="true"
-                android:src="@drawable/ic_like_illust_6"
-                android:layout_height="36dp"
-                app:tint="#a4afb3">
+                android:layout_gravity="bottom|end"
+                android:layout_margin="@dimen/four_dp"
+                android:background="@drawable/bg_like_pill"
+                android:src="@drawable/ic_like_heart_outline"
+                app:tint="@android:color/white">
 
             </ImageButton>
+
+            <!-- 收藏爆发动画层：叠在 like_button 之上、平时 GONE，只由 feeds 渲染器
+                 点收藏时播放（legacy IAdapter 不感知）。72dp 画布贴卡片右下角，
+                 动画内爱心圆心设计在画布 (96,96)/144 处 = 按钮几何中心
+                 （margin 4dp + 半径 20dp = 距角 24dp）；改按钮尺寸/边距要同步动画。
+                 非 clickable，点击穿透给下面的按钮 -->
+            <com.airbnb.lottie.LottieAnimationView
+                android:id="@+id/like_anim"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="bottom|end"
+                android:importantForAccessibility="no"
+                android:visibility="gone"
+                app:lottie_loop="false"
+                app:lottie_rawRes="@raw/like_heart_burst" />
 
 <!--            <TextView-->
 <!--                android:id="@+id/debug_message"-->
@@ -154,6 +177,6 @@
 <!--                android:layout_width="wrap_content"-->
 <!--                android:layout_height="wrap_content"/>-->
 
-        </RelativeLayout>
+        </FrameLayout>
     </androidx.cardview.widget.CardView>
 </layout>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 瀑布流卡片收藏按钮的常驻圆形底座：半透明深色 + 微弱白描边，
+     保证爱心在任何明暗画作上都可读（日夜双模式通用，铺在图上不随主题变） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#59101014" />
+    <stroke
+        android:width="1dp"
+        android:color="#26FFFFFF" />
+</shape>
