@@ -1,5 +1,7 @@
 package ceui.pixiv.ui.home
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -41,6 +43,7 @@ import ceui.lisa.view.SpacesItemWithHeadDecoration
 import ceui.loxia.Client
 import ceui.loxia.Illust
 import ceui.pixiv.db.discovery.DiscoveryPool
+import ceui.pixiv.feeds.FeedCell
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.PixivFeedSource
@@ -176,8 +179,23 @@ open class RecmdIllustFeedFragment(
     private fun playDemoBurst() {
         val listView = feedBinding.feedListView
         for (i in 0 until listView.childCount) {
-            val anim = listView.getChildAt(i)
-                .findViewById<LottieAnimationView>(R.id.like_anim) ?: continue
+            val child = listView.getChildAt(i)
+            val anim = child.findViewById<LottieAnimationView>(R.id.like_anim) ?: continue
+            // 演示不改收藏状态，但和真收藏一样先把静态心切红：白色空心心在动画
+            // 开头几帧盖不住，会从爆发红心边缘漏出来。播完按真实绑定状态恢复
+            //（一次性监听，自摘除，不污染真收藏路径的动画回调）
+            val button = child.findViewById<android.widget.ImageView>(R.id.like_button)
+            if (button != null) {
+                renderLikeState(button, true)
+                anim.addAnimatorListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        anim.removeAnimatorListener(this)
+                        val item = (listView.getChildViewHolder(child) as? FeedCell<*, *>)
+                            ?.itemOrNull as? IllustFeedItem
+                        renderLikeState(button, item?.illust?.is_bookmarked == true)
+                    }
+                })
+            }
             anim.isVisible = true
             anim.progress = 0f
             anim.playAnimation()

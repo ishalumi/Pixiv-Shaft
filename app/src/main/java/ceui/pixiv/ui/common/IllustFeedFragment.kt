@@ -207,6 +207,10 @@ abstract class IllustFeedFragment(
             cell.binding.likeButton.setOnClick {
                 val willBookmark = cell.item.illust.is_bookmarked != true
                 toggleLike(cell.item)
+                // 乐观重绑要等 ListAdapter 后台 diff 落地（至少 1~2 帧，大列表更久），
+                // 静态爱心必须当帧先切到目标态：否则爆发动画开头几帧红心还小，
+                // 底下过期的白色空心心会从边缘漏出来；随后的 payload 重绑是幂等兜底
+                renderLikeState(cell.binding.likeButton, willBookmark)
                 if (willBookmark) {
                     playLikeBurst(cell.binding)
                 } else {
@@ -319,9 +323,10 @@ abstract class IllustFeedFragment(
     }
 
     /**
-     * 收藏爆发动画：静态爱心即刻变红（乐观重绑会兜底），上层 72dp Lottie 播
-     * 弹性爱心 + 白闪 + 冲击波圆环 + 三色粒子向作品图上炸开，播完自动收起。
-     * 动画层非 clickable，播放中不挡按钮点击；局部重绑只动静态爱心，不打断动画。
+     * 收藏爆发动画：静态爱心由点击处当帧切红（异步乐观重绑只是兜底，等它就晚了），
+     * 上层 72dp Lottie 播弹性爱心 + 白闪 + 冲击波圆环 + 三色粒子向作品图上炸开，
+     * 播完自动收起。动画层非 clickable，播放中不挡按钮点击；局部重绑只动静态爱心，
+     * 不打断动画。
      */
     private fun playLikeBurst(binding: RecyIllustStaggerBinding) {
         playLikePressHaptic(binding.likeButton)
