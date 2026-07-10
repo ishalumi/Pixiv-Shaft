@@ -73,6 +73,10 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     private val tabKinds = mutableListOf(TabKind.ILLUST, TabKind.COLLECTION, TabKind.INFO)
     private var pagerAdapter: FragmentStateAdapter? = null
 
+    // user/detail 返回的确定数量(插画/漫画/小说/公开插画收藏),>0 时追加到 tab label 后面。
+    // 收藏 tab 用 total_illust_bookmarks_public —— 与 header 统计条同源;小说收藏数 API 不给,不凑。
+    private val tabCounts = mutableMapOf<TabKind, Int>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // 在 super.onCreate 之前预插条件 tab,这样 BaseActivity.onCreate 里跑 setupViewPager 时
         // FragmentStateAdapter 看到的 itemId 集合就包含它们,旋转前保存的 fragment state
@@ -292,14 +296,26 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         // 全 tab 保活 —— 那会一进主页就把所有 tab 的接口全打一遍。
 
         TabLayoutMediator(baseBind.tabLayout, baseBind.viewPager) { tab, position ->
-            tab.text = when (tabKinds[position]) {
-                TabKind.ILLUST -> getString(R.string.string_246)
-                TabKind.MANGA -> getString(R.string.string_233)
-                TabKind.NOVEL -> getString(R.string.string_237)
-                TabKind.COLLECTION -> getString(R.string.v3_label_bookmarks)
-                TabKind.INFO -> getString(R.string.v3_label_profile_details)
-            }
+            tab.text = tabTitle(tabKinds[position])
         }.attach()
+    }
+
+    private fun tabTitle(kind: TabKind): CharSequence {
+        val base = when (kind) {
+            TabKind.ILLUST -> getString(R.string.string_246)
+            TabKind.MANGA -> getString(R.string.string_233)
+            TabKind.NOVEL -> getString(R.string.string_237)
+            TabKind.COLLECTION -> getString(R.string.v3_label_bookmarks)
+            TabKind.INFO -> getString(R.string.v3_label_profile_details)
+        }
+        val count = tabCounts[kind] ?: return base
+        return "$base ${NumberFormat.getInstance().format(count)}"
+    }
+
+    private fun refreshTabTitles() {
+        for (i in tabKinds.indices) {
+            baseBind.tabLayout.getTabAt(i)?.text = tabTitle(tabKinds[i])
+        }
     }
 
     /**
@@ -346,11 +362,20 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         val profile = data.profile
         val user = data.user
 
+        // 先记数量再插条件 tab —— TabLayoutMediator repopulate 时 tabTitle 才带得上数字。
+        if (profile.total_illusts > 0) tabCounts[TabKind.ILLUST] = profile.total_illusts
+        if (profile.total_manga > 0) tabCounts[TabKind.MANGA] = profile.total_manga
+        if (profile.total_novels > 0) tabCounts[TabKind.NOVEL] = profile.total_novels
+        if (profile.total_illust_bookmarks_public > 0) {
+            tabCounts[TabKind.COLLECTION] = profile.total_illust_bookmarks_public
+        }
+
         // 有漫画/小说作品才插对应条件 tab。MANGA 在插画之后,NOVEL 在收藏之前。
         if (profile.total_manga > 0) ensureConditionalTab(TabKind.MANGA, 1)
         if (profile.total_novels > 0) {
             ensureConditionalTab(TabKind.NOVEL, tabKinds.indexOf(TabKind.COLLECTION))
         }
+        refreshTabTitles()
 
         // Banner
         val bannerUrl = profile.background_image_url
