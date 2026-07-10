@@ -217,7 +217,15 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
     protected void onPause() {
         //通知外界列表，滚动到正确的位置
         Intent intent = new Intent(Params.FRAGMENT_SCROLL_TO_POSITION);
-        intent.putExtra(Params.INDEX, baseBind.viewPager.getCurrentItem());
+        int current = baseBind.viewPager.getCurrentItem();
+        intent.putExtra(Params.INDEX, current);
+        // feeds 版列表按作品 id 锚定回滚位置：INDEX 是 pager 快照内的下标，列表带
+        // header（推荐页排行榜头）或收藏后相关作品插到中段时会漂移；
+        // legacy 接收侧（NetListFragment 等）只读 INDEX，不受影响
+        PageData currentPage = Container.get().getPage(pageUUID);
+        if (currentPage != null && current >= 0 && current < currentPage.getList().size()) {
+            intent.putExtra(Params.ID, currentPage.getList().get(current).getId());
+        }
         intent.putExtra(Params.PAGE_UUID, pageUUID);
         LocalBroadcastManager.getInstance(Shaft.getContext()).sendBroadcast(intent);
         super.onPause();

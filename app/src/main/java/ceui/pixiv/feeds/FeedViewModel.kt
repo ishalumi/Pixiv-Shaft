@@ -64,21 +64,25 @@ class FeedViewModel<Cursor : Any>(
             _uiState.update { it.copy(refresh = LoadState.Loading, append = LoadState.Idle) }
             try {
                 var page = source.load(null)
-                nextCursor = page.nextCursor
+                // 新一代游标先记在局部，与 items 一起在成功时提交：中途失败（空页追载的
+                // 后续请求挂掉）不能让屏幕上的旧一代列表配上新一代游标，否则后续
+                // loadMore 会把两代内容混排进同一张列表
+                var freshCursor = page.nextCursor
                 var items = page.items.dedupByIdentity()
                 var emptyHops = 0
-                while (items.isEmpty() && page.nextCursor != null && emptyHops < MAX_EMPTY_PAGE_HOPS) {
-                    page = source.load(page.nextCursor)
-                    nextCursor = page.nextCursor
+                while (items.isEmpty() && freshCursor != null && emptyHops < MAX_EMPTY_PAGE_HOPS) {
+                    page = source.load(freshCursor)
+                    freshCursor = page.nextCursor
                     items = page.items.dedupByIdentity()
                     emptyHops++
                 }
                 val hopCapExhausted = items.isEmpty() && emptyHops >= MAX_EMPTY_PAGE_HOPS
+                nextCursor = freshCursor
                 _uiState.update {
                     it.copy(
                         items = items,
                         refresh = LoadState.Idle,
-                        reachedEnd = nextCursor == null || hopCapExhausted,
+                        reachedEnd = freshCursor == null || hopCapExhausted,
                         hasLoadedOnce = true,
                     )
                 }

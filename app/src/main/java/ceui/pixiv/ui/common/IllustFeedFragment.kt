@@ -143,11 +143,25 @@ abstract class IllustFeedFragment(
     }
 
     /** 返回时列表跟到详情页正在看的那张（延迟一拍等转场结束）。 */
-    private fun scrollToDetailPosition(index: Int) {
+    private fun scrollToDetailPosition(illustId: Long, pagerIndex: Int) {
         feedBinding.feedListView.postDelayed({
             val adapter = feedAdapter ?: return@postDelayed
-            if (view != null && index in 0 until adapter.itemCount) {
-                feedBinding.feedListView.smoothScrollToPosition(index)
+            if (view == null) return@postDelayed
+            val items = feedViewModel.uiState.value.items
+            // pager 的 index 是交接快照里纯插画列表的下标，列表带 header（推荐页排行榜头）
+            // 或收藏后相关作品插到中段时不能直接当 adapter 位置用，按作品 id 锚定
+            var position = if (illustId > 0) {
+                items.indexOfFirst { it is IllustFeedItem && it.illust.id == illustId }
+            } else {
+                -1
+            }
+            if (position < 0 && pagerIndex >= 0) {
+                // 广播不带 id 时的兜底：第 pagerIndex 个插画条目（跳过混排的非插画条目）
+                var remaining = pagerIndex
+                position = items.indexOfFirst { it is IllustFeedItem && remaining-- == 0 }
+            }
+            if (position in 0 until adapter.itemCount) {
+                feedBinding.feedListView.smoothScrollToPosition(position)
             }
         }, 200L)
     }

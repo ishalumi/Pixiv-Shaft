@@ -219,6 +219,35 @@ class FeedViewModelTest {
     }
 
     @Test
+    fun `failed refresh does not leak new-generation cursor onto old items`() = runTest(dispatcher) {
+        // 刷新的新一代首页整页被滤空（cursor=100 是新一代游标），hop 追载请求失败：
+        // 屏幕上还是旧一代列表，游标必须停在旧一代（1），不能被推进到新一代（100）
+        var failRefresh = false
+        val source = object : FeedSource<Int> {
+            override suspend fun load(cursor: Int?): FeedPage<Int> = when (cursor) {
+                null -> if (failRefresh) FeedPage(emptyList(), 100) else FeedPage(listOf(Row(1)), 1)
+                1 -> FeedPage(listOf(Row(2)), null) // 旧一代第 2 页
+                else -> throw RuntimeException("boom at $cursor") // 新一代游标(100)的请求全部失败
+            }
+        }
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+        assertEquals(listOf(Row(1)), vm.uiState.value.items)
+
+        failRefresh = true
+        vm.refresh()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.refresh is LoadState.Error)
+        assertEquals(listOf(Row(1)), vm.uiState.value.items)
+
+        // 继续翻页必须走旧一代游标拿 Row(2)，而不是新一代的 Row(99) 混进旧列表
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(listOf(Row(1), Row(2)), vm.uiState.value.items)
+        assertTrue(vm.uiState.value.reachedEnd)
+    }
+
+    @Test
     fun `adoptCursor cancels in-flight append so stale cursor cannot clobber handover`() = runTest(dispatcher) {
         val gate = CompletableDeferred<Unit>()
         val source = object : FeedSource<Int> {

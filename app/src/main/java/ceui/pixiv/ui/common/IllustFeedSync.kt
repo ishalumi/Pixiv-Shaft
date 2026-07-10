@@ -42,7 +42,8 @@ class IllustFeedDetailSync(
     private val feedViewModel: FeedViewModel<String>,
     private val listPageUuid: String,
     private val itemFromBean: (IllustsBean?) -> IllustFeedItem?,
-    private val onDetailScrolledTo: (Int) -> Unit,
+    /** 详情页正看到某张作品：illustId 按 id 锚定（缺省 0），pagerIndex 是快照下标兜底。 */
+    private val onDetailScrolledTo: (illustId: Long, pagerIndex: Int) -> Unit,
 ) {
 
     fun bind(context: Context, viewLifecycleOwner: LifecycleOwner) {
@@ -71,7 +72,10 @@ class IllustFeedDetailSync(
             override fun onReceive(context: Context?, intent: Intent?) {
                 val extras = intent?.extras ?: return
                 if (extras.getString(Params.PAGE_UUID) != listPageUuid) return
-                onDetailScrolledTo(extras.getInt(Params.INDEX))
+                onDetailScrolledTo(
+                    extras.getInt(Params.ID).toLong(),
+                    extras.getInt(Params.INDEX, -1),
+                )
             }
         }
 
