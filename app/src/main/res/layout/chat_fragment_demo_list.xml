@@ -97,6 +97,33 @@
 
     </LinearLayout>
 
+    <!-- 「N 条新消息」胶囊:向上翻历史时来新消息才浮现,点一下回到底部。 -->
+    <TextView
+        android:id="@+id/new_msg_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_chat_new_msg_pill"
+        android:drawablePadding="2dp"
+        android:elevation="6dp"
+        android:gravity="center_vertical"
+        android:includeFontPadding="false"
+        android:paddingStart="12dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/v3_text_1"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:drawableStartCompat="@drawable/ic_baseline_keyboard_arrow_down_24"
+        app:drawableTint="@color/v3_text_1"
+        app:layout_constraintBottom_toTopOf="@id/input_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="3 条新消息"
+        tools:visibility="visible" />
+
     <ceui.pixiv.chat.ui.EmojiPanelView
         android:id="@+id/emoji_panel"
         android:layout_width="0dp"

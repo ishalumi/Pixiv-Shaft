@@ -7,8 +7,10 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -103,6 +105,11 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
 
     private var chatAdapter: ChatMessageAdapter? = null
     private var scrollToBottomOnNextUpdate = false
+
+    /** "N 条新消息" pill state — only shown when a new message lands while the
+     *  user is scrolled up reading history. */
+    private var newMsgCount = 0
+    private var lastNewestKey: String? = null
 
     /**
      * 当前 toolbar 标题的"非 typing"基线 —— typing 期间 title 被替换成
@@ -201,6 +208,9 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
                     if (dy != 0) paginateIfNeeded()
+                    if (newMsgCount > 0 && layoutManager.findFirstVisibleItemPosition() <= 0) {
+                        resetNewMsgPill()
+                    }
                 }
                 override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
                     if (newState != RecyclerView.SCROLL_STATE_IDLE) return
@@ -211,6 +221,11 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
                     }
                 }
             })
+        }
+
+        binding.newMsgPill.setOnClickListener {
+            binding.recyclerView.scrollToPosition(0)
+            resetNewMsgPill()
         }
 
         binding.stateLayout.setOnRetryClickListener { viewModel.retry() }
@@ -479,6 +494,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
                 Toast.makeText(requireContext(), "发送失败,请稍后重试", Toast.LENGTH_SHORT).show()
                 return@launch
             }
+            binding.btnSend.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             // `.clear()` triggers TextWatcher synchronously → the
             // doAfterTextChanged listener calls notifyTypingStop() in the
             // same call stack. No explicit follow-up call needed here.
@@ -629,17 +645,57 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     ) {
         viewModel.messages.collect { messages ->
             val wasAtBottom = layoutManager.findFirstVisibleItemPosition() <= 1
+            val ownSend = scrollToBottomOnNextUpdate
+            // A brand-new newest row (position 0 changed) means an inbound/own
+            // message — NOT a pagination load, which only grows the older tail.
+            val newestKey = messages.firstOrNull()?.localKey
+            val isNewIncoming = lastNewestKey != null &&
+                newestKey != null && newestKey != lastNewestKey
+            lastNewestKey = newestKey
 
             chatAdapter.submitList(messages) {
                 footerAdapter.setPagingState(viewModel.pagingState.value)
 
-                if ((wasAtBottom || scrollToBottomOnNextUpdate) && messages.isNotEmpty()) {
+                if ((wasAtBottom || ownSend) && messages.isNotEmpty()) {
                     binding.recyclerView.scrollToPosition(0)
                     scrollToBottomOnNextUpdate = false
+                    resetNewMsgPill()
+                    if (isNewIncoming || ownSend) animateNewestBubbleIn()
+                } else if (isNewIncoming) {
+                    // New message while the user is reading older history →
+                    // surface the "N 条新消息" pill instead of yanking them down.
+                    newMsgCount++
+                    showNewMsgPill()
                 }
 
                 binding.recyclerView.post { paginateIfNeeded() }
             }
+        }
+    }
+
+    private fun showNewMsgPill() {
+        binding.newMsgPill.visibility = View.VISIBLE
+        binding.newMsgPill.text = getString(R.string.chat_new_messages, newMsgCount)
+    }
+
+    private fun resetNewMsgPill() {
+        newMsgCount = 0
+        binding.newMsgPill.visibility = View.GONE
+    }
+
+    /** Subtle fade + rise on the newest bubble when it lands at the bottom. */
+    private fun animateNewestBubbleIn() {
+        binding.recyclerView.post {
+            val vh = binding.recyclerView.findViewHolderForLayoutPosition(0) ?: return@post
+            val v = vh.itemView
+            v.translationY = 14f * resources.displayMetrics.density
+            v.alpha = 0f
+            v.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setDuration(240L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
         }
     }
 

@@ -1836,6 +1836,7 @@
     <string name="chat_room_global_title">公開ラウンジ</string>
     <string name="chat_preview_you_prefix">自分:</string>
     <string name="chat_room_count">%1$d 件のトーク</string>
+    <string name="chat_new_messages">新着 %1$d 件</string>
     <string name="chat_self_label">自分</string>
     <string name="chat_input_hint">メッセージ</string>
     <string name="chat_global_closed_hint">公開チャットルームは発言できません</string>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「N 条新消息」悬浮胶囊底：v3 面色 + 0.5dp hairline + 全圆角，配合 view 的 elevation 浮在消息流上。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/chat_received_bubble" />
+    <corners android:radius="999dp" />
+    <stroke
+        android:width="0.5dp"
+        android:color="@color/v3_border_2" />
+</shape>

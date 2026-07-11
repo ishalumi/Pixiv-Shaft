@@ -56,7 +56,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:lineSpacingExtra="3dp"
-                    android:maxWidth="260dp"
                     android:textColor="@android:color/white"
                     android:textIsSelectable="false"
                     android:textSize="15sp"

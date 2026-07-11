@@ -1838,6 +1838,7 @@
     <string name="chat_room_global_title">公屏閒聊</string>
     <string name="chat_preview_you_prefix">你:</string>
     <string name="chat_room_count">%1$d 個對話</string>
+    <string name="chat_new_messages">%1$d 則新訊息</string>
     <string name="chat_self_label">我</string>
     <string name="chat_input_hint">輸入訊息…</string>
     <string name="chat_global_closed_hint">公共聊天室已關閉發言</string>

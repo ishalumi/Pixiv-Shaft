@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 收到的消息 —— V3。竖向根:①时间分组胶囊(间隔大/跨天时居中显示,默认 GONE)
      ②气泡行(头像 + 昵称[仅公屏] + 气泡 + 气泡下方发送时间)。
-     气泡用 LinearLayout + bg_chat_bubble_received(圆角 drawable),不用 MaterialCardView。 -->
+     气泡用 LinearLayout + bg_chat_bubble_received(圆角 drawable),不用 MaterialCardView。
+     头像用 FrameLayout 包一层,匿名用户叠一个白色首字 monogram(tv_monogram)。
+     根的上/下 padding(分组节奏)与气泡最大宽(按屏宽 70%)在 ChatMessageAdapter 运行时设。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -34,11 +36,32 @@
         android:gravity="start|top"
         android:orientation="horizontal">
 
-        <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/iv_avatar"
+        <FrameLayout
+            android:id="@+id/avatar_wrap"
             android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/chat_avatar_placeholder" />
+            android:layout_height="40dp">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_avatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/chat_avatar_placeholder" />
+
+            <!-- 匿名用户身份字:白色首字压在同色圆头像上 -->
+            <TextView
+                android:id="@+id/tv_monogram"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="匿"
+                tools:visibility="visible" />
+
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -80,7 +103,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:lineSpacingExtra="3dp"
-                    android:maxWidth="260dp"
                     android:textColor="@color/v3_text_1"
                     android:textIsSelectable="false"
                     android:textSize="15sp"
