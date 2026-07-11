@@ -351,4 +351,173 @@ class FeedViewModelTest {
         vm.removeItems { it.feedKey == 1 }
         assertEquals(listOf(Row(2, "liked")), vm.uiState.value.items)
     }
+
+    // ── 本地优先（FeedSource.loadFromCache）──────────────────────────────────
+
+    /**
+     * 可缓存的假数据源：[cachedPage] 是磁盘快照（null=未命中），网络首屏可选挂在 [networkGate]
+     * 上模拟慢请求 / 观察「缓存已显示、刷新在飞」的中间态，[failNetworkRefresh] 模拟离线刷新失败。
+     */
+    private class FakeCacheableSource(
+        private val networkPages: List<List<Row>>,
+        var cachedPage: FeedPage<Int>? = null,
+        var failNetworkRefresh: Boolean = false,
+        private val networkGate: CompletableDeferred<Unit>? = null,
+    ) : FeedSource<Int> {
+        var loadFromCacheCount = 0
+        var firstPageNetworkCount = 0
+
+        override suspend fun loadFromCache(): FeedPage<Int>? {
+            loadFromCacheCount++
+            return cachedPage
+        }
+
+        override suspend fun load(cursor: Int?): FeedPage<Int> {
+            if (cursor == null) {
+                firstPageNetworkCount++
+                networkGate?.await()
+                if (failNetworkRefresh) throw RuntimeException("network boom")
+            }
+            val index = cursor ?: 0
+            val next = (index + 1).takeIf { it < networkPages.size }
+            return FeedPage(networkPages[index], next)
+        }
+    }
+
+    @Test
+    fun `cold start shows cache first then swaps to fresh network`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10), Row(11)), listOf(Row(12))),
+            cachedPage = FeedPage(listOf(Row(1), Row(2)), 1),
+            networkGate = gate,
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        // 网络首屏还挂在 gate 上：屏幕先显示磁盘缓存，顶部转圈刷新中（内容态而非全屏 loading）
+        val cacheShown = vm.uiState.value
+        assertEquals(listOf(Row(1), Row(2)), cacheShown.items)
+        assertTrue(cacheShown.showingCache)
+        assertTrue(cacheShown.hasLoadedOnce)
+        assertTrue(cacheShown.refresh is LoadState.Loading)
+        assertFalse(cacheShown.showFullscreenLoading)
+        assertEquals(1, source.loadFromCacheCount)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        // 网络回来覆盖成最新数据，缓存标记清除
+        val fresh = vm.uiState.value
+        assertEquals(listOf(Row(10), Row(11)), fresh.items)
+        assertFalse(fresh.showingCache)
+        assertEquals(LoadState.Idle, fresh.refresh)
+    }
+
+    @Test
+    fun `cold start without cache goes straight to fullscreen loading`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10))),
+            cachedPage = null,
+            networkGate = gate,
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        val loading = vm.uiState.value
+        assertTrue(loading.items.isEmpty())
+        assertFalse(loading.showingCache)
+        assertTrue(loading.showFullscreenLoading) // 没缓存就是常规全屏 loading
+        assertEquals(1, source.loadFromCacheCount)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(Row(10)), vm.uiState.value.items)
+    }
+
+    @Test
+    fun `pull to refresh after loaded does not re-read cache`() = runTest(dispatcher) {
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10))),
+            cachedPage = FeedPage(listOf(Row(1)), null),
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+        assertEquals(listOf(Row(10)), vm.uiState.value.items)
+        val cacheReadsAfterColdStart = source.loadFromCacheCount
+
+        // 已加载过（hasLoadedOnce=true）：下拉刷新不再读缓存，不会闪回旧数据
+        vm.refresh()
+        advanceUntilIdle()
+        assertEquals(cacheReadsAfterColdStart, source.loadFromCacheCount)
+        assertFalse(vm.uiState.value.showingCache)
+    }
+
+    @Test
+    fun `network failure after cache keeps cache visible without fullscreen error`() = runTest(dispatcher) {
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10))),
+            cachedPage = FeedPage(listOf(Row(1), Row(2)), 1),
+            failNetworkRefresh = true,
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(listOf(Row(1), Row(2)), state.items) // 离线也留着上次首屏
+        assertTrue(state.refresh is LoadState.Error)
+        assertFalse(state.showFullscreenError) // 有内容 → 不顶成全屏错误
+        assertTrue(state.hasLoadedOnce)
+        assertFalse(state.showingCache) // 刷新停在 Error 就不再是「更新中」，showingCache 归 false
+    }
+
+    @Test
+    fun `cache restore failure falls through to network without crashing`() = runTest(dispatcher) {
+        // loadFromCache（跑用户 mapper）在恢复态抛错，绝不能崩：必须被吞、照常走网络首屏
+        val source = object : FeedSource<Int> {
+            override suspend fun loadFromCache(): FeedPage<Int>? {
+                throw RuntimeException("restore boom")
+            }
+
+            override suspend fun load(cursor: Int?): FeedPage<Int> {
+                val index = cursor ?: 0
+                return FeedPage(listOf(Row(10 + index)), null)
+            }
+        }
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(listOf(Row(10)), state.items) // 网络首屏正常出
+        assertEquals(LoadState.Idle, state.refresh)
+        assertTrue(state.hasLoadedOnce)
+        assertFalse(state.showingCache)
+    }
+
+    @Test
+    fun `loadMore is suppressed while cache shown and refresh in flight`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10), Row(11)), listOf(Row(12))),
+            cachedPage = FeedPage(listOf(Row(1), Row(2)), 1),
+            networkGate = gate,
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        // 缓存展示中、网络刷新在飞：翻页被 `refresh is Loading` 守卫挡住（不拿旧游标翻页）
+        assertTrue(vm.uiState.value.showingCache)
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(listOf(Row(1), Row(2)), vm.uiState.value.items)
+
+        // 刷新落地后翻页恢复正常，走新一代游标
+        gate.complete(Unit)
+        advanceUntilIdle()
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(listOf(Row(10), Row(11), Row(12)), vm.uiState.value.items)
+        assertTrue(vm.uiState.value.reachedEnd)
+    }
 }

@@ -38,8 +38,8 @@ class RankIllustFeedFragment : IllustFeedFragment() {
         val mode = mode
         val queryDate = queryDate
         val skipR18Filter = skipR18Filter
-        PixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, isFirstPage ->
-            mapRankPage(resp.displayList, isFirstPage, mode, skipR18Filter)
+        PixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, phase ->
+            mapRankPage(resp.displayList, phase.isFirstPage, mode, skipR18Filter)
         }
     }
 

@@ -11,13 +11,16 @@ data class FeedPage<Cursor : Any>(
 )
 
 /**
- * 数据源的全部契约：一个纯 suspend 函数。
+ * 数据源契约：一个必做的 suspend [load]，外加一个可选的本地优先能力 [loadFromCache]。
  *
- * - `cursor == null` 表示加载第一页（首屏 / 刷新都会走这里）；
- * - 否则加载游标指向的下一页。
+ * - `cursor == null` 表示加载第一页（首屏 / 刷新都会走这里）；否则加载游标指向的下一页。
  *
  * 设计取舍：
- * - 不用继承体系承载数据逻辑，fun interface 让最简单的数据源可以直接写成 lambda；
+ * - 仍是 `fun interface`：只有 [load] 一个抽象方法，最简单的数据源可直接写成
+ *   `FeedSource { cursor -> ... }`；[loadFromCache] 有默认实现，不算抽象方法，不破坏 SAM。
+ * - 本地优先做成**带默认实现的可选能力**而不是独立的标记子接口：调用方（[FeedViewModel]）
+ *   直接 `source.loadFromCache()` 即可，不必 `as?` 运行时探测能力、也就没有 `@Suppress`
+ *   的非受检泛型转换——绝大多数源无需实现，默认返回 null 即「无缓存」。
  * - 游标是泛型：pixiv 的 nextUrl 是 String，本地库可以用页码 Int 或 Room 的 offset；
  * - 实现必须 main-safe（Retrofit suspend 天然满足；自己做重 IO / 解析要切 Dispatchers）。
  *
@@ -26,4 +29,16 @@ data class FeedPage<Cursor : Any>(
 fun interface FeedSource<Cursor : Any> {
 
     suspend fun load(cursor: Cursor?): FeedPage<Cursor>
+
+    /**
+     * 本地优先（可选）：冷启时从磁盘快照即时恢复上一次首屏；无缓存 / 未命中 / 损坏都返回 null。
+     *
+     * 默认无缓存（返回 null）——[FeedViewModel] 冷启会先调它秒显旧首屏，再照常网络刷新覆盖
+     * （RemoteMediator 语义：本地兜首屏，翻页仍走网络）。实现见 [PixivFeedSource]。
+     *
+     * - 必须 main-safe（重 IO / 反序列化自行切线程）；不碰网络；
+     * - 不产生「拉取成功」类副作用（喂画像池、写浏览历史等只属于真正的网络 [load]，拿旧数据
+     *   重放会污染下游——用 [FeedLoadPhase.CacheRestore] 区分）。
+     */
+    suspend fun loadFromCache(): FeedPage<Cursor>? = null
 }

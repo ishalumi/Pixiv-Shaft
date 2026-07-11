@@ -54,6 +54,11 @@ class FeedViewModel<Cursor : Any>(
     /**
      * 加载第一页。已有内容会保留在屏幕上直到新数据到达（不闪白屏）。
      *
+     * 本地优先（数据源实现了 [FeedSource.loadFromCache] 时）：仅在**冷启**——本 VM 还没成功出过首屏
+     * （`!hasLoadedOnce`，即进程重建 / 首次可见，非旋转 / 非下拉刷新）——先用磁盘快照秒显旧首屏，
+     * 同时下面照常发网络刷新覆盖（哔哩哔哩 / 新闻首页语义）。旋转与下拉刷新时 hasLoadedOnce 已 true，
+     * 不走缓存分支，不会刷新时闪回旧数据。
+     *
      * 首页同样有空页追载：mapper 把第一页整页滤空（重口味屏蔽设置 + #729 场景）时，
      * 继续向后翻，直到拿到可展示内容或确定到底——否则空列表上没有任何 onBind，
      * loadMore 的预取信号永远不会点火。
@@ -63,6 +68,36 @@ class FeedViewModel<Cursor : Any>(
         appendJob?.cancel()
         refreshJob = viewModelScope.launch {
             _uiState.update { it.copy(refresh = LoadState.Loading, append = LoadState.Idle) }
+
+            // 本地优先：冷启时先秒显磁盘快照，网络刷新在下面照常进行并覆盖。
+            // 置 hasLoadedOnce=true 让全屏 loading 让位给「内容 + 顶部刷新圈」（render 现成逻辑：
+            // isRefreshing = refresh is Loading && hasLoadedOnce）；refresh 保持 Loading 表示仍在刷新。
+            // 缓存旧游标翻页的竞态由 loadMore 现有的 `refresh is Loading → return` 守卫免费挡住。
+            if (!_uiState.value.hasLoadedOnce) {
+                // loadFromCache 会跑用户 mapper（缓存恢复态），可能在 gson 还原出的边界数据上抛错。
+                // 这段在下面网络 try 之外，必须自兜底：缓存恢复失败绝不能崩进程，吞掉照常走网络刷新
+                //（与网络首屏路径对称——那条 mapper 抛错也只是转 Error，不炸）。取消照常向上传播。
+                try {
+                    // 本地优先是 FeedSource 的可选默认能力：无缓存的源默认返回 null，直接调不用 as? 探测
+                    val cached = source.loadFromCache()
+                    if (cached != null && cached.items.isNotEmpty() && !_uiState.value.hasLoadedOnce) {
+                        nextCursor = cached.nextCursor
+                        _uiState.update {
+                            it.copy(
+                                items = cached.items,
+                                reachedEnd = cached.nextCursor == null,
+                                hasLoadedOnce = true,
+                                showingCache = true,
+                            )
+                        }
+                    }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Throwable) {
+                    Timber.w(ex, "feeds: 本地缓存恢复失败，回退网络刷新")
+                }
+            }
+
             try {
                 var page = source.load(null)
                 // 新一代游标先记在局部，与 items 一起在成功时提交：中途失败（空页追载的
@@ -85,13 +120,18 @@ class FeedViewModel<Cursor : Any>(
                         refresh = LoadState.Idle,
                         reachedEnd = freshCursor == null || hopCapExhausted,
                         hasLoadedOnce = true,
+                        showingCache = false,
                     )
                 }
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Throwable) {
                 Timber.e(ex)
-                _uiState.update { it.copy(refresh = LoadState.Error(ex)) }
+                // 已用缓存兜底（items 非空）时：不覆盖内容，只置 refresh=Error，由 render 的
+                // 「有内容刷新失败」一次性 Toast 提示；showFullscreenError 要求 items 为空，故缓存内容
+                // 不被顶成全屏错误——离线冷启也能继续浏览上次的首屏。showingCache 归 false：它的语义是
+                //「显示缓存且刷新仍在进行」，刷新已停在 Error 就不再成立（内容仍在，只是不再是「更新中」）。
+                _uiState.update { it.copy(refresh = LoadState.Error(ex), showingCache = false) }
             }
         }
     }
@@ -111,6 +151,9 @@ class FeedViewModel<Cursor : Any>(
         // Loading 防重入；Error 停手等用户点重试
         if (current.append !is LoadState.Idle) return
         val firstCursor = nextCursor ?: return
+        // 单飞守卫成立依赖 viewModelScope 是 Dispatchers.Main.immediate：launch 会同步跑到第一个
+        // 挂起点，append=Loading 在本函数返回前就提交，挡住紧接着的同步 onNearEnd 重入。若哪天把
+        // 调度器换成非 immediate 的 Main，这里会放进第二个 appendJob 把第一个悬空——改前先想清楚。
         appendJob = viewModelScope.launch {
             _uiState.update { it.copy(append = LoadState.Loading) }
             try {

@@ -12,6 +12,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 import ceui.lisa.feature.FeatureEntity;
 import ceui.pixiv.db.DiscoveryDao;
 import ceui.pixiv.db.DiscoveryEntity;
+import ceui.pixiv.db.FeedCacheDao;
+import ceui.pixiv.db.FeedCacheEntity;
 import ceui.pixiv.db.GeneralDao;
 import ceui.pixiv.db.GeneralEntity;
 import ceui.pixiv.db.RemoteKey;
@@ -47,8 +49,9 @@ import ceui.pixiv.db.synonym.SynonymTargetEntity;
                 DownloadQueueEntity.class, // 批量下载队列（v33）
                 SynonymTargetEntity.class, // 同义词词典-目标标签（v36 建表 / v37 加 lastUsedAt, issue #904/#910）
                 SynonymTagEntity.class, // 同义词词典-同义词（v36, issue #904）
+                FeedCacheEntity.class, // feeds 框架本地优先首屏快照（v39）
         },
-        version = 38,
+        version = 39,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -354,6 +357,25 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    // 迁移 38 -> 39：feeds 框架「本地优先」首屏快照表。一个可缓存 feed 一行、自我覆盖，
+    // 只存首屏原始响应 JSON（往后翻页仍走网络）。cacheKey 含账号命名空间；savedAt 建索引
+    // 供 LRU 淘汰 / 过期判定排序。列名 / 类型 / 可空性必须与 FeedCacheEntity 完全一致。
+    private static final Migration MIGRATION_38_39 = new Migration(38, 39) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS feed_cache_table (" +
+                            "cacheKey TEXT NOT NULL PRIMARY KEY, " +
+                            "schemaVersion INTEGER NOT NULL, " +
+                            "payloadJson TEXT NOT NULL, " +
+                            "nextCursor TEXT, " +
+                            "savedAt INTEGER NOT NULL" +
+                            ")"
+            );
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_feed_cache_table_savedAt ON feed_cache_table(savedAt)");
+        }
+    };
+
     private static AppDatabase INSTANCE;
 
     // synchronized：同义词词典（issue #904）让 Rx 后台线程（SelectTagRepo.mapper）也会触发
@@ -381,6 +403,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_35_36) // 注册 35 -> 36 迁移 (同义词词典两张表)
                             .addMigrations(MIGRATION_36_37) // 注册 36 -> 37 迁移 (synonym_target_table.lastUsedAt)
                             .addMigrations(MIGRATION_37_38) // 注册 37 -> 38 迁移 (illust_download_table.illustId 索引列)
+                            .addMigrations(MIGRATION_38_39) // 注册 38 -> 39 迁移 (feed_cache_table 本地优先首屏快照)
                             .build();
         }
         return INSTANCE;
@@ -419,6 +442,8 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract DownloadQueueDao downloadQueueDao();
 
     public abstract SynonymDao synonymDao();
+
+    public abstract FeedCacheDao feedCacheDao();
 
 }
 
