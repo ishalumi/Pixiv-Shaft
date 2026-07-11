@@ -1,30 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Conversation row, Figma 3201:18622 / 3201:18642 (Five-Degrees).
-     Vertical structure inside the text column mirrors Figma:
-       Row 1: name (left, semibold 15) / time (right, regular 12)
-       Row 2: preview (regular 13, marginTop 4)
-       Row 3: state badge slot (marginTop 4, GONE for read rows)
-     Pixiv has no dating-app states, so row 3 is reused for the unread
-     pill — visible only when unread_count > 0. -->
+<!-- 私信会话行 —— V3 重设计。无分割线(靠 10dp 纵向留白 + 层级拉开)，
+     paddingStart 20dp 与 header 大标题对齐。头像 54dp 圆(细描边)，未读时
+     描边转主题色 + 右下角主题色计数胶囊(背景/描边在 ChatRoomListAdapter 里按
+     Shaft 品牌色运行时铺，替代旧的硬编码 #E95A5A)。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
-    android:foreground="@drawable/chat_room_row_divider"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
+    android:paddingStart="20dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="10dp">
 
-    <com.google.android.material.imageview.ShapeableImageView
+    <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/iv_avatar"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:scaleType="centerCrop"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
         android:src="@drawable/chat_avatar_placeholder"
-        app:shapeAppearanceOverlay="@style/ShapeAppearance.Chat.Avatar" />
+        app:civ_border_width="2dp" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -33,7 +30,7 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- Row 1: name | time -->
+        <!-- 首行：名字(左) / 时间(右) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -47,8 +44,9 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:includeFontPadding="false"
+                android:letterSpacing="-0.01"
                 android:singleLine="true"
-                android:textColor="?attr/colorOnSurface"
+                android:textColor="@color/v3_text_1"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 tools:text="James L." />
@@ -59,44 +57,49 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:includeFontPadding="false"
-                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textColor="@color/v3_text_3"
                 android:textSize="12sp"
                 tools:text="2h" />
 
         </LinearLayout>
 
-        <!-- Row 2: preview -->
-        <TextView
-            android:id="@+id/tv_preview"
+        <!-- 次行：预览(左，占宽) / 未读计数胶囊(右) -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:includeFontPadding="false"
-            android:singleLine="true"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp"
-            tools:text="I specialize in R&amp;D tax credits for startups." />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <!-- Row 3: badge slot (Pixiv: red unread pill). marginTop matches
-             Figma's flex-col gap=4. Pill height 18dp, padding 6/2, text
-             11sp bold so digits stay readable inside the small chip. -->
-        <TextView
-            android:id="@+id/tv_unread"
-            android:layout_width="wrap_content"
-            android:layout_height="18dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/chat_room_unread_badge"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:minWidth="18dp"
-            android:paddingHorizontal="6dp"
-            android:textColor="@color/always_white"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="2"
-            tools:visibility="visible" />
+            <TextView
+                android:id="@+id/tv_preview"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:singleLine="true"
+                android:textColor="@color/v3_text_2"
+                android:textSize="13sp"
+                tools:text="I specialize in R&amp;D tax credits for startups." />
+
+            <TextView
+                android:id="@+id/tv_unread"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:layout_marginStart="10dp"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:minWidth="20dp"
+                android:paddingHorizontal="7dp"
+                android:textColor="@color/always_white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="2"
+                tools:visibility="visible" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

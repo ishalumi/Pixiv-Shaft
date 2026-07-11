@@ -1835,6 +1835,7 @@
     <string name="chat_drawer_entry">Чат</string>
     <string name="chat_room_global_title">Общий чат</string>
     <string name="chat_preview_you_prefix">Вы:</string>
+    <string name="chat_room_count">Диалогов: %1$d</string>
     <string name="chat_self_label">Вы</string>
     <string name="chat_input_hint">Сообщение</string>
     <string name="chat_global_closed_hint">Публичный чат закрыт для отправки сообщений</string>

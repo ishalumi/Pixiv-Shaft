@@ -5,7 +5,7 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurfaceContainerLow"
+    android:background="@color/v3_bg"
     android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
     <include layout="@layout/chat_layout_toolbar" />
@@ -37,7 +37,7 @@
         android:gravity="center_vertical"
         android:paddingHorizontal="12dp"
         android:paddingVertical="10dp"
-        android:background="?attr/colorSurfaceContainer"
+        android:background="@color/v3_menu_bg"
         app:layout_constraintBottom_toTopOf="@id/emoji_panel"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -61,7 +61,7 @@
             app:hintEnabled="false"
             app:boxStrokeWidth="0dp"
             app:boxStrokeWidthFocused="0dp"
-            app:boxBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:boxBackgroundColor="@color/chat_received_bubble"
             app:boxCornerRadiusBottomEnd="22dp"
             app:boxCornerRadiusBottomStart="22dp"
             app:boxCornerRadiusTopEnd="22dp"

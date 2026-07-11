@@ -115,6 +115,8 @@
     <color name="v3_purple">#9F7AEA</color>
     <!-- 评论毛玻璃卡片:抬升的炭黑 95%,从近黑背景上浮起,浅色文字可读 -->
     <color name="v3_glass_card">#F21D1D26</color>
+    <!-- 聊天收到气泡底:夜=比 v3_bg(#08080C)亮一档的深靛蓝,读得出气泡边界 -->
+    <color name="chat_received_bubble">#23232F</color>
     <color name="v3_orange">#FF6F3C</color>
     <color name="v3_ambient_primary">#7C6BC4</color>
     <color name="v3_ambient_glow">#664D3F9E</color>

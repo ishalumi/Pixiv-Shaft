@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 公屏 hero 卡上的图标玻璃底：白 18% 圆，压在主题色渐变卡上做出「毛玻璃圆」的层次。
+     恒定白透明(不随日夜)——hero 卡底永远是主题色渐变、白图标，两个模式都成立。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#2EFFFFFF" />
+</shape>

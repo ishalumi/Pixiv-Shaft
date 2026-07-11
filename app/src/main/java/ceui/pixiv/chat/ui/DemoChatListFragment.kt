@@ -4,12 +4,15 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.graphics.ColorUtils
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
@@ -22,6 +25,7 @@ import com.bumptech.glide.Glide
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.UActivity
 import ceui.lisa.databinding.ChatFragmentDemoListBinding
 import ceui.lisa.utils.GlideUrlChild
@@ -178,6 +182,7 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
         // handshake authenticates with, so echoes line up.
         val chatAdapter = ChatMessageAdapter(
             selfUid = SessionManager.loggedInUid,
+            isGlobal = isGlobalRoom,
             onLongClick = { msg -> showMessageActions(msg) },
             onAvatarClick = { uid -> openUserProfile(uid) },
         ).also { this.chatAdapter = it }
@@ -402,6 +407,19 @@ class DemoChatListFragment : Fragment(R.layout.chat_fragment_demo_list) {
     // ── Input bar ───────────────────────────────────────────────────────
 
     private fun setupInput() {
+        // Brand-tint the send button. This screen overlays a full Material3
+        // theme (for its StateLayout), which shadows colorPrimary with the M3
+        // baseline tone — so the default Filled button would render M3 purple,
+        // clashing with the brand-green toolbar + sent bubbles. Pull the real
+        // brand colour (same source as the bubbles) and build a state list that
+        // still dims when the button is disabled.
+        runCatching { Color.parseColor(Shaft.getThemeColor()) }.getOrNull()?.let { brand ->
+            binding.btnSend.backgroundTintList = ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf()),
+                intArrayOf(brand, ColorUtils.setAlphaComponent(brand, 0x40)),
+            )
+            binding.btnSend.iconTint = ColorStateList.valueOf(Color.WHITE)
+        }
         binding.etInput.doAfterTextChanged { text ->
             refreshSendEnabled()
             // Outbound typing signal — DM-only, VM short-circuits global.

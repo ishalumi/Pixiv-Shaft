@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 收到的消息气泡底 —— V3 中性表面(日 #FFFFFF / 夜 深靛蓝),0.5dp hairline 让它在
+     v3_bg 上浮出来。左上角收成 6dp(靠头像一侧的「小尾巴」),其余 18dp,做出气泡朝向感。
+     发送气泡的主题色渐变底在 ChatMessageAdapter 里按品牌色运行时铺(见 NavExt:本页 M3
+     overlay 会遮蔽 colorPrimary,主题色一律走 Shaft.getThemeColor)。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/chat_received_bubble" />
+    <corners
+        android:topLeftRadius="6dp"
+        android:topRightRadius="18dp"
+        android:bottomRightRadius="18dp"
+        android:bottomLeftRadius="18dp" />
+    <stroke
+        android:width="0.5dp"
+        android:color="@color/v3_border_2" />
+</shape>

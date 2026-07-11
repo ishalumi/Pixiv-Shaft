@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 公屏闲聊 hero 卡 —— 会话列表里唯一的「公开聊天室」入口，做成主题色渐变旗舰卡，
+     和下方灰阶私信行明确拉开层级。卡底渐变(主题色 → +40° hue)在 ChatRoomListAdapter
+     里按 Shaft.getThemeColor() 运行时铺(见 NavExt：本 fragment 的 M3 overlay 会遮蔽
+     colorPrimary，必须取品牌色而非 ?attr)，白字/白图标在日夜两模式都读得清。
+     圆角 24 + 3dp elevation(shadow 跟随 GradientDrawable 的圆角 outline)。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/hero_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="12dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginBottom="4dp"
+    android:clickable="true"
+    android:elevation="3dp"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="16dp"
+    android:stateListAnimator="@animator/button_press_scale">
+
+    <!-- 图标玻璃圆：白 18% 圆 + 白色地球 -->
+    <FrameLayout
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:background="@drawable/chat_hero_glass_circle">
+
+        <ImageView
+            android:layout_width="27dp"
+            android:layout_height="27dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_setcat_globe"
+            android:tint="@android:color/white" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- 首行：标题(左) / 时间(右) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.01"
+                android:singleLine="true"
+                android:textColor="@android:color/white"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                tools:text="公屏闲聊" />
+
+            <TextView
+                android:id="@+id/tv_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:includeFontPadding="false"
+                android:textColor="#B3FFFFFF"
+                android:textSize="12sp"
+                tools:text="2分钟前" />
+
+        </LinearLayout>
+
+        <!-- 次行：最后一条消息预览 -->
+        <TextView
+            android:id="@+id/tv_preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="#D9FFFFFF"
+            android:textSize="13sp"
+            tools:text="有人在聊今天的新图……" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="6dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_chevron_right_black_24dp"
+        android:tint="#80FFFFFF" />
+
+</LinearLayout>

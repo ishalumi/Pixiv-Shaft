@@ -1,46 +1,99 @@
 package ceui.pixiv.chat.ui
 
+import android.content.Context
+import android.content.res.Configuration
+import android.graphics.Color
 import android.text.format.DateUtils
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.databinding.ChatItemRoomBinding
+import ceui.lisa.databinding.ChatItemRoomHeroBinding
 import ceui.lisa.utils.GlideUrlChild
+import ceui.lisa.utils.V3Palette
 import ceui.pixiv.chat.base.BaseListAdapter
 import com.bumptech.glide.Glide
 
 /**
- * Renders [ChatRoomEntry] rows in the chat conversation list (Figma 3201:18523
- * adapted to AppCompat host: chat module's existing Material3 theme overlay
- * is applied by the fragment layout so M3 attrs work safely).
+ * Renders the chat conversation list in the V3 language.
  *
- * Two row variants flow through the same VH because they share the same
- * layout — the difference is purely in how display name is derived
- * (Global vs peer uid). Putting that branch inside [bind] keeps the
- * RecyclerView's view-type set trivial.
+ * Two view types share one [ChatRoomEntry] model:
+ *   - [TYPE_HERO] — the pinned public room (公屏闲聊). A theme-gradient flagship
+ *     card so the one public space reads as special, not as "just another row".
+ *   - [TYPE_ROW]  — 1v1 DMs. Clean divider-less rows; unread state is expressed
+ *     with a theme-accent avatar ring + a theme-accent count pill.
+ *
+ * All accent colors come from [V3Palette] built off [Shaft.getThemeColor] — NOT
+ * `?attr/colorPrimary`: this fragment used to overlay a full Material3 theme
+ * (see NavExt) and even now we pin to the brand color so the accent matches the
+ * user's AppTheme_IndexN exactly, in both day and night. The palette is cached
+ * per adapter instance (recreated on config change, so night-mode flips refresh
+ * it for free).
  */
 class ChatRoomListAdapter(
     private val onClick: (ChatRoomEntry) -> Unit,
-) : BaseListAdapter<ChatRoomEntry, ChatRoomListAdapter.VH>(diffCallback(keySelector = { it.room })) {
+) : BaseListAdapter<ChatRoomEntry, RecyclerView.ViewHolder>(
+    diffCallback(keySelector = { it.room }),
+) {
 
-    override fun onCreateDataViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val binding = ChatItemRoomBinding.inflate(
-            LayoutInflater.from(parent.context), parent, false,
-        )
-        return VH(binding)
+    private var cachedPalette: V3Palette? = null
+
+    private fun palette(ctx: Context): V3Palette = cachedPalette ?: run {
+        val brand = runCatching { Color.parseColor(Shaft.getThemeColor()) }
+            .getOrDefault(ContextCompat.getColor(ctx, R.color.v3_purple))
+        val isDark = (ctx.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        V3Palette(brand, isDark).also { cachedPalette = it }
     }
 
-    override fun onBindDataViewHolder(holder: VH, item: ChatRoomEntry) {
-        holder.bind(item, onClick)
+    override fun getDataItemViewType(item: ChatRoomEntry, position: Int): Int =
+        if (item.kind == ChatRoomEntry.Kind.GLOBAL) TYPE_HERO else TYPE_ROW
+
+    override fun onCreateDataViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            TYPE_HERO -> HeroVH(ChatItemRoomHeroBinding.inflate(inflater, parent, false))
+            else -> RowVH(ChatItemRoomBinding.inflate(inflater, parent, false))
+        }
     }
 
-    class VH(private val binding: ChatItemRoomBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(item: ChatRoomEntry, onClick: (ChatRoomEntry) -> Unit) {
-            // Avatar: peer's pixiv image for 1v1 once the fragment has
-            // looked it up; otherwise the chat placeholder. Loading goes
-            // through GlideUrlChild + the .pximg.net referer headers Pixiv
-            // requires, so it works without a separate proxy.
+    override fun onBindDataViewHolder(holder: RecyclerView.ViewHolder, item: ChatRoomEntry) {
+        when (holder) {
+            is HeroVH -> holder.bind(item, palette(holder.itemView.context), onClick)
+            is RowVH -> holder.bind(item, palette(holder.itemView.context), onClick)
+        }
+    }
+
+    // ── Hero: the public room ───────────────────────────────────────────────
+
+    class HeroVH(private val binding: ChatItemRoomHeroBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(item: ChatRoomEntry, palette: V3Palette, onClick: (ChatRoomEntry) -> Unit) {
+            val density = binding.root.resources.displayMetrics.density
+            // Theme-gradient card (primary → +40° hue). Elevation shadow follows
+            // the drawable's rounded outline for a soft floating card.
+            binding.heroCard.background = palette.seriesIconBg(24f * density)
+            binding.tvName.text = item.title
+            binding.tvPreview.text = buildPreview(binding.root.context, item).ifBlank { "—" }
+            binding.tvTime.text = if (item.lastTs > 0L) formatRelative(item.lastTs) else ""
+            binding.root.setOnClickListener { onClick(item) }
+        }
+    }
+
+    // ── Row: 1v1 DMs ─────────────────────────────────────────────────────────
+
+    class RowVH(private val binding: ChatItemRoomBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(item: ChatRoomEntry, palette: V3Palette, onClick: (ChatRoomEntry) -> Unit) {
+            val ctx = binding.root.context
+            val density = ctx.resources.displayMetrics.density
+
+            // Avatar: peer's pixiv image once resolved, else the chat placeholder.
+            // Loading goes through GlideUrlChild for the .pximg.net referer.
             val url = item.avatarUrl
             if (url.isNullOrBlank()) {
                 Glide.with(binding.ivAvatar).clear(binding.ivAvatar)
@@ -52,33 +105,44 @@ class ChatRoomListAdapter(
                     .into(binding.ivAvatar)
             }
 
+            val unread = item.unreadCount > 0
+            // Unread rows get a theme-accent avatar ring; read rows a faint hairline.
+            binding.ivAvatar.borderColor =
+                if (unread) palette.primary else ContextCompat.getColor(ctx, R.color.v3_border_2)
+
             binding.tvName.text = item.title
-            binding.tvPreview.text = buildPreview(item).ifBlank { "—" }
+            binding.tvPreview.text = buildPreview(ctx, item).ifBlank { "—" }
+            // Unread preview reads at full strength; read preview stays muted.
+            binding.tvPreview.setTextColor(
+                ContextCompat.getColor(ctx, if (unread) R.color.v3_text_1 else R.color.v3_text_2),
+            )
             binding.tvTime.text = if (item.lastTs > 0L) formatRelative(item.lastTs) else ""
-            // Unread badge: hidden when 0; shows 1-2 digit count; "99+" for
-            // anything 100+ so the pill stays narrow.
-            if (item.unreadCount > 0) {
-                binding.tvUnread.visibility = android.view.View.VISIBLE
+
+            if (unread) {
+                binding.tvUnread.visibility = View.VISIBLE
+                binding.tvUnread.background = palette.pillPrimary(10f * density)
                 binding.tvUnread.text =
                     if (item.unreadCount > 99) "99+" else item.unreadCount.toString()
             } else {
-                binding.tvUnread.visibility = android.view.View.GONE
+                binding.tvUnread.visibility = View.GONE
             }
             binding.root.setOnClickListener { onClick(item) }
         }
+    }
+
+    companion object {
+        private const val TYPE_HERO = 1
+        private const val TYPE_ROW = 0
 
         /**
-         * Show "<sender>: <text>" for global rows where the sender isn't
-         * the current user, plain text for DMs (the row title already
-         * identifies the peer, so prefixing with their name on every line
-         * is just noise). "你: " prefix for own messages on either kind so
-         * the user can tell at a glance whether the last line was inbound
-         * or outbound.
+         * "<sender>: <text>" for global rows where the sender isn't the current
+         * user; plain text for DMs (the row title already identifies the peer).
+         * "你: " prefix for own messages on either kind so the last line's
+         * direction reads at a glance.
          */
-        private fun buildPreview(item: ChatRoomEntry): String {
+        private fun buildPreview(ctx: Context, item: ChatRoomEntry): String {
             val body = item.previewText
             if (body.isBlank()) return ""
-            val ctx = binding.root.context
             val selfUid = ceui.pixiv.session.SessionManager.loggedInUid
             return when {
                 item.previewSenderUid != null && item.previewSenderUid == selfUid ->
