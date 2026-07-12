@@ -37,8 +37,6 @@ import ceui.pixiv.ui.common.ViewPagerFragment
 import ceui.pixiv.ui.common.constructVM
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.common.ImageUrlViewer
-import ceui.pixiv.ui.detail.ArtworksMap
-import ceui.pixiv.ui.works.blurBackground
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import com.blankj.utilcode.util.BarUtils

@@ -36,7 +36,6 @@ import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.ui.related.RelatedIllustsFragmentArgs
-import ceui.pixiv.ui.works.blurBackground
 import kotlin.getValue
 
 class ArtworkFragment : PixivFragment(R.layout.fragment_pixiv_list), FitsSystemWindowFragment, SeeMoreAction {
@@ -55,7 +54,6 @@ class ArtworkFragment : PixivFragment(R.layout.fragment_pixiv_list), FitsSystemW
         val isBlockedLiveData = AppDatabase.getAppDatabase(ctx).generalDao().isObjectBlocked(RecordType.BLOCK_ILLUST, safeArgs.illustId)
 
         binding.listView.layoutManager = LinearLayoutManager(ctx)
-        blurBackground(binding, safeArgs.illustId)
 
         combineLatest(isBlockedLiveData, viewModel.illustLiveData).observe(viewLifecycleOwner) { (isBlocked, illust) ->
             if (isBlocked == null || illust == null) {

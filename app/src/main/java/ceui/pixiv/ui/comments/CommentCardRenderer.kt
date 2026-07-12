@@ -1,0 +1,174 @@
+package ceui.pixiv.ui.comments
+
+import android.content.Context
+import android.graphics.drawable.Drawable
+import androidx.annotation.ColorInt
+import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.LinearLayoutManager
+import ceui.lisa.R
+import ceui.lisa.databinding.CellCommentBinding
+import ceui.lisa.utils.GlideUrlChild
+import ceui.lisa.utils.V3Palette
+import ceui.loxia.DateParse
+import ceui.loxia.ObjectPool
+import ceui.loxia.findActionReceiverOrNull
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.session.SessionManager
+import ceui.pixiv.ui.common.BottomDividerDecoration
+import ceui.pixiv.ui.common.CommonAdapter
+import ceui.pixiv.ui.user.UserActionReceiver
+import ceui.pixiv.ui.user.binding_loadUserIcon
+import ceui.pixiv.utils.ppppx
+import ceui.pixiv.utils.setOnClick
+import com.bumptech.glide.Glide
+import kotlin.math.roundToInt
+
+/**
+ * 主评论卡片的渲染逻辑，从 [CommentsFragment] 里搬出来单独放一个文件——对齐 legacy
+ * `CommentHolder.kt` 的关注点分离（数据怎么画不挤在 Fragment 里，Fragment 只管编排）。
+ *
+ * 是 [CommentsFragment] 的扩展函数而非顶层 Fragment 扩展：renderer 只在
+ * `onCreateRenderers()`（每次 onViewCreated 都重新构建，随 view 生死）里用一次，
+ * 引用 [CommentsFragment] 的 `viewLifecycleOwner` / `findActionReceiverOrNull` 安全，
+ * 不违反 feedViewModels 的零捕获约定（那条约定管的是 VM 长期持有的 FeedSource/mapper）。
+ */
+fun CommentsFragment.commentCardRenderer(): FeedRenderer<CommentFeedItem, CellCommentBinding> =
+    feedRenderer<CommentFeedItem, CellCommentBinding>(
+        inflate = CellCommentBinding::inflate,
+        create = { cell ->
+            val binding = cell.binding
+            binding.root.setOnClickListener {
+                cell.itemOrNull?.let { item ->
+                    findActionReceiverOrNull<CommentActionReceiver>()?.onClickComment(item.comment)
+                }
+            }
+            binding.root.setOnLongClickListener { sender ->
+                cell.itemOrNull?.let { item ->
+                    findActionReceiverOrNull<CommentActionReceiver>()
+                        ?.onLongClickComment(sender, item.comment, 0L)
+                }
+                true
+            }
+            binding.userIcon.setOnClick {
+                cell.itemOrNull?.let { item ->
+                    ObjectPool.update(item.comment.user)
+                    findActionReceiverOrNull<UserActionReceiver>()?.onClickUser(item.comment.user.id)
+                }
+            }
+            binding.userName.setOnClick {
+                cell.itemOrNull?.let { item ->
+                    ObjectPool.update(item.comment.user)
+                    findActionReceiverOrNull<UserActionReceiver>()?.onClickUser(item.comment.user.id)
+                }
+            }
+            binding.reply.setOnClick {
+                cell.itemOrNull?.let { item ->
+                    findActionReceiverOrNull<CommentActionReceiver>()?.onClickReply(item.comment, 0L)
+                }
+            }
+            binding.showReply.setOnClick { sender ->
+                cell.itemOrNull?.let { item ->
+                    findActionReceiverOrNull<CommentActionReceiver>()
+                        ?.onClickShowMoreReply(sender, item.comment.id)
+                }
+            }
+            binding.delete.setOnClick { sender ->
+                cell.itemOrNull?.let { item ->
+                    findActionReceiverOrNull<CommentActionReceiver>()
+                        ?.onClickDeleteComment(sender, item.comment, 0L)
+                }
+            }
+        },
+        recycle = { cell ->
+            Glide.with(cell.binding.userIcon).clear(cell.binding.userIcon)
+            Glide.with(cell.binding.commentStamp).clear(cell.binding.commentStamp)
+        },
+    ) { cell ->
+        val item = cell.item
+        val comment = item.comment
+        val binding = cell.binding
+        val context = binding.root.context
+
+        binding.userIcon.binding_loadUserIcon(comment.user)
+        binding.userName.text = comment.user.name
+        binding.commentTime.text = DateParse.displayCreateDate(comment.date)
+
+        val hasStamp = comment.stamp != null
+        binding.commentStamp.isVisible = hasStamp
+        if (hasStamp) {
+            Glide.with(binding.commentStamp).load(GlideUrlChild(comment.stamp?.stamp_url))
+                .placeholder(R.drawable.bg_loading_placeholder)
+                .into(binding.commentStamp)
+        }
+        binding.commentContent.isVisible = !hasStamp
+        if (!hasStamp) {
+            binding.commentContent.text = CommentEmojiSpanner.format(
+                context,
+                comment.comment,
+                binding.commentContent.textSize.toInt(),
+            )
+        }
+
+        binding.arthurLabel.isVisible = item.isArthurCommented
+        applyV3CommentAccents(
+            context = context,
+            isAuthor = item.isArthurCommented,
+            avatar = binding.userIcon,
+            badge = binding.arthurLabel,
+            reply = binding.reply,
+            showReply = binding.showReply,
+        )
+        // 图标统一收口成 14dp 小尺寸:24dp 原生图标底 12sp 粗体文字会显得又大又偏上,
+        // 视觉上跟文字不对齐;缩小之后 TextView 默认的纵向居中足够对齐,不需要额外 gravity 补偿
+        val accent = V3Palette.from(context).textAccent
+        val danger = ContextCompat.getColor(context, R.color.v3_danger)
+        binding.reply.setCompoundDrawablesRelative(
+            pillIcon(context, R.drawable.chat_ic_reply, accent), null, null, null
+        )
+        binding.showReply.setCompoundDrawablesRelative(
+            null, null, pillIcon(context, R.drawable.ic_baseline_keyboard_arrow_down_24, accent), null
+        )
+        binding.delete.setCompoundDrawablesRelative(
+            pillIcon(context, R.drawable.ic_delete_black_24dp, danger), null, null, null
+        )
+
+        binding.reply.isVisible = SessionManager.loggedInUid != comment.user.id
+        binding.delete.isVisible = SessionManager.loggedInUid == comment.user.id
+        binding.showReply.isVisible = comment.has_replies == true && item.childComments.isEmpty()
+
+        if (item.childComments.isNotEmpty()) {
+            binding.childCommentsList.isVisible = true
+            if (binding.childCommentsList.itemDecorationCount == 0) {
+                binding.childCommentsList.addItemDecoration(
+                    BottomDividerDecoration(context, R.drawable.list_divider_no_end, marginLeft = 12.ppppx)
+                )
+            }
+            binding.childCommentsList.layoutManager = LinearLayoutManager(context)
+            val childAdapter = CommonAdapter(viewLifecycleOwner)
+            binding.childCommentsList.adapter = childAdapter
+            childAdapter.submitList(item.childComments.map { childComment ->
+                CommentChildHolder(comment.id, childComment, item.illustArthurId)
+            })
+        } else {
+            binding.childCommentsList.isVisible = false
+        }
+    }
+
+/** 操作胶囊图标:统一缩到 [sizeDp] 并着色。drawableStartCompat/EndCompat 在 XML 里只能吃图标
+ *  原生 24dp，必须在代码里 setBounds 才能真正改渲染尺寸——mutate() 避免污染其他地方共用的
+ *  同一份 drawable 缓存实例。 */
+private fun pillIcon(
+    context: Context,
+    @DrawableRes resId: Int,
+    @ColorInt tint: Int,
+    sizeDp: Int = 14,
+): Drawable {
+    val drawable = ContextCompat.getDrawable(context, resId)!!.mutate()
+    drawable.setTint(tint)
+    val sizePx = (sizeDp * context.resources.displayMetrics.density).roundToInt()
+    drawable.setBounds(0, 0, sizePx, sizePx)
+    return drawable
+}
