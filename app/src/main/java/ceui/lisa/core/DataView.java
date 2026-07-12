@@ -18,6 +18,4 @@ public interface DataView {
     boolean showNoDataHint();
 
     String token();
-
-    boolean localData();
 }

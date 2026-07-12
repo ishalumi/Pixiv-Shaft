@@ -64,7 +64,6 @@ import ceui.lisa.fragments.FragmentSearch;
 import ceui.lisa.fragments.FragmentSearchUser;
 import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
-import ceui.lisa.fragments.FragmentStorage;
 import ceui.lisa.fragments.FragmentUserIllust;
 import ceui.lisa.fragments.FragmentUserIllustByTag;
 import ceui.lisa.fragments.FragmentUserInfo;
@@ -386,8 +385,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     assert name != null;
 
                     return PrimeTagDetailFragment.Companion.newInstance(name, path);
-                case "存储访问":
-                    return new FragmentStorage();
                 case "任务中心":
                     return new FragmentDoing();
                 case "我的插画收藏":

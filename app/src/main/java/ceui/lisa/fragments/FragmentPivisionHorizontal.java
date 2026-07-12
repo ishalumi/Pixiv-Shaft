@@ -90,10 +90,4 @@ public class FragmentPivisionHorizontal extends NetListFragment<FragmentPivision
         mRefreshLayout.setEnableRefresh(true);
         mRefreshLayout.setEnableLoadMore(false);
     }
-
-    @Override
-    public void showDataBase() {
-        baseBind.refreshLayout.finishRefresh(true);
-        setEmptyStateVisible(true);
-    }
 }

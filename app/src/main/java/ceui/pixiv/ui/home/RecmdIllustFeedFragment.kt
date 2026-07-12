@@ -31,8 +31,6 @@ import ceui.lisa.activities.VActivity
 import ceui.lisa.adapters.RAdapter
 import ceui.lisa.core.Container
 import ceui.lisa.core.PageData
-import ceui.lisa.database.AppDatabase
-import ceui.lisa.database.IllustRecmdEntity
 import ceui.lisa.databinding.RecyRecmdHeaderBinding
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.model.ListIllust
@@ -60,7 +58,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 
 /**
  * 首页「推荐插画」tab / 推荐漫画页（feeds 框架版，替代 legacy FragmentRecmdIllust +
@@ -71,7 +68,6 @@ import timber.log.Timber
  *   「查看更多」进 RankActivity，卡片点击开 VActivity（一次性 PageData，同 legacy IllustHeader）；
  * - 排行榜预览的 bean 同样合入 ObjectPool + 灌关注状态（poolableBeansOf 覆盖）；
  * - 每页数据过滤前整页喂 DiscoveryPool（对齐 RecmdIllustRepo）；
- * - 首屏前 20 条写入推荐浏览历史（recmdDao，离线模式/推荐用户页的数据源）；
  * - 「收藏时显示相关作品」：收藏成功后 FRAGMENT_ADD_RELATED_DATA 回流，
  *   截前 5 条打 NEW 角标插到被收藏作品后面（feeds 版按作品 id 锚定 + 身份去重，
  *   替代 legacy 不可靠的 adapter 位置语义）；
@@ -297,10 +293,9 @@ open class RecmdIllustFeedFragment(
         /**
          * 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。
          *
-         * [phase] 为 [FeedLoadPhase.CacheRestore]（缓存恢复）时只做纯映射：不喂画像池、
-         * 不写推荐浏览历史——那些是「拉取成功」的副作用，拿旧数据重放会污染下游
-         * （recmdDao 是 REPLACE upsert，会给旧条目盖上新时间戳，污染「最近推荐」）。
-         * 映射结构（含排行榜预览头）与首屏保持一致，靠 [FeedLoadPhase.isFirstPage] 判定。
+         * [phase] 为 [FeedLoadPhase.CacheRestore]（缓存恢复）时只做纯映射：不喂画像池——
+         * 那是「拉取成功」的副作用，拿旧数据重放会污染下游。映射结构（含排行榜预览头）
+         * 与首屏保持一致，靠 [FeedLoadPhase.isFirstPage] 判定。
          */
         private fun mapRecmdPage(
             illusts: List<Illust>,
@@ -322,21 +317,6 @@ open class RecmdIllustFeedFragment(
             val listItems = pairs.mapNotNull { (illust, bean) -> IllustFeedItem.of(illust, bean) }
             if (!phase.isFirstPage) {
                 return listItems
-            }
-            // 首屏前 20 条写入推荐浏览历史（对齐 legacy onFirstLoaded；离线模式/推荐用户页读它）。
-            // 只在真网络首屏写（不含缓存恢复）；mapper 跑在 Default 线程，Room 直接写安全；
-            // 辅助写失败不打断列表但要留痕。
-            if (phase == FeedLoadPhase.FirstPage) {
-                runCatching {
-                    val dao = AppDatabase.getAppDatabase(Shaft.getContext()).recmdDao()
-                    listItems.take(20).forEach { item ->
-                        dao.insert(IllustRecmdEntity().apply {
-                            illustID = item.bean.id
-                            illustJson = Shaft.sGson.toJson(item.bean)
-                            time = System.currentTimeMillis()
-                        })
-                    }
-                }.onFailure { Timber.w(it, "feeds: 推荐浏览历史写入失败") }
             }
             // 排行榜预览头不做内容过滤（对齐 legacy 直接展示 ranking_illusts）
             val rankBeans = rankingIllusts.mapNotNull { IllustFeedItem.beanOf(it) }

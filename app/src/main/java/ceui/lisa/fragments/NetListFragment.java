@@ -62,169 +62,92 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
      * */
     @Override
     public void fresh() {
-//        //For debug usage:
-//        boolean debug = false;
-//        if(debug) {
-//            mRemoteRepo.getLofterFirstData(new NullCtrl<Response>() {
-//                /**
-//                 * The method is called when the response is successfully received
-//                 *
-//                 * @param response The response of previous request
-//                 *                 <p>
-//                 *                 For example:
-//                 *                 </p>
-//                 *                 <p>
-//                 *                 Request for the daily rank list,response is an ArrayList of IllustsBean
-//                 *                 </p>
-//                 */
-//                @Override
-//                public void success(Response response) {
-//                    Common.showLog("trace 000");
-//                    if (!isAdded()) {
-//                        return;
-//                    }
-//                    Common.showLog("trace 111");
-//                    mResponse = response;
-//                    tryCatchResponse(mResponse);
-//                    List<Item> mResponseList = mResponse.getList();
-//                    //Show the received data
-//                    if (!Common.isEmpty(mResponseList)) {
-//                        Common.showLog("trace 222 " + mAdapter.getItemCount());
-//                        beforeFirstLoad(mResponseList);
-//                        int beforeLoadSize = getStartSize();
-//                        mModel.load(mResponseList, true);
-//                        if (mRemoteRepo.hasEffectiveUserFollowStatus()) {
-//                            mModel.tidyAppViewModel();
-//                        }
-//                        allItems = mModel.getContent();//Get all the critical information such as IllustBean list
-//                        int afterLoadSize = getStartSize();
-//                        onFirstLoaded(mResponseList);
-//                        mRecyclerView.setVisibility(View.VISIBLE);
-//                        emptyRela.setVisibility(View.INVISIBLE);
-//                        mAdapter.notifyItemRangeInserted(beforeLoadSize, afterLoadSize - beforeLoadSize);
-//                        Common.showLog("trace 777 " + mAdapter.getItemCount() + " allItems.size():" + allItems.size() + " modelSize:" + mModel.getContent().size());
-//                    } else {
-//                        Common.showLog("trace 333");
-//                        mRecyclerView.setVisibility(View.INVISIBLE);
-//                        emptyRela.setVisibility(View.VISIBLE);
-//                    }
-//                    Common.showLog("trace 444");
-//                    mRemoteRepo.setNextUrl(mResponse.getNextUrl());
-//                    mAdapter.setNextUrl(mResponse.getNextUrl());
-//                    if (!TextUtils.isEmpty(mResponse.getNextUrl())) {
-//                        Common.showLog("trace 555");
-//                        mRefreshLayout.setRefreshFooter(new ClassicsFooter(mContext));
-//                    } else {
-//                        Common.showLog("trace 666");
-//                        mRefreshLayout.setRefreshFooter(new FalsifyFooter(mContext));
-//                    }
-//                }
-//
-//                @Override
-//                public void must(boolean isSuccess) {
-//                    mRefreshLayout.finishRefresh(isSuccess);
-//                    isLoading = false;
-//                }
-//
-//                @Override
-//                public void onError(Throwable e) {
-//                    super.onError(e);
-//                    mRecyclerView.setVisibility(View.INVISIBLE);
-//                    emptyRela.setVisibility(View.VISIBLE);
-//                }
-//            });
-//        }
-
-        if (!mRemoteRepo.localData()) {
-            setEmptyStateVisible(false);
-            if(isLoading) {
-                //自动加载下一页进行中(#729)又触发下拉刷新时，结束刷新动画避免转圈卡死
-                mRefreshLayout.finishRefresh();
-                return;
-            }
-            isLoading = true;
-            mAutoLoadPolicy.reset();//用户主动刷新，重置自动加载预算 (#729)
-            //Get first data
-            mRemoteRepo.getFirstData(new NullCtrl<Response>()
-            {
-                /**
-                 * The method is called when the response is successfully received
-                 * @param response The response of previous request
-                 *          <p>
-                 *                 For example:
-                 *          </p>
-                 *                 <p>
-                 *                 Request for the daily rank list,response is an ArrayList of IllustsBean
-                 *                 </p>
-                 * */
-                @Override
-                public void success(Response response) {
-                    Common.showLog("trace 000");
-                    if (!isAdded()) {
-                        return;
-                    }
-                    Common.showLog("trace 111");
-                    mResponse = response;
-                    tryCatchResponse(mResponse);
-                    List<Item> mResponseList = mResponse.getList();
-                    //Show the received data
-                    if (!Common.isEmpty(mResponseList)) {
-                        Common.showLog("trace 222 " + mAdapter.getItemCount());
-                        beforeFirstLoad(mResponseList);
-                        int beforeLoadSize = getStartSize();
-                        mModel.load(mResponseList, true);
-                        if (mRemoteRepo.hasEffectiveUserFollowStatus()) {
-                            mModel.tidyAppViewModel();
-                        }
-                        allItems = mModel.getContent();//Get all the critical information such as IllustBean list
-                        int afterLoadSize = getStartSize();
-                        onFirstLoaded(mResponseList);
-                        mRecyclerView.setVisibility(View.VISIBLE);
-                        setEmptyStateVisible(false);
-                        mAdapter.notifyItemRangeInserted(beforeLoadSize, afterLoadSize - beforeLoadSize);
-                        Common.showLog("trace 777 " + mAdapter.getItemCount() + " allItems.size():" + allItems.size() + " modelSize:" + mModel.getContent().size());
-                    } else {
-                        Common.showLog("trace 333");
-                        showEmptyState();
-                    }
-                    Common.showLog("trace 444");
-                    mRemoteRepo.setNextUrl(mResponse.getNextUrl());
-                    mAdapter.setNextUrl(mResponse.getNextUrl());
-                    if (!TextUtils.isEmpty(mResponse.getNextUrl())) {
-                        Common.showLog("trace 555");
-                        mRefreshLayout.setRefreshFooter(new ClassicsFooter(mContext));
-                    } else {
-                        Common.showLog("trace 666");
-                        mRefreshLayout.setRefreshFooter(new FalsifyFooter(mContext));
-                    }
-                }
-
-                @Override
-                public void must(boolean isSuccess) {
-                    mRefreshLayout.finishRefresh(isSuccess);
-                    isLoading = false;
-                    if (isSuccess) {
-                        autoLoadIfAllBlocked();
-                    }
-                }
-
-                @Override
-                public void error(Throwable e) {
-                    //不调 super.error()：ErrorCtrl 只处理 HttpException，断网/超时/DNS 失败等
-                    //IOException 会被静默吞掉；且 errorBody 只能读一次，留给 getHumanReadableMessage 解析
-                    Timber.e(e, "NetListFragment fresh failed");
-                    must(false);
-                    if (!isAdded()) {
-                        return;
-                    }
-                    //把错误暴露在页面中央，而不是误导性的"这里什么都没有呢"
-                    showError(e);
-                }
-            }
-            );
-        } else {
-            showDataBase();
+        setEmptyStateVisible(false);
+        if (isLoading) {
+            //自动加载下一页进行中(#729)又触发下拉刷新时，结束刷新动画避免转圈卡死
+            mRefreshLayout.finishRefresh();
+            return;
         }
+        isLoading = true;
+        mAutoLoadPolicy.reset();//用户主动刷新，重置自动加载预算 (#729)
+        //Get first data
+        mRemoteRepo.getFirstData(new NullCtrl<Response>()
+        {
+            /**
+             * The method is called when the response is successfully received
+             * @param response The response of previous request
+             *          <p>
+             *                 For example:
+             *          </p>
+             *                 <p>
+             *                 Request for the daily rank list,response is an ArrayList of IllustsBean
+             *                 </p>
+             * */
+            @Override
+            public void success(Response response) {
+                Common.showLog("trace 000");
+                if (!isAdded()) {
+                    return;
+                }
+                Common.showLog("trace 111");
+                mResponse = response;
+                tryCatchResponse(mResponse);
+                List<Item> mResponseList = mResponse.getList();
+                //Show the received data
+                if (!Common.isEmpty(mResponseList)) {
+                    Common.showLog("trace 222 " + mAdapter.getItemCount());
+                    beforeFirstLoad(mResponseList);
+                    int beforeLoadSize = getStartSize();
+                    mModel.load(mResponseList, true);
+                    if (mRemoteRepo.hasEffectiveUserFollowStatus()) {
+                        mModel.tidyAppViewModel();
+                    }
+                    allItems = mModel.getContent();//Get all the critical information such as IllustBean list
+                    int afterLoadSize = getStartSize();
+                    onFirstLoaded(mResponseList);
+                    mRecyclerView.setVisibility(View.VISIBLE);
+                    setEmptyStateVisible(false);
+                    mAdapter.notifyItemRangeInserted(beforeLoadSize, afterLoadSize - beforeLoadSize);
+                    Common.showLog("trace 777 " + mAdapter.getItemCount() + " allItems.size():" + allItems.size() + " modelSize:" + mModel.getContent().size());
+                } else {
+                    Common.showLog("trace 333");
+                    showEmptyState();
+                }
+                Common.showLog("trace 444");
+                mRemoteRepo.setNextUrl(mResponse.getNextUrl());
+                mAdapter.setNextUrl(mResponse.getNextUrl());
+                if (!TextUtils.isEmpty(mResponse.getNextUrl())) {
+                    Common.showLog("trace 555");
+                    mRefreshLayout.setRefreshFooter(new ClassicsFooter(mContext));
+                } else {
+                    Common.showLog("trace 666");
+                    mRefreshLayout.setRefreshFooter(new FalsifyFooter(mContext));
+                }
+            }
+
+            @Override
+            public void must(boolean isSuccess) {
+                mRefreshLayout.finishRefresh(isSuccess);
+                isLoading = false;
+                if (isSuccess) {
+                    autoLoadIfAllBlocked();
+                }
+            }
+
+            @Override
+            public void error(Throwable e) {
+                //不调 super.error()：ErrorCtrl 只处理 HttpException，断网/超时/DNS 失败等
+                //IOException 会被静默吞掉；且 errorBody 只能读一次，留给 getHumanReadableMessage 解析
+                Timber.e(e, "NetListFragment fresh failed");
+                must(false);
+                if (!isAdded()) {
+                    return;
+                }
+                //把错误暴露在页面中央，而不是误导性的"这里什么都没有呢"
+                showError(e);
+            }
+        }
+        );
     }
 
     private void tryCatchResponse(Response response) {
@@ -319,12 +242,6 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
     protected void initData() {
         mRemoteRepo = (RemoteRepo<Response>) mModel.getBaseRepo();
         super.initData();
-    }
-
-    /**
-     * FragmentR页面，调试过程中不需要每次都刷新，就调用这个方法来加载数据。只是为了方便测试
-     */
-    public void showDataBase() {
     }
 
     public void onResponse(Response response) {

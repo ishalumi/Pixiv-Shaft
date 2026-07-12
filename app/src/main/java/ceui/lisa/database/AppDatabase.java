@@ -26,7 +26,6 @@ import ceui.pixiv.db.synonym.SynonymTargetEntity;
 @Database(
         entities = {
                 IllustHistoryEntity.class, //浏览历史
-                IllustRecmdEntity.class, //用不到，调试用
                 DownloadEntity.class, //下载历史
                 UserEntity.class, //多用户保存信息
                 SearchEntity.class, //搜索历史
@@ -51,7 +50,7 @@ import ceui.pixiv.db.synonym.SynonymTargetEntity;
                 SynonymTagEntity.class, // 同义词词典-同义词（v36, issue #904）
                 FeedCacheEntity.class, // feeds 框架本地优先首屏快照（v39）
         },
-        version = 39,
+        version = 40,
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -376,6 +375,15 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    // 迁移 39 -> 40：删掉 illust_recmd_table（五年前的简陋版"本地优先"调试表——localData()/
+    // showDataBase() 从未被真正触发过，已被 feeds 框架的 FeedFirstPageCache 取代）。
+    private static final Migration MIGRATION_39_40 = new Migration(39, 40) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("DROP TABLE IF EXISTS illust_recmd_table");
+        }
+    };
+
     private static AppDatabase INSTANCE;
 
     // synchronized：同义词词典（issue #904）让 Rx 后台线程（SelectTagRepo.mapper）也会触发
@@ -404,6 +412,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             .addMigrations(MIGRATION_36_37) // 注册 36 -> 37 迁移 (synonym_target_table.lastUsedAt)
                             .addMigrations(MIGRATION_37_38) // 注册 37 -> 38 迁移 (illust_download_table.illustId 索引列)
                             .addMigrations(MIGRATION_38_39) // 注册 38 -> 39 迁移 (feed_cache_table 本地优先首屏快照)
+                            .addMigrations(MIGRATION_39_40) // 注册 39 -> 40 迁移 (删除 illust_recmd_table)
                             .build();
         }
         return INSTANCE;
@@ -412,8 +421,6 @@ public abstract class AppDatabase extends RoomDatabase {
     public static void destroyInstance() {
         INSTANCE = null;
     }
-
-    public abstract IllustRecmdDao recmdDao();
 
     public abstract DownloadDao downloadDao();
 

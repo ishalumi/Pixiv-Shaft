@@ -49,9 +49,4 @@ public class BaseRepo implements DataView{
     public int currentUserID() {
         return (int) SessionManager.INSTANCE.getLoggedInUid();
     }
-
-    @Override
-    public boolean localData() {
-        return false;
-    }
 }
