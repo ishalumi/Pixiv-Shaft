@@ -116,6 +116,11 @@ class IllustFeedDetailSync(
  *
  * 按 bean 实例去重（[IllustFeedSyncViewModel.pooledBeans]）：同一实例只合一次，
  * 刷新产出的同 id 新实例携带更新的服务端数据，必须重新合入——按 id 永久去重会把它挡在池外。
+ *
+ * 扫描范围借 [FeedUiState.structureVersion] 做增量：无限滚动场景下 loadMore 每次都是
+ * `existing + fresh`（旧前缀条目引用不变，早就合过池），版本不变时只需扫描新追加的尾部；
+ * 否则（refresh 整代替换、mutateItems 结构性编辑）没法假设任何位置的实例没变，退回全量重扫。
+ * 不这样做的话，每次 loadMore 都会把从头到尾的旧条目重新扫一遍，翻页越深单次扫描越贵。
  */
 class IllustFeedPoolSync(
     private val syncViewModel: IllustFeedSyncViewModel,
@@ -126,12 +131,23 @@ class IllustFeedPoolSync(
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var scannedItems: List<FeedItem>? = null
+                var scannedSize = 0
+                var scannedVersion = -1
                 uiState.collect { state ->
                     // 只有条目列表本身换了才扫描；纯加载态变化（append Loading/Idle）直接跳过
                     if (state.items === scannedItems) return@collect
+                    val canScanTailOnly = state.structureVersion == scannedVersion &&
+                            state.items.size >= scannedSize
+                    val itemsToScan = if (canScanTailOnly) {
+                        state.items.subList(scannedSize, state.items.size)
+                    } else {
+                        state.items
+                    }
                     scannedItems = state.items
+                    scannedSize = state.items.size
+                    scannedVersion = state.structureVersion
                     val freshBeans = mutableListOf<IllustsBean>()
-                    state.items.forEach { item ->
+                    itemsToScan.forEach { item ->
                         poolableBeansOf(item).forEach { bean ->
                             if (syncViewModel.pooledBeans.put(bean.id.toLong(), bean) !== bean) {
                                 ObjectPool.updateIllust(bean)

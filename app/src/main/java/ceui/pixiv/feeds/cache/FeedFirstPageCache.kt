@@ -49,8 +49,23 @@ class FeedFirstPageCache<Resp : Any>(
     private val key: String
         get() = "$slot#${accountId()}#${type.name}"
 
-    /** 读回快照；无 / 版本不符 / 过期 / 损坏都返回 null。取消照常向上传播。 */
+    /**
+     * 读回快照；无 / 版本不符 / 过期 / 损坏都返回 null。取消照常向上传播。
+     * 计时打点：本地优先的冷启体验全靠这一步够快（IO 派发 + gson 反序列化），耗时异常时
+     * 用 key 定位是哪个 feed / 哪个账号的槽位偏慢。
+     */
     suspend fun read(): CachedFirstPage<Resp>? {
+        val startNanos = System.nanoTime()
+        val result = readInternal()
+        val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
+        Timber.d(
+            "feed cache 读取 key=%s 耗时 %dms %s",
+            key, elapsedMs, if (result != null) "命中" else "未命中",
+        )
+        return result
+    }
+
+    private suspend fun readInternal(): CachedFirstPage<Resp>? {
         val record = try {
             backend.load(key)
         } catch (ce: CancellationException) {

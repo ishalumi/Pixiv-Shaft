@@ -81,9 +81,14 @@ class PixivFeedSource<Resp : KListShow<*>>(
             // replayNextUrl 也有类可用（正常路径 loadMore 被 refresh=Loading 守卫挡住，不会走到）
             @Suppress("UNCHECKED_CAST")
             responseClass = cached.payload.javaClass as Class<Resp>
+            // 计时打点：与 FeedFirstPageCache.read() 的磁盘读取耗时分开看——冷启路径慢的话，
+            // 得知道是 IO/反序列化慢还是 mapper（逐条 bean 转换等）慢，两者优化手段完全不同。
+            val mapStartNanos = System.nanoTime()
             val items = withContext(Dispatchers.Default) {
                 mapper(cached.payload, FeedLoadPhase.CacheRestore)
             }
+            val mapMs = (System.nanoTime() - mapStartNanos) / 1_000_000
+            Timber.d("feeds: 本地优先 mapper 映射 %d 条耗时 %dms", items.size, mapMs)
             if (items.isEmpty()) {
                 null
             } else {

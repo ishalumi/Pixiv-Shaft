@@ -608,10 +608,15 @@ class IllustFeedItem(
     }
 
     companion object {
-        /** loxia.Illust 与 IllustsBean 字段名完全一致，gson 直转（同稍后再看页的做法）。 */
+        /**
+         * loxia.Illust 与 IllustsBean 字段名完全一致，gson 直转（同稍后再看页的做法）。
+         * 走 toJsonTree/fromJson(JsonElement) 而不是 toJson/fromJson(String)：省掉字符串
+         * 编码/解析那一趟 IO，只留字段级反射转换——这个函数是本地优先冷启路径的热点
+         * （单页几十条，每条一次全字段转换，字符串往返在这里是纯浪费）。
+         */
         fun beanOf(illust: Illust): IllustsBean? {
             return runCatching {
-                Shaft.sGson.fromJson(Shaft.sGson.toJson(illust), IllustsBean::class.java)
+                Shaft.sGson.fromJson(Shaft.sGson.toJsonTree(illust), IllustsBean::class.java)
             }.getOrNull()
         }
 
@@ -630,7 +635,7 @@ class IllustFeedItem(
         fun fromBean(bean: IllustsBean?, skipR18Filter: Boolean = false): IllustFeedItem? {
             if (bean == null || !passesContentFilters(bean, skipR18Filter)) return null
             val illust = runCatching {
-                Shaft.sGson.fromJson(Shaft.sGson.toJson(bean), Illust::class.java)
+                Shaft.sGson.fromJson(Shaft.sGson.toJsonTree(bean), Illust::class.java)
             }.getOrNull() ?: return null
             return IllustFeedItem(illust, bean)
         }

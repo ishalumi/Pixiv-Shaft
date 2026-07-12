@@ -26,6 +26,15 @@ data class FeedUiState(
      * 想显式加「更新中」胶囊的页面直接绑它即可（严格等价「显示缓存 ∧ 刷新中」，不会误亮）。
      */
     val showingCache: Boolean = false,
+    /**
+     * 结构版本号：items 发生「非纯追加」变化（refresh 整代替换、[FeedViewModel.mutateItems]
+     * 的默认结构性编辑）时自增；[FeedViewModel.loadMore] / [FeedViewModel.appendItems] 的纯尾部
+     * 追加不推进它——那两条路径保证旧前缀元素引用不变（`existing + fresh`）。
+     *
+     * 增量消费方（如 IllustFeedPoolSync）借此判断：版本没变 + 列表变长，说明只是追加，
+     * 只需扫描新增的尾部；版本变了就必须假设任意位置的条目实例都可能换了，全量重扫。
+     */
+    val structureVersion: Int = 0,
 ) {
 
     /** 首屏还没出过数据时的全屏加载态。 */

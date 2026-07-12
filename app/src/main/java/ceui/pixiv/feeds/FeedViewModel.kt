@@ -59,6 +59,15 @@ class FeedViewModel<Cursor : Any>(
      * 同时下面照常发网络刷新覆盖（哔哩哔哩 / 新闻首页语义）。旋转与下拉刷新时 hasLoadedOnce 已 true，
      * 不走缓存分支，不会刷新时闪回旧数据。
      *
+     * 冷启时缓存尝试必须排在第一次 `_uiState.update` 之前：[FeedSource.loadFromCache] 是 suspend
+     * （IO 派发 + gson 反序列化），哪怕只挂起几毫秒，如果先无条件把 refresh 置 Loading，
+     * uiState 在缓存读完之前就已经是「Loading 且无内容」的快照，collector 一旦在这个窗口内开始
+     * 观察（Fragment onViewCreated 到 Lifecycle 到 STARTED 之间通常就有这个间隙）就会画出一帧
+     * 全屏转圈，冷启变成「转圈→缓存内容→网络内容」，而不是设计要的「秒显缓存内容」（小红书 /
+     * 哔哩哔哩式：它们不会在读本地缓存期间对外暴露一个「正在加载」态）。所以这里先尝试读缓存、
+     * 拿到确定结果后再发第一次 uiState 更新——对外只暴露一个起始终态：命中就直接从
+     * 「内容 + 顶部刷新圈」起步，未命中 / 无缓存源才回退全屏 loading，中间没有可被画出来的帧。
+     *
      * 首页同样有空页追载：mapper 把第一页整页滤空（重口味屏蔽设置 + #729 场景）时，
      * 继续向后翻，直到拿到可展示内容或确定到底——否则空列表上没有任何 onBind，
      * loadMore 的预取信号永远不会点火。
@@ -67,34 +76,55 @@ class FeedViewModel<Cursor : Any>(
         refreshJob?.cancel()
         appendJob?.cancel()
         refreshJob = viewModelScope.launch {
-            _uiState.update { it.copy(refresh = LoadState.Loading, append = LoadState.Idle) }
-
-            // 本地优先：冷启时先秒显磁盘快照，网络刷新在下面照常进行并覆盖。
-            // 置 hasLoadedOnce=true 让全屏 loading 让位给「内容 + 顶部刷新圈」（render 现成逻辑：
-            // isRefreshing = refresh is Loading && hasLoadedOnce）；refresh 保持 Loading 表示仍在刷新。
-            // 缓存旧游标翻页的竞态由 loadMore 现有的 `refresh is Loading → return` 守卫免费挡住。
-            if (!_uiState.value.hasLoadedOnce) {
-                // loadFromCache 会跑用户 mapper（缓存恢复态），可能在 gson 还原出的边界数据上抛错。
-                // 这段在下面网络 try 之外，必须自兜底：缓存恢复失败绝不能崩进程，吞掉照常走网络刷新
-                //（与网络首屏路径对称——那条 mapper 抛错也只是转 Error，不炸）。取消照常向上传播。
+            // 计时打点（本地优先耗时诊断）：从 refresh() 发起到缓存内容真正提交进 uiState
+            // 的间隔，就是用户在冷启时会不会看到一帧多余转圈的直接证据。
+            val refreshStartNanos = System.nanoTime()
+            val coldStart = !_uiState.value.hasLoadedOnce
+            // loadFromCache 会跑用户 mapper（缓存恢复态），可能在 gson 还原出的边界数据上抛错。
+            // 必须自兜底：缓存恢复失败绝不能崩进程，吞掉照常走网络刷新（与网络首屏路径对称——
+            // 那条 mapper 抛错也只是转 Error，不炸）。取消照常向上传播。
+            val cached = if (coldStart) {
                 try {
                     // 本地优先是 FeedSource 的可选默认能力：无缓存的源默认返回 null，直接调不用 as? 探测
-                    val cached = source.loadFromCache()
-                    if (cached != null && cached.items.isNotEmpty() && !_uiState.value.hasLoadedOnce) {
-                        nextCursor = cached.nextCursor
-                        _uiState.update {
-                            it.copy(
-                                items = cached.items,
-                                reachedEnd = cached.nextCursor == null,
-                                hasLoadedOnce = true,
-                                showingCache = true,
-                            )
-                        }
-                    }
+                    source.loadFromCache()
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Throwable) {
                     Timber.w(ex, "feeds: 本地缓存恢复失败，回退网络刷新")
+                    null
+                }
+            } else {
+                null
+            }
+
+            if (cached != null && cached.items.isNotEmpty()) {
+                nextCursor = cached.nextCursor
+                _uiState.update {
+                    it.copy(
+                        items = cached.items,
+                        // refresh 保持 Loading 表示网络刷新仍在下面进行；render 现成逻辑
+                        // isRefreshing = refresh is Loading && hasLoadedOnce 让全屏 loading
+                        // 让位给「内容 + 顶部刷新圈」。缓存旧游标翻页的竞态由 loadMore 现有的
+                        // `refresh is Loading → return` 守卫免费挡住。
+                        refresh = LoadState.Loading,
+                        append = LoadState.Idle,
+                        reachedEnd = cached.nextCursor == null,
+                        hasLoadedOnce = true,
+                        showingCache = true,
+                        // 整代替换：磁盘快照的条目实例与之前任何一代都无关
+                        structureVersion = it.structureVersion + 1,
+                    )
+                }
+                val displayMs = (System.nanoTime() - refreshStartNanos) / 1_000_000
+                Timber.d(
+                    "feeds: 本地优先数据已展示，距 refresh() 发起 %dms（%d 条）",
+                    displayMs, cached.items.size,
+                )
+            } else {
+                _uiState.update { it.copy(refresh = LoadState.Loading, append = LoadState.Idle) }
+                if (coldStart) {
+                    val missMs = (System.nanoTime() - refreshStartNanos) / 1_000_000
+                    Timber.d("feeds: 本地优先未命中（判定耗时 %dms），走常规全屏 loading", missMs)
                 }
             }
 
@@ -121,6 +151,8 @@ class FeedViewModel<Cursor : Any>(
                         reachedEnd = freshCursor == null || hopCapExhausted,
                         hasLoadedOnce = true,
                         showingCache = false,
+                        // 整代替换：新一代网络首屏与屏幕上的旧条目实例无关
+                        structureVersion = it.structureVersion + 1,
                     )
                 }
             } catch (ex: CancellationException) {
@@ -238,9 +270,19 @@ class FeedViewModel<Cursor : Any>(
     /**
      * 整表编辑的通用入口：替换 / 插入 / 删除都可以由此表达。
      * 传入函数必须是纯函数（不要在里面做 IO）。
+     *
+     * [structural] 默认 true：编辑可能在任意位置替换 / 插入 / 删除条目，让
+     * [FeedUiState.structureVersion] 自增，强制增量消费方（如 IllustFeedPoolSync）全量重扫。
+     * 已知是纯尾部追加（旧前缀条目引用保证不变，如 `existing + fresh`）的调用方可传 false，
+     * 让消费方只需扫描新增的尾部——[appendItems] 已经这样做，其余调用方保持默认。
      */
-    fun mutateItems(edit: (List<FeedItem>) -> List<FeedItem>) {
-        _uiState.update { it.copy(items = edit(it.items)) }
+    fun mutateItems(structural: Boolean = true, edit: (List<FeedItem>) -> List<FeedItem>) {
+        _uiState.update {
+            it.copy(
+                items = edit(it.items),
+                structureVersion = if (structural) it.structureVersion + 1 else it.structureVersion,
+            )
+        }
     }
 
     /**
@@ -251,7 +293,7 @@ class FeedViewModel<Cursor : Any>(
      */
     fun appendItems(newItems: List<FeedItem>) {
         if (newItems.isEmpty()) return
-        mutateItems { existing ->
+        mutateItems(structural = false) { existing ->
             val seen = existing.mapTo(HashSet()) { it.identity }
             val fresh = newItems.filter { seen.add(it.identity) }
             if (fresh.isEmpty()) existing else existing + fresh

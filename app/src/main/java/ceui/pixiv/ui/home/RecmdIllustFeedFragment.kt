@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.BuildConfig
 import ceui.lisa.R
+import ceui.lisa.activities.ColdStartSplashGate
 import ceui.lisa.activities.RankActivity
 import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.VActivity
@@ -47,6 +48,7 @@ import ceui.pixiv.feeds.FeedCell
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedLoadPhase
 import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.LoadState
 import ceui.pixiv.feeds.cachedPixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
@@ -55,6 +57,7 @@ import ceui.pixiv.ui.common.IllustFeedItem
 import ceui.pixiv.utils.setOnClick
 import com.airbnb.lottie.LottieAnimationView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -145,6 +148,18 @@ open class RecmdIllustFeedFragment(
         super.onViewCreated(view, savedInstanceState)
         LocalBroadcastManager.getInstance(requireContext())
             .registerReceiver(relatedReceiver, IntentFilter(Params.FRAGMENT_ADD_RELATED_DATA))
+        // 本类在两处被复用：FragmentLeft（首页推荐 tab，TYPE_ILLUST）和独立的
+        // RecmdMangaFeedFragment（TemplateActivity 里的「推荐漫画」页，TYPE_MANGA）——
+        // 后者跟 MainActivity 冷启动无关，只有 TYPE_ILLUST 这份实例的裁决才代表
+        // MainActivity.getNavigationInitPosition()==0 时开屏该不该放行。
+        // 只等 refresh 走完首个决定（refresh 不再是初始 Idle，或已经 hasLoadedOnce）：
+        // 即命中缓存 / 未命中都算数，不等网络，避免开屏被无界的网络延迟焊死。
+        if (dataType == TYPE_ILLUST) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                feedViewModel.uiState.first { it.refresh !is LoadState.Idle || it.hasLoadedOnce }
+                ColdStartSplashGate.markResolved()
+            }
+        }
         if (BuildConfig.DEBUG) {
             addHapticDemoButton(view)
         }

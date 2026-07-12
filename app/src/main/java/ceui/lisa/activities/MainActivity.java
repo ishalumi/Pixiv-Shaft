@@ -10,6 +10,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -22,6 +24,8 @@ import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -66,6 +70,13 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
     private long mExitTime;
     private Fragment[] baseFragments = null;
 
+    /**
+     * 开屏动画安全兜底超时：万一首页推荐插画 tab 没能按预期跑到（异常 / 未来改了默认
+     * tab），也不能让开屏永久卡住——超时后强制放行，最坏情况退化回「开屏消失后闪一帧
+     * 常规 loading」，而不是白屏假死。ColdStartSplashGate 本身没有超时保护，靠这里兜底。
+     */
+    private static final long SPLASH_SAFETY_TIMEOUT_MS = 1200L;
+
     private final android.content.BroadcastReceiver profileReadyReceiver = new android.content.BroadcastReceiver() {
         @Override
         public void onReceive(android.content.Context context, Intent intent) {
@@ -73,6 +84,34 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
             buildDrawerMenu();
         }
     };
+
+    /**
+     * installSplashScreen 必须在 super.onCreate 之前调用（AndroidX SplashScreen 契约）。
+     * keepOnScreenCondition 只等 ColdStartSplashGate（首页推荐插画 tab 的本地优先裁决），
+     * 不等网络；安全超时兜底见 SPLASH_SAFETY_TIMEOUT_MS。
+     *
+     * 只有这次冷启动真的会落在首页推荐插画 tab（getNavigationInitPosition()==0）时，
+     * 才值得等：用户设置了「启动到最近使用的页」或把默认 tab 指到别处时，
+     * RecmdIllustFeedFragment(插画) 根本不会被创建，ColdStartSplashGate 永远等不到
+     * Fragment 那边的信号，只能靠安全超时兜底——那样每次冷启动都白等满 1200ms，
+     * 比完全不做这个功能还差。落在其它 tab 时直接放行，不占这些用户便宜。
+     * getNavigationInitPosition() 依赖 initView() 建好的 baseFragments，必须放在
+     * super.onCreate() 之后读；initView() 提前异常导致 baseFragments 仍为 null 时
+     * 同样直接放行，不让一次初始化失败连带把开屏焊死。
+     */
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        ColdStartSplashGate.reset();
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+        splashScreen.setKeepOnScreenCondition(() -> !ColdStartSplashGate.isResolved());
+        super.onCreate(savedInstanceState);
+        if (baseFragments == null || getNavigationInitPosition() != 0) {
+            ColdStartSplashGate.markResolved();
+        } else {
+            new Handler(Looper.getMainLooper())
+                    .postDelayed(ColdStartSplashGate::markResolved, SPLASH_SAFETY_TIMEOUT_MS);
+        }
+    }
 
     @Override
     protected int initLayout() {
