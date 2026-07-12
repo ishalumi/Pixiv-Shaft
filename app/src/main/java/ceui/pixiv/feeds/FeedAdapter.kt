@@ -59,6 +59,9 @@ class FeedAdapter(
         return cell
     }
 
+    // 两参版本是 RecyclerView.Adapter 的抽象方法，必须实现，但框架实际从不走这条路径：
+    // bindViewHolder() 内部固定调用三参数版本（payloads 可能是空列表），只有不重写三参版本时
+    // 基类默认实现才会转发到这里。三参版本已经覆盖了 payloads 为空的情形，这里只是满足契约。
     override fun onBindViewHolder(cell: FeedCell<FeedItem, ViewBinding>, position: Int) {
         bindInternal(cell, position, emptyList())
     }
