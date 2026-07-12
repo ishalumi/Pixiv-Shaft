@@ -6,7 +6,9 @@ import ceui.lisa.models.IllustsBean
 import ceui.loxia.Client
 import ceui.pixiv.db.discovery.DiscoveryPool
 import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedLoadPhase
 import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.cachedPixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
@@ -21,6 +23,11 @@ import ceui.pixiv.ui.common.IllustFeedItem
  * - 每页数据在过滤前整页喂给 DiscoveryPool（发现页画像采集，对齐 RankIllustRepo.doOnNext）；
  * - R18 专属榜单（mode 含 r18）跳过全局 R18 过滤，详情 pager 续拉回流的页同样跳过；
  * - 「排行榜过滤已收藏」设置（isFilterRankBookmarked）。
+ *
+ * 本地优先（[queryDate] 为空，即「当前榜单」而非日期选择器挑的历史某天）：给稳定 slot
+ * 开磁盘缓存，冷启秒显上次首屏再拉最新覆盖（同 RecmdIllustFeedFragment）。历史日期榜单
+ * 是一次性动作，不是每次冷启都会走的热路径，不缓存——省下的槽位留给更常访问的当前榜单
+ * （[ceui.pixiv.feeds.cache.FeedFirstPageCache] 的 LRU 槽位有限，见 MAX_CACHED_SLOTS）。
  */
 class RankIllustFeedFragment : IllustFeedFragment() {
 
@@ -38,8 +45,19 @@ class RankIllustFeedFragment : IllustFeedFragment() {
         val mode = mode
         val queryDate = queryDate
         val skipR18Filter = skipR18Filter
-        PixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, phase ->
-            mapRankPage(resp.displayList, phase.isFirstPage, mode, skipR18Filter)
+        if (queryDate == null) {
+            // 19 种 mode（14 插画 + 5 漫画，见 ILLUST_MODES/MANGA_MODES）互不重名，
+            // 直接当 slot 用；框架自动拼账号命名空间，切号不串味。
+            cachedPixivFeedSource(
+                slot = "rank-$mode",
+                initialFetch = { Client.appApi.getRankingIllusts(mode, queryDate) },
+            ) { resp, phase ->
+                mapRankPage(resp.displayList, phase, mode, skipR18Filter)
+            }
+        } else {
+            PixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, phase ->
+                mapRankPage(resp.displayList, phase, mode, skipR18Filter)
+            }
         }
     }
 
@@ -75,21 +93,29 @@ class RankIllustFeedFragment : IllustFeedFragment() {
             }
         }
 
-        /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
+        /**
+         * 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。
+         *
+         * [phase] 为 [FeedLoadPhase.CacheRestore]（缓存恢复）时只做纯映射：不喂画像池——
+         * 那是「拉取成功」的副作用，拿旧数据重放会污染下游。
+         */
         private fun mapRankPage(
             illusts: List<ceui.loxia.Illust>,
-            isFirstPage: Boolean,
+            phase: FeedLoadPhase,
             mode: String,
             skipR18Filter: Boolean,
         ): List<FeedItem> {
             val pairs = illusts.mapNotNull { illust ->
                 IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
             }
-            // 对齐 legacy RankIllustRepo：过滤前的整页喂给 DiscoveryPool（它内部自带去重/静音判断）
-            DiscoveryPool.collect(
-                pairs.map { it.second },
-                if (isFirstPage) "rank:$mode" else "rank_next:$mode",
-            )
+            // 对齐 legacy RankIllustRepo：过滤前的整页喂给 DiscoveryPool（它内部自带去重/静音判断）。
+            // 缓存恢复不喂（旧数据画像无意义、且违反重放安全）。
+            if (phase.isFreshFetch) {
+                DiscoveryPool.collect(
+                    pairs.map { it.second },
+                    if (phase.isFirstPage) "rank:$mode" else "rank_next:$mode",
+                )
+            }
             val filterBookmarked = Shaft.sSettings.isFilterRankBookmarked
             return pairs.mapNotNull { (illust, bean) ->
                 if (filterBookmarked && bean.isIs_bookmarked) return@mapNotNull null
