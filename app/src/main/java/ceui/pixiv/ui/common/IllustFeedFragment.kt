@@ -240,6 +240,7 @@ abstract class IllustFeedFragment(
         },
         recycle = { cell ->
             Glide.with(cell.binding.illustImage).clear(cell.binding.illustImage)
+            cell.binding.illustImage.tag = null
             resetLikeAnim(cell.binding)
         },
         changePayload = ::illustLikeChangePayload,
@@ -278,19 +279,31 @@ abstract class IllustFeedFragment(
             ?: resources.displayMetrics.widthPixels
         val columnWidth = (listWidth / Shaft.sSettings.lineCount).coerceAtLeast(1)
         val columnHeight = (columnWidth * ratio).toInt()
-        Glide.with(cell.binding.illustImage)
-            .load(imgUrl)
-            .override(columnWidth, columnHeight)
-            .placeholder(R.color.second_light_bg)
-            .transition(DrawableTransitionOptions.withCrossFade())
-            .error(
-                Glide.with(cell.binding.illustImage)
-                    .load(imgUrl)
-                    .override(columnWidth, columnHeight)
-                    .placeholder(R.color.second_light_bg)
-                    .transition(DrawableTransitionOptions.withCrossFade())
-            )
-            .into(cell.binding.illustImage)
+        // GlideUrlChild 每次构造都带当前时间戳请求头（PixivHeaders.x-client-time/hash），
+        // 而 GlideUrl.equals() 要求 headers 也相等才算「同一请求」——这里的 headers 又是个
+        // 没重写 equals 的 lambda，Glide 自己的活跃资源缓存永远认不出「这张图已经在显示」。
+        // 本地优先冷启（缓存快照 → 网络新数据）时 Illust.total_view/total_bookmarks 几乎
+        // 必然变了（这两个字段卡片根本不展示），触发全量重绑，重绑一律重新发 Glide 请求，
+        // 于是每张卡片的图都要闪一次占位色再淡入回来——图其实没变。用请求 URL（不含
+        // headers 的 cacheKey）+ 目标尺寸当 tag，真没变时跳过这次重新加载；recycle 清图时
+        // 一并清 tag，保证真正复用到新条目时不会因为 tag 恰好没变而漏加载。
+        val imageRequestKey = Triple(imgUrl?.cacheKey, columnWidth, columnHeight)
+        if (cell.binding.illustImage.tag != imageRequestKey) {
+            cell.binding.illustImage.tag = imageRequestKey
+            Glide.with(cell.binding.illustImage)
+                .load(imgUrl)
+                .override(columnWidth, columnHeight)
+                .placeholder(R.color.second_light_bg)
+                .transition(DrawableTransitionOptions.withCrossFade())
+                .error(
+                    Glide.with(cell.binding.illustImage)
+                        .load(imgUrl)
+                        .override(columnWidth, columnHeight)
+                        .placeholder(R.color.second_light_bg)
+                        .transition(DrawableTransitionOptions.withCrossFade())
+                )
+                .into(cell.binding.illustImage)
+        }
 
         cell.binding.pSize.isVisible = bean.page_count > 1
         if (bean.page_count > 1) {
