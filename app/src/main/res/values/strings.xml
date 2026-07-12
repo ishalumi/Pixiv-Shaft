@@ -2253,6 +2253,7 @@
     <string name="image_host_custom_empty">反代地址不能为空</string>
     <string name="image_host_restart_hint">重启 App 后生效</string>
     <string name="comment_translate_to_zh">翻译成中文</string>
+    <string name="comment_emoji_picker">表情</string>
     <!-- 稍后再看 (watch later) -->
     <string name="watch_later">稍后再看</string>
     <string name="watch_later_add">加入稍后再看</string>

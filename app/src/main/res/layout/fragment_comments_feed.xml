@@ -112,6 +112,18 @@
             android:paddingEnd="14dp"
             android:paddingBottom="12dp">
 
+            <ImageButton
+                android:id="@+id/emoji_toggle"
+                android:layout_width="40dp"
+                android:layout_height="44dp"
+                android:layout_gravity="bottom"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/comment_emoji_picker"
+                android:padding="9dp"
+                android:src="@drawable/chat_ic_emoji"
+                app:tint="@color/v3_text_3" />
+
             <EditText
                 android:id="@+id/comment_input"
                 android:layout_width="0dp"
@@ -141,5 +153,18 @@
                 android:src="@drawable/chat_ic_send"
                 app:tint="@color/always_white" />
         </LinearLayout>
+
+        <!-- 「小表情」面板:38 个 pixiv 内置表情((normal)/(heart)/…),点击插入光标处,
+             与系统键盘互斥显示(开面板收键盘/键盘弹出收面板),见 CommentsFragment.setUpComposer -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/emoji_panel"
+            android:layout_width="match_parent"
+            android:layout_height="240dp"
+            android:background="@color/v3_surface_2"
+            android:clipToPadding="false"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

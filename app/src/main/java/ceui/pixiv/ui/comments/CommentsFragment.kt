@@ -17,6 +17,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
@@ -33,6 +34,7 @@ import ceui.loxia.ObjectType
 import ceui.loxia.ProgressTextButton
 import ceui.loxia.hideKeyboard
 import ceui.loxia.launchSuspend
+import ceui.loxia.showKeyboard
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
@@ -99,10 +101,33 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
             val imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
             val systemBarsInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.touchOutside.isVisible = imeInsets.bottom > 0
+            // 系统键盘弹出时收起表情面板,两者不共存(同 pixez MediaQuery.viewInsets.bottom==0 判断)
+            if (imeInsets.bottom > 0) {
+                binding.emojiPanel.isVisible = false
+            }
             val bottomInsets = if (imeInsets.bottom > 0) imeInsets.bottom else systemBarsInsets.bottom
             binding.bottomBar.updatePadding(bottom = bottomInsets)
             WindowInsetsCompat.CONSUMED
         }
+    }
+
+    /** 「小表情」选择面板:38 个 pixiv 内置表情,点击插入输入框光标处;与系统键盘互斥显示,
+     * 打开面板前先收键盘,关闭面板则重新唤起键盘(对齐点了输入框的直觉)。 */
+    private fun setUpEmojiPanel(binding: FragmentCommentsFeedBinding) {
+        binding.emojiPanel.layoutManager = GridLayoutManager(requireContext(), 7)
+        binding.emojiPanel.adapter = CommentEmojiPickerAdapter { code ->
+            val editable = binding.commentInput.text ?: return@CommentEmojiPickerAdapter
+            val start = binding.commentInput.selectionStart.coerceIn(0, editable.length)
+            val end = binding.commentInput.selectionEnd.coerceIn(0, editable.length)
+            editable.replace(minOf(start, end), maxOf(start, end), code)
+            binding.commentInput.setSelection(minOf(start, end) + code.length)
+        }
+        binding.emojiToggle.setOnClick {
+            val opening = !binding.emojiPanel.isVisible
+            binding.emojiPanel.isVisible = opening
+            if (opening) hideKeyboard() else showKeyboard(binding.commentInput)
+        }
+        binding.commentInput.setOnClickListener { binding.emojiPanel.isVisible = false }
     }
 
     /** MD3-E 输入栏:圆角胶囊输入框 + 主题色实心发送按钮(V3Palette 现算,AppCompat host 不认
@@ -113,6 +138,7 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         val palette = V3Palette.from(requireContext())
         binding.commentInput.background = palette.settingsCardBg(24f * density, (1 * density).toInt())
         binding.sendButton.background = palette.pillPrimary()
+        setUpEmojiPanel(binding)
 
         fun updateSendEnabled(text: CharSequence?) {
             val enabled = !text.isNullOrBlank()
@@ -121,6 +147,13 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         }
         updateSendEnabled(binding.commentInput.text)
         binding.commentInput.addTextChangedListener { editable ->
+            if (editable != null) {
+                // 就地刷新表情图 span,做到输入框内实时渲染((heaven) 打完就立刻变小图),
+                // 不是重新 set 文本(那样会打断输入法组词/丢光标)。span 变更不触发
+                // TextWatcher 递归——只有文字内容变化才会。
+                CommentEmojiSpanner.clearSpans(editable)
+                CommentEmojiSpanner.applySpans(requireContext(), editable, binding.commentInput.textSize.toInt())
+            }
             composer.editingComment.value = editable?.toString().orEmpty()
             updateSendEnabled(editable)
         }

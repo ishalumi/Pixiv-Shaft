@@ -2084,6 +2084,7 @@
     <string name="image_host_custom_empty">Proxy adresi boş olamaz</string>
     <string name="image_host_restart_hint">Uygulamayı yeniden başlatın</string>
     <string name="comment_translate_to_zh">Çince\'ye çevir</string>
+    <string name="comment_emoji_picker">Emoji</string>
     <!-- watch later / Sonra İzle -->
     <string name="watch_later">Sonra İzle</string>
     <string name="watch_later_add">Sonra İzle\'ye ekle</string>

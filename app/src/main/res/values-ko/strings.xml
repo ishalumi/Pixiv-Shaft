@@ -2084,6 +2084,7 @@
     <string name="image_host_custom_empty">프록시 URL을 입력하세요</string>
     <string name="image_host_restart_hint">앱을 다시 시작하면 적용됩니다</string>
     <string name="comment_translate_to_zh">중국어로 번역</string>
+    <string name="comment_emoji_picker">이모티콘</string>
     <!-- watch later / 나중에 보기 -->
     <string name="watch_later">나중에 보기</string>
     <string name="watch_later_add">나중에 보기에 추가</string>

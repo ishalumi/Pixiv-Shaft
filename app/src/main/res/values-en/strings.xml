@@ -2084,6 +2084,7 @@
     <string name="image_host_custom_empty">Proxy URL cannot be empty</string>
     <string name="image_host_restart_hint">Restart the app to apply</string>
     <string name="comment_translate_to_zh">Translate to Chinese</string>
+    <string name="comment_emoji_picker">Emoji</string>
     <!-- watch later -->
     <string name="watch_later">Watch Later</string>
     <string name="watch_later_add">Add to Watch Later</string>
