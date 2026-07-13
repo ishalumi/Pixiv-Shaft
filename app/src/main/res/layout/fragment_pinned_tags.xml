@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  「侧边栏 → 置顶标签」页布局。
+  「侧边栏 → 置顶标签」页布局（feeds 框架版）。
   Toolbar 用 fragment_settings / fragment_webview 同款 5 件套（colorPrimary 底 + 白标题 +
-  返回箭头 + AppBarOverlay / PopupOverlay + title=" " 占位）；BaseActivity 开了 EdgeToEdge，
-  状态栏 inset 走 runtime `updatePadding(top=BarUtils.getStatusBarHeight())`，不用
-  fitsSystemWindows（双重 inset 会让顶部多空一截）。
-  list 容器用 FrameLayout 叠一个居中的 empty view，不嵌 SmartRefreshLayout —— 本地 DB 查询
-  毫秒级返回，下拉刷新没意义；新条目通过 onResume 时再查一次 DB 自动出现。
+  返回箭头 + AppBarOverlay / PopupOverlay + title=" " 占位）+ 额外「清空」按钮；BaseActivity
+  开了 EdgeToEdge，状态栏 inset 走 runtime `updatePadding(top=BarUtils.getStatusBarHeight())`，
+  不用 fitsSystemWindows（双重 inset 会让顶部多空一截）。
+  列表区改用 feeds 框架标准 fragment_feed include（id 保持 feed_root）：下拉刷新 / 空态 /
+  加载态统一交给框架管理，不再自己叠 empty_layout。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -51,25 +51,10 @@
 
     </androidx.appcompat.widget.Toolbar>
 
-    <FrameLayout
+    <include
+        android:id="@+id/feed_root"
+        layout="@layout/fragment_feed"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/list_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false" />
-
-        <!-- 空态用首页推荐列表 (fragment_base_list.xml) 同款 empty_layout：
-             `@mipmap/empty_img` 带 colorPrimary tint + 主题色加粗文案「这里什么都没有呢」。
-             include 自身 id 命名为 empty_view，Fragment 直接 findViewById 切 visible/gone。 -->
-        <include
-            android:id="@+id/empty_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            layout="@layout/empty_layout" />
-    </FrameLayout>
+        android:layout_weight="1" />
 </LinearLayout>

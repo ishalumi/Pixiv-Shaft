@@ -1,89 +1,128 @@
 package ceui.pixiv.ui.pinned
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.TextView
-import androidx.appcompat.widget.Toolbar
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
+import ceui.lisa.activities.SearchActivity
+import ceui.lisa.activities.Shaft
+import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.SearchEntity
+import ceui.lisa.databinding.CellItemPinnedTagBinding
+import ceui.lisa.databinding.FragmentPinnedTagsBinding
 import ceui.lisa.utils.Common
-import ceui.loxia.RefreshHint
-import ceui.pixiv.ui.common.CommonAdapter
-import ceui.pixiv.ui.common.ListMode
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.common.setUpLayoutManager
+import ceui.lisa.utils.Params
+import ceui.lisa.view.LinearItemDecoration
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedPage
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.utils.ppppx
 import com.blankj.utilcode.util.BarUtils
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * 「侧边栏 → 置顶标签」入口对应的列表页。
+ * 「侧边栏 → 置顶标签」入口对应的列表页（feeds 框架版）。
  *
  * 入口在 [ceui.lisa.activities.MainActivity.handleDrawerAction] 通过
  * `EXTRA_FRAGMENT = "PinnedTagsList"` 路由到这里。
  *
- * 显示样式参考 [ceui.pixiv.ui.prime.PrimeTagsFragment] 里的 `PrimeTagItemHolder`；
- * 数据来源是 [ceui.lisa.utils.PixivOperate.insertPinnedSearchHistory] 写入的 search_table。
+ * 数据来源是 [ceui.lisa.utils.PixivOperate.insertPinnedSearchHistory] 写入的 search_table，
+ * 本地 Room 查询，没有分页也没有网络，因此不接本地优先缓存——数据本身就在本地。
  *
- * Toolbar 用 fragment_settings / fragment_webview 同款 5 件套（[layout/fragment_pinned_tags]），
- * 不复用 fragment_pixiv_list.xml 的 layout_toolbar —— 因此也不能复用 [setUpRefreshState]
- * （硬绑 `FragmentPixivListBinding`），把它那点 list 装配逻辑手摘出来即可：
- * LinearLayoutManager + CommonAdapter + 观察 holders + 切换 empty view。本地 DB 查询毫秒级，
- * 不需要下拉刷新；新置顶通过 [onResume] 重新查一次 DB 自动出现。
+ * 用户从详情页长按置顶 / 取消置顶后回到本页要看到最新结果，所以每次页面进入 STARTED
+ * 都主动 [ceui.pixiv.feeds.FeedViewModel.refresh] 重新查一次 DB（对齐旧版 onResume 语义）。
  */
-class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags), PinnedTagActionReceiver {
+class PinnedTagsFragment : FeedFragment(R.layout.fragment_pinned_tags) {
 
-    private val viewModel by viewModels<PinnedTagsViewModel>()
+    private val binding by viewBinding(FragmentPinnedTagsBinding::bind)
+
+    override val feedViewModel by feedViewModels<String> {
+        FeedSource { _ ->
+            val items = withContext(Dispatchers.IO) {
+                searchDao().getAllPinned()
+                    .filterNot { it.keyword.isNullOrBlank() }
+                    .map { PinnedTagItemHolder(it) }
+            }
+            FeedPage(items, null)
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<Toolbar>(R.id.toolbar).apply {
+        binding.toolbar.apply {
             // BaseActivity 走 EdgeToEdge,顶部状态栏 inset 由 runtime padding 处理,不用
             // fitsSystemWindows(那个在 EdgeToEdge host 下会和 bottom inset 一起算导致额外空白)。
             updatePadding(top = BarUtils.getStatusBarHeight())
             setNavigationOnClickListener { activity?.finish() }
         }
+        binding.clearAll.setOnClickListener { showClearAllDialog() }
 
-        val clearAll = view.findViewById<TextView>(R.id.clear_all)
-        clearAll.setOnClickListener { showClearAllDialog() }
-
-        val listView = view.findViewById<RecyclerView>(R.id.list_view)
-        val emptyView = view.findViewById<View>(R.id.empty_view)
-
-        // 走项目标准 setUpLayoutManager:VERTICAL 模式会挂上 LinearItemDecoration(18dp),
-        // 给每个 item 上下左右各 18dp 间距 + 第一项额外 top —— 不挂 cell 会顶到屏幕边、
-        // 上下也无空隙。`fragment_pixiv_list` 体系通过 setUpRefreshState 间接调用这个,
-        // 我们没复用 helper 就要手动挂上。
-        setUpLayoutManager(listView, ListMode.VERTICAL)
-        val adapter = CommonAdapter(viewLifecycleOwner)
-        listView.adapter = adapter
-
-        viewModel.holders.observe(viewLifecycleOwner) { holders ->
-            adapter.submitList(holders)
-            emptyView.isVisible = holders.isEmpty()
-            clearAll.isVisible = holders.isNotEmpty()
-        }
-
-        // 用户从详情页长按置顶 / 取消置顶后回到本页,要看到列表更新。
         // STARTED-aware 协程:只在 fragment 可见时才触发 refresh,避免后台 churn。
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.refresh(RefreshHint.PullToRefresh)
+                feedViewModel.refresh()
+            }
+        }
+        // 「清空」按钮只在有内容时露出,基类的 render() 不管页面专属的这块 UI,单独订阅。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                feedViewModel.uiState.collect { state ->
+                    binding.clearAll.isVisible = state.items.isNotEmpty()
+                }
             }
         }
     }
 
-    override fun onClickDeletePinnedTag(entity: SearchEntity) {
+    override fun onListReady(listView: RecyclerView) {
+        // 对齐旧版 setUpLayoutManager(ListMode.VERTICAL) 的间距：卡片左右/底部 18dp 间隔 +
+        // 首项顶部留白,不挂会顶到屏幕边、上下也无空隙。
+        listView.addItemDecoration(LinearItemDecoration(18.ppppx))
+    }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(pinnedTagRenderer())
+    }
+
+    private fun pinnedTagRenderer() = feedRenderer<PinnedTagItemHolder, CellItemPinnedTagBinding>(
+        inflate = CellItemPinnedTagBinding::inflate,
+        create = { cell ->
+            cell.binding.root.setOnClickListener {
+                // 标准跳法（见 V3TagFlowView.kt:179-184）：开 SearchActivity，
+                // illust tab（index=0），keyword 就是 tag.name。
+                // Tag.name 类型是 String?；FeedSource 已经把空 keyword 的 entity 过滤掉，但编译期
+                // 不知道这事，加一道防御兜底——免得未来 Tag/SearchEntity 字段改 nullability 时这里
+                // 静悄悄传 null keyword 给 SearchActivity。
+                val keyword = cell.item.tag.name?.takeIf { it.isNotBlank() } ?: return@setOnClickListener
+                startActivity(Intent(requireContext(), SearchActivity::class.java).apply {
+                    putExtra(Params.KEY_WORD, keyword)
+                    putExtra(Params.INDEX, 0)
+                })
+            }
+            cell.binding.deletePin.setOnClickListener { onClickDeletePinnedTag(cell.item.entity) }
+        },
+    ) { cell ->
+        cell.binding.holder = cell.item
+    }
+
+    private fun onClickDeletePinnedTag(entity: SearchEntity) {
         val ctx = context ?: return
         val displayName = entity.keyword.orEmpty()
         QMUIDialog.MessageDialogBuilder(ctx)
@@ -92,7 +131,13 @@ class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags), PinnedT
             .setSkinManager(QMUISkinManager.defaultInstance(ctx))
             .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
             .addAction(0, R.string.string_443, QMUIDialogAction.ACTION_PROP_NEGATIVE) { dialog, _ ->
-                viewModel.deleteOne(entity)
+                // Fragment 自身的 lifecycleScope,不是 viewLifecycleOwner 的:QMUIDialog 挂在
+                // Activity context 上,不受 Fragment 视图生命周期约束,视图已销毁(切后台被回收/
+                // 旋转)时用户才点确认,访问 viewLifecycleOwner 会直接抛 ISE 崩溃。
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { searchDao().deleteSearchEntity(entity) }
+                    feedViewModel.refresh()
+                }
                 // Toast 走 application-context 的 ToastUtils,fragment 已 detach 时也安全；
                 // 用 int 资源是为了避免 dialog 回调里 getString() 撞上 fragment 未 attach 抛 ISE。
                 Common.showToast(R.string.unpin_tag_success)
@@ -109,10 +154,20 @@ class PinnedTagsFragment : PixivFragment(R.layout.fragment_pinned_tags), PinnedT
             .setSkinManager(QMUISkinManager.defaultInstance(ctx))
             .addAction(R.string.string_142) { dialog, _ -> dialog.dismiss() }
             .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { dialog, _ ->
-                viewModel.clearAll()
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { searchDao().deleteAllPinned() }
+                    feedViewModel.refresh()
+                }
                 Common.showToast(R.string.pinned_tags_cleared)
                 dialog.dismiss()
             }
             .show()
     }
 }
+
+/**
+ * 顶层函数（非成员方法）：[PinnedTagsFragment.feedViewModel] 的 [FeedSource] lambda 里要用它，
+ * 成员方法会隐式捕获 `this@PinnedTagsFragment`——FeedSource 被 VM 长期持有，会把旋转前的旧
+ * Fragment 实例钉在内存里（零捕获约定见 [ceui.pixiv.feeds.feedViewModels] 文档）。
+ */
+private fun searchDao() = AppDatabase.getAppDatabase(Shaft.getContext()).searchDao()
