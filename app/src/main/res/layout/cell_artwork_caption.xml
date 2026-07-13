@@ -20,6 +20,7 @@
             android:layout_marginBottom="4dp"
             android:layout_width="match_parent"
             android:textColor="@color/text00"
+            android:textIsSelectable="true"
             android:layout_height="wrap_content"/>
 
         <TextView
@@ -41,6 +42,7 @@
             android:layout_marginBottom="12dp"
             android:layout_width="match_parent"
             android:textColor="@color/text20"
+            android:textIsSelectable="true"
             android:layout_height="wrap_content"
             android:visibility="gone" />
 

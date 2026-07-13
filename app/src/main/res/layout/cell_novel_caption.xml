@@ -35,6 +35,7 @@
             android:paddingHorizontal="8dp"
             android:textColor="@color/v3_text_1"
             android:textColorLink="@color/v3_blue"
+            android:textIsSelectable="true"
             android:textSize="14sp" />
     </LinearLayout>
 </layout>
