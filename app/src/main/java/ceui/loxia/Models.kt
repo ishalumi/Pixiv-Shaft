@@ -306,6 +306,9 @@ data class User(
     val require_policy_agreement: Boolean? = null,
     val x_restrict: Int? = null,
     val comment: String? = null,
+    // user/detail v2 新增:对方是否屏蔽了当前用户的访问 / 是否开启「接受约稿(request)」
+    val is_access_blocking_user: Boolean? = null,
+    val is_accept_request: Boolean? = null,
 ) : Serializable, ModelObject {
     override val objectUniqueId: Long
         get() = id
@@ -442,13 +445,20 @@ data class Profile(
     val total_novels: Int? = null,
     val twitter_account: String? = null,
     val twitter_url: String? = null,
-    val webpage: Any? = null
+    val webpage: Any? = null,
+    // user/detail v2 新增:徽章,形如 {"type":"premium","url":null},常为 null
+    val badge: Badge? = null
 ) {
 
     fun isPremium(): Boolean {
         return is_premium == true
     }
 }
+
+data class Badge(
+    val type: String? = null,
+    val url: String? = null,
+) : Serializable
 
 data class ProfilePublicity(
     val birth_day: String? = null,

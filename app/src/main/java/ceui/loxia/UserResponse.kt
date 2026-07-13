@@ -7,7 +7,9 @@ data class UserResponse(
     val profile: Profile? = null,
     val profile_publicity: ProfilePublicity? = null,
     val user: User? = null,
-    val workspace: Workspace? = null
+    val workspace: Workspace? = null,
+    // user/detail v2 新增:被服务端禁用的外链标识列表(空数组表示无)
+    val disabled_links: List<String>? = null
 ) : ModelObject {
 
     fun isPremium(): Boolean {

@@ -25,6 +25,9 @@ public class UserBean implements Serializable, UserContainer, Starable, ModelObj
     private boolean is_login;
     private boolean is_premium;
     private boolean is_followed;
+    // user/detail v2 新增:对方是否屏蔽了当前用户的访问 / 是否开启「接受约稿(request)」
+    private boolean is_access_blocking_user;
+    private boolean is_accept_request;
     private long lastTokenTime = -1;
     private int x_restrict;
     private boolean is_mail_authorized;
@@ -44,6 +47,22 @@ public class UserBean implements Serializable, UserContainer, Starable, ModelObj
 
     public void setIs_followed(boolean is_followed) {
         this.is_followed = is_followed;
+    }
+
+    public boolean isIs_access_blocking_user() {
+        return is_access_blocking_user;
+    }
+
+    public void setIs_access_blocking_user(boolean is_access_blocking_user) {
+        this.is_access_blocking_user = is_access_blocking_user;
+    }
+
+    public boolean isIs_accept_request() {
+        return is_accept_request;
+    }
+
+    public void setIs_accept_request(boolean is_accept_request) {
+        this.is_accept_request = is_accept_request;
     }
 
     public long getLastTokenTime() {

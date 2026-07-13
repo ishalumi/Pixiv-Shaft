@@ -59,6 +59,8 @@ public class ProfileBean implements Serializable {
     private String pawoo_url;
     private boolean is_premium;
     private boolean is_using_custom_profile_image;
+    // user/detail v2 新增:徽章,形如 {"type":"premium","url":null},常为 null
+    private BadgeBean badge;
 
     public String getWebpage() {
         return webpage;
@@ -292,5 +294,13 @@ public class ProfileBean implements Serializable {
 
     public void setIs_using_custom_profile_image(boolean is_using_custom_profile_image) {
         this.is_using_custom_profile_image = is_using_custom_profile_image;
+    }
+
+    public BadgeBean getBadge() {
+        return badge;
+    }
+
+    public void setBadge(BadgeBean badge) {
+        this.badge = badge;
     }
 }

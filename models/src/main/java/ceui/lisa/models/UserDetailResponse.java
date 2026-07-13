@@ -14,6 +14,8 @@ public class UserDetailResponse extends UserHolder implements Serializable, User
     private ProfileBean profile;
     private ProfilePublicityBean profile_publicity;
     private WorkspaceBean workspace;
+    // user/detail v2 新增:被服务端禁用的外链标识列表(如某些社交链接被关停),空数组表示无
+    private List<String> disabled_links;
 
     public ProfileBean getProfile() {
         return profile;
@@ -37,6 +39,14 @@ public class UserDetailResponse extends UserHolder implements Serializable, User
 
     public void setWorkspace(WorkspaceBean workspace) {
         this.workspace = workspace;
+    }
+
+    public List<String> getDisabled_links() {
+        return disabled_links;
+    }
+
+    public void setDisabled_links(List<String> disabled_links) {
+        this.disabled_links = disabled_links;
     }
 
     @Override

@@ -212,6 +212,12 @@ public interface AppApi {
     @GET("v1/user/detail?filter=for_android")
     Observable<UserDetailResponse> getUserDetail(@Query("user_id") int user_id);
 
+    // v2 + filter=for_ios 才会带 is_accept_request / badge / disabled_links 等 iOS 端专有字段
+    // (v1 for_android 不返回)。字段按 filter/版本 gate,与 UA 无关,Android UA 也能拿到。
+    // 目前仅 V3 用户主页用它驱动「约稿中」tab 的显隐。
+    @GET("v2/user/detail?filter=for_ios")
+    Observable<UserDetailResponse> getUserDetailV2(@Query("user_id") int user_id);
+
 
     //  /v1/ugoira/metadata?illust_id=47297805
     @GET("v1/ugoira/metadata")
