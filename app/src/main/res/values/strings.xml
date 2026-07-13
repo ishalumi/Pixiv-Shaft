@@ -1077,7 +1077,7 @@
     <string name="v3_label_profile_details">个人资料</string>
     <!-- 约稿中(request-plans)tab 与卡片 -->
     <string name="request_tab_title">约稿中</string>
-    <string name="request_price_format">¥%1$s</string>
+    <string name="request_price_format">¥%1$s JPY</string>
     <string name="request_badge_adult">R-18</string>
     <string name="request_view_plan">查看约稿方案 ›</string>
     <string name="request_flag_illust">插画</string>
