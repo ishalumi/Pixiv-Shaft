@@ -2112,4 +2112,29 @@
     <string name="drawer_section_discover">Обзор и рекомендации</string>
     <string name="drawer_section_mine">Моё</string>
     <string name="drawer_section_records">Записи и управление</string>
+    <!-- 约稿(request-plans)相关 -->
+    <string name="request_tab_title">Заказы</string>
+    <string name="request_price_format">¥%1$s JPY</string>
+    <string name="request_badge_adult">R-18</string>
+    <string name="request_view_plan">Открыть план ›</string>
+    <string name="request_flag_illust">Иллюстрация</string>
+    <string name="request_flag_manga">Манга</string>
+    <string name="request_flag_ugoira">Угоира</string>
+    <string name="request_flag_novel">Новелла</string>
+    <string name="request_flag_anonymous">Можно анонимно</string>
+    <string name="request_flag_ai">Сгенерировано ИИ</string>
+    <string name="request_flag_adult">Контент R-18</string>
+    <string name="request_detail_price_label">Базовая цена</string>
+    <string name="request_detail_flags_label">Принимаемые типы заказов</string>
+    <string name="request_detail_title_label">Название плана</string>
+    <string name="request_detail_desc_label">Описание плана</string>
+    <string name="request_detail_meta_label">Подробности</string>
+    <string name="request_detail_meta_id">ID плана</string>
+    <string name="request_detail_meta_ai">Тип ИИ</string>
+    <string name="request_detail_orig_format">Оригинал · %1$s</string>
+    <string name="request_detail_orig_plain">Оригинал</string>
+    <string name="request_ai_none">Без ИИ</string>
+    <string name="request_ai_generated">Сгенерировано ИИ</string>
+    <string name="request_ai_unknown">Неизвестно</string>
+    <string name="request_go_commission">Заказать</string>
 </resources>

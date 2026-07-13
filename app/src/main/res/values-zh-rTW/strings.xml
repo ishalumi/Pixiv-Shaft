@@ -2114,4 +2114,29 @@
     <string name="drawer_section_discover">瀏覽與探索</string>
     <string name="drawer_section_mine">我的</string>
     <string name="drawer_section_records">記錄與管理</string>
+    <!-- 约稿(request-plans)相关 -->
+    <string name="request_tab_title">委託中</string>
+    <string name="request_price_format">¥%1$s JPY</string>
+    <string name="request_badge_adult">R-18</string>
+    <string name="request_view_plan">查看委託方案 ›</string>
+    <string name="request_flag_illust">插畫</string>
+    <string name="request_flag_manga">漫畫</string>
+    <string name="request_flag_ugoira">動圖</string>
+    <string name="request_flag_novel">小說</string>
+    <string name="request_flag_anonymous">可匿名委託</string>
+    <string name="request_flag_ai">AI 生成</string>
+    <string name="request_flag_adult">R-18 內容</string>
+    <string name="request_detail_price_label">標準價格</string>
+    <string name="request_detail_flags_label">可接受的委託類型</string>
+    <string name="request_detail_title_label">方案標題</string>
+    <string name="request_detail_desc_label">方案說明</string>
+    <string name="request_detail_meta_label">詳細資訊</string>
+    <string name="request_detail_meta_id">方案 ID</string>
+    <string name="request_detail_meta_ai">AI 類型</string>
+    <string name="request_detail_orig_format">原文 · %1$s</string>
+    <string name="request_detail_orig_plain">原文</string>
+    <string name="request_ai_none">非 AI 生成</string>
+    <string name="request_ai_generated">AI 生成</string>
+    <string name="request_ai_unknown">未知</string>
+    <string name="request_go_commission">前往委託</string>
 </resources>

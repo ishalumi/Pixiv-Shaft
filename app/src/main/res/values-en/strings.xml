@@ -2112,4 +2112,29 @@
     <string name="drawer_section_discover">Browse &amp; discover</string>
     <string name="drawer_section_mine">Mine</string>
     <string name="drawer_section_records">Records &amp; management</string>
+    <!-- 约稿(request-plans)相关 -->
+    <string name="request_tab_title">Requests</string>
+    <string name="request_price_format">¥%1$s JPY</string>
+    <string name="request_badge_adult">R-18</string>
+    <string name="request_view_plan">View plan ›</string>
+    <string name="request_flag_illust">Illustration</string>
+    <string name="request_flag_manga">Manga</string>
+    <string name="request_flag_ugoira">Ugoira</string>
+    <string name="request_flag_novel">Novel</string>
+    <string name="request_flag_anonymous">Anonymous OK</string>
+    <string name="request_flag_ai">AI-generated</string>
+    <string name="request_flag_adult">R-18 content</string>
+    <string name="request_detail_price_label">Standard price</string>
+    <string name="request_detail_flags_label">Accepted request types</string>
+    <string name="request_detail_title_label">Plan title</string>
+    <string name="request_detail_desc_label">Plan description</string>
+    <string name="request_detail_meta_label">Details</string>
+    <string name="request_detail_meta_id">Plan ID</string>
+    <string name="request_detail_meta_ai">AI type</string>
+    <string name="request_detail_orig_format">Original · %1$s</string>
+    <string name="request_detail_orig_plain">Original</string>
+    <string name="request_ai_none">Not AI-generated</string>
+    <string name="request_ai_generated">AI-generated</string>
+    <string name="request_ai_unknown">Unknown</string>
+    <string name="request_go_commission">Send a request</string>
 </resources>

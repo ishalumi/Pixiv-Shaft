@@ -2112,4 +2112,29 @@
     <string name="drawer_section_discover">探索と発見</string>
     <string name="drawer_section_mine">マイコンテンツ</string>
     <string name="drawer_section_records">記録と管理</string>
+    <!-- 约稿(request-plans)相关 -->
+    <string name="request_tab_title">リクエスト</string>
+    <string name="request_price_format">¥%1$s JPY</string>
+    <string name="request_badge_adult">R-18</string>
+    <string name="request_view_plan">プランを見る ›</string>
+    <string name="request_flag_illust">イラスト</string>
+    <string name="request_flag_manga">マンガ</string>
+    <string name="request_flag_ugoira">うごイラ</string>
+    <string name="request_flag_novel">小説</string>
+    <string name="request_flag_anonymous">匿名OK</string>
+    <string name="request_flag_ai">AI生成</string>
+    <string name="request_flag_adult">R-18コンテンツ</string>
+    <string name="request_detail_price_label">標準価格</string>
+    <string name="request_detail_flags_label">受付可能なリクエスト</string>
+    <string name="request_detail_title_label">プランタイトル</string>
+    <string name="request_detail_desc_label">プラン説明</string>
+    <string name="request_detail_meta_label">詳細情報</string>
+    <string name="request_detail_meta_id">プランID</string>
+    <string name="request_detail_meta_ai">AIタイプ</string>
+    <string name="request_detail_orig_format">原文 · %1$s</string>
+    <string name="request_detail_orig_plain">原文</string>
+    <string name="request_ai_none">AI生成ではない</string>
+    <string name="request_ai_generated">AI生成</string>
+    <string name="request_ai_unknown">不明</string>
+    <string name="request_go_commission">リクエストする</string>
 </resources>
