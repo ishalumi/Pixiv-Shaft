@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  约稿方案详情页 (MD3-Expressive)。整页竖向滚动、不折叠展示 RequestPlan 全部字段:
+  封面 hero(译名标题压图)+ 价格 / 可接受类型(6 项全列)/ 标题(原文+译文+语言)/
+  说明(原文+译文全文)/ 元信息(方案 ID + AI 类型)。动态色(卡底/描边/强调/价格/chip)
+  由 Fragment 用 V3Palette 注入,跟随 app 主题色;文字用 v3_text_* 适配日夜。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/detail_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/v3_bg">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ── Hero 封面 ─────────────────────────────────────── -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="280dp">
+
+                <ImageView
+                    android:id="@+id/cover"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@color/light_bg"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="140dp"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/bg_request_cover_scrim" />
+
+                <TextView
+                    android:id="@+id/hero_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:layout_marginHorizontal="20dp"
+                    android:layout_marginBottom="18dp"
+                    android:fontFamily="@font/montserrat_extra_bold"
+                    android:shadowColor="#B3000000"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="8"
+                    android:textColor="#FFFFFF"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    tools:text="Caray 最后计划" />
+            </FrameLayout>
+
+            <!-- 作者卡容器:代码里 inflate section_v3_artist(作品详情页同款玻璃卡)塞进来。
+                 section 自带 12dp 横向 margin,容器再补 4dp → 与下方 16dp 内容卡对齐。 -->
+            <FrameLayout
+                android:id="@+id/author_row_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="4dp"
+                android:layout_marginTop="6dp" />
+
+            <!-- ── 内容区 ────────────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="24dp">
+
+                <!-- 价格卡 -->
+                <LinearLayout
+                    android:id="@+id/card_price"
+                    style="@style/RequestDetailCard">
+
+                    <TextView
+                        android:id="@+id/label_price"
+                        style="@style/RequestDetailSectionLabel"
+                        android:text="@string/request_detail_price_label" />
+
+                    <TextView
+                        android:id="@+id/price_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/montserrat_extra_bold"
+                        android:letterSpacing="0.01"
+                        android:textColor="@color/v3_text_1"
+                        android:textSize="34sp"
+                        tools:text="¥40,000" />
+                </LinearLayout>
+
+                <!-- 可接受类型卡 -->
+                <LinearLayout
+                    android:id="@+id/card_flags"
+                    style="@style/RequestDetailCard">
+
+                    <TextView
+                        style="@style/RequestDetailSectionLabel"
+                        android:id="@+id/label_flags"
+                        android:text="@string/request_detail_flags_label" />
+
+                    <com.google.android.flexbox.FlexboxLayout
+                        android:id="@+id/flags_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        app:flexWrap="wrap" />
+                </LinearLayout>
+
+                <!-- 标题卡 -->
+                <LinearLayout
+                    android:id="@+id/card_title"
+                    style="@style/RequestDetailCard">
+
+                    <TextView
+                        style="@style/RequestDetailSectionLabel"
+                        android:id="@+id/label_title"
+                        android:text="@string/request_detail_title_label" />
+
+                    <TextView
+                        android:id="@+id/title_trans"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:fontFamily="@font/montserrat_bold"
+                        android:textColor="@color/v3_text_1"
+                        android:textSize="17sp"
+                        android:textStyle="bold"
+                        tools:text="Caray 最后计划" />
+
+                    <TextView
+                        android:id="@+id/title_orig_lang"
+                        style="@style/RequestDetailOrigTag"
+                        tools:text="原文 · JA" />
+
+                    <TextView
+                        android:id="@+id/title_orig"
+                        style="@style/RequestDetailBody"
+                        tools:text="キャライラストプラン" />
+                </LinearLayout>
+
+                <!-- 说明卡 -->
+                <LinearLayout
+                    android:id="@+id/card_desc"
+                    style="@style/RequestDetailCard">
+
+                    <TextView
+                        style="@style/RequestDetailSectionLabel"
+                        android:id="@+id/label_desc"
+                        android:text="@string/request_detail_desc_label" />
+
+                    <TextView
+                        android:id="@+id/desc_trans"
+                        style="@style/RequestDetailBody"
+                        android:layout_marginTop="10dp"
+                        android:textColor="@color/v3_text_1"
+                        tools:text="原创作品比较容易接受!至于衍生作品,我通常可以接受官方指导原则明确的作品。" />
+
+                    <View
+                        android:id="@+id/desc_divider"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="14dp" />
+
+                    <TextView
+                        android:id="@+id/desc_orig_lang"
+                        style="@style/RequestDetailOrigTag"
+                        android:layout_marginTop="0dp"
+                        tools:text="原文 · JA" />
+
+                    <TextView
+                        android:id="@+id/desc_orig"
+                        style="@style/RequestDetailBody"
+                        tools:text="オリジナルだと引き受けやすいです!" />
+                </LinearLayout>
+
+                <!-- 元信息卡 -->
+                <LinearLayout
+                    android:id="@+id/card_meta"
+                    style="@style/RequestDetailCard">
+
+                    <TextView
+                        style="@style/RequestDetailSectionLabel"
+                        android:id="@+id/label_meta"
+                        android:text="@string/request_detail_meta_label" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/RequestDetailMetaKey"
+                            android:text="@string/request_detail_meta_id" />
+
+                        <TextView
+                            android:id="@+id/meta_id"
+                            style="@style/RequestDetailMetaValue"
+                            tools:text="58532" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/RequestDetailMetaKey"
+                            android:text="@string/request_detail_meta_ai" />
+
+                        <TextView
+                            android:id="@+id/meta_ai"
+                            style="@style/RequestDetailMetaValue"
+                            tools:text="非 AI 生成" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- 悬浮返回键(压在 hero 上,始终可点;状态栏 inset 在代码里补) -->
+    <ImageView
+        android:id="@+id/back_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        android:contentDescription="@null"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_arrow_back_white_shadow" />
+
+    <!-- 底部悬浮 CTA「前往约稿」:底部 safe-area(手势条)inset 在代码里补,滚动内容也预留出让位 -->
+    <LinearLayout
+        android:id="@+id/go_request_button"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="16dp"
+        android:clickable="true"
+        android:elevation="8dp"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/go_request_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/montserrat_semi_bold"
+            android:letterSpacing="0.02"
+            android:text="@string/request_go_commission"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp" />
+
+        <ImageView
+            android:id="@+id/go_request_icon"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_baseline_launch_24"
+            app:tint="#FFFFFF" />
+    </LinearLayout>
+</FrameLayout>

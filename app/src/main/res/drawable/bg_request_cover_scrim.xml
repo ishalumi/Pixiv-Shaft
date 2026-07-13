@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 约稿卡封面底部渐变遮罩:顶部透明 → 底部近黑,压住标题/价格保证可读。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:centerColor="#22000000"
+        android:endColor="#CC000000"
+        android:startColor="#00000000"
+        android:type="linear" />
+</shape>

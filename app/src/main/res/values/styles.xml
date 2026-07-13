@@ -382,6 +382,61 @@
         <item name="fontFamily">@font/montserrat_extra_bold</item>
     </style>
 
+    <!-- ── 约稿方案详情页 (MD3-E) 分节样式;动态色(卡底/描边/强调)由 Fragment 用 V3Palette 注入 ── -->
+    <style name="RequestDetailCard">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:padding">18dp</item>
+    </style>
+
+    <style name="RequestDetailSectionLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/montserrat_semi_bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">@color/v3_text_3</item>
+    </style>
+
+    <style name="RequestDetailBody">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/montserrat_regular</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+        <item name="android:textColor">@color/v3_text_2</item>
+        <item name="android:textIsSelectable">true</item>
+    </style>
+
+    <style name="RequestDetailOrigTag">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:fontFamily">@font/montserrat_semi_bold</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:textColor">@color/v3_text_3</item>
+    </style>
+
+    <style name="RequestDetailMetaKey">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/montserrat_medium</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/v3_text_2</item>
+    </style>
+
+    <style name="RequestDetailMetaValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/montserrat_semi_bold</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/v3_text_1</item>
+    </style>
+
     <style name="SplashTheme" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <!--        <item name="android:windowSplashScreenBrandingImage" tools:targetApi="s">-->

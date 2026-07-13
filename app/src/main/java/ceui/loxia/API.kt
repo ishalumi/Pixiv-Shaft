@@ -173,6 +173,12 @@ interface API {
         @Query("user_id") user_id: Long,
     ): UserResponse
 
+    /** 画师开启「接受约稿(is_accept_request)」时的约稿方案列表(单页,无 next_url)。 */
+    @GET("/v1/user/request-plans")
+    suspend fun getUserRequestPlans(
+        @Query("user_id") user_id: Long,
+    ): ceui.pixiv.ui.user.UserRequestPlansResponse
+
     @GET("/v1/user/following")
     suspend fun getFollowingUsers(
         @Query("user_id") user_id: Long,

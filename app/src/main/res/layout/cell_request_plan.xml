@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  约稿方案卡片 (MD3-Expressive)。用普通 LinearLayout 而非 MaterialCardView —— 本页宿主
+  (UserActivityV3) 是 QMUI/AppCompat 主题,MaterialCardView 需 Material3 主题,直接膨胀会崩。
+  卡底(圆角填充 + 12% 主题色 hairline)由 Renderer 用 V3Palette.settingsCardBg 注入 + clipToOutline
+  裁封面圆角,与 V3 其它卡片同款。视觉分层:
+  · 封面大图 (card 档 800x400) + 底部渐变遮罩,标题压图上、价格胶囊悬右上、R-18 徽标悬左上;
+  · 内容区:可接受类型 tonal chip 流式排布 + 说明文案 (3 行) + 「查看约稿方案 ›」CTA。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="7dp"
+    android:elevation="2dp"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:orientation="vertical">
+
+    <!-- ── 封面区 ─────────────────────────────────────────── -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="180dp">
+
+        <ImageView
+            android:id="@+id/cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/light_bg"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+        <View
+            android:id="@+id/cover_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_request_cover_scrim" />
+
+        <!-- R-18 徽标(adult=true 才可见,底色在代码里注入) -->
+        <TextView
+            android:id="@+id/badge_adult"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|top"
+            android:layout_margin="14dp"
+            android:fontFamily="@font/montserrat_bold"
+            android:letterSpacing="0.04"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="@string/request_badge_adult"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:visibility="gone" />
+
+        <!-- 价格胶囊(底色在代码里注入渐变) -->
+        <TextView
+            android:id="@+id/price"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|top"
+            android:layout_margin="12dp"
+            android:fontFamily="@font/montserrat_bold"
+            android:letterSpacing="0.01"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            tools:text="¥40,000" />
+
+        <!-- 标题压在封面底部 -->
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|bottom"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="14dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/montserrat_extra_bold"
+            android:maxLines="2"
+            android:shadowColor="#B3000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="6"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            tools:text="キャラ最后计划" />
+    </FrameLayout>
+
+    <!-- ── 内容区 ─────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="16dp">
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/chip_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:flexWrap="wrap" />
+
+        <TextView
+            android:id="@+id/desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/montserrat_regular"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="3"
+            android:textSize="13sp"
+            tools:text="原创作品比较容易接受!至于衍生作品,我通常可以接受官方指导原则明确的作品。" />
+
+        <TextView
+            android:id="@+id/cta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="14dp"
+            android:fontFamily="@font/montserrat_semi_bold"
+            android:gravity="center_vertical"
+            android:letterSpacing="0.01"
+            android:text="@string/request_view_plan"
+            android:textSize="13sp" />
+    </LinearLayout>
+</LinearLayout>

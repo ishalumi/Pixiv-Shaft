@@ -1075,6 +1075,32 @@
     <string name="v3_label_navigate">导航</string>
     <string name="v3_label_illust_tags">插画标签</string>
     <string name="v3_label_profile_details">个人资料</string>
+    <!-- 约稿中(request-plans)tab 与卡片 -->
+    <string name="request_tab_title">约稿中</string>
+    <string name="request_price_format">¥%1$s</string>
+    <string name="request_badge_adult">R-18</string>
+    <string name="request_view_plan">查看约稿方案 ›</string>
+    <string name="request_flag_illust">插画</string>
+    <string name="request_flag_manga">漫画</string>
+    <string name="request_flag_ugoira">动图</string>
+    <string name="request_flag_novel">小说</string>
+    <string name="request_flag_anonymous">可匿名委托</string>
+    <string name="request_flag_ai">AI 生成</string>
+    <string name="request_flag_adult">R-18 内容</string>
+    <!-- 约稿方案详情页 -->
+    <string name="request_detail_price_label">标准价格</string>
+    <string name="request_detail_flags_label">可接受的委托类型</string>
+    <string name="request_detail_title_label">方案标题</string>
+    <string name="request_detail_desc_label">方案说明</string>
+    <string name="request_detail_meta_label">详细信息</string>
+    <string name="request_detail_meta_id">方案 ID</string>
+    <string name="request_detail_meta_ai">AI 类型</string>
+    <string name="request_detail_orig_format">原文 · %1$s</string>
+    <string name="request_detail_orig_plain">原文</string>
+    <string name="request_ai_none">非 AI 生成</string>
+    <string name="request_ai_generated">AI 生成</string>
+    <string name="request_ai_unknown">未知</string>
+    <string name="request_go_commission">前往约稿</string>
     <string name="v3_label_workspace">工作环境</string>
     <string name="v3_label_social">社交</string>
     <string name="v3_follows_you">互相关注</string>

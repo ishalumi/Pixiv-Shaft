@@ -61,9 +61,10 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     private lateinit var mUserViewModel: UserViewModel
     private lateinit var palette: V3Palette
 
-    // Tab 期望顺序:插画 · [漫画] · [小说] · 收藏 · 资料。
-    // 收藏 / 资料 常驻;漫画 / 小说 是条件 tab(有对应作品才插)。
-    private enum class TabKind { ILLUST, MANGA, NOVEL, COLLECTION, INFO }
+    // Tab 期望顺序:插画 · [漫画] · [小说] · 收藏 · [约稿中] · 资料。
+    // 收藏 / 资料 常驻;漫画 / 小说 / 约稿中 是条件 tab(有对应作品 / 开启接受约稿才插)。
+    // 约稿中紧贴资料左侧(is_accept_request=true 才有)。
+    private enum class TabKind { ILLUST, MANGA, NOVEL, COLLECTION, REQUEST, INFO }
 
     // 哪些 tab 该展示要等 getUserDetail 返回才知道 (total_manga / total_novels),
     // 所以空列表起步,详情到手后一次性建全量 tab —— 不再「3 tab 先上、条件 tab 后插」闪一下。
@@ -128,6 +129,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         // 内嵌列表(插画/漫画/小说/收藏)默认背景是 fragment_center(日#FFFFFF/夜#2A2A2A),与页面
         // v3_bg(日#FAFAFA/夜#08080C)有肉眼可辨色差,交界处出现色彩断层。运行时把列表背景统一刷成
         // v3_bg(recursive=true 连带覆盖收藏 Tab 的子 fragment),只影响本页,不动共享的 fragment_base_list。
+        // feed_root:收藏 Tab 的列表走 feeds 框架(FeedFragment 给裸 fragment_feed 刷 fragment_center),
+        // 它的刷新层 id 是 feed_refresh_layout 不叫 refreshLayout,漏网 → 单独覆盖 feed_root 补上。
+        // 本回调在 fragment 自身 onViewCreated 之后触发,能盖过 FeedFragment 刚设的 fragment_center。
         supportFragmentManager.registerFragmentLifecycleCallbacks(
             object : androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
                 override fun onFragmentViewCreated(
@@ -136,7 +140,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                     v: View,
                     savedInstanceState: Bundle?,
                 ) {
-                    v.findViewById<View?>(R.id.refreshLayout)?.setBackgroundColor(getColor(R.color.v3_bg))
+                    val bg = getColor(R.color.v3_bg)
+                    v.findViewById<View?>(R.id.refreshLayout)?.setBackgroundColor(bg)
+                    v.findViewById<View?>(R.id.feed_root)?.setBackgroundColor(bg)
                 }
             }, true
         )
@@ -204,7 +210,8 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     }
 
     private fun refreshUserDetail() {
-        Retro.getAppApi().getUserDetail(userId)
+        // 用 v2/for_ios:多带 is_accept_request(驱动「约稿中」tab),字段与 UA 无关
+        Retro.getAppApi().getUserDetailV2(userId)
             .subscribeOn(Schedulers.newThread())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : NullCtrl<UserDetailResponse>() {
@@ -223,7 +230,8 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
 
     override fun initData() {
         baseBind.progress.visibility = View.VISIBLE
-        Retro.getAppApi().getUserDetail(userId)
+        // 用 v2/for_ios:多带 is_accept_request(驱动「约稿中」tab),字段与 UA 无关
+        Retro.getAppApi().getUserDetailV2(userId)
             .subscribeOn(Schedulers.newThread())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : NullCtrl<UserDetailResponse>() {
@@ -247,7 +255,12 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 override fun error(e: Throwable) {
                     super.error(e)
                     // user/detail 拉不到时兜底常驻 3 tab(插画/收藏/资料),别让整页空白
-                    buildAllTabs(hasIllust = true, hasManga = false, hasNovel = false)
+                    buildAllTabs(
+                        hasIllust = true,
+                        hasManga = false,
+                        hasNovel = false,
+                        hasRequest = false,
+                    )
                 }
 
                 override fun must() {
@@ -281,6 +294,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 TabKind.MANGA -> FragmentUserManga.newInstance(userId, false)
                 TabKind.NOVEL -> ceui.lisa.fragments.FragmentUserNovel.newInstance(userId, false)
                 TabKind.COLLECTION -> UserV3CollectionFragment.newInstance(userId)
+                TabKind.REQUEST -> ceui.pixiv.ui.user.RequestPlanFeedFragment.newInstance(userId)
                 TabKind.INFO -> UserV3InfoFragment()
             }
 
@@ -306,6 +320,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             TabKind.MANGA -> getString(R.string.string_233)
             TabKind.NOVEL -> getString(R.string.string_237)
             TabKind.COLLECTION -> getString(R.string.v3_label_bookmarks)
+            TabKind.REQUEST -> getString(R.string.request_tab_title)
             TabKind.INFO -> getString(R.string.v3_label_profile_details)
         }
         val count = tabCounts[kind] ?: return base
@@ -323,12 +338,18 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     }
 
     /** 详情到手后一次性建全量 tab。只在列表为空时生效(旋转恢复/刷新路径不重建)。 */
-    private fun buildAllTabs(hasIllust: Boolean, hasManga: Boolean, hasNovel: Boolean) {
+    private fun buildAllTabs(
+        hasIllust: Boolean,
+        hasManga: Boolean,
+        hasNovel: Boolean,
+        hasRequest: Boolean,
+    ) {
         if (tabKinds.isNotEmpty()) return
         if (hasIllust) tabKinds.add(TabKind.ILLUST)
         if (hasManga) tabKinds.add(TabKind.MANGA)
         if (hasNovel) tabKinds.add(TabKind.NOVEL)
         tabKinds.add(TabKind.COLLECTION)
+        if (hasRequest) tabKinds.add(TabKind.REQUEST) // 约稿中紧贴资料左侧
         tabKinds.add(TabKind.INFO)
         pagerAdapter?.notifyItemRangeInserted(0, tabKinds.size)
     }
@@ -388,19 +409,26 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         // 漫画 tab 本就 manga>0 才建,这里等价于额外把插画 tab 也隐掉。
         val isNovelistOnly =
             profile.total_illusts == 0 && profile.total_manga == 0 && profile.total_novels > 0
+        // 开启「接受约稿」才展示「约稿中」tab(紧贴资料左侧)
+        val isAcceptRequest = user.isIs_accept_request
 
         if (tabKinds.isEmpty()) {
-            // 首次进页:详情到手,一次性建全量 tab(有漫画/小说作品才含对应 tab)
+            // 首次进页:详情到手,一次性建全量 tab(有漫画/小说作品 / 开启约稿才含对应 tab)
             buildAllTabs(
                 hasIllust = !isNovelistOnly,
                 hasManga = profile.total_manga > 0,
                 hasNovel = profile.total_novels > 0,
+                hasRequest = isAcceptRequest,
             )
         } else {
-            // 旋转恢复 / 下拉刷新:列表已在,只按需补插条件 tab。MANGA 在插画之后,NOVEL 在收藏之前。
+            // 旋转恢复 / 下拉刷新:列表已在,只按需补插条件 tab。MANGA 在插画之后,NOVEL 在收藏之前,
+            // REQUEST 在资料之前(紧贴资料左侧)。
             if (profile.total_manga > 0) ensureConditionalTab(TabKind.MANGA, 1)
             if (profile.total_novels > 0) {
                 ensureConditionalTab(TabKind.NOVEL, tabKinds.indexOf(TabKind.COLLECTION))
+            }
+            if (isAcceptRequest) {
+                ensureConditionalTab(TabKind.REQUEST, tabKinds.indexOf(TabKind.INFO))
             }
         }
         refreshTabTitles()
