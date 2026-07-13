@@ -4,7 +4,10 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.annotation.LayoutRes
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -43,6 +46,13 @@ abstract class FeedFragment(
     /** 每种条目类型一个 Renderer；只在 onViewCreated 时调用一次。 */
     protected abstract fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>>
 
+    /**
+     * 裸 fragment_feed 形态下,是否给列表底部补 systemBars inset(手势条/导航栏)。
+     * 全屏铺到屏幕底、底部无 BottomNavigation 的宿主(UserActivityV3 的各 tab 等)覆写为 true;
+     * 首页那种底部有导航栏的宿主保持 false。带 toolbar 的骨架不受此开关影响(setUpToolbar 自理)。
+     */
+    protected open val applyBottomSafeInset: Boolean = false
+
     private var _binding: FragmentFeedBinding? = null
     protected val feedBinding: FragmentFeedBinding
         get() = checkNotNull(_binding) { "view 尚未创建或已销毁" }
@@ -64,6 +74,22 @@ abstract class FeedFragment(
         // 等 V3 页用 v3_bg）背景归自己的根布局管，这里不越权覆盖。
         if (view === feedRoot) {
             feedRoot.setBackgroundResource(R.color.fragment_center)
+        }
+
+        // 底部 safe-area:裸 fragment_feed 铺到屏幕底(UserActivityV3 tab 等无底栏宿主),列表末尾
+        // 会被手势条/导航栏挡住。给列表补底部 systemBars inset(clipToPadding=false 已使末条能上滚)。
+        // 只在裸 feed 形态生效:带 toolbar 的骨架由 setUpToolbar 自己吃 inset,重复套会多留一截。
+        // 底部有 BottomNavigation 的宿主(首页 MainActivity)保持 applyBottomSafeInset=false,免得在
+        // 导航栏上方留空。
+        if (view === feedRoot && applyBottomSafeInset) {
+            val listView = binding.feedListView
+            val basePaddingBottom = listView.paddingBottom
+            ViewCompat.setOnApplyWindowInsetsListener(listView) { v, windowInsets ->
+                val bottom = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                v.updatePadding(bottom = basePaddingBottom + bottom)
+                windowInsets
+            }
+            ViewCompat.requestApplyInsets(listView)
         }
 
         val adapter = FeedAdapter(

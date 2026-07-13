@@ -75,6 +75,10 @@ class LikeIllustFeedFragment : IllustFeedFragment() {
         }) { resp, _ -> mapLikePage(resp.displayList) }
     }
 
+    // 收藏 Tab 内嵌 UserActivityV3(无底栏)时补底部手势条 inset;带 toolbar 独立页由 setUpToolbar 自理
+    // (裸 feed 形态才生效,不会重复套)。
+    override val applyBottomSafeInset: Boolean = true
+
     /** 自己的收藏页 + 「隐藏收藏按钮」设置 → 卡片不显示爱心；动态读，设置改完回来即时生效。 */
     override val hideLikeButton: Boolean
         get() = SessionManager.loggedInUid == userId.toLong() &&
