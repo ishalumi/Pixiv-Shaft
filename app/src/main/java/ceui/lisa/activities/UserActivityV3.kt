@@ -247,7 +247,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 override fun error(e: Throwable) {
                     super.error(e)
                     // user/detail 拉不到时兜底常驻 3 tab(插画/收藏/资料),别让整页空白
-                    buildAllTabs(hasManga = false, hasNovel = false)
+                    buildAllTabs(hasIllust = true, hasManga = false, hasNovel = false)
                 }
 
                 override fun must() {
@@ -323,9 +323,9 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
     }
 
     /** 详情到手后一次性建全量 tab。只在列表为空时生效(旋转恢复/刷新路径不重建)。 */
-    private fun buildAllTabs(hasManga: Boolean, hasNovel: Boolean) {
+    private fun buildAllTabs(hasIllust: Boolean, hasManga: Boolean, hasNovel: Boolean) {
         if (tabKinds.isNotEmpty()) return
-        tabKinds.add(TabKind.ILLUST)
+        if (hasIllust) tabKinds.add(TabKind.ILLUST)
         if (hasManga) tabKinds.add(TabKind.MANGA)
         if (hasNovel) tabKinds.add(TabKind.NOVEL)
         tabKinds.add(TabKind.COLLECTION)
@@ -384,9 +384,18 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
         updateTabCount(TabKind.NOVEL, profile.total_novels)
         updateTabCount(TabKind.COLLECTION, profile.total_illust_bookmarks_public)
 
+        // 纯小说创作者(插画 0 + 漫画 0 + 小说>0):首页藏掉「插画作品」「漫画作品」两个空 tab。
+        // 漫画 tab 本就 manga>0 才建,这里等价于额外把插画 tab 也隐掉。
+        val isNovelistOnly =
+            profile.total_illusts == 0 && profile.total_manga == 0 && profile.total_novels > 0
+
         if (tabKinds.isEmpty()) {
             // 首次进页:详情到手,一次性建全量 tab(有漫画/小说作品才含对应 tab)
-            buildAllTabs(hasManga = profile.total_manga > 0, hasNovel = profile.total_novels > 0)
+            buildAllTabs(
+                hasIllust = !isNovelistOnly,
+                hasManga = profile.total_manga > 0,
+                hasNovel = profile.total_novels > 0,
+            )
         } else {
             // 旋转恢复 / 下拉刷新:列表已在,只按需补插条件 tab。MANGA 在插画之后,NOVEL 在收藏之前。
             if (profile.total_manga > 0) ensureConditionalTab(TabKind.MANGA, 1)
