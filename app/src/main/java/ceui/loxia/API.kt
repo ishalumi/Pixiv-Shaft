@@ -138,6 +138,8 @@ interface API {
     suspend fun getUserCreatedIllusts(
         @Query("user_id") user_id: Long,
         @Query("type") type: String,
+        /** 「跳转到某处」用的起始偏移(offset>0 时首屏从此拉,后续 next_url 照常翻);null=从头。 */
+        @Query("offset") offset: Int? = null,
     ): IllustResponse
 
     @GET("/v1/user/bookmarks/illust?filter=for_ios")

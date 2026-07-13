@@ -64,7 +64,6 @@ import ceui.lisa.fragments.FragmentSearch;
 import ceui.lisa.fragments.FragmentSearchUser;
 import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
-import ceui.lisa.fragments.FragmentUserIllust;
 import ceui.lisa.fragments.FragmentUserIllustByTag;
 import ceui.lisa.fragments.FragmentUserInfo;
 import ceui.lisa.fragments.FragmentUserManga;
@@ -210,7 +209,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return NovelSeriesFragment.Companion.newInstance(sid);
                 }
                 case "插画作品":
-                    return FragmentUserIllust.newInstance(intent.getIntExtra(Params.USER_ID, 0),
+                    return ceui.pixiv.ui.user.UserIllustFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0),
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),
                             intent.getStringExtra(Params.TARGET_DATE));
                 case "插画标签作品": // issue #569: 按 Tag 筛选画师插画

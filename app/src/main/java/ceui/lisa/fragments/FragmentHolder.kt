@@ -15,6 +15,7 @@ import ceui.lisa.viewmodel.UserViewModel
 import ceui.loxia.observeEvent
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.ui.collection.LikeIllustFeedFragment
+import ceui.pixiv.ui.user.UserIllustFeedFragment
 
 class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
 
@@ -52,7 +53,7 @@ class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
             data.profile.total_manga > 0 -> {
                 titles = arrayOf(getString(R.string.type_illust), getString(R.string.type_manga), getString(R.string.userTab_other))
                 items = arrayOf<Fragment>(
-                        FragmentUserIllust.newInstance(data.userId, false),
+                        UserIllustFeedFragment.newInstance(data.userId, false),
                         FragmentUserManga.newInstance(data.userId, false),
                         FragmentUserRight()
                 )
@@ -60,7 +61,7 @@ class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
             else -> {
                 titles = arrayOf(getString(R.string.type_illust), getString(R.string.userTab_other))
                 items = arrayOf<Fragment>(
-                        FragmentUserIllust.newInstance(data.userId, false),
+                        UserIllustFeedFragment.newInstance(data.userId, false),
                         FragmentUserRight()
                 )
             }

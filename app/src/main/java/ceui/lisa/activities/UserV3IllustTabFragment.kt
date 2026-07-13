@@ -8,8 +8,8 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import ceui.lisa.R
-import ceui.lisa.fragments.FragmentUserIllust
 import ceui.lisa.models.IllustsBean
+import ceui.pixiv.ui.user.UserIllustFeedFragment
 import ceui.lisa.models.TagsBean
 import ceui.lisa.utils.Params
 import ceui.pixiv.widgets.V3TagFlowView
@@ -51,7 +51,7 @@ class UserV3IllustTabFragment : Fragment(), UserIllustFirstPageListener {
         // 旋转/重建时 childFragmentManager 自己恢复列表,别再 add 一份
         if (childFragmentManager.findFragmentById(R.id.illust_list_container) == null) {
             childFragmentManager.beginTransaction()
-                .add(R.id.illust_list_container, FragmentUserIllust.newInstance(userId, false))
+                .add(R.id.illust_list_container, UserIllustFeedFragment.newInstance(userId, false))
                 .commit()
         }
     }

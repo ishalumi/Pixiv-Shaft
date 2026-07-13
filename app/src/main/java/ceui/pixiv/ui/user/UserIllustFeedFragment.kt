@@ -1,0 +1,288 @@
+package ceui.pixiv.ui.user
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import ceui.lisa.R
+import ceui.lisa.activities.Shaft
+import ceui.lisa.activities.UserIllustFirstPageListener
+import ceui.lisa.database.AppDatabase
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.lisa.feature.FeatureEntity
+import ceui.lisa.helper.UserIllustJumpHelper
+import ceui.lisa.models.IllustsBean
+import ceui.lisa.utils.Common
+import ceui.lisa.utils.Params
+import ceui.loxia.Client
+import ceui.loxia.Illust
+import ceui.pixiv.db.queue.WorkType
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.bulk.startAuthorWorksBulkDownload
+import ceui.pixiv.ui.common.IllustFeedFragment
+import ceui.pixiv.ui.common.IllustFeedItem
+import ceui.pixiv.ui.common.setUpToolbar
+import com.qmuiteam.qmui.skin.QMUISkinManager
+import com.qmuiteam.qmui.widget.dialog.QMUIDialog
+import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.launch
+
+/**
+ * 「某人创作的插画」列表页(feeds 框架版,替代 legacy FragmentUserIllust + UserIllustRepo)。
+ * 卡片用基类 [IllustFeedFragment] 的标准瀑布流插画卡(点赞 / 长按菜单 / 详情跟滚都自带)。
+ *
+ * 与 legacy 的行为对齐点:
+ * - 两种形态:内嵌(UserV3IllustTabFragment,showToolbar=false)/ 独立(TemplateActivity「插画作品」,
+ *   showToolbar=true 带 toolbar 菜单);
+ * - 首屏把数据回调给宿主([UserIllustFirstPageListener])聚合「标签筛选条」,进主页零额外请求;
+ * - 「跳转」:UserIllustJumpHelper 选好 offset/日期后整体 replace 本 fragment,首屏从 offset 拉,
+ *   带 targetDate 时首屏定位到该日期的作品并高亮;
+ * - toolbar 菜单:收藏到精华(action_bookmark)、跳转(action_jump)、下载全部插画(action_download_all,
+ *   拿到总数 >0 才显)。
+ */
+class UserIllustFeedFragment : IllustFeedFragment() {
+
+    private val userId: Int by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getInt(Params.USER_ID)
+    }
+    private val showToolbar: Boolean by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getBoolean(Params.FLAG)
+    }
+    private val initialOffset: Int by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getInt(Params.INITIAL_OFFSET, 0)
+    }
+
+    /** 一次性:首屏定位到该日期后清空(并从 args 抹掉,旋转不再滚)。 */
+    private var targetDate: String? = null
+
+    /** 首屏只交付一次(标签回调 + targetDate 定位);旋转重建后 VM 已有数据会再交付一次(宿主自去重)。 */
+    private var firstPageDelivered = false
+
+    /** 作者插画总数;-1=未拉到。仅 toolbar 形态用来决定「下载全部」是否可点。 */
+    private var totalIllusts: Int = -1
+
+    // 内嵌 UserActivityV3 tab(无底栏)时,列表底部补手势条 inset;带 toolbar 独立页由 setUpToolbar 自理
+    override val applyBottomSafeInset: Boolean = true
+
+    override val feedViewModel by feedViewModels(autoLoad = false) {
+        // 零捕获约定:userId / offset 先取成局部值,不把 Fragment 钉进长命 VM
+        val uid = userId.toLong()
+        val offset = initialOffset
+        PixivFeedSource({
+            Client.appApi.getUserCreatedIllusts(uid, Params.TYPE_ILLUST, offset.takeIf { it > 0 })
+        }) { resp, _ -> mapUserIllustPage(resp.displayList) }
+    }
+
+    // showToolbar 是运行时参数,系统重建只走无参构造,不能靠构造器传 contentLayoutId,
+    // 改在这里按参数选骨架(两张布局都带同结构的 feed_root)。同时读一次性 targetDate。
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        targetDate = requireArguments().getString(Params.TARGET_DATE)
+        val layoutId = if (showToolbar) R.layout.fragment_toolbar_feed else R.layout.fragment_feed
+        return inflater.inflate(layoutId, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        if (showToolbar) setupToolbar(view)
+
+        // 首屏内容到手 → 交付宿主(标签条聚合)+ 处理 targetDate 定位。UDF:观察 uiState,
+        // 取第一次非空 items(缓存/网络首屏都算),不侵入基类的渲染链路。
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                feedViewModel.uiState.collect { state ->
+                    if (!firstPageDelivered && state.items.isNotEmpty()) {
+                        firstPageDelivered = true
+                        deliverFirstPage(state.items)
+                    }
+                }
+            }
+        }
+    }
+
+    /** 首屏交付:标签条回调(父 fragment 优先,退回 activity)+ targetDate 定位。 */
+    private fun deliverFirstPage(items: List<FeedItem>) {
+        val beans = items.filterIsInstance<IllustFeedItem>().map { it.bean }
+        val listener = parentFragment as? UserIllustFirstPageListener
+            ?: activity as? UserIllustFirstPageListener
+        listener?.onUserIllustFirstPage(beans)
+        scrollToTargetDate(beans)
+    }
+
+    /** 定位到首个创建日期 ≤ targetDate 的作品并轻微放大高亮;一次性消费。 */
+    private fun scrollToTargetDate(beans: List<IllustsBean>) {
+        val date = targetDate ?: return
+        if (beans.isEmpty()) return
+        var hit = beans.indexOfFirst {
+            val cd = it.create_date
+            // ISO 字符串前 10 位即 yyyy-MM-dd,可按字典序比较
+            cd != null && cd.length >= 10 && cd.substring(0, 10) <= date
+        }
+        if (hit < 0) hit = beans.size - 1
+        targetDate = null
+        requireArguments().remove(Params.TARGET_DATE) // 一次性,旋转不再滚
+
+        val pos = hit
+        val list = feedBinding.feedListView
+        list.postDelayed({
+            if (view == null) return@postDelayed
+            when (val lm = list.layoutManager) {
+                // SGLM.scrollToPosition 会错乱 span 分配导致 decoration 边距错位,用带 offset 版
+                is StaggeredGridLayoutManager -> {
+                    lm.scrollToPositionWithOffset(pos, 0)
+                    list.post { lm.invalidateSpanAssignments() }
+                }
+                else -> list.scrollToPosition(pos)
+            }
+            highlightItemAt(pos, 5)
+        }, 200L)
+    }
+
+    private fun highlightItemAt(adapterPos: Int, triesLeft: Int) {
+        val list = _feedListOrNull() ?: return
+        val vh = list.findViewHolderForAdapterPosition(adapterPos)
+        if (vh == null) {
+            if (triesLeft > 0) {
+                list.postDelayed({ highlightItemAt(adapterPos, triesLeft - 1) }, 100L)
+            }
+            return
+        }
+        val v = vh.itemView
+        v.animate().cancel()
+        v.scaleX = 1f
+        v.scaleY = 1f
+        v.animate().scaleX(1.08f).scaleY(1.08f).setDuration(220L)
+            .withEndAction {
+                v.animate().scaleX(1f).scaleY(1f).setDuration(220L).start()
+            }.start()
+    }
+
+    private fun _feedListOrNull(): RecyclerView? = if (view == null) null else feedBinding.feedListView
+
+    // ── toolbar(独立形态)────────────────────────────────────────────
+    private fun setupToolbar(view: View) {
+        val binding = FragmentToolbarFeedBinding.bind(view)
+        setUpToolbar(binding, feedBinding.feedListView)
+        binding.toolbarTitle.setText(R.string.string_246) // 插画作品
+        binding.toolbar.inflateMenu(R.menu.local_save)
+        // 「下载全部」单独挂 user_illust_actions,不并进 local_save(免得共用 local_save 的别的页多出这项)
+        binding.toolbar.inflateMenu(R.menu.user_illust_actions)
+
+        val downloadAllItem: MenuItem? = binding.toolbar.menu.findItem(R.id.action_download_all)
+        // 数量没拿到前先藏,免得点了报「加载中」;拉到 >0 再显
+        downloadAllItem?.isVisible = false
+        fetchTotalIllusts { total ->
+            totalIllusts = total
+            if (total > 0) downloadAllItem?.isVisible = true
+        }
+
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_bookmark -> { saveToFeature(); true }
+                R.id.action_jump -> { showJumpDialog(); true }
+                R.id.action_download_all -> { confirmDownloadAll(); true }
+                else -> false
+            }
+        }
+    }
+
+    private fun fetchTotalIllusts(onResult: (Int) -> Unit) {
+        val uid = userId.toLong()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val total = runCatching {
+                Client.appApi.getUserProfile(uid).profile?.total_illusts ?: 0
+            }.getOrNull()
+            if (total != null && view != null) onResult(total)
+        }
+    }
+
+    /** 收藏到精华(对齐 legacy:uuid 固定 = 同页重复收藏只留一份;dataType 是路由字面量,别本地化)。 */
+    private fun saveToFeature() {
+        val entity = FeatureEntity().also {
+            it.uuid = "$userId$DATA_TYPE_FEATURE"
+            it.isShowToolbar = showToolbar
+            it.dataType = DATA_TYPE_FEATURE
+            it.illustJson = Common.cutToJson(currentIllustItems().map { item -> item.bean })
+            it.userID = userId
+            it.dateTime = System.currentTimeMillis()
+        }
+        AppDatabase.getAppDatabase(requireContext()).downloadDao().insertFeature(entity)
+        Common.showToast("已收藏到精华")
+    }
+
+    private fun showJumpDialog() {
+        UserIllustJumpHelper.showJumpDialog(
+            requireActivity(), userId, UserIllustJumpHelper.Kind.ILLUST,
+        ) { offset, pickedDate ->
+            if (isAdded && !isStateSaved) {
+                parentFragmentManager.beginTransaction()
+                    .replace(id, newInstance(userId, showToolbar, offset, pickedDate))
+                    .commit()
+            }
+        }
+    }
+
+    private fun confirmDownloadAll() {
+        val total = totalIllusts
+        if (total <= 0) return // 按钮该藏着,兜底
+        val authorName = currentIllustItems().firstOrNull()?.bean?.user?.name ?: "user"
+        showDownloadAllConfirm(authorName, total)
+    }
+
+    private fun showDownloadAllConfirm(authorName: String, total: Int) {
+        QMUIDialog.MessageDialogBuilder(requireContext())
+            .setTitle(R.string.bulk_user_menu_download_all_illust)
+            .setMessage(getString(R.string.bulk_user_download_all_illust_confirm, authorName, total))
+            .setSkinManager(QMUISkinManager.defaultInstance(requireActivity()))
+            .addAction(0, getString(R.string.cancel), QMUIDialogAction.ACTION_PROP_NEUTRAL) { d, _ -> d.dismiss() }
+            .addAction(0, getString(android.R.string.ok)) { d, _ ->
+                d.dismiss()
+                startAuthorWorksBulkDownload(
+                    requireActivity(), userId.toLong(), WorkType.ILLUST, authorName,
+                )
+            }
+            .show()
+    }
+
+    companion object {
+        /** legacy 精华功能的 dataType 路由字面量(按它分支重建页面),不是展示文案,别本地化。 */
+        private const val DATA_TYPE_FEATURE = "插画作品"
+
+        @JvmStatic
+        @JvmOverloads
+        fun newInstance(
+            userID: Int,
+            showToolbar: Boolean,
+            initialOffset: Int = 0,
+            targetDate: String? = null,
+        ): UserIllustFeedFragment {
+            return UserIllustFeedFragment().apply {
+                arguments = Bundle().apply {
+                    putInt(Params.USER_ID, userID)
+                    putBoolean(Params.FLAG, showToolbar)
+                    putInt(Params.INITIAL_OFFSET, initialOffset)
+                    if (targetDate != null) putString(Params.TARGET_DATE, targetDate)
+                }
+            }
+        }
+
+        /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有,放伴生对象保证零捕获。 */
+        private fun mapUserIllustPage(illusts: List<Illust>): List<FeedItem> {
+            return illusts.mapNotNull { illust ->
+                val bean = IllustFeedItem.beanOf(illust) ?: return@mapNotNull null
+                IllustFeedItem.of(illust, bean)
+            }
+        }
+    }
+}
