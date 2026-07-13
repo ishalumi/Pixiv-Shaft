@@ -1,42 +1,64 @@
 package ceui.pixiv.ui.notification
 
+import android.content.Context
 import android.content.Intent
-import android.os.Bundle
-import android.view.View
-import ceui.lisa.R
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.activities.TemplateActivity
-import ceui.lisa.databinding.FragmentPixivListBinding
+import ceui.lisa.databinding.CellInfoCategoryHeaderBinding
+import ceui.lisa.databinding.CellInfoEntryBinding
 import ceui.lisa.utils.Params
 import ceui.lisa.view.LinearItemDecoration
 import ceui.loxia.CategorizedInfo
+import ceui.loxia.Client
 import ceui.loxia.InfoItem
-import ceui.pixiv.ui.common.ListMode
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.common.setUpRefreshState
-import ceui.pixiv.ui.common.viewBinding
-import ceui.pixiv.ui.list.pixivListViewModel
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.utils.ppppx
 
 /**
- * "公告" tab 首屏:/v1/info/latest 聚合视图,header + 4-5 个 entry / 分类。
+ * "公告" tab 首屏（feeds 框架版）:/v1/info/latest 聚合视图,header + 4-5 个 entry / 分类。
  * 点 entry → 走 WebView 看公告页。点 "查看更多" → 下钻该分类的分页列表。
+ * 父 NotificationPagerFragment 自带 toolbar + tab bar,本页用裸 fragment_feed（默认
+ * contentLayoutId），不需要自己的 toolbar。
  */
-class InfoLatestFragment : PixivFragment(R.layout.fragment_pixiv_list), InfoActionReceiver {
+class InfoLatestFragment : FeedFragment() {
 
-    private val binding by viewBinding(FragmentPixivListBinding::bind)
-    private val viewModel by pixivListViewModel { InfoLatestDataSource() }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setUpRefreshState(binding, viewModel, ListMode.VERTICAL_NO_MARGIN)
-        binding.listView.addItemDecoration(LinearItemDecoration(12.ppppx))
+    override val feedViewModel by feedViewModels<String> {
+        PixivFeedSource(initialFetch = { Client.appApi.getInfoLatest() }) { resp, _ ->
+            resp.displayList.flatMap { category ->
+                listOf(InfoCategoryHeaderFeedItem(category, showMore = true)) +
+                    category.info_list.map { InfoEntryFeedItem(it) }
+            }
+        }
     }
 
-    override fun onClickInfo(item: InfoItem) {
-        openInfoUrl(requireContext(), item)
+    override fun onListReady(listView: RecyclerView) {
+        listView.addItemDecoration(LinearItemDecoration(12.ppppx))
     }
 
-    override fun onClickInfoCategoryMore(category: CategorizedInfo) {
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(infoCategoryHeaderRenderer(), infoEntryRenderer())
+    }
+
+    private fun infoCategoryHeaderRenderer() =
+        feedRenderer<InfoCategoryHeaderFeedItem, CellInfoCategoryHeaderBinding>(
+            inflate = CellInfoCategoryHeaderBinding::inflate,
+        ) { cell ->
+            cell.binding.bindInfoCategoryHeader(cell.item, ::onClickInfoCategoryMore)
+        }
+
+    private fun infoEntryRenderer() = feedRenderer<InfoEntryFeedItem, CellInfoEntryBinding>(
+        inflate = CellInfoEntryBinding::inflate,
+    ) { cell ->
+        cell.binding.bindInfoEntry(cell.item.item) { item -> openInfoUrl(requireContext(), item) }
+    }
+
+    private fun onClickInfoCategoryMore(category: CategorizedInfo) {
         val intent = Intent(requireContext(), TemplateActivity::class.java).apply {
             putExtra(TemplateActivity.EXTRA_FRAGMENT, InfoCategoryListFragment.ROUTE_KEY)
             putExtra(InfoCategoryListFragment.EXTRA_CATEGORY_ID, category.category_id)
@@ -47,7 +69,7 @@ class InfoLatestFragment : PixivFragment(R.layout.fragment_pixiv_list), InfoActi
 }
 
 /** info entry 跳 WebView (走 TemplateActivity 现有"网页链接"路由)。 */
-internal fun openInfoUrl(ctx: android.content.Context, item: InfoItem) {
+internal fun openInfoUrl(ctx: Context, item: InfoItem) {
     val url = item.url ?: return
     val intent = Intent(ctx, TemplateActivity::class.java).apply {
         putExtra(TemplateActivity.EXTRA_FRAGMENT, "网页链接")

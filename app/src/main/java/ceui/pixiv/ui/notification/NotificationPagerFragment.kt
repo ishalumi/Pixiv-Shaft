@@ -11,8 +11,9 @@ import ceui.pixiv.ui.common.viewBinding
 
 /**
  * 通知 + 公告 双 tab 宿主页。
- * 实现 ViewPagerFragment 是为了让子页 [NotificationListFragment]/[InfoLatestFragment]
- * 自动隐藏内部 toolbar（参见 PixivFragment.setUpToolbar 对 parentFragment is ViewPagerFragment 的判断）。
+ * [NotificationListFragment]/[InfoLatestFragment] 都已迁到 feeds 框架，用裸 fragment_feed
+ * （本就没有 toolbar）——ViewPagerFragment 标记曾是给 PixivFragment.setUpToolbar 用来隐藏
+ * 子页内部 toolbar 的，两个子页迁移后不再依赖这个判断，留着纯粹是无害的历史标记。
  */
 class NotificationPagerFragment : Fragment(R.layout.viewpager_with_tablayout), ViewPagerFragment {
 

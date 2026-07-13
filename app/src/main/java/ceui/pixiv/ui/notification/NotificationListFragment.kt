@@ -1,42 +1,55 @@
 package ceui.pixiv.ui.notification
 
 import android.content.Intent
-import android.os.Bundle
-import android.view.View
-import ceui.lisa.R
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.activities.TemplateActivity
-import ceui.lisa.databinding.FragmentPixivListBinding
+import ceui.lisa.databinding.CellNotificationBinding
 import ceui.lisa.view.LinearItemDecoration
+import ceui.loxia.Client
 import ceui.loxia.NotificationItem
-import ceui.pixiv.ui.common.ListMode
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.common.setUpRefreshState
-import ceui.pixiv.ui.common.viewBinding
-import ceui.pixiv.ui.list.pixivListViewModel
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.utils.ppppx
 
 /**
- * "通知" tab 内容页。父 NotificationPagerFragment 实现 ViewPagerFragment 时
- * 内部 toolbar 自动隐藏(setUpToolbar 里的分支)。
+ * "通知" tab 内容页（feeds 框架版）。父 NotificationPagerFragment 自带 toolbar + tab bar
+ * （实现 ViewPagerFragment），本页用裸 fragment_feed（默认 contentLayoutId），不需要自己的
+ * toolbar，也就不需要旧版 PixivFragment.setUpToolbar 那套"是不是 ViewPager 子页"判断。
  */
-class NotificationListFragment : PixivFragment(R.layout.fragment_pixiv_list), NotificationActionReceiver {
+class NotificationListFragment : FeedFragment() {
 
-    private val binding by viewBinding(FragmentPixivListBinding::bind)
-    private val viewModel by pixivListViewModel { NotificationListDataSource() }
+    override val feedViewModel by feedViewModels<String> {
+        PixivFeedSource(initialFetch = { Client.appApi.getNotificationList() }) { resp, _ ->
+            resp.displayList.map { NotificationFeedItem(it) }
+        }
+    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setUpRefreshState(binding, viewModel, ListMode.VERTICAL_NO_MARGIN)
+    override fun onListReady(listView: RecyclerView) {
         // 12dp = 卡片左右 inset + 卡片间纵向间距,统一走 ItemDecoration,
         // cell layout 不再背 margin。
-        binding.listView.addItemDecoration(LinearItemDecoration(12.ppppx))
+        listView.addItemDecoration(LinearItemDecoration(12.ppppx))
     }
 
-    override fun onClickNotification(item: NotificationItem) {
-        requireContext().routeNotificationTargetUrl(item.target_url)
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(notificationRenderer())
     }
 
-    override fun onClickViewMore(item: NotificationItem) {
+    private fun notificationRenderer() = feedRenderer<NotificationFeedItem, CellNotificationBinding>(
+        inflate = CellNotificationBinding::inflate,
+    ) { cell ->
+        cell.binding.bindNotification(
+            cell.item.item,
+            onClickNotification = { item -> requireContext().routeNotificationTargetUrl(item.target_url) },
+            onClickViewMore = ::onClickViewMore,
+        )
+    }
+
+    private fun onClickViewMore(item: NotificationItem) {
         if (item.id <= 0L) return
         val intent = Intent(requireContext(), TemplateActivity::class.java).apply {
             putExtra(TemplateActivity.EXTRA_FRAGMENT, NotificationViewMoreFragment.ROUTE_KEY)

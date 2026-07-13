@@ -1,97 +1,50 @@
 package ceui.pixiv.ui.notification
 
 import androidx.core.view.isVisible
-import ceui.lisa.annotations.ItemHolder
 import ceui.lisa.databinding.CellInfoCategoryHeaderBinding
 import ceui.lisa.databinding.CellInfoEntryBinding
 import ceui.loxia.CategorizedInfo
 import ceui.loxia.InfoItem
-import ceui.loxia.findActionReceiverOrNull
-import ceui.pixiv.ui.common.ListItemHolder
-import ceui.pixiv.ui.common.ListItemViewHolder
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.utils.setOnClick
 
 /**
- * 公告条目点击/分类下钻回调。InfoLatestFragment + InfoCategoryListFragment 都实现这个。
+ * feeds 框架条目：Latest 聚合页里每个分类前的小标题。点 "查看更多" → 下钻该分类的完整 list。
+ * [showMore] 目前恒为 true（唯一调用方 [InfoLatestFragment] 一直这么传），保留字段只是不丢旧接口
+ * 表达的能力，不是当前有第二个调用方在用它。
  */
-interface InfoActionReceiver {
-    fun onClickInfo(item: InfoItem)
-    /** category_more 点击,跳 InfoCategoryListFragment(/v1/info/list?cid=N)。 */
-    fun onClickInfoCategoryMore(category: CategorizedInfo)
-}
-
-/**
- * Latest 聚合页里每个分类前的小标题。点 "查看更多" → 下钻该分类的完整 list。
- * 子页 InfoCategoryListFragment 用同一个 cell 渲染 header 不需要"更多"按钮,
- * 用 [showMore] 控制可见。
- */
-class InfoCategoryHeaderHolder(
+data class InfoCategoryHeaderFeedItem(
     val category: CategorizedInfo,
     val showMore: Boolean = true,
-) : ListItemHolder() {
-    override fun getItemId(): Long = -(category.category_id.toLong() + 1L) // header id 与 InfoItem.id 不重叠
+) : FeedItem {
+    // header id 与 InfoItem.id 不重叠
+    override val feedKey: Any get() = -(category.category_id.toLong() + 1L)
+}
 
-    override fun areItemsTheSame(other: ListItemHolder): Boolean {
-        val o = other as? InfoCategoryHeaderHolder ?: return false
-        return category.category_id == o.category.category_id
-    }
-
-    override fun areContentsTheSame(other: ListItemHolder): Boolean {
-        val o = other as? InfoCategoryHeaderHolder ?: return false
-        return category.category_id == o.category.category_id &&
-            category.category_title == o.category.category_title &&
-            showMore == o.showMore
+/** 分类小标题 cell 的实际渲染逻辑。整行不响应点击,只有"查看更多"自己接事件。 */
+fun CellInfoCategoryHeaderBinding.bindInfoCategoryHeader(
+    item: InfoCategoryHeaderFeedItem,
+    onClickMore: (CategorizedInfo) -> Unit,
+) {
+    categoryTitle.text = item.category.category_title.orEmpty()
+    categoryMore.isVisible = item.showMore
+    if (item.showMore) {
+        categoryMore.setOnClick { onClickMore(item.category) }
+    } else {
+        categoryMore.setOnClickListener(null)
+        categoryMore.isClickable = false
     }
 }
 
-@ItemHolder(InfoCategoryHeaderHolder::class)
-class InfoCategoryHeaderViewHolder(bd: CellInfoCategoryHeaderBinding) :
-    ListItemViewHolder<CellInfoCategoryHeaderBinding, InfoCategoryHeaderHolder>(bd) {
-
-    override fun onBindViewHolder(holder: InfoCategoryHeaderHolder, position: Int) {
-        super.onBindViewHolder(holder, position)
-        binding.categoryTitle.text = holder.category.category_title.orEmpty()
-        binding.categoryMore.isVisible = holder.showMore
-        // 整行不响应点击,只有"查看更多"自己接事件 —— section header 不是 actionable row。
-        if (holder.showMore) {
-            binding.categoryMore.setOnClick { sender ->
-                sender.findActionReceiverOrNull<InfoActionReceiver>()
-                    ?.onClickInfoCategoryMore(holder.category)
-            }
-        } else {
-            binding.categoryMore.setOnClickListener(null)
-            binding.categoryMore.isClickable = false
-        }
-    }
+/** feeds 框架条目，被 [InfoLatestFragment] 和 [InfoCategoryListFragment] 共用。 */
+data class InfoEntryFeedItem(val item: InfoItem) : FeedItem {
+    override val feedKey: Any get() = item.id
 }
 
-class InfoEntryHolder(val item: InfoItem) : ListItemHolder() {
-    override fun getItemId(): Long = item.id
-
-    override fun areItemsTheSame(other: ListItemHolder): Boolean {
-        return item.id == (other as? InfoEntryHolder)?.item?.id
-    }
-
-    override fun areContentsTheSame(other: ListItemHolder): Boolean {
-        val o = (other as? InfoEntryHolder)?.item ?: return false
-        return item.id == o.id &&
-            item.title == o.title &&
-            item.is_recent == o.is_recent
-    }
-}
-
-@ItemHolder(InfoEntryHolder::class)
-class InfoEntryViewHolder(bd: CellInfoEntryBinding) :
-    ListItemViewHolder<CellInfoEntryBinding, InfoEntryHolder>(bd) {
-
-    override fun onBindViewHolder(holder: InfoEntryHolder, position: Int) {
-        super.onBindViewHolder(holder, position)
-        val item = holder.item
-        binding.infoTitle.text = item.title.orEmpty()
-        binding.infoDate.text = item.date?.take(10).orEmpty() // "2026-04-21T13:00:00+09:00" → "2026-04-21"
-        binding.infoRecentDot.isVisible = item.is_recent
-        binding.infoEntryRoot.setOnClick { sender ->
-            sender.findActionReceiverOrNull<InfoActionReceiver>()?.onClickInfo(item)
-        }
-    }
+/** 公告条目 cell 的实际渲染逻辑。 */
+fun CellInfoEntryBinding.bindInfoEntry(item: InfoItem, onClick: (InfoItem) -> Unit) {
+    infoTitle.text = item.title.orEmpty()
+    infoDate.text = item.date?.take(10).orEmpty() // "2026-04-21T13:00:00+09:00" → "2026-04-21"
+    infoRecentDot.isVisible = item.is_recent
+    infoEntryRoot.setOnClick { onClick(item) }
 }
