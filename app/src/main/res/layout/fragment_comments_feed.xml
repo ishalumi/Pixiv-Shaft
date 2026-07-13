@@ -50,13 +50,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/toolbar" />
 
-    <View
-        android:id="@+id/touch_outside"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <LinearLayout
         android:id="@+id/bottom_bar"
         android:layout_width="0dp"
@@ -154,17 +147,56 @@
                 app:tint="@color/always_white" />
         </LinearLayout>
 
-        <!-- 「小表情」面板:38 个 pixiv 内置表情((normal)/(heart)/…),点击插入光标处,
-             与系统键盘互斥显示(开面板收键盘/键盘弹出收面板),见 CommentsFragment.setUpComposer -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/emoji_panel"
+        <!-- 「绘文字」(38 个 pixiv 内置文字表情)/「表情贴图」(官方常驻 40 个插画贴纸)双 tab
+             面板:点绘文字插入输入框光标处,点贴纸直接单发一条纯贴纸评论;两页装在 ViewPager2
+             里,点 tab 或左右滑动都能切页。面板整体作为 BottomPanelCoordinator 的 panelView,
+             跟系统键盘严格互斥 + 等高过渡,不再是这里自己手写的 insets Listener(见 setUpEmojiPanel)。
+             XML 高度只是首帧占位,展示前会被 coordinator 按实测键盘高度覆盖。 -->
+        <LinearLayout
+            android:id="@+id/emoji_panel_container"
             android:layout_width="match_parent"
             android:layout_height="240dp"
             android:background="@color/v3_surface_2"
-            android:clipToPadding="false"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="6dp"
+            android:orientation="vertical"
             android:visibility="gone"
-            tools:visibility="visible" />
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:id="@+id/tab_kaomoji"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="6dp"
+                    android:text="@string/comment_emoji_tab_kaomoji"
+                    android:textColor="@color/v3_text_1"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tab_stamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="6dp"
+                    android:text="@string/comment_emoji_tab_stamp"
+                    android:textColor="@color/v3_text_2"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/emoji_pager"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+        </LinearLayout>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

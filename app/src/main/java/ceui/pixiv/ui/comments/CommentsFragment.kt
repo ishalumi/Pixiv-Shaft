@@ -1,6 +1,7 @@
 package ceui.pixiv.ui.comments
 
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.Bundle
 import android.transition.ChangeBounds
 import android.transition.Slide
@@ -8,8 +9,8 @@ import android.transition.TransitionManager
 import android.transition.TransitionSet
 import android.view.Gravity
 import android.view.View
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import android.view.WindowManager
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.core.widget.addTextChangedListener
@@ -17,9 +18,9 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.fragment.navArgs
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
+import androidx.viewpager2.widget.ViewPager2
 import ceui.lisa.R
 import ceui.lisa.activities.UActivity
 import ceui.lisa.databinding.FragmentCommentsFeedBinding
@@ -32,9 +33,9 @@ import ceui.loxia.Comment
 import ceui.loxia.ObjectPool
 import ceui.loxia.ObjectType
 import ceui.loxia.ProgressTextButton
-import ceui.loxia.hideKeyboard
 import ceui.loxia.launchSuspend
-import ceui.loxia.showKeyboard
+import ceui.pixiv.chat.base.panel.PanelHost
+import ceui.pixiv.chat.base.panel.attachBottomPanel
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
@@ -80,6 +81,9 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         ) { resp, phase -> mapCommentsPage(resp, illustArthurId, phase) }
     }
 
+    /** softInputMode 现场备份,见 [onResume]。 */
+    private var previousSoftInputMode: Int = INVALID_SOFT_INPUT_MODE
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val binding = FragmentCommentsFeedBinding.bind(view)
@@ -91,43 +95,95 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         binding.toolbarTitle.text = getString(R.string.comments)
 
         setUpComposer(binding)
+    }
 
-        binding.touchOutside.setOnTouchListener { _, _ ->
-            hideKeyboard()
-            false
-        }
+    /**
+     * TemplateActivity 在 manifest 里声明 `windowSoftInputMode="adjustPan"`——对大多数页面
+     * 没问题,但会破坏本页「面板严格跟键盘等高、来回切换零抖动」的效果:adjustPan 平移整个
+     * 窗口而不是收缩内容区,[ceui.pixiv.chat.base.panel.BottomPanelCoordinator] 依赖的
+     * WindowInsetsAnimationCompat 回调在 adjustPan 下拿到的高度会失真。这里现场切到
+     * adjustResize,离开页面再恢复,不影响 TemplateActivity 承载的其它页面
+     * (同 DemoChatListFragment 已验证过的打法)。
+     */
+    override fun onResume() {
+        super.onResume()
+        val window = requireActivity().window
+        previousSoftInputMode = window.attributes.softInputMode
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+    }
 
-        ViewCompat.setOnApplyWindowInsetsListener(view) { _, windowInsets ->
-            val imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
-            val systemBarsInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            binding.touchOutside.isVisible = imeInsets.bottom > 0
-            // 系统键盘弹出时收起表情面板,两者不共存(同 pixez MediaQuery.viewInsets.bottom==0 判断)
-            if (imeInsets.bottom > 0) {
-                binding.emojiPanel.isVisible = false
-            }
-            val bottomInsets = if (imeInsets.bottom > 0) imeInsets.bottom else systemBarsInsets.bottom
-            binding.bottomBar.updatePadding(bottom = bottomInsets)
-            WindowInsetsCompat.CONSUMED
+    override fun onPause() {
+        super.onPause()
+        if (previousSoftInputMode != INVALID_SOFT_INPUT_MODE) {
+            requireActivity().window.setSoftInputMode(previousSoftInputMode)
+            previousSoftInputMode = INVALID_SOFT_INPUT_MODE
         }
     }
 
-    /** 「小表情」选择面板:38 个 pixiv 内置表情,点击插入输入框光标处;与系统键盘互斥显示,
-     * 打开面板前先收键盘,关闭面板则重新唤起键盘(对齐点了输入框的直觉)。 */
+    /** 「绘文字」/「表情贴图」双 tab 面板,装进 ViewPager2 支持左右滑动切页(点 tab 同步跳页)。
+     * 前者 38 个 pixiv 内置文字表情,点击插入输入框光标处;后者官方常驻 40 个插画贴纸
+     * ([StampCatalog]),点击直接单发一条纯贴纸评论(对齐官方 App 抓包行为:发贴纸时 comment
+     * 恒为空,不经过输入框文字)。面板跟系统键盘的互斥 + 等高切换交给 [attachBottomPanel]
+     * (聊天页同款 BottomPanelCoordinator),不再自己手写 insets 监听。 */
     private fun setUpEmojiPanel(binding: FragmentCommentsFeedBinding) {
-        binding.emojiPanel.layoutManager = GridLayoutManager(requireContext(), 7)
-        binding.emojiPanel.adapter = CommentEmojiPickerAdapter { code ->
+        val kaomojiAdapter = CommentEmojiPickerAdapter { code ->
             val editable = binding.commentInput.text ?: return@CommentEmojiPickerAdapter
             val start = binding.commentInput.selectionStart.coerceIn(0, editable.length)
             val end = binding.commentInput.selectionEnd.coerceIn(0, editable.length)
             editable.replace(minOf(start, end), maxOf(start, end), code)
             binding.commentInput.setSelection(minOf(start, end) + code.length)
         }
-        binding.emojiToggle.setOnClick {
-            val opening = !binding.emojiPanel.isVisible
-            binding.emojiPanel.isVisible = opening
-            if (opening) hideKeyboard() else showKeyboard(binding.commentInput)
+        // 贴纸点击即单发,不像文字发送有 ProgressImageButton 天然挡连点——手动加一个
+        // 发送中标记,网络往返期间连点同一张/不同张贴纸都直接丢弃,防止重复发出评论。
+        var isSendingStamp = false
+        val stampAdapter = CommentStampPickerAdapter { stamp ->
+            if (isSendingStamp) return@CommentStampPickerAdapter
+            isSendingStamp = true
+            launchSuspend {
+                try {
+                    val result = composer.sendStamp(stamp.stamp_id)
+                    applySendResult(result)
+                } finally {
+                    isSendingStamp = false
+                }
+            }
         }
-        binding.commentInput.setOnClickListener { binding.emojiPanel.isVisible = false }
+        binding.emojiPager.adapter = CommentEmojiStampPagerAdapter(kaomojiAdapter, stampAdapter)
+        var stampsLoaded = false
+
+        fun styleTabs(stampSelected: Boolean) {
+            binding.tabKaomoji.setTextColor(ContextCompat.getColor(requireContext(), if (stampSelected) R.color.v3_text_2 else R.color.v3_text_1))
+            binding.tabKaomoji.setTypeface(null, if (stampSelected) Typeface.NORMAL else Typeface.BOLD)
+            binding.tabStamp.setTextColor(ContextCompat.getColor(requireContext(), if (stampSelected) R.color.v3_text_1 else R.color.v3_text_2))
+            binding.tabStamp.setTypeface(null, if (stampSelected) Typeface.BOLD else Typeface.NORMAL)
+        }
+        binding.emojiPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                val stampSelected = position == 1
+                styleTabs(stampSelected)
+                if (stampSelected && !stampsLoaded) {
+                    stampsLoaded = true
+                    launchSuspend { stampAdapter.submit(StampCatalog.get()) }
+                }
+            }
+        })
+        // ViewPager2 不会为初始页(position 0)回调 onPageSelected,显式调一次让高亮状态
+        // 由代码本身定,不依赖「XML 默认值刚好等于 styleTabs(false) 的结果」这个隐性约定。
+        styleTabs(false)
+        binding.tabKaomoji.setOnClick { binding.emojiPager.setCurrentItem(0, true) }
+        binding.tabStamp.setOnClick { binding.emojiPager.setCurrentItem(1, true) }
+
+        attachBottomPanel(
+            host = object : PanelHost {
+                override val panelRoot get() = binding.root
+                override val panelView get() = binding.emojiPanelContainer
+                override val panelInputView get() = binding.commentInput
+                override val panelContentView get() = feedBinding.feedListView
+                override val panelToggleButton get() = binding.emojiToggle
+                override val panelToggleIconRes get() = R.drawable.chat_ic_emoji
+                override val keyboardToggleIconRes get() = R.drawable.chat_ic_keyboard
+            },
+        )
     }
 
     /** MD3-E 输入栏:圆角胶囊输入框 + 主题色实心发送按钮(V3Palette 现算,AppCompat host 不认
@@ -265,6 +321,9 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
     }
 
     companion object {
+        /** Sentinel — softInputMode 是打包 int,-1 不会是合法组合(同 DemoChatListFragment)。 */
+        private const val INVALID_SOFT_INPUT_MODE = -1
+
         fun newInstance(
             objectId: Long,
             objectArthurId: Long,

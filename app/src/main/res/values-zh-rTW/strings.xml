@@ -2087,6 +2087,8 @@
     <string name="image_host_restart_hint">重啟 App 後生效</string>
     <string name="comment_translate_to_zh">翻譯成中文</string>
     <string name="comment_emoji_picker">表情</string>
+    <string name="comment_emoji_tab_kaomoji">繪文字</string>
+    <string name="comment_emoji_tab_stamp">表情貼圖</string>
     <!-- 稍後再看 (watch later) -->
     <string name="watch_later">稍後再看</string>
     <string name="watch_later_add">加入稍後再看</string>

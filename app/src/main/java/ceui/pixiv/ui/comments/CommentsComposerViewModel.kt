@@ -34,12 +34,16 @@ class CommentsComposerViewModel(private val args: CommentsFragmentArgs) : ViewMo
         return filterSpamComments(resp.comments)
     }
 
+    /** 当前回复目标:优先取显式记录的 parentCommentId,退化到正在回复的评论自身 id,
+     * 都没有则 0(顶层新评论)。sendComment/sendStamp 共用同一条解析规则。 */
+    private fun resolveParentCommentId(): Long =
+        replyParentComment.value?.takeIf { it > 0L } ?: (replyToComment.value?.id ?: 0L)
+
     /** 成功发出返回 (parentCommentId, 新评论)；parentCommentId<=0 表示顶层新评论。文本为空/请求无返回体时 null。 */
     suspend fun sendComment(): Pair<Long, Comment>? {
         val content = editingComment.value.orEmpty()
         if (content.isBlank()) return null
-        val parentCommentId = replyParentComment.value?.takeIf { it > 0L }
-            ?: (replyToComment.value?.id ?: 0L)
+        val parentCommentId = resolveParentCommentId()
         val resp = if (parentCommentId > 0L) {
             if (args.objectType == ObjectType.ILLUST) {
                 Client.appApi.postIllustComment(args.objectId, content, parentCommentId)
@@ -55,6 +59,20 @@ class CommentsComposerViewModel(private val args: CommentsFragmentArgs) : ViewMo
         }
         cancelReply()
         editingComment.value = ""
+        val comment = resp.comment ?: return null
+        return parentCommentId to comment
+    }
+
+    /** 「表情贴图」选中即单发:comment 恒为空、只带 stamp_id(对齐官方 App 抓包行为,
+     * 与打字互斥),沿用当前回复目标(若有)。 */
+    suspend fun sendStamp(stampId: Long): Pair<Long, Comment>? {
+        val parentCommentId = resolveParentCommentId()
+        val resp = if (args.objectType == ObjectType.ILLUST) {
+            Client.appApi.postIllustComment(args.objectId, "", parentCommentId.takeIf { it > 0L }, stampId)
+        } else {
+            Client.appApi.postNovelComment(args.objectId, "", parentCommentId.takeIf { it > 0L }, stampId)
+        }
+        cancelReply()
         val comment = resp.comment ?: return null
         return parentCommentId to comment
     }

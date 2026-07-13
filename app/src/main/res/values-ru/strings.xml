@@ -2085,6 +2085,8 @@
     <string name="image_host_restart_hint">Перезапустите приложение, чтобы применить изменения</string>
     <string name="comment_translate_to_zh">Перевести на китайский</string>
     <string name="comment_emoji_picker">Эмодзи</string>
+    <string name="comment_emoji_tab_kaomoji">Эмодзи</string>
+    <string name="comment_emoji_tab_stamp">Стикеры</string>
     <!-- watch later / Смотреть позже -->
     <string name="watch_later">Смотреть позже</string>
     <string name="watch_later_add">Добавить в «Смотреть позже»</string>

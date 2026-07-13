@@ -2085,6 +2085,8 @@
     <string name="image_host_restart_hint">アプリを再起動すると反映されます</string>
     <string name="comment_translate_to_zh">中国語に翻訳</string>
     <string name="comment_emoji_picker">絵文字</string>
+    <string name="comment_emoji_tab_kaomoji">絵文字</string>
+    <string name="comment_emoji_tab_stamp">スタンプ</string>
     <!-- watch later / あとで見る -->
     <string name="watch_later">あとで見る</string>
     <string name="watch_later_add">あとで見るに追加</string>

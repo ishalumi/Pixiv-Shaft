@@ -597,6 +597,10 @@ data class Stamp(
     val stamp_url: String? = null,
 )
 
+data class StampsResponse(
+    val stamps: List<Stamp> = listOf(),
+)
+
 data class CommentResponse(
     val comments: List<Comment> = listOf(),
     val next_url: String? = null

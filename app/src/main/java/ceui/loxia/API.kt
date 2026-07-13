@@ -347,6 +347,7 @@ interface API {
         @Field("illust_id") illust_id: Long,
         @Field("comment") comment: String,
         @Field("parent_comment_id") parent_comment_id: Long? = null,
+        @Field("stamp_id") stamp_id: Long? = null,
     ): PostCommentResponse
 
     @FormUrlEncoded
@@ -355,7 +356,13 @@ interface API {
         @Field("novel_id") novel_id: Long,
         @Field("comment") comment: String,
         @Field("parent_comment_id") parent_comment_id: Long? = null,
+        @Field("stamp_id") stamp_id: Long? = null,
     ): PostCommentResponse
+
+    // 评论「表情贴图」目录:官方常驻 40 个贴纸(stamp_id + stamp_url),发评论时把
+    // comment 留空、改传 stamp_id 即可(见 postIllustComment/postNovelComment)。
+    @GET("/v1/stamps")
+    suspend fun getStamps(): StampsResponse
 
     @FormUrlEncoded
     @POST("/v1/{type}/comment/delete")

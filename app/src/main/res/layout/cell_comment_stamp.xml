@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 评论输入框「表情贴图」选择面板的单格:比 cell_comment_emoji 大,贴纸本身是远程方图(jpg,
+     不带透明底),用全仓通用的 RoundImageView 收口圆角(同 item_illust_square 的 rRadius 打法)。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="80dp"
+    android:foreground="@drawable/v3_ripple_card14"
+    android:padding="6dp">
+
+    <net.csdn.roundview.RoundImageView
+        android:id="@+id/stamp_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        app:rRadius="12dp" />
+
+</FrameLayout>
