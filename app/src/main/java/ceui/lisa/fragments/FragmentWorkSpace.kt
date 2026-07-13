@@ -29,7 +29,7 @@ class FragmentWorkSpace : SwipeFragment<FragmentWorkSpaceBinding>(), Display<Use
 
     public override fun initData() {
         Retro.getAppApi()
-            .getUserDetail(SessionManager.loggedInUid.toInt())
+            .getUserDetailV2(SessionManager.loggedInUid.toInt())
             .subscribeOn(Schedulers.newThread())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : NullCtrl<UserDetailResponse>() {

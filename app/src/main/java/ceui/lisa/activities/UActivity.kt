@@ -139,7 +139,7 @@ class UActivity : BaseActivity<ActivityNewUserBinding>(), Display<UserDetailResp
             return
         }
         baseBind.progress.visibility = View.VISIBLE
-        Retro.getAppApi().getUserDetail(userId)
+        Retro.getAppApi().getUserDetailV2(userId)
             .subscribeOn(Schedulers.newThread())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : NullCtrl<UserDetailResponse>() {

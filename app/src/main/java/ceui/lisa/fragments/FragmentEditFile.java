@@ -244,7 +244,7 @@ public class FragmentEditFile extends SwipeFragment<FragmentEditFileBinding> imp
 
 
         //加载预设信息
-        Retro.getAppApi().getUserDetail((int) SessionManager.INSTANCE.getLoggedInUid())
+        Retro.getAppApi().getUserDetailV2((int) SessionManager.INSTANCE.getLoggedInUid())
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new NullCtrl<UserDetailResponse>() {

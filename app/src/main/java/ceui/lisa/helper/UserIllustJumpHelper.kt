@@ -47,7 +47,7 @@ object UserIllustJumpHelper {
             .create()
         loading.show()
 
-        Retro.getAppApi().getUserDetail(userID)
+        Retro.getAppApi().getUserDetailV2(userID)
             .subscribeOn(Schedulers.newThread())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : NullCtrl<ceui.lisa.models.UserDetailResponse>() {

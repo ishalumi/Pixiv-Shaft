@@ -208,13 +208,9 @@ public interface AppApi {
     Observable<ListArticle> getArticles(@Query("category") String category);
 
 
-    ///v1/user/detail?filter=for_android&user_id=24218478
-    @GET("v1/user/detail?filter=for_android")
-    Observable<UserDetailResponse> getUserDetail(@Query("user_id") int user_id);
-
-    // v2 + filter=for_ios 才会带 is_accept_request / badge / disabled_links 等 iOS 端专有字段
-    // (v1 for_android 不返回)。字段按 filter/版本 gate,与 UA 无关,Android UA 也能拿到。
-    // 目前仅 V3 用户主页用它驱动「约稿中」tab 的显隐。
+    // 统一走 v2 + filter=for_ios:相比旧 v1/for_android 多带 is_accept_request / badge /
+    // disabled_links 等字段(字段按 filter/版本 gate,与 UA 无关,Android UA 也拿得到),
+    // 旧 v1 getUserDetail 已删除,全部改用本方法。
     @GET("v2/user/detail?filter=for_ios")
     Observable<UserDetailResponse> getUserDetailV2(@Query("user_id") int user_id);
 

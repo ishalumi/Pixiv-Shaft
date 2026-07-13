@@ -132,7 +132,7 @@ public class FragmentFollowUser extends NetListFragment<FragmentBaseListBinding,
                 .create();
         loading.show();
 
-        Retro.getAppApi().getUserDetail(target.userID)
+        Retro.getAppApi().getUserDetailV2(target.userID)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new NullCtrl<UserDetailResponse>() {
