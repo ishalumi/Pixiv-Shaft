@@ -22,7 +22,7 @@
     <!-- ── 封面区 ─────────────────────────────────────────── -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="180dp">
+        android:layout_height="200dp">
 
         <ImageView
             android:id="@+id/cover"
@@ -117,16 +117,5 @@
             android:textSize="13sp"
             tools:text="原创作品比较容易接受!至于衍生作品,我通常可以接受官方指导原则明确的作品。" />
 
-        <TextView
-            android:id="@+id/cta"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginTop="14dp"
-            android:fontFamily="@font/montserrat_semi_bold"
-            android:gravity="center_vertical"
-            android:letterSpacing="0.01"
-            android:text="@string/request_view_plan"
-            android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

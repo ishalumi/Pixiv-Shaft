@@ -83,7 +83,6 @@ class RequestPlanFeedFragment : FeedFragment() {
                 setColor(ADULT_BADGE_COLOR)
             }
             cell.binding.desc.setTextColor(palette.textSecondary)
-            cell.binding.cta.setTextColor(palette.textAccent)
             card.setOnClick { openPlan(cell.item) }
         },
         recycle = { cell -> Glide.with(cell.binding.cover).clear(cell.binding.cover) },
