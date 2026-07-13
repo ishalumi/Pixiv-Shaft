@@ -3,46 +3,93 @@ package ceui.pixiv.ui.prime
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.TemplateActivity
-import ceui.lisa.annotations.ItemHolder
 import ceui.lisa.databinding.CellItemPrimeTagBinding
-import ceui.lisa.databinding.FragmentPixivListBinding
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.lisa.view.LinearItemDecoration
 import ceui.loxia.Illust
 import ceui.loxia.ImageUrls
-import ceui.loxia.findActionReceiverOrNull
-import ceui.pixiv.ui.common.ListItemHolder
-import ceui.pixiv.ui.common.ListItemViewHolder
-import ceui.pixiv.ui.common.ListMode
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.common.setUpRefreshState
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedPage
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.utils.ppppx
+import com.blankj.utilcode.util.Utils
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class PrimeTagsFragment : PixivFragment(R.layout.fragment_pixiv_list), PrimeTagActionReceiver {
+/**
+ * Prime 标签目录页（feeds 框架版）。数据来自内置 assets JSON，一次性全量读出，
+ * 没有分页也没有网络请求，因此不接 [FeedSource.loadFromCache] 本地优先缓存——
+ * 数据本身就在本地，缓存一层纯属多余。
+ */
+class PrimeTagsFragment : FeedFragment(R.layout.fragment_toolbar_feed) {
 
-    private val binding by viewBinding(FragmentPixivListBinding::bind)
-    private val viewModel by viewModels<PrimeTagsViewModel>()
+    private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
+
+    override val feedViewModel by feedViewModels<String> {
+        FeedSource { _ ->
+            val items = withContext(Dispatchers.IO) {
+                val json = Utils.getApp().assets.open(INDEX_FILE).bufferedReader().use { it.readText() }
+                val type = object : TypeToken<List<PrimeTagIndexItem>>() {}.type
+                val indexItems: List<PrimeTagIndexItem> = Shaft.sGson.fromJson(json, type)
+                indexItems.map { PrimeTagItemHolder(it) }
+            }
+            FeedPage(items, null)
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setUpRefreshState(binding, viewModel, ListMode.VERTICAL)
-        binding.toolbarLayout.naviTitle.text = getString(R.string.prime_tags)
+        setUpToolbar(binding, feedBinding.feedListView)
+        binding.toolbarTitle.text = getString(R.string.prime_tags)
     }
 
-    override fun onClickPrimeTag(
-        indexItem: PrimeTagIndexItem
-    ) {
+    override fun onListReady(listView: RecyclerView) {
+        // 对齐旧版 ListMode.VERTICAL 的间距：卡片左右/底部 18dp 间隔 + 首项顶部留白
+        listView.addItemDecoration(LinearItemDecoration(18.ppppx))
+    }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(primeTagRenderer())
+    }
+
+    private fun primeTagRenderer() = feedRenderer<PrimeTagItemHolder, CellItemPrimeTagBinding>(
+        inflate = CellItemPrimeTagBinding::inflate,
+        create = { cell ->
+            cell.binding.root.setOnClickListener { onClickPrimeTag(cell.item.indexItem) }
+        },
+    ) { cell ->
+        cell.binding.holder = cell.item
+    }
+
+    private fun onClickPrimeTag(indexItem: PrimeTagIndexItem) {
         val intent = Intent(requireContext(), TemplateActivity::class.java)
         intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "PrimeTagDetail")
         intent.putExtra("name", indexItem.tag.translated_name)
         intent.putExtra("path", indexItem.filePath)
         startActivity(intent)
     }
+
+    companion object {
+        private const val INDEX_FILE = "pixiv_prime/prime_index.json"
+    }
 }
 
+data class PrimeTagItemHolder(val indexItem: PrimeTagIndexItem) : FeedItem {
 
-class PrimeTagItemHolder(val indexItem: PrimeTagIndexItem) : ListItemHolder() {
+    override val feedKey: Any get() = indexItem.filePath
+
     val primeTag: PrimeTagIndexItem get() = indexItem
 
     val illust0: Illust?
@@ -51,30 +98,8 @@ class PrimeTagItemHolder(val indexItem: PrimeTagIndexItem) : ListItemHolder() {
         get() = indexItem.previewSquareUrls.getOrNull(1)?.toPreviewIllust()
     val illust2: Illust?
         get() = indexItem.previewSquareUrls.getOrNull(2)?.toPreviewIllust()
-
-    override fun getItemId(): Long {
-        return indexItem.filePath.hashCode().toLong()
-    }
 }
 
 private fun String.toPreviewIllust(): Illust {
     return Illust(id = 0, image_urls = ImageUrls(square_medium = this))
-}
-
-@ItemHolder(PrimeTagItemHolder::class)
-class PrimeTagItemViewHolder(private val bd: CellItemPrimeTagBinding) :
-    ListItemViewHolder<CellItemPrimeTagBinding, PrimeTagItemHolder>(bd) {
-
-    override fun onBindViewHolder(holder: PrimeTagItemHolder, position: Int) {
-        super.onBindViewHolder(holder, position)
-        binding.holder = holder
-        binding.root.setOnClickListener {
-            it.findActionReceiverOrNull<PrimeTagActionReceiver>()
-                ?.onClickPrimeTag(holder.indexItem)
-        }
-    }
-}
-
-interface PrimeTagActionReceiver {
-    fun onClickPrimeTag(indexItem: PrimeTagIndexItem)
 }
