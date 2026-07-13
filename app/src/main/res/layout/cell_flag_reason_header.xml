@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  举报第一步列表的头部：MD3-E 圆底错误图标。迁入 feeds 框架后不再是 fragment 布局里的静态
+  View，而是列表的一个 fullSpan header 条目（FlagReasonHeaderFeedItem），跟违规类型行一起
+  由 RecyclerView 渲染/回收。根用 match_parent 兜整行、把圆底居中（RecyclerView 不认条目根
+  上的 layout_gravity）。圆底 solid 是静态色，跟主题色的重染在 renderer 的 onBind 里做
+  （bg_m3_icon_circle 同款配方，见关于页）。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="28dp"
+    android:paddingBottom="26dp">
+
+    <FrameLayout
+        android:id="@+id/hero_icon_wrap"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_m3_icon_circle">
+
+        <ImageView
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_error_black_24dp"
+            app:tint="?attr/colorPrimary" />
+
+    </FrameLayout>
+
+</FrameLayout>

@@ -625,7 +625,7 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 item(getString(R.string.string_355), R.drawable.ic_visibility_off_black_24dp) {
                     PixivOperate.muteIllust(illust)
                 }
-                item(getString(R.string.flag_post), R.drawable.ic_baseline_remove_red_eye_24) {
+                item(getString(R.string.flag_post), R.drawable.ic_baseline_flag_24) {
                     val intent = android.content.Intent(
                         mContext,
                         ceui.lisa.activities.TemplateActivity::class.java
@@ -634,7 +634,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                         ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT,
                         "举报插画"
                     )
-                    intent.putExtra(ceui.loxia.flag.FlagDescFragment.FlagObjectIdKey, illust.id)
+                    // illust 是 ObjectPool.get<IllustsBean> 取出的 Int id 字段；TemplateActivity
+                    // 读这个 extra 走 getLongExtra，必须显式转 Long，否则又是一次 Int/Long extra
+                    // 类型不匹配，读回来静默变 0（刚在真机复测出来:提交的 illust_id=0 被服务端拒绝）。
+                    intent.putExtra(ceui.loxia.flag.FlagDescFragment.FlagObjectIdKey, illust.id.toLong())
                     intent.putExtra(
                         ceui.loxia.flag.FlagDescFragment.FlagObjectTypeKey,
                         ceui.lisa.models.ObjectSpec.POST

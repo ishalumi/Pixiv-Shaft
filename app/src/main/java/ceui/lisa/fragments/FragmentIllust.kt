@@ -321,7 +321,10 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 R.id.action_flag_illust -> {
                     val intent = Intent(mContext, TemplateActivity::class.java)
                     intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "举报插画")
-                    intent.putExtra(FlagDescFragment.FlagObjectIdKey, illust.id)
+                    // illust.id 是 IllustsBean 的 Int 字段；TemplateActivity 读这个 extra 走
+                    // getLongExtra（配合 Illust.id: Long 的新版详情页入口），这里必须显式转 Long，
+                    // 否则又是一次 Int/Long extra 类型不匹配，读回来静默变 0。
+                    intent.putExtra(FlagDescFragment.FlagObjectIdKey, illust.id.toLong())
                     intent.putExtra(FlagDescFragment.FlagObjectTypeKey, ObjectSpec.POST)
                     startActivity(intent)
                     true

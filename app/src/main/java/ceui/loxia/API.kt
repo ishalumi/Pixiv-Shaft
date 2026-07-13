@@ -15,12 +15,17 @@ import retrofit2.http.Url
 
 interface API {
 
+    // 举报流程已随官方客户端迁到 v2 + 动态 topic-list：旧 v1/illust/report 用固定
+    // type_of_problem 字符串，服务端早已不认，一律 403。见 getIllustReportTopicList/postIllustReport。
+    @GET("/v1/illust/report/topic-list")
+    suspend fun getIllustReportTopicList(): IllustReportTopicListResponse
+
     @FormUrlEncoded
-    @POST("/v1/illust/report")
-    suspend fun postFlagIllust(
+    @POST("/v2/illust/report")
+    suspend fun postIllustReport(
         @Field("illust_id") illust_id: Long,
-        @Field("type_of_problem") type_of_problem: String?,
-        @Field("message") message: String?
+        @Field("topic_id") topic_id: Int,
+        @Field("description") description: String
     ): NullResponse
 
     @FormUrlEncoded

@@ -402,14 +402,18 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "测试测试":
                     return new FragmentSAF();
                 case "举报插画":
+                    // flagObjectId 是插画/用户等真实业务 ID，必须走 long——曾经这里用
+                    // getIntExtra 读，跟 Illust.id(Long) 类型不匹配，Bundle 类型不符时静默
+                    // 返回 0（不抛异常），导致举报功能提交的 illust_id 恒为 0，从未生效过。
                     return FlagReasonFragment.Companion.newInstance(
-                            intent.getIntExtra(FlagDescFragment.FlagObjectIdKey, 0),
+                            intent.getLongExtra(FlagDescFragment.FlagObjectIdKey, 0L),
                             intent.getIntExtra(FlagDescFragment.FlagObjectTypeKey, 0)
                     );
                 case "填写举报详细信息":
                     return FlagDescFragment.Companion.newInstance(
-                            intent.getIntExtra(FlagDescFragment.FlagReasonIdKey, 0),
-                            intent.getIntExtra(FlagDescFragment.FlagObjectIdKey, 0),
+                            intent.getIntExtra(FlagDescFragment.FlagTopicIdKey, 0),
+                            intent.getStringExtra(FlagDescFragment.FlagTopicTitleKey),
+                            intent.getLongExtra(FlagDescFragment.FlagObjectIdKey, 0L),
                             intent.getIntExtra(FlagDescFragment.FlagObjectTypeKey, 0)
                     );
                 case "相关用户":
