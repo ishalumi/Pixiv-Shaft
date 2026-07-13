@@ -146,12 +146,19 @@ abstract class FeedFragment(
         }
     }
 
+    /** [state.items] 的 diff 已经全部提交给 RecyclerView 之后回调——此时 adapter 的
+     * itemCount/内容才真正反映这份 state，[RecyclerView.findViewHolderForAdapterPosition]
+     * 才可能对新插入的条目命中。diff 本身在后台线程算，submitList 调用完立刻查 ViewHolder
+     * 大概率还是旧数据（构造函数级的时间竞争）；需要「精确感知新条目已经上屏」的场景
+     * （如新评论发出后滚回顶部高亮）在子类覆写，而不是自己拍延迟猜时机。默认 no-op。 */
+    protected open fun onListCommitted(state: FeedUiState) {}
+
     private fun render(adapter: FeedAdapter, state: FeedUiState) {
         val displayList = when (val append = state.append) {
             is LoadState.Loading, is LoadState.Error -> state.items + AppendFooterItem(append)
             else -> state.items
         }
-        adapter.submitList(displayList)
+        adapter.submitList(displayList) { onListCommitted(state) }
 
         val binding = feedBinding
         binding.feedRefreshLayout.isRefreshing =

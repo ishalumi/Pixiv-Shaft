@@ -34,11 +34,13 @@ import ceui.loxia.ObjectPool
 import ceui.loxia.ObjectType
 import ceui.loxia.ProgressTextButton
 import ceui.loxia.launchSuspend
+import ceui.pixiv.chat.base.panel.BottomPanelCoordinator
 import ceui.pixiv.chat.base.panel.PanelHost
 import ceui.pixiv.chat.base.panel.attachBottomPanel
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedUiState
 import ceui.pixiv.feeds.PixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.session.SessionManager
@@ -83,6 +85,12 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
 
     /** softInputMode 现场备份,见 [onResume]。 */
     private var previousSoftInputMode: Int = INVALID_SOFT_INPUT_MODE
+
+    /** 「绘文字」/「表情贴图」面板的状态机,[setUpEmojiPanel] 里创建;贴纸选中即发前用它收起面板。 */
+    private lateinit var panelCoordinator: BottomPanelCoordinator
+
+    /** 刚发出、还没等到它上屏的顶层新评论 id——见 [applySendResult] / [onListCommitted]。 */
+    private var pendingScrollHighlightCommentId: Long? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -139,6 +147,9 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         val stampAdapter = CommentStampPickerAdapter { stamp ->
             if (isSendingStamp) return@CommentStampPickerAdapter
             isSendingStamp = true
+            // 贴纸是选中即发,不是主动点发送键——发送前先收起表情/贴纸面板(这一刻软键盘本就是收起的,
+            // 面板跟它互斥),不然网络往返/列表刷新期间面板会一直挡住底下「滚回顶部高亮新评论」的结果。
+            panelCoordinator.dismiss()
             launchSuspend {
                 try {
                     val result = composer.sendStamp(stamp.stamp_id)
@@ -173,7 +184,7 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         binding.tabKaomoji.setOnClick { binding.emojiPager.setCurrentItem(0, true) }
         binding.tabStamp.setOnClick { binding.emojiPager.setCurrentItem(1, true) }
 
-        attachBottomPanel(
+        panelCoordinator = attachBottomPanel(
             host = object : PanelHost {
                 override val panelRoot get() = binding.root
                 override val panelView get() = binding.emojiPanelContainer
@@ -246,6 +257,56 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
     private fun applySendResult(result: Pair<Long, Comment>?) {
         val (parentCommentId, comment) = result ?: return
         feedViewModel.mutateItems { composer.applySentComment(it, parentCommentId, comment, args.objectArthurId) }
+        // 顶层新评论固定插进 index 0(见 CommentsComposerViewModel.applySentComment);回复是挂进
+        // 已有卡片内部,不在列表最前——只有顶层发送才需要「滚回最前 + 高亮」。mutateItems 只是同步
+        // 改了 VM 里的 StateFlow,adapter 要等 [onListCommitted] 回调才真的吃到这份新数据——这里
+        // 不能立刻滚,立刻滚会拿着 adapter 还没更新的旧 itemCount/内容起步,滚到错误位置。
+        if (parentCommentId <= 0L) {
+            pendingScrollHighlightCommentId = comment.id
+        }
+    }
+
+    /** [ceui.pixiv.feeds.FeedFragment] 的 diff-提交完成回调:此时 adapter 才真正反映了
+     * [applySendResult] 里 mutateItems 之后的那份 state,滚动目标位置才是准的。 */
+    override fun onListCommitted(state: FeedUiState) {
+        val targetId = pendingScrollHighlightCommentId ?: return
+        val top = state.items.firstOrNull()
+        if (top is CommentFeedItem && top.comment.id == targetId) {
+            pendingScrollHighlightCommentId = null
+            scrollToAndHighlightNewComment()
+        }
+    }
+
+    /** submitList 的 diff 提交完成后,新插入的 0 号 ViewHolder 仍可能还没排布出来(布局是下一帧的
+     * 事)——短延迟重试拿到手再高亮(同 [ceui.pixiv.ui.user.UserIllustFeedFragment] 的
+     * highlightItemAt 打法);这里额外叠了平滑滚动的耗时,重试预算相应放宽,盖住一次完整的
+     * smoothScroll。 */
+    private fun scrollToAndHighlightNewComment() {
+        if (view == null) return
+        val listView = feedBinding.feedListView
+        listView.smoothScrollToPosition(0)
+        highlightItemAt(listView, 0, HIGHLIGHT_MAX_RETRIES)
+    }
+
+    private fun highlightItemAt(listView: RecyclerView, adapterPos: Int, triesLeft: Int) {
+        if (view == null) return
+        val holder = listView.findViewHolderForAdapterPosition(adapterPos)
+        if (holder == null) {
+            if (triesLeft > 0) {
+                listView.postDelayed(
+                    { highlightItemAt(listView, adapterPos, triesLeft - 1) },
+                    HIGHLIGHT_RETRY_DELAY_MS,
+                )
+            }
+            return
+        }
+        val target = holder.itemView
+        target.animate().cancel()
+        target.scaleX = 1f
+        target.scaleY = 1f
+        target.animate().scaleX(1.05f).scaleY(1.05f).setDuration(200L)
+            .withEndAction { target.animate().scaleX(1f).scaleY(1f).setDuration(200L).start() }
+            .start()
     }
 
     private suspend fun performDelete(commentId: Long, parentCommentId: Long) {
@@ -323,6 +384,10 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
     companion object {
         /** Sentinel — softInputMode 是打包 int,-1 不会是合法组合(同 DemoChatListFragment)。 */
         private const val INVALID_SOFT_INPUT_MODE = -1
+
+        /** 新评论高亮重试预算:100ms × 30 ≈ 3s,盖住一次从列表底部到顶部的完整 smoothScroll。 */
+        private const val HIGHLIGHT_MAX_RETRIES = 30
+        private const val HIGHLIGHT_RETRY_DELAY_MS = 100L
 
         fun newInstance(
             objectId: Long,
