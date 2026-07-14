@@ -17,7 +17,6 @@
         android:text="@string/login_out"
         android:textColor="@color/buttonTextRed"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:background="@drawable/log_out_btn"
         android:layout_height="wrap_content"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

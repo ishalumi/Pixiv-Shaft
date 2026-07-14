@@ -2,85 +2,80 @@ package ceui.lisa.fragments
 
 import android.os.Bundle
 import android.view.View
-import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
-import ceui.lisa.databinding.FragmentHistoryListBinding
 import ceui.pixiv.db.GeneralEntity
-import ceui.pixiv.ui.common.CommonAdapter
-import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.feeds.updateItems
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
-import com.scwang.smart.refresh.footer.ClassicsFooter
-import com.scwang.smart.refresh.header.MaterialHeader
+import kotlinx.coroutines.launch
 
-class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list), SelectableHistoryTab {
+/**
+ * 浏览历史「用户」tab（feeds 框架版）。结构同 [FragmentHistoryList]，但数据是 general_table 的
+ * 用户浏览记录（[HistoryUserFeedSource]），单一条目类型、竖排线性、无搜索（对齐旧 HistoryUserViewModel）。
+ * 多选态住在 [HistorySelectionViewModel]（键 = entity.id/uid），通过 [updateItems] 回灌卡片选中态；
+ * 删除走 [deleteUserHistoryEntities] + [FeedViewModel.removeItems]。
+ */
+class FragmentHistoryUserList : FeedFragment(), SelectableHistoryTab {
 
-    private val binding by viewBinding(FragmentHistoryListBinding::bind)
-    private val viewModel: HistoryUserViewModel by viewModels()
+    private val selectionVm: HistorySelectionViewModel by viewModels()
+
+    override val feedViewModel by feedViewModels { HistoryUserFeedSource() }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> =
+        listOf(historyUserRenderer())
+
+    override fun onCreateLayoutManager(): RecyclerView.LayoutManager =
+        LinearLayoutManager(requireContext())
+
+    override fun onListReady(listView: RecyclerView) {
+        listView.itemAnimator = null
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val adapter = CommonAdapter(viewLifecycleOwner)
-        binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        binding.recyclerView.adapter = adapter
-
-        binding.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()))
-        binding.refreshLayout.setRefreshFooter(ClassicsFooter(requireContext()))
-        binding.refreshLayout.setOnRefreshListener {
-            viewModel.loadFirst { withBinding { it.refreshLayout.finishRefresh() } }
+        selectionVm.selectionMode.observe(viewLifecycleOwner) { syncSelection() }
+        selectionVm.selectedIds.observe(viewLifecycleOwner) { syncSelection() }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                feedViewModel.uiState.collect { syncSelection() }
+            }
         }
-        binding.refreshLayout.setOnLoadMoreListener {
-            viewModel.loadMore { withBinding { it.refreshLayout.finishLoadMore() } }
-        }
-
-        viewModel.setDeleteCallback { entity -> confirmDelete(entity) }
-        viewModel.holders.observe(viewLifecycleOwner) { holders ->
-            adapter.submitList(holders)
-        }
-        viewModel.isEmpty.observe(viewLifecycleOwner) { empty ->
-            binding.emptyLayout.isVisible = empty
-        }
-
-        if (viewModel.holders.value.isNullOrEmpty()) {
-            // 远端:初次加载用居中 ProgressBar 当加载态(避免下拉头压到 toolbar)。
-            binding.loadingBar.isVisible = true
-            viewModel.loadFirst { withBinding { it.loadingBar.isVisible = false } }
-        }
-
-        // 同 FragmentHistoryList:view 重建复位选择态,避免残留勾选框退不出去。
-        viewModel.exitSelectionMode()
+        // 同 FragmentHistoryList：view 重建复位选择态，避免残留勾选框退不出去。
+        selectionVm.setSelectionMode(false)
     }
 
-    // —— SelectableHistoryTab：多选删除,具体状态在 VM —— //
-    override val selectedCount: LiveData<Int> get() = viewModel.selectedCount
-    override fun hasItems(): Boolean = viewModel.holders.value?.isNotEmpty() == true
-    override fun isAllSelected(): Boolean = viewModel.isAllSelected()
-    override fun enterSelectionMode() = viewModel.enterSelectionMode()
-    override fun exitSelectionMode() = viewModel.exitSelectionMode()
-    override fun toggleSelectAll() = viewModel.toggleSelectAll()
-    override fun deleteSelected(onComplete: (Int) -> Unit) = viewModel.deleteSelected(onComplete)
-
-    /**
-     * loadFirst/loadMore 的完成回调跑在 viewModelScope,慢网络下可能在 view 销毁后才回来;
-     * 直接碰 binding 会 requireView() 崩(Crashlytics: did not return a View from onCreateView)。
-     * viewModelScope 在主线程 resume、view 销毁也在主线程,故此处判空无竞态。
-     */
-    private fun withBinding(block: (FragmentHistoryListBinding) -> Unit) {
-        if (view != null) block(binding)
-    }
-
-    /** host 一键清空全部历史 (#886) 后调一下，让本 tab 重新拉 DAO。 */
-    fun reloadFromDao() {
+    // ── 多选态回灌 feed（差异守卫防止 uiState.collect ↔ updateItems 死循环）─────────────
+    private fun syncSelection() {
         if (view == null) return
-        viewModel.loadFirst()
+        val mode = selectionVm.selectionMode.value == true
+        val selected = selectionVm.selectedIds.value.orEmpty()
+        val needsUpdate = feedViewModel.uiState.value.items.any { item ->
+            item is HistoryUserFeedItem &&
+                (item.isSelectionMode != mode || item.isSelected != (item.entity.id in selected))
+        }
+        if (!needsUpdate) return
+        feedViewModel.updateItems<HistoryUserFeedItem> {
+            it.copy(isSelectionMode = mode, isSelected = it.entity.id in selected)
+        }
     }
 
-    private fun confirmDelete(entity: GeneralEntity) {
+    // ── renderer 回调（HistoryUserFeed.kt 里的扩展 renderer 调用）────────────────────
+    internal fun toggleUserHistorySelect(entity: GeneralEntity) = selectionVm.toggle(entity.id)
+
+    internal fun confirmDeleteUserHistory(entity: GeneralEntity) {
         val act = activity ?: return
         QMUIDialog.MessageDialogBuilder(act)
             .setTitle(R.string.string_143)
@@ -88,8 +83,54 @@ class FragmentHistoryUserList : Fragment(R.layout.fragment_history_list), Select
             .addAction(R.string.string_142) { d, _ -> d.dismiss() }
             .addAction(0, R.string.string_141, QMUIDialogAction.ACTION_PROP_NEGATIVE) { d, _ ->
                 d.dismiss()
-                viewModel.delete(entity)
+                deleteUsers(listOf(entity))
             }
             .show()
+    }
+
+    private fun deleteUsers(entities: List<GeneralEntity>, onComplete: (Int) -> Unit = {}) {
+        if (entities.isEmpty()) { onComplete(0); return }
+        val ids = entities.map { it.id }.toSet()
+        viewLifecycleOwner.lifecycleScope.launch {
+            deleteUserHistoryEntities(entities)
+            if (view == null) return@launch
+            feedViewModel.removeItems { (it as? HistoryUserFeedItem)?.entity?.id in ids }
+            onComplete(ids.size)
+        }
+    }
+
+    private fun loadedEntities(): List<GeneralEntity> =
+        feedViewModel.uiState.value.items.filterIsInstance<HistoryUserFeedItem>().map { it.entity }
+
+    /** host 一键清空全部历史 (#886) 后调一下，让本 tab 重新拉数据源。 */
+    fun reloadFromDao() {
+        if (view == null) return
+        feedViewModel.refresh()
+    }
+
+    // ── SelectableHistoryTab ────────────────────────────────────────────────────
+    override val selectedCount: LiveData<Int> get() = selectionVm.selectedCount
+    override fun hasItems(): Boolean = loadedEntities().isNotEmpty()
+    override fun isAllSelected(): Boolean {
+        val ids = loadedEntities().map { it.id }
+        return ids.isNotEmpty() && selectionVm.selectedIds.value.orEmpty().containsAll(ids)
+    }
+    override fun enterSelectionMode() = selectionVm.setSelectionMode(true)
+    override fun exitSelectionMode() = selectionVm.setSelectionMode(false)
+    override fun toggleSelectAll() {
+        val ids = loadedEntities().map { it.id }
+        if (ids.isNotEmpty() && selectionVm.selectedIds.value.orEmpty().containsAll(ids)) {
+            selectionVm.clear()
+        } else {
+            selectionVm.setSelected(ids.toSet())
+        }
+    }
+    override fun deleteSelected(onComplete: (Int) -> Unit) {
+        val selected = selectionVm.selectedIds.value.orEmpty()
+        val targets = loadedEntities().filter { it.id in selected }
+        deleteUsers(targets) { deleted ->
+            selectionVm.setSelectionMode(false)
+            onComplete(deleted)
+        }
     }
 }

@@ -45,7 +45,6 @@ import ceui.lisa.fragments.FragmentNew;
 import ceui.lisa.fragments.FragmentNewNovel;
 import ceui.lisa.fragments.FragmentNewNovels;
 import ceui.lisa.fragments.FragmentNiceFriend;
-import ceui.lisa.fragments.FragmentNovelHolder;
 import ceui.pixiv.ui.novel.reader.NovelReaderV3Fragment;
 import ceui.pixiv.ui.comic.reader.ComicReaderV3Fragment;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
@@ -633,17 +632,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
 
     @Override
     public void onColorSelected(int dialogId, int color) {
-        if (childFragment instanceof FragmentNovelHolder) {
-            if (dialogId == Params.DIALOG_NOVEL_BG_COLOR) {
-                Shaft.sSettings.setNovelHolderColor(color);
-                ((FragmentNovelHolder) childFragment).setBackgroundColor(color);
-            } else if (dialogId == Params.DIALOG_NOVEL_TEXT_COLOR) {
-                Shaft.sSettings.setNovelHolderTextColor(color);
-                ((FragmentNovelHolder) childFragment).setTextColor(color);
-            }
-
-            Local.setSettings(Shaft.sSettings);
-        }
+        // 旧版小说阅读器 FragmentNovelHolder 已删除（改用 NovelReaderV3 的设置面板），
+        // 这里的颜色回调不再有承接对象，保留空实现满足接口。
     }
 
     @Override
@@ -652,10 +642,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
     }
 
     public void onFontSizeSelected(int size) {
-        if (childFragment instanceof FragmentNovelHolder) {
-            Shaft.sSettings.setNovelHolderTextSize(size);
-            ((FragmentNovelHolder) childFragment).setTextSize(size);
-            Local.setSettings(Shaft.sSettings);
-        }
+        // 同上：旧阅读器字号回调已随 FragmentNovelHolder 一并废弃。
     }
 }

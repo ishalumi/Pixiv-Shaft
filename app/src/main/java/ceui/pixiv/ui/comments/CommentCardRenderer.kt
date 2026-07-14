@@ -18,7 +18,6 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.BottomDividerDecoration
-import ceui.pixiv.ui.common.CommonAdapter
 import ceui.pixiv.ui.user.UserActionReceiver
 import ceui.pixiv.ui.user.binding_loadUserIcon
 import ceui.pixiv.utils.ppppx
@@ -151,14 +150,18 @@ fun CommentsFragment.commentCardRenderer(): FeedRenderer<CommentFeedItem, CellCo
                     BottomDividerDecoration(context, R.drawable.list_divider_no_end, marginLeft = 12.ppppx)
                 )
             }
-            binding.childCommentsList.layoutManager = LinearLayoutManager(context)
-            val childAdapter = CommonAdapter(viewLifecycleOwner)
-            binding.childCommentsList.adapter = childAdapter
+            // 复用已挂在子 RecyclerView 上的 adapter(复用 cell 不重复 new),2026 RecyclerView 实践
+            val childAdapter = binding.childCommentsList.adapter as? ChildCommentAdapter
+                ?: ChildCommentAdapter().also {
+                    binding.childCommentsList.layoutManager = LinearLayoutManager(context)
+                    binding.childCommentsList.adapter = it
+                }
             childAdapter.submitList(item.childComments.map { childComment ->
-                CommentChildHolder(comment.id, childComment, item.illustArthurId)
+                ChildCommentItem(comment.id, childComment, item.illustArthurId)
             })
         } else {
             binding.childCommentsList.isVisible = false
+            (binding.childCommentsList.adapter as? ChildCommentAdapter)?.submitList(emptyList())
         }
     }
 

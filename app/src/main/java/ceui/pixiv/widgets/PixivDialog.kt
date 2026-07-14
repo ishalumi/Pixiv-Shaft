@@ -13,7 +13,6 @@ import ceui.pixiv.ui.common.NavFragmentViewModel
 import kotlinx.coroutines.CompletableDeferred
 
 class DialogViewModel : ViewModel() {
-    val menuTaskPool = hashMapOf<String, CompletableDeferred<MenuItem>>()
     val alertTaskPool = hashMapOf<String, CompletableDeferred<Boolean>>()
 
     val choosenOffsetPage = MutableLiveData<Int>()

@@ -1,15 +1,8 @@
 package ceui.lisa.fragments
 
-import android.content.Context
 import ceui.lisa.models.NovelDetail
-import ceui.lisa.utils.Common
 import ceui.loxia.PixivHtmlObject
-import ceui.loxia.SpaceHolder
 import ceui.loxia.WebNovel
-import ceui.loxia.novel.NovelChapterHolder
-import ceui.loxia.novel.NovelImageHolder
-import ceui.loxia.novel.NovelTextHolder
-import ceui.pixiv.ui.common.ListItemHolder
 import com.google.gson.Gson
 import okhttp3.ResponseBody
 import org.jsoup.Jsoup
@@ -65,79 +58,6 @@ abstract class WebNovelParser(response: Response<ResponseBody>) {
             }
 
             return null
-        }
-
-        @JvmOverloads
-        fun buildNovelHolders(mWebNovel: WebNovel?, s: String, textColor: Int = Common.getNovelTextColor()): List<ListItemHolder> {
-            if (mWebNovel == null) {
-                return listOf()
-            }
-
-            val uploadedImageMark = "[uploadedimage:"
-            val pixivImageMark = "[pixivimage:"
-
-            val holderList = mutableListOf<ListItemHolder>()
-
-            if (s.contains(uploadedImageMark)) {
-                var id = 0L
-                val startIndex: Int = s.indexOf(uploadedImageMark) + uploadedImageMark.length
-                val endIndex: Int = s.indexOf("]")
-                try {
-                    id = s.substring(startIndex, endIndex).toLong()
-                } catch (exception: java.lang.Exception) {
-                    exception.printStackTrace()
-                }
-                holderList.add(
-                    NovelImageHolder(
-                        NovelImageHolder.Type.UploadedImage,
-                        id,
-                        0,
-                        mWebNovel
-                    )
-                )
-            } else if (s.contains(pixivImageMark)) {
-                var id = 0L
-                val startIndex: Int = s.indexOf(pixivImageMark) + pixivImageMark.length
-                val endIndex: Int = s.indexOf("]")
-                val result: String = s.substring(startIndex, endIndex)
-                var indexInIllust = 0
-                try {
-                    if (result.contains("-")) {
-                        val ret = result.split("-".toRegex()).dropLastWhile { it.isEmpty() }
-                            .toTypedArray()
-                        indexInIllust = ret[1].toInt()
-                        id = ret[0].toLong()
-                    } else {
-                        id = result.toLong()
-                    }
-                } catch (exception: java.lang.Exception) {
-                    exception.printStackTrace()
-                }
-                holderList.add(
-                    NovelImageHolder(
-                        NovelImageHolder.Type.PixivImage,
-                        id,
-                        indexInIllust,
-                        mWebNovel
-                    )
-                )
-            } else if (s.contains("[newpage]")) {
-                holderList.add(SpaceHolder())
-            } else if (s.contains("[chapter:")) {
-                holderList.add(NovelChapterHolder(extractChapterContent(s) ?: "", textColor))
-            } else {
-                holderList.add(NovelTextHolder(s, textColor))
-            }
-            return holderList
-        }
-
-        private fun extractChapterContent(input: String): String? {
-            val regex = """\[chapter:(.+?)]""".toRegex()
-            val matchResult = regex.find(input) ?: return null
-            // 与 ContentParser.cleanChapterTitle 保持一致：剥除数字两侧的多余引号，
-            // 修复「【第'0章'】」类显示问题。
-            return ceui.pixiv.ui.novel.reader.paginate.ContentParser
-                .cleanChapterTitle(matchResult.groups[1]?.value.orEmpty())
         }
     }
 }

@@ -2,140 +2,39 @@ package ceui.pixiv.ui.recommend
 
 import android.os.Bundle
 import android.view.View
-import androidx.core.view.isVisible
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
-import ceui.lisa.databinding.FragmentEventHistoryBinding
-import ceui.lisa.network.ShaftApiV2Client
-import ceui.pixiv.events.EventReporter
-import ceui.pixiv.ui.common.CommonAdapter
-import ceui.pixiv.ui.common.ListItemHolder
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
-import com.scwang.smart.refresh.footer.ClassicsFooter
-import com.scwang.smart.refresh.header.MaterialHeader
-import kotlinx.coroutines.launch
-import timber.log.Timber
 
 /**
- * 操作记录 — 调 shaft-api-v2 /api/v1/events/history 拉当前 client_id 自己的事件流。
- *
- * 不分类型 (全部 bookmark/download/follow 一起按时间倒序);后续要分类可以再加 tab。
- * 服务端按 id DESC 排,翻页用 next_before 游标。
- *
- * 没事件时显示 empty 占位。client_id 还没生成 (EventReporter.init 没跑完) 时同样 empty。
+ * 操作记录（feeds 框架版）— 调 shaft-api-v2 /events/history 拉当前 client_id 的事件流，
+ * 不分类型（全部 bookmark/download/follow 按时间倒序），翻页用 next_before 游标。
+ * 只读列表：刷新/翻页/空态全部交给 [FeedFragment]，数据在 [EventHistoryFeedSource]。
+ * client_id 未生成时数据源返回空页 → 显示 empty 占位。
  */
-class FragmentEventHistory : Fragment(R.layout.fragment_event_history) {
+class FragmentEventHistory : FeedFragment(R.layout.fragment_toolbar_feed) {
 
-    private val binding by viewBinding(FragmentEventHistoryBinding::bind)
-    private val items = mutableListOf<ListItemHolder>()
-    private var nextBefore: Long? = null
-    private var loading = false
-    private var exhausted = false
+    private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
+
+    override val feedViewModel by feedViewModels<Long> { EventHistoryFeedSource() }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> =
+        listOf(eventHistoryRenderer())
+
+    override fun onListReady(listView: RecyclerView) {
+        listView.itemAnimator = null
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        binding.toolbar.title = " "
+        setUpToolbar(binding, feedBinding.feedListView)
         binding.toolbarTitle.text = getString(R.string.event_history)
-        binding.toolbar.setNavigationOnClickListener { activity?.finish() }
-
-        val adapter = CommonAdapter(viewLifecycleOwner)
-        binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        binding.recyclerView.itemAnimator = null
-        binding.recyclerView.adapter = adapter
-
-        binding.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()))
-        binding.refreshLayout.setRefreshFooter(ClassicsFooter(requireContext()))
-        binding.refreshLayout.setOnRefreshListener {
-            loadFirst { adapter.submitList(items.toList()) }
-        }
-        binding.refreshLayout.setOnLoadMoreListener {
-            loadMore { adapter.submitList(items.toList()) }
-        }
-
-        loadFirst { adapter.submitList(items.toList()) }
-    }
-
-    private fun loadFirst(onDone: () -> Unit) {
-        val cid = EventReporter.currentClientId()
-        if (cid.isEmpty()) {
-            // client_id 没初始化好,直接展示 empty,不去打服务端 (会被 400 bad_client_id 拒)
-            items.clear()
-            nextBefore = null
-            exhausted = true
-            updateEmpty()
-            binding.refreshLayout.finishRefresh(true)
-            onDone()
-            return
-        }
-        if (loading) return
-        loading = true
-        viewLifecycleOwner.lifecycleScope.launch {
-            // 注意:UI 更新只在 try / catch 里做,不在 finally 里。viewLifecycleOwner
-            // 的 scope 在 view 销毁时会取消,这时再访问 binding 会因 ViewBindingDelegate
-            // 检查 lifecycle.currentState 抛 IllegalStateException。
-            // CancellationException 单独识别 → 直接 return,不动 UI 也不 log。
-            try {
-                val resp = ShaftApiV2Client.service.eventsHistory(
-                    clientId = cid, limit = 50, eventType = null, before = null,
-                )
-                items.clear()
-                items.addAll(resp.items.map { EventHistoryHolder(it) })
-                nextBefore = resp.next_before
-                exhausted = resp.next_before == null
-                updateEmpty()
-                binding.refreshLayout.finishRefresh(true)
-                binding.refreshLayout.setNoMoreData(exhausted)
-                onDone()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                // view 已销毁,binding 访问会炸,这里啥也不做
-            } catch (e: Exception) {
-                Timber.tag("EventHistory").w(e, "loadFirst failed")
-                binding.refreshLayout.finishRefresh(false)
-                onDone()
-            } finally {
-                loading = false
-            }
-        }
-    }
-
-    private fun loadMore(onDone: () -> Unit) {
-        val cid = EventReporter.currentClientId()
-        val before = nextBefore
-        if (cid.isEmpty() || before == null || exhausted) {
-            binding.refreshLayout.finishLoadMoreWithNoMoreData()
-            onDone()
-            return
-        }
-        if (loading) return
-        loading = true
-        viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val resp = ShaftApiV2Client.service.eventsHistory(
-                    clientId = cid, limit = 50, eventType = null, before = before,
-                )
-                items.addAll(resp.items.map { EventHistoryHolder(it) })
-                nextBefore = resp.next_before
-                exhausted = resp.next_before == null
-                updateEmpty()
-                if (exhausted) binding.refreshLayout.finishLoadMoreWithNoMoreData()
-                else binding.refreshLayout.finishLoadMore(true)
-                onDone()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                // view 已销毁,跳过 UI 更新
-            } catch (e: Exception) {
-                Timber.tag("EventHistory").w(e, "loadMore failed")
-                binding.refreshLayout.finishLoadMore(false)
-                onDone()
-            } finally {
-                loading = false
-            }
-        }
-    }
-
-    private fun updateEmpty() {
-        binding.emptyLayout.isVisible = items.isEmpty()
     }
 }
