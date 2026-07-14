@@ -23,6 +23,7 @@ import ceui.lisa.utils.GlideUrlChild
 import ceui.lisa.utils.GlideUtil
 import ceui.loxia.Client
 import ceui.pixiv.session.SessionManager
+import ceui.pixiv.ui.navigation.DrawerIconCatalog
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade
 import com.bumptech.glide.request.RequestOptions.bitmapTransform
@@ -37,7 +38,6 @@ import kotlinx.coroutines.launch
 class MeFragment : Fragment(R.layout.fragment_me) {
 
     private data class Entry(
-        @DrawableRes val icon: Int,
         @StringRes val title: Int,
         @IdRes val drawerActionId: Int,
     )
@@ -175,7 +175,8 @@ class MeFragment : Fragment(R.layout.fragment_me) {
         entries.forEach { entry ->
             val cell = inflater.inflate(R.layout.cell_me_entry, grid, false)
             // icon tint / label 颜色都走 XML 里 v3_text_2 / v3_text_1,保持中性 —— 主题色只染顶上 stat card
-            cell.findViewById<ImageView>(R.id.cellIcon).setImageResource(entry.icon)
+            cell.findViewById<ImageView>(R.id.cellIcon)
+                .setImageResource(DrawerIconCatalog.iconFor(entry.drawerActionId))
             cell.findViewById<TextView>(R.id.cellLabel).setText(entry.title)
             cell.setOnClickListener { dispatch(entry.drawerActionId) }
             val params = GridLayout.LayoutParams().apply {
@@ -208,29 +209,29 @@ class MeFragment : Fragment(R.layout.fragment_me) {
         val mine = Section(
             title = R.string.string_318,
             entries = listOf(
-                Entry(R.drawable.ic_baseline_palette_24, R.string.string_319, R.id.illust_star),
-                Entry(R.drawable.ic_baseline_menu_book_24, R.string.string_320, R.id.novel_star),
-                Entry(R.drawable.ic_fiber_new_black_24dp, R.string.watchlist, R.id.watchlist),
-                Entry(R.drawable.ic_baseline_bookmark_24, R.string.core_string_novel_marker, R.id.novel_markers),
-                Entry(R.drawable.ic_baseline_how_to_reg_24, R.string.string_321, R.id.follow_user),
+                Entry(R.string.string_319, R.id.illust_star),
+                Entry(R.string.string_320, R.id.novel_star),
+                Entry(R.string.watchlist, R.id.watchlist),
+                Entry(R.string.core_string_novel_marker, R.id.novel_markers),
+                Entry(R.string.string_321, R.id.follow_user),
             ),
         )
         val quickAccess = Section(
             title = R.string.me_section_quick,
             entries = listOf(
-                Entry(R.drawable.ic_history_black_24dp, R.string.view_history, R.id.nav_slideshow),
-                Entry(R.drawable.ic_watch_later_24, R.string.watch_later, R.id.watch_later),
-                Entry(R.drawable.outline_whatshot_24, R.string.prime_tags, R.id.nav_prime_tags),
-                Entry(R.drawable.ic_not_interested_black_24dp, R.string.muted_history, R.id.muted_list),
+                Entry(R.string.view_history, R.id.nav_slideshow),
+                Entry(R.string.watch_later, R.id.watch_later),
+                Entry(R.string.prime_tags, R.id.nav_prime_tags),
+                Entry(R.string.muted_history, R.id.muted_list),
             ),
         )
         val others = Section(
             title = R.string.the_others,
             entries = listOf(
-                Entry(R.drawable.baseline_auto_awesome_24, R.string.string_ai_upscale_standalone, R.id.nav_ai_upscale),
-                Entry(R.drawable.ic_collections_black_24dp, R.string.search_image_origin, R.id.nav_reverse),
-                Entry(R.drawable.ic_fiber_new_black_24dp, R.string.latest_work, R.id.nav_new_work),
-                Entry(R.drawable.ic_error_black_24dp, R.string.about_app, R.id.nav_share),
+                Entry(R.string.string_ai_upscale_standalone, R.id.nav_ai_upscale),
+                Entry(R.string.search_image_origin, R.id.nav_reverse),
+                Entry(R.string.latest_work, R.id.nav_new_work),
+                Entry(R.string.about_app, R.id.nav_share),
             ),
         )
 
@@ -242,21 +243,21 @@ class MeFragment : Fragment(R.layout.fragment_me) {
         val isLite = BuildConfig.IS_LITE
         if (!(isLite && !BuildConfig.DEBUG)) {
             val experimentalEntries = mutableListOf(
-                Entry(R.drawable.ic_baseline_menu_book_24, R.string.local_novel_entry, R.id.nav_local_novel),
-                Entry(R.drawable.ic_baseline_settings_24, R.string.debug_bulk_dl_entry, R.id.nav_debug_bulk_dl),
+                Entry(R.string.local_novel_entry, R.id.nav_local_novel),
+                Entry(R.string.debug_bulk_dl_entry, R.id.nav_debug_bulk_dl),
             )
             // 站长推荐 / 操作记录:非 google 渠道常驻(release 也放出);google flavor 合规起见不展示。
             if (!isLite) {
                 experimentalEntries += listOf(
-                    Entry(R.drawable.ic_history_black_24dp, R.string.event_history, R.id.nav_event_history),
-                    Entry(R.drawable.outline_whatshot_24, R.string.current_hot, R.id.nav_current_hot),
-                    Entry(R.drawable.ic_baseline_star_24, R.string.site_recommend, R.id.nav_site_recommend),
+                    Entry(R.string.event_history, R.id.nav_event_history),
+                    Entry(R.string.current_hot, R.id.nav_current_hot),
+                    Entry(R.string.site_recommend, R.id.nav_site_recommend),
                 )
             }
             if (BuildConfig.DEBUG) {
                 experimentalEntries += listOf(
-                    Entry(R.drawable.ic_chat_black_24dp, R.string.chat_drawer_entry, R.id.nav_chat_room),
-                    Entry(R.drawable.ic_plaza_forum_24, R.string.plaza_drawer_entry, R.id.nav_plaza),
+                    Entry(R.string.chat_drawer_entry, R.id.nav_chat_room),
+                    Entry(R.string.plaza_drawer_entry, R.id.nav_plaza),
                 )
             }
             out += Section(R.string.experimental_section, experimentalEntries)

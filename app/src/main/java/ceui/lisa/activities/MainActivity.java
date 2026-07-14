@@ -60,6 +60,7 @@ import ceui.lisa.utils.ReverseWebviewCallback;
 import ceui.lisa.view.DrawerLayoutViewPager;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import ceui.pixiv.session.SessionManager;
+import ceui.pixiv.ui.navigation.DrawerIconCatalog;
 
 /**
  * 主页
@@ -357,22 +358,20 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
         }
     }
 
-    /** 侧边栏一条入口:分发 id + 图标 + 标题 + 可见性门控。 */
+    /** 侧边栏一条入口:分发 id + 标题 + 可见性门控。图标由动作目录统一提供。 */
     private static class DrawerEntry {
         final int id;
-        final int iconRes;
         final int titleRes;
         final boolean visible;
 
-        DrawerEntry(int id, int iconRes, int titleRes, boolean visible) {
+        DrawerEntry(int id, int titleRes, boolean visible) {
             this.id = id;
-            this.iconRes = iconRes;
             this.titleRes = titleRes;
             this.visible = visible;
         }
 
-        DrawerEntry(int id, int iconRes, int titleRes) {
-            this(id, iconRes, titleRes, true);
+        DrawerEntry(int id, int titleRes) {
+            this(id, titleRes, true);
         }
     }
 
@@ -402,44 +401,44 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
         // 「个人主页」入口去掉——顶部账号整块点击即进自己主页,不再重复一行。
         // 「投稿」(pixiv upload.php 网页链接)已整体移除。
         addDrawerSection(sections, R.string.drawer_section_mine, new DrawerEntry[]{
-                new DrawerEntry(R.id.illust_star, R.drawable.ic_baseline_palette_24, R.string.string_319),
-                new DrawerEntry(R.id.novel_star, R.drawable.ic_baseline_menu_book_24, R.string.string_320),
-                new DrawerEntry(R.id.watch_later, R.drawable.ic_watch_later_24, R.string.watch_later),
-                new DrawerEntry(R.id.nav_pinned_tags, R.drawable.ic_baseline_bookmark_24, R.string.pinned_tags),
-                new DrawerEntry(R.id.watchlist, R.drawable.ic_fiber_new_black_24dp, R.string.watchlist),
-                new DrawerEntry(R.id.novel_markers, R.drawable.ic_baseline_bookmark_24, R.string.core_string_novel_marker),
-                new DrawerEntry(R.id.follow_user, R.drawable.ic_baseline_how_to_reg_24, R.string.string_321),
-                new DrawerEntry(R.id.nav_fans, R.drawable.ic_supervisor_account_black_24dp, R.string.string_322),
+                new DrawerEntry(R.id.illust_star, R.string.string_319),
+                new DrawerEntry(R.id.novel_star, R.string.string_320),
+                new DrawerEntry(R.id.watch_later, R.string.watch_later),
+                new DrawerEntry(R.id.nav_pinned_tags, R.string.pinned_tags),
+                new DrawerEntry(R.id.watchlist, R.string.watchlist),
+                new DrawerEntry(R.id.novel_markers, R.string.core_string_novel_marker),
+                new DrawerEntry(R.id.follow_user, R.string.string_321),
+                new DrawerEntry(R.id.nav_fans, R.string.string_322),
         });
 
         // 高频入口前置:浏览历史 排在「记录与管理」首位,设置 排在「其他」首位。
         addDrawerSection(sections, R.string.drawer_section_records, new DrawerEntry[]{
-                new DrawerEntry(nav_slideshow, R.drawable.ic_history_black_24dp, R.string.view_history),
-                new DrawerEntry(nav_gallery, R.drawable.ic_file_download_black_24dp, R.string.download_manager),
-                new DrawerEntry(R.id.nav_notifications, R.drawable.ic_notifications_black_24dp, R.string.notifications_and_info, experimentalAllowed),
-                new DrawerEntry(R.id.muted_list, R.drawable.ic_not_interested_black_24dp, R.string.muted_history),
-                new DrawerEntry(R.id.nav_event_history, R.drawable.ic_baseline_list_24, R.string.event_history, !isLite),
+                new DrawerEntry(nav_slideshow, R.string.view_history),
+                new DrawerEntry(nav_gallery, R.string.download_manager),
+                new DrawerEntry(R.id.nav_notifications, R.string.notifications_and_info, experimentalAllowed),
+                new DrawerEntry(R.id.muted_list, R.string.muted_history),
+                new DrawerEntry(R.id.nav_event_history, R.string.event_history, !isLite),
         });
 
         addDrawerSection(sections, R.string.the_others, new DrawerEntry[]{
-                new DrawerEntry(R.id.nav_manage, R.drawable.ic_baseline_settings_24, R.string.app_settings),
-                new DrawerEntry(R.id.nav_ai_upscale, R.drawable.baseline_auto_awesome_24, R.string.string_ai_upscale_standalone),
-                new DrawerEntry(R.id.nav_reverse, R.drawable.ic_collections_black_24dp, R.string.search_image_origin),
-                new DrawerEntry(R.id.nav_share, R.drawable.ic_error_black_24dp, R.string.about_app),
+                new DrawerEntry(R.id.nav_manage, R.string.app_settings),
+                new DrawerEntry(R.id.nav_ai_upscale, R.string.string_ai_upscale_standalone),
+                new DrawerEntry(R.id.nav_reverse, R.string.search_image_origin),
+                new DrawerEntry(R.id.nav_share, R.string.about_app),
         });
 
         addDrawerSection(sections, R.string.experimental_section, new DrawerEntry[]{
-                new DrawerEntry(R.id.nav_discovery, R.drawable.ic_baseline_explore_24, R.string.string_discovery,
+                new DrawerEntry(R.id.nav_discovery, R.string.string_discovery,
                         experimentalAllowed && discoveryReady),
-                new DrawerEntry(R.id.nav_local_novel, R.drawable.ic_baseline_menu_book_24, R.string.local_novel_entry, experimentalAllowed),
-                new DrawerEntry(R.id.nav_chat_room, R.drawable.ic_chat_black_24dp, R.string.chat_drawer_entry,
+                new DrawerEntry(R.id.nav_local_novel, R.string.local_novel_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_chat_room, R.string.chat_drawer_entry,
                         experimentalAllowed && Shaft.sSettings.isShowChatRoomEntry()),
-                new DrawerEntry(R.id.nav_plaza, R.drawable.ic_plaza_forum_24, R.string.plaza_drawer_entry,
+                new DrawerEntry(R.id.nav_plaza, R.string.plaza_drawer_entry,
                         experimentalAllowed && Shaft.sSettings.isShowPlazaEntry()),
-                new DrawerEntry(R.id.nav_debug_bulk_dl, R.drawable.ic_baseline_settings_24, R.string.debug_bulk_dl_entry, experimentalAllowed),
-                new DrawerEntry(R.id.nav_saf_perf_test, R.drawable.ic_baseline_settings_24, R.string.saf_perf_test_entry, experimentalAllowed),
-                new DrawerEntry(R.id.nav_network_test, R.drawable.ic_baseline_settings_24, R.string.nav_network_test_entry, experimentalAllowed),
-                new DrawerEntry(R.id.nav_tag_popular_export, R.drawable.ic_baseline_settings_24, R.string.tag_popular_export_entry, isDebugBuild),
+                new DrawerEntry(R.id.nav_debug_bulk_dl, R.string.debug_bulk_dl_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_saf_perf_test, R.string.saf_perf_test_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_network_test, R.string.nav_network_test_entry, experimentalAllowed),
+                new DrawerEntry(R.id.nav_tag_popular_export, R.string.tag_popular_export_entry, isDebugBuild),
         });
     }
 
@@ -466,7 +465,7 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
         parent.addView(header);
         for (DrawerEntry entry : visible) {
             View row = inflater.inflate(R.layout.item_drawer_row, parent, false);
-            ((ImageView) row.findViewById(R.id.drawer_row_icon)).setImageResource(entry.iconRes);
+            ((ImageView) row.findViewById(R.id.drawer_row_icon)).setImageResource(DrawerIconCatalog.iconFor(entry.id));
             ((TextView) row.findViewById(R.id.drawer_row_title)).setText(entry.titleRes);
             row.setOnClickListener(v -> {
                 handleDrawerAction(entry.id);
