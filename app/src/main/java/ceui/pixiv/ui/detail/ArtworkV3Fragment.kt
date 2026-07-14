@@ -212,13 +212,24 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             fragment = this,
             view = baseBind.commentComposer,
             panelRoot = baseBind.composerRoot,
-            // Deliberately null: external RecyclerView touches must not dismiss this overlay.
-            panelContentView = null,
+            // The coordinator consumes only a confirmed tap (not a scroll) while a bottom surface
+            // is open, so the first content tap dismisses without activating the underlying item.
+            panelContentView = baseBind.recyclerView,
             palette = headerAdapter.palette,
             presentation = CommentComposerPresentation.ON_DEMAND_OVERLAY,
             composer = composer,
             onSent = ::applySentComment,
             onPanelStateChanged = ::onComposerStateChanged,
+            // The keyboard needs a temporary host scrim while visible. Release it as soon as its
+            // real Insets exit begins; the custom panel owns its own surface and never needs it.
+            onPanelDismissStarted = { closingState ->
+                // IME already owns the navigation-bar surface while it moves. Releasing our scrim
+                // avoids an empty black input-row placeholder after the input row has faded out.
+                if (closingState == PanelState.KEYBOARD) {
+                    baseBind.composerRoot.background = null
+                }
+            },
+            onPanelDismissCancelled = ::onComposerStateChanged,
         )
 
         Timber.tag("V3MultiP").d(
@@ -489,11 +500,30 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
 
     private var fabShown = true
 
-    private fun hideFabBar() {
-        if (!fabShown) return
+    private fun hideFabBar(immediate: Boolean = false) {
+        if (!fabShown && !immediate) return
         fabShown = false
-        baseBind.fabBar.animate().translationY(baseBind.fabBar.height + 100f)
-            .alpha(0f).setDuration(200).start()
+        val fabBar = baseBind.fabBar
+        fabBar.animate().cancel()
+        val hiddenTranslation = fabBar.height + 100f
+        if (immediate) {
+            // Entering editor starts an IME resize in the same frame. A still-running FAB exit
+            // would be repositioned above the keyboard before it fades, so retire it atomically
+            // before requesting the IME instead of reusing the scroll-only transition.
+            fabBar.translationY = hiddenTranslation
+            fabBar.alpha = 0f
+            fabBar.visibility = View.INVISIBLE
+        } else {
+            fabBar.visibility = View.VISIBLE
+            fabBar.animate()
+                .translationY(hiddenTranslation)
+                .alpha(0f)
+                .setDuration(FAB_ANIMATION_DURATION_MS)
+                .withEndAction {
+                    if (!fabShown) fabBar.visibility = View.INVISIBLE
+                }
+                .start()
+        }
     }
 
     private fun showFabBar() {
@@ -501,7 +531,13 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         if (composerActive) return
         if (fabShown) return
         fabShown = true
-        baseBind.fabBar.animate().translationY(0f).alpha(1f).setDuration(200).start()
+        baseBind.fabBar.animate().cancel()
+        baseBind.fabBar.visibility = View.VISIBLE
+        baseBind.fabBar.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(FAB_ANIMATION_DURATION_MS)
+            .start()
     }
 
     // ── 底部内联评论输入栏 ──────────────────────────────────────────────
@@ -511,6 +547,9 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
 
     /** 点「留下你的评论吧」入口:浮出输入栏 + 弹键盘,并藏起收藏/下载胶囊。 */
     private fun showComposer() {
+        // The IME path temporarily needs the host to cover its navigation inset. Switching to the
+        // custom panel clears this again because that panel owns and animates the inset itself.
+        baseBind.composerRoot.setBackgroundColor(mContext.getColor(R.color.v3_bg))
         // 已在编辑态时重复点入口做成幂等:只在键盘意外被收起时补弹一次,绝不重跑整条 show 流程。
         // 重跑会跟在途的键盘动画抢——旧版正是这里出「再点一次入口,键盘还在但顶部输入栏没了」的 bug。
         if (composerActive) {
@@ -518,11 +557,7 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             return
         }
         composerActive = true
-        hideFabBar()
-        // 编辑期间给浮层铺一层不透明底:输入栏 + 表情面板 + 面板下方到导航栏的那段 padding 都被
-        // v3_bg 盖住,不透下面铺满整屏的详情内容(表情面板自带的 v3_surface_2 只有 ~5% alpha)。
-        // 只在编辑态铺,收起就撤掉——避免常驻一条不透明条挡住 edge-to-edge 滚动到底部的内容。
-        baseBind.composerRoot.setBackgroundColor(mContext.getColor(R.color.v3_bg))
+        hideFabBar(immediate = true)
         commentComposer?.showKeyboard()
     }
 
@@ -541,9 +576,22 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             // 等键盘真收起那次再退场。
             val imeUp = ViewCompat.getRootWindowInsets(baseBind.composerRoot)
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
-            if (!imeUp && commentComposer?.isEmpty == true) hideComposerBar()
+            if (!imeUp && commentComposer?.isEmpty == true) {
+                hideComposerBar()
+            } else if (!imeUp) {
+                // A non-empty draft intentionally keeps the input row, but no closed surface needs
+                // the navigation-inset scrim anymore.
+                baseBind.composerRoot.background = null
+            }
         } else {
             // 键盘或面板展开:藏起收藏/下载胶囊,让出底部
+            if (state == PanelState.KEYBOARD) {
+                baseBind.composerRoot.setBackgroundColor(mContext.getColor(R.color.v3_bg))
+            } else {
+                // The custom panel owns its opaque surface including the navigation inset. Keeping
+                // a root-sized scrim here would leave a large block that disappears at NONE.
+                baseBind.composerRoot.background = null
+            }
             hideFabBar()
         }
     }
@@ -801,6 +849,8 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
     }
 
     companion object {
+        private const val FAB_ANIMATION_DURATION_MS = 200L
+
         @JvmStatic
         fun newInstance(illustId: Int): ArtworkV3Fragment {
             return ArtworkV3Fragment().apply {

@@ -3,11 +3,13 @@ package ceui.pixiv.ui.comments
 import android.graphics.Typeface
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import ceui.lisa.R
 import ceui.lisa.utils.V3Palette
@@ -36,11 +38,13 @@ class CommentComposerController private constructor(
     private val view: CommentComposerView,
     private val composer: CommentsComposerViewModel,
     private val hostPanelRoot: View,
-    private val hostPanelContentView: View?,
+    private val hostPanelContentView: RecyclerView?,
     palette: V3Palette,
-    presentation: CommentComposerPresentation,
+    private val presentation: CommentComposerPresentation,
     private val onSent: (SentComment) -> Unit,
     private val onStateChanged: (PanelState) -> Unit,
+    private val onDismissStarted: (PanelState) -> Unit,
+    private val onDismissCancelled: (PanelState) -> Unit,
 ) : DefaultLifecycleObserver {
 
     private val panelCoordinator: BottomPanelCoordinator
@@ -81,7 +85,20 @@ class CommentComposerController private constructor(
                 override val panelToggleButton get() = view.emojiToggle
                 override val panelToggleIconRes get() = R.drawable.chat_ic_emoji
                 override val keyboardToggleIconRes get() = R.drawable.chat_ic_keyboard
-                override fun onPanelStateChanged(state: PanelState) = onStateChanged(state)
+                override fun onPanelStateChanged(state: PanelState) {
+                    if (state != PanelState.NONE) view.showInputBar()
+                    onStateChanged(state)
+                }
+                override fun onPanelDismissStarted(state: PanelState) {
+                    if (presentation == CommentComposerPresentation.ON_DEMAND_OVERLAY && isEmpty) {
+                        view.animateInputBarOut()
+                    }
+                    onDismissStarted(state)
+                }
+                override fun onPanelDismissCancelled(state: PanelState) {
+                    view.showInputBar()
+                    onDismissCancelled(state)
+                }
             },
         )
         setUpEmojiPanel()
@@ -91,7 +108,7 @@ class CommentComposerController private constructor(
 
     /** Opens the system keyboard without replaying host-specific show animations. */
     fun showKeyboard() {
-        view.isVisible = true
+        view.showForEditing()
         if (panelCoordinator.state != PanelState.KEYBOARD) {
             panelCoordinator.switchToKeyboard()
         }
@@ -99,7 +116,7 @@ class CommentComposerController private constructor(
 
     /** Removes the composer visuals after the host's on-demand editing session ends. */
     fun hide() {
-        view.isVisible = false
+        view.hideComposer()
     }
 
     val isEmpty: Boolean
@@ -131,6 +148,16 @@ class CommentComposerController private constructor(
         view.commentInput.background =
             palette.settingsCardBg(COMPOSER_RADIUS_DP * density, (COMPOSER_STROKE_DP * density).toInt())
         view.sendButton.background = palette.pillPrimary()
+        // v3_surface_2 is intentionally translucent. Pre-composite it over v3_bg so the panel
+        // owns its visual background instead of relying on an opaque host root. This lets an
+        // overlay input row fade out without leaving a root-sized black placeholder underneath.
+        val context = fragment.requireContext()
+        view.emojiPanel.setBackgroundColor(
+            ColorUtils.compositeColors(
+                ContextCompat.getColor(context, R.color.v3_surface_2),
+                ContextCompat.getColor(context, R.color.v3_bg),
+            ),
+        )
     }
 
     private fun setUpTextInput() {
@@ -262,12 +289,14 @@ class CommentComposerController private constructor(
             fragment: Fragment,
             view: CommentComposerView,
             panelRoot: View,
-            panelContentView: View? = null,
+            panelContentView: RecyclerView? = null,
             palette: V3Palette,
             presentation: CommentComposerPresentation = CommentComposerPresentation.PERSISTENT,
             composer: CommentsComposerViewModel,
             onSent: (SentComment) -> Unit,
             onPanelStateChanged: (PanelState) -> Unit = {},
+            onPanelDismissStarted: (PanelState) -> Unit = {},
+            onPanelDismissCancelled: (PanelState) -> Unit = {},
         ): CommentComposerController = CommentComposerController(
             fragment = fragment,
             view = view,
@@ -278,6 +307,8 @@ class CommentComposerController private constructor(
             presentation = presentation,
             onSent = onSent,
             onStateChanged = onPanelStateChanged,
+            onDismissStarted = onPanelDismissStarted,
+            onDismissCancelled = onPanelDismissCancelled,
         )
     }
 }

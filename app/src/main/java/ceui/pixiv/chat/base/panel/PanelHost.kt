@@ -2,6 +2,7 @@ package ceui.pixiv.chat.base.panel
 
 import android.view.View
 import android.widget.ImageView
+import androidx.recyclerview.widget.RecyclerView
 
 /**
  * View contract for [BottomPanelCoordinator].
@@ -22,11 +23,11 @@ interface PanelHost {
     val panelInputView: View?
 
     /**
-     * The content area above the input bar (e.g. a RecyclerView or its
-     * container). Tapping this view while keyboard or panel is open will
-     * dismiss both. Null to disable tap-to-dismiss.
+     * The scrollable content area above the input bar. A confirmed tap while the keyboard or
+     * custom panel is open dismisses that surface and is consumed; drag gestures keep their normal
+     * scrolling behavior. Null disables tap-to-dismiss.
      */
-    val panelContentView: View? get() = null
+    val panelContentView: RecyclerView? get() = null
 
     /**
      * Toggle button that switches between keyboard and panel.
@@ -54,4 +55,20 @@ interface PanelHost {
 
     /** Called when the panel state changes so the host can update UI (e.g. toggle button icons). */
     fun onPanelStateChanged(state: PanelState) {}
+
+    /**
+     * Called when the currently visible keyboard or custom panel starts closing.
+     *
+     * This is intentionally separate from [onPanelStateChanged]: [PanelState.NONE] is committed
+     * only after the closing surface reaches its final frame, while hosts may want to begin a
+     * coordinated exit animation immediately. Implementations must be idempotent because an IME
+     * dismissal can be observed both from an explicit request and from its insets animation.
+     */
+    fun onPanelDismissStarted(state: PanelState) {}
+
+    /**
+     * Called when a keyboard dismissal that already emitted [onPanelDismissStarted] ends with the
+     * keyboard still visible. Hosts should restore any visuals they retired at dismissal start.
+     */
+    fun onPanelDismissCancelled(state: PanelState) {}
 }

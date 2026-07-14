@@ -3,11 +3,13 @@ package ceui.pixiv.ui.comments
 import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.interpolator.view.animation.FastOutLinearInInterpolator
 import androidx.viewpager2.widget.ViewPager2
 import ceui.lisa.R
 import ceui.loxia.ProgressImageButton
@@ -28,6 +30,7 @@ class CommentComposerView @JvmOverloads constructor(
     internal val tabKaomoji: TextView
     internal val tabStamp: TextView
     internal val panelDismiss: ImageView
+    private var inputAnimationGeneration = 0
 
     init {
         orientation = VERTICAL
@@ -37,6 +40,10 @@ class CommentComposerView @JvmOverloads constructor(
         sendButton = requireViewById(R.id.send_button)
         emojiToggle = requireViewById(R.id.emoji_toggle)
         emojiPanel = requireViewById(R.id.emoji_panel_container)
+        // Consume touches not handled by tabs/ViewPager children. Without this touch sink, events
+        // on panel whitespace continue to the artwork RecyclerView underneath the overlay.
+        emojiPanel.isClickable = true
+        emojiPanel.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         emojiPager = requireViewById(R.id.emoji_pager)
         tabKaomoji = requireViewById(R.id.tab_kaomoji)
         tabStamp = requireViewById(R.id.tab_stamp)
@@ -50,7 +57,54 @@ class CommentComposerView @JvmOverloads constructor(
         inputBar.setBackgroundColor(if (overlay) context.getColor(R.color.v3_bg) else 0)
     }
 
+    internal fun showForEditing() {
+        isVisible = true
+        showInputBar()
+    }
+
+    internal fun showInputBar() {
+        inputAnimationGeneration++
+        inputBar.animate().cancel()
+        inputBar.visibility = View.VISIBLE
+        inputBar.alpha = 1f
+        inputBar.translationY = 0f
+    }
+
+    /**
+     * Visually retires only the input row while retaining its measured space. The custom panel can
+     * therefore finish shrinking without a parent relayout jump; the whole composer is removed once
+     * the coordinator commits NONE.
+     */
+    internal fun animateInputBarOut() {
+        if (inputBar.visibility != View.VISIBLE || inputBar.alpha == 0f) return
+        val generation = ++inputAnimationGeneration
+        inputBar.animate().cancel()
+        inputBar.animate()
+            .alpha(0f)
+            .translationY(INPUT_EXIT_TRANSLATION_DP * resources.displayMetrics.density)
+            .setDuration(INPUT_EXIT_DURATION_MS)
+            .setInterpolator(FastOutLinearInInterpolator())
+            .withLayer()
+            .withEndAction {
+                if (inputAnimationGeneration == generation && inputBar.alpha == 0f) {
+                    inputBar.visibility = View.INVISIBLE
+                }
+            }
+            .start()
+    }
+
+    internal fun hideComposer() {
+        inputAnimationGeneration++
+        inputBar.animate().cancel()
+        isVisible = false
+        inputBar.visibility = View.VISIBLE
+        inputBar.alpha = 1f
+        inputBar.translationY = 0f
+    }
+
     private companion object {
         const val OVERLAY_ELEVATION_DP = 12f
+        const val INPUT_EXIT_TRANSLATION_DP = 12f
+        const val INPUT_EXIT_DURATION_MS = 140L
     }
 }

@@ -209,10 +209,10 @@
             app:trackThickness="4dp" />
 
         <!-- 评论输入浮层:平时不常驻(整条透明、输入栏 GONE),点评论区「留下你的评论吧」入口才浮出
-             (见 ArtworkV3Fragment.showComposer)。整条 LinearLayout 就是 BottomPanelCoordinator 的
-             panelRoot——gravity=bottom + wrap_content:coordinator 给它加底 padding 顶键盘/面板时,顶排
-             的输入栏会被抬到键盘/面板之上,底部 padding(透明)落在键盘背后。跟评论详情页复用同一套
-             attachBottomPanel + 表情/贴图面板,只是这里只发顶层评论(回复走完整评论列表页)。 -->
+             (见 ArtworkV3Fragment.showComposer)。整条 LinearLayout 是 BottomPanelCoordinator 的
+             panelRoot——键盘显示时由 root bottom padding 抬起输入栏；自定义面板显示时导航栏 inset
+             转交给不透明 panel 自身，使 panel 的完整表面参与同一段高度动画，结束帧不再靠 root 背景
+             兜底。跟评论详情页复用同一套 attachBottomPanel，只是这里只发顶层评论。 -->
         <LinearLayout
             android:id="@+id/composer_root"
             android:layout_width="match_parent"
