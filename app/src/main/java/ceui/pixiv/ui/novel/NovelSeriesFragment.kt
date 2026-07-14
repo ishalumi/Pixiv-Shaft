@@ -3,7 +3,6 @@ package ceui.pixiv.ui.novel
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -14,8 +13,14 @@ import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.TemplateActivity
@@ -23,130 +28,218 @@ import ceui.lisa.activities.UActivity
 import ceui.lisa.activities.VActivity
 import ceui.lisa.core.Container
 import ceui.lisa.core.PageData
-import ceui.lisa.databinding.FragmentPixivListBinding
 import ceui.lisa.databinding.ItemBigReadButtonBinding
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Client
-import ceui.loxia.ProgressImageButton
-import ceui.pixiv.ui.common.ListMode
+import ceui.loxia.Illust
+import ceui.loxia.Novel
+import ceui.loxia.NovelSeriesResp
+import ceui.loxia.ObjectPool
+import ceui.loxia.ProgressIndicator
+import ceui.loxia.launchSuspend
+import ceui.lisa.http.Retro
+import ceui.pixiv.events.EventReporter
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.feeds.updateItems
+import ceui.pixiv.ui.bulk.FetchProgressDialog
+import ceui.pixiv.ui.common.NovelActionReceiver
 import ceui.pixiv.ui.common.NovelMultiSelectReceiver
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.common.constructVM
-import ceui.pixiv.ui.common.setUpRefreshState
-import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.ui.detail.seriesAuthorRenderer
+import ceui.pixiv.ui.detail.seriesCaptionRenderer
+import ceui.pixiv.ui.detail.seriesSectionLabelRenderer
 import ceui.pixiv.ui.novel.reader.export.ExportFormat
 import ceui.pixiv.ui.novel.reader.ui.ExportFormatCallback
 import ceui.pixiv.ui.novel.reader.ui.ExportSheet
-import ceui.pixiv.ui.bulk.FetchProgressDialog
 import ceui.pixiv.ui.task.BatchDownloadNovelsTask
 import ceui.pixiv.ui.task.FailedNovel
 import ceui.pixiv.ui.task.FetchAllTask
 import ceui.pixiv.ui.task.HumanReadableTask
-import ceui.loxia.Novel
-import ceui.loxia.NovelSeriesResp
 import ceui.pixiv.ui.task.MergeDownloadNovelSeriesTask
 import ceui.pixiv.ui.task.PixivTaskType
-import java.util.concurrent.atomic.AtomicBoolean
+import ceui.pixiv.ui.user.UserActionReceiver
+import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
+import ceui.pixiv.widgets.RateAppManager
 import com.hjq.toast.ToastUtils
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
-import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import io.reactivex.Observable
+import io.reactivex.disposables.Disposable
+import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
+/**
+ * 小说系列 V3 详情页（feeds 框架版）。hero + 作者 + 档案 + 简介 + 「作品列表」标题 + 章节卡。
+ * 数据住在 [feedViewModel]（[NovelSeriesFeedSource]）；多选态住在 [selectionModel]
+ * （跨配置存活），二者的变化都收敛到 [syncCards] 把章节卡的选中态回灌进 feed。
+ * 底部「合集下载」按钮与多选操作条互斥切换。
+ */
 class NovelSeriesFragment :
-    PixivFragment(R.layout.fragment_pixiv_list),
+    FeedFragment(R.layout.fragment_v3_feed_bottombar),
     NovelMultiSelectReceiver,
     NovelSeriesHeaderActionReceiver,
+    NovelActionReceiver,
+    UserActionReceiver,
     ExportFormatCallback {
 
-    private val binding by viewBinding(FragmentPixivListBinding::bind)
     private val seriesId: Long by lazy { arguments?.getLong(ARG_SERIES_ID, 0L) ?: 0L }
-    private val viewModel by constructVM({ seriesId }) { id ->
-        NovelSeriesViewModel(id)
+
+    override val feedViewModel by feedViewModels {
+        val id = seriesId
+        NovelSeriesFeedSource(id)
     }
 
-    // Two independent bottom views — we swap between them based on
-    // isMultiSelect. Kept as fields so the observer can just flip
-    // visibility instead of re-inflating on every emission.
+    private val selectionModel by viewModels<NovelSeriesSelectionViewModel>()
+
     private var singleDownloadBtn: View? = null
     private var multiSelectBar: View? = null
     private var multiSelectDownloadBtn: TextView? = null
     private var multiSelectSelectAllBtn: TextView? = null
 
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> = listOf(
+        novelSeriesHeroRenderer(),
+        seriesAuthorRenderer(),
+        novelSeriesProfileRenderer(),
+        seriesCaptionRenderer(),
+        seriesSectionLabelRenderer(),
+        novelSeriesCardRenderer(),
+    )
+
+    override fun onListReady(listView: RecyclerView) {
+        listView.clipToPadding = false
+        listView.addItemDecoration(ceui.lisa.view.LinearItemDecorationNoLRTB(18.ppppx))
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setUpRefreshState(binding, viewModel, ListMode.VERTICAL_NO_HORIZONTAL)
         val density = resources.displayMetrics.density
-        binding.listView.clipToPadding = false
-        // 用户反馈：模糊封面图作为背景反而干扰前景文字阅读。改为 v3_bg（白天/夜间自动适配）。
-        binding.pageBackground.setBackgroundColor(
-            androidx.core.content.ContextCompat.getColor(requireContext(), R.color.v3_bg),
-        )
-        binding.toolbarLayout.root.visibility = View.GONE
-        binding.topShadow.isVisible = false
+        val listView = feedBinding.feedListView
+        val bottomBar = view.findViewById<FrameLayout>(R.id.bottom_bar)
 
-        // 醒目的合集下载按钮——老版本放在 toolbarLayout 的 more 菜单里，但 toolbarLayout
-        // 被整体 GONE 了，用户根本看不到入口。挂到 bottomCovered 里做成一个 fab-ish 的
-        // 条状按钮，所有系列页都能一眼看到。
-        addDownloadAllButton()
-        addMultiSelectActionBar()
+        addDownloadAllButton(bottomBar)
+        addMultiSelectActionBar(bottomBar, density)
 
-        // Edge-to-edge safe area: TemplateActivity draws behind the status bar
-        // / display cutout, so the list's first holder needs to clear
-        // systemBars.top, plus a small breathing gap below the status bar.
-        // Remove the toolbar's insets listener first — setUpToolbar sets one
-        // on binding.toolbarLayout.root that calls content.updatePadding(0,0,0,bottom),
-        // resetting our top padding to 0. The toolbar is GONE anyway.
-        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbarLayout.root, null)
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            binding.listView.updatePadding(
-                top = bars.top + (12 * density).toInt(),
-                bottom = bars.bottom + (72 * density).toInt()
-            )
-            // 单下载按钮靠它那 300dp 渐变容器的内边距把自己抬离手势导航条，但多选
-            // 操作条是裸挂在 bottomCovered 底部的，只有 12dp 下外边距，会压在手势区 /
-            // 导航栏上。把底部安全区 inset 折进它的下外边距，让「全选 / 下载选中」抬起来。
-            multiSelectBar?.let { bar ->
-                val lp = bar.layoutParams as ViewGroup.MarginLayoutParams
-                lp.bottomMargin = bars.bottom + (12 * density).toInt()
-                bar.layoutParams = lp
+            listView.updatePadding(top = bars.top + (12 * density).toInt(), bottom = bars.bottom + (84 * density).toInt())
+            bottomBar.updateLayoutParams<FrameLayout.LayoutParams> {
+                bottomMargin = bars.bottom + (12 * density).toInt()
             }
             insets
         }
-        ViewCompat.requestApplyInsets(binding.root)
+        ViewCompat.requestApplyInsets(view)
 
-        // Observe multi-select state: swap bottom UI. Card visual state is
-        // driven by the holders list (ViewModel re-emits holders with updated
-        // isMultiSelectMode / isSelected), so the adapter handles it via DiffUtil.
-        viewModel.isMultiSelect.observe(viewLifecycleOwner) { enabled ->
+        selectionModel.isMultiSelect.observe(viewLifecycleOwner) { enabled ->
             applyMultiSelectVisibility(enabled)
+            syncCards()
         }
-        viewModel.selectedIds.observe(viewLifecycleOwner) { selected ->
-            val count = selected.size
-            multiSelectDownloadBtn?.text = getString(R.string.download_selected_count, count)
-            val allIds = viewModel.allNovelIds()
+        selectionModel.selectedIds.observe(viewLifecycleOwner) { selected ->
+            multiSelectDownloadBtn?.text = getString(R.string.download_selected_count, selected.size)
+            val allIds = allNovelIds()
             val allSelected = allIds.isNotEmpty() && selected.containsAll(allIds)
-            multiSelectSelectAllBtn?.text = getString(
-                if (allSelected) R.string.deselect_all else R.string.select_all
-            )
+            multiSelectSelectAllBtn?.text = getString(if (allSelected) R.string.deselect_all else R.string.select_all)
+            syncCards()
+        }
+        // 追页后新卡以「非多选」态入列，这里跟随当前多选态回灌（syncCards 自带差异守卫，不会死循环）
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                feedViewModel.uiState.collect { syncCards() }
+            }
         }
     }
 
-    private fun addDownloadAllButton() {
+    // ── 多选态回灌 feed ─────────────────────────────────────────────────
+    private fun loadedNovels(): List<Novel> =
+        feedViewModel.uiState.value.items.filterIsInstance<NovelSeriesCardFeedItem>().map { it.novel }
+
+    private fun allNovelIds(): List<Long> = loadedNovels().map { it.id }
+
+    private fun syncCards() {
+        val mode = selectionModel.isMultiSelect.value == true
+        val selected = selectionModel.selectedIds.value.orEmpty()
+        val cards = feedViewModel.uiState.value.items.filterIsInstance<NovelSeriesCardFeedItem>()
+        val needsUpdate = cards.any {
+            it.isMultiSelectMode != mode || it.isSelected != (it.novel.id in selected)
+        }
+        if (!needsUpdate) return
+        feedViewModel.updateItems<NovelSeriesCardFeedItem> {
+            it.copy(isMultiSelectMode = mode, isSelected = it.novel.id in selected)
+        }
+    }
+
+    // ── 底部按钮 ────────────────────────────────────────────────────────
+    private fun addDownloadAllButton(bottomBar: FrameLayout) {
         val palette = V3Palette.from(requireContext())
         val bottomView = ItemBigReadButtonBinding.inflate(layoutInflater)
         bottomView.btnRead.text = getString(R.string.series_download_action)
-        bottomView.btnRead.background = palette.pillPrimary(
-            28f * resources.displayMetrics.density
-        )
+        bottomView.btnRead.background = palette.pillPrimary(28f * resources.displayMetrics.density)
         bottomView.btnRead.setOnClick { showDownloadOptionsSheet() }
-        binding.bottomCovered.isVisible = true
-        binding.bottomCovered.addView(bottomView.root)
+        bottomBar.addView(bottomView.root)
         singleDownloadBtn = bottomView.root
+    }
+
+    private fun addMultiSelectActionBar(bottomBar: FrameLayout, density: Float) {
+        val palette = V3Palette.from(requireContext())
+        val row = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val mx = (20 * density).toInt()
+            val my = (12 * density).toInt()
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, (48 * density).toInt(),
+            ).apply { setMargins(mx, my, mx, my) }
+            visibility = View.GONE
+        }
+        val selectAll = TextView(requireContext()).apply {
+            text = getString(R.string.select_all)
+            setTextColor(palette.textAccent)
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTypeface(typeface, Typeface.BOLD)
+            background = palette.pillSecondary(28 * density, (1 * density).toInt())
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                .apply { marginEnd = (10 * density).toInt() }
+            setOnClick { onClickSelectAllToggle() }
+        }
+        val download = TextView(requireContext()).apply {
+            text = getString(R.string.download_selected_count, 0)
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTypeface(typeface, Typeface.BOLD)
+            background = palette.pillPrimary(28 * density)
+            elevation = 4 * density
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.4f)
+            setOnClick { launchBatchDownloadSelected() }
+        }
+        row.addView(selectAll)
+        row.addView(download)
+        bottomBar.addView(row)
+        multiSelectBar = row
+        multiSelectSelectAllBtn = selectAll
+        multiSelectDownloadBtn = download
+    }
+
+    private fun applyMultiSelectVisibility(enabled: Boolean) {
+        singleDownloadBtn?.isVisible = !enabled
+        multiSelectBar?.isVisible = enabled
+    }
+
+    private fun onClickSelectAllToggle() {
+        val selected = selectionModel.selectedIds.value.orEmpty()
+        val allIds = allNovelIds()
+        if (allIds.isEmpty()) return
+        if (selected.containsAll(allIds)) selectionModel.clearSelection()
+        else selectionModel.selectAll(allIds)
     }
 
     private fun showDownloadOptionsSheet() {
@@ -154,43 +247,27 @@ class NovelSeriesFragment :
         SeriesDownloadOptionsSheet().apply {
             configure { action ->
                 when (action) {
-                    SeriesDownloadOptionsSheet.Action.Picker -> {
-                        // 进入多选模式，用户手动勾选章节后再走批量下载
-                        viewModel.setMultiSelectMode(true)
-                    }
-
-                    SeriesDownloadOptionsSheet.Action.AllSeparate -> {
-                        launchDownloadAll()
-                    }
-
-                    SeriesDownloadOptionsSheet.Action.MergeOne -> {
-                        launchMergeDownload()
-                    }
+                    SeriesDownloadOptionsSheet.Action.Picker -> selectionModel.setMultiSelectMode(true)
+                    SeriesDownloadOptionsSheet.Action.AllSeparate -> launchDownloadAll()
+                    SeriesDownloadOptionsSheet.Action.MergeOne -> launchMergeDownload()
                 }
             }
         }.show(childFragmentManager, SeriesDownloadOptionsSheet.TAG)
     }
 
-    /**
-     * Pending action set right before showing [ExportSheet]; consumed when the
-     * sheet calls back into [onExportFormatChosen]. Kept as a field so we can
-     * keep capture context (detail/dedup) without serializing args through the
-     * sheet's Bundle.
-     */
     private var pendingMergeAction: ((ExportFormat) -> Unit)? = null
 
+    private fun heroDetail() = feedViewModel.uiState.value.items
+        .filterIsInstance<NovelSeriesHeroFeedItem>().firstOrNull()?.series
+
     private fun launchMergeDownload() {
-        val detail = viewModel.series.value?.novel_series_detail
+        val detail = heroDetail()
         if (detail == null) {
             ToastUtils.show(getString(R.string.merge_download_failed_empty))
             return
         }
-        val known = viewModel.series.value?.novels.orEmpty() + viewModel.allLoadedNovels()
-        val dedup = known.distinctBy { it.id }
+        val dedup = loadedNovels().distinctBy { it.id }
         pendingMergeAction = { format ->
-            // 用 batch illust 那套 CLI 风格 dialog;cancel 走合作式(stopSignal),让
-            // producer 写出截短版后再 emit Done,而不是 collector 被 cancel 后什么
-            // 都看不到。
             val stopSignal = AtomicBoolean(false)
             val flow = MergeDownloadNovelSeriesTask.bulkMergeNovelSeries(
                 seriesDetail = detail,
@@ -217,8 +294,6 @@ class NovelSeriesFragment :
                 failedMessageRes = R.string.merge_novel_dialog_failed_message,
                 failedPartialRes = R.string.merge_novel_dialog_failed_partial,
                 cancelMode = FetchProgressDialog.CancelMode.COOPERATIVE,
-                // 合并下载整条 flow 跑在 activity scope 且只在最后一刻写盘，关窗 + 离开页面
-                // 会整单丢失。跑完前锁住窗口，只能用「取消」显式收尾（写截短版）。issue #919
                 keepOpenUntilDone = true,
                 onCancelRequested = { stopSignal.set(true) },
             )
@@ -232,87 +307,8 @@ class NovelSeriesFragment :
         pendingMergeAction = null
     }
 
-    /**
-     * Bottom action row visible only during multi-select mode. Left half
-     * is the "全选 / 取消全选" toggle; right half is "下载选中 (N)". Kept
-     * visually close to addDownloadAllButton so the transition looks like
-     * a UI mode swap rather than a layout jump.
-     */
-    private fun addMultiSelectActionBar() {
-        val density = resources.displayMetrics.density
-        val palette = V3Palette.from(requireContext())
-
-        val row = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            val mx = (20 * density).toInt()
-            val my = (12 * density).toInt()
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (48 * density).toInt(),
-            ).apply { setMargins(mx, my, mx, my) }
-            visibility = View.GONE
-        }
-
-        val selectAll = TextView(requireContext()).apply {
-            text = getString(R.string.select_all)
-            setTextColor(palette.textAccent)
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setTypeface(typeface, Typeface.BOLD)
-            background = palette.pillSecondary(28 * density, (1 * density).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
-            ).apply { marginEnd = (10 * density).toInt() }
-            setOnClick { onClickSelectAllToggle() }
-        }
-
-        val download = TextView(requireContext()).apply {
-            text = getString(R.string.download_selected_count, 0)
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            gravity = Gravity.CENTER
-            setTypeface(typeface, Typeface.BOLD)
-            background = palette.pillPrimary(28 * density)
-            elevation = 4 * density
-            layoutParams = LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.MATCH_PARENT, 1.4f
-            )
-            setOnClick { launchBatchDownloadSelected() }
-        }
-
-        row.addView(selectAll)
-        row.addView(download)
-
-        binding.bottomCovered.isVisible = true
-        binding.bottomCovered.addView(row)
-
-        multiSelectBar = row
-        multiSelectSelectAllBtn = selectAll
-        multiSelectDownloadBtn = download
-    }
-
-    private fun applyMultiSelectVisibility(enabled: Boolean) {
-        // Multi-select mode is entered via the bottom sheet's "选择下载" option
-        // (showDownloadOptionsSheet → Action.Picker) and exited after a batch
-        // download finishes. The single download button and the multi-select
-        // action bar swap based on this state.
-        singleDownloadBtn?.isVisible = !enabled
-        multiSelectBar?.isVisible = enabled
-    }
-
-    private fun onClickSelectAllToggle() {
-        val selected = viewModel.selectedIds.value.orEmpty()
-        val allIds = viewModel.allNovelIds()
-        if (allIds.isEmpty()) return
-        if (selected.containsAll(allIds)) {
-            viewModel.clearSelection()
-        } else {
-            viewModel.selectAll()
-        }
-    }
-
     private fun launchBatchDownloadSelected() {
-        val novels = viewModel.selectedNovels()
+        val novels = selectedNovels()
         if (novels.isEmpty()) {
             ToastUtils.show(getString(R.string.batch_download_no_selection))
             return
@@ -321,28 +317,25 @@ class NovelSeriesFragment :
             activity = requireActivity(),
             novels = novels,
             onFinished = { failures -> onBatchDownloadFinished(failures) },
-            // novels 列表沿用了 NovelSeriesViewModel 从 /v2/novel/series 拉到的顺序
-            // （= 作者在 Pixiv 上设定的系列顺序），下载时把 1-based 位置交给信息头
-            // 渲染器，issue #710 里章节序号对不上的问题用「在系列中第 X 章」消除歧义。
             orderIsSeriesPosition = true,
         )
+    }
+
+    private fun selectedNovels(): List<Novel> {
+        val selected = selectionModel.selectedIds.value.orEmpty()
+        if (selected.isEmpty()) return emptyList()
+        return loadedNovels().filter { it.id in selected }
     }
 
     private fun onBatchDownloadFinished(failures: List<FailedNovel>) {
         if (!isAdded) return
         if (failures.isEmpty()) {
             ToastUtils.show(getString(R.string.batch_download_all_ok))
-            // Exit multi-select on full success — matches the user's mental
-            // model ("I'm done, clean up").
-            viewModel.setMultiSelectMode(false)
+            selectionModel.setMultiSelectMode(false)
             return
         }
         val msg = failures.joinToString(separator = "\n") { fn ->
-            getString(
-                R.string.batch_download_failure_line,
-                fn.novel.title.orEmpty(),
-                fn.reason.orEmpty(),
-            )
+            getString(R.string.batch_download_failure_line, fn.novel.title.orEmpty(), fn.reason.orEmpty())
         }
         QMUIDialog.MessageDialogBuilder(requireContext())
             .setTitle(getString(R.string.batch_download_some_failed, failures.size))
@@ -352,10 +345,6 @@ class NovelSeriesFragment :
     }
 
     private fun launchDownloadAll() {
-        // 批量下载 = 系列全部章节各自下成独立文件。先用 FetchAllTask 把整个系列(含分页)
-        // 按作者设定的顺序拉全，拉完在 onEnd 里直接交给 BatchDownloadNovelsTask。
-        // 之前这里只 new 了裸 FetchAllTask，走默认 onEnd(写缓存 + 跳 cache-list 调试页)，
-        // 根本没触发下载 —— 用户点了「只执行了拉取」就是这个原因。
         object : FetchAllTask<Novel, NovelSeriesResp>(
             requireActivity(),
             taskFullName = "下载系列小说全部作品-${seriesId}",
@@ -378,60 +367,27 @@ class NovelSeriesFragment :
         }
     }
 
-    // ── NovelMultiSelectReceiver ────────────────────────────────────
-    override fun isNovelMultiSelectMode(): Boolean {
-        return viewModel.isMultiSelect.value == true
-    }
+    // ── NovelMultiSelectReceiver ────────────────────────────────────────
+    override fun isNovelMultiSelectMode(): Boolean = selectionModel.isMultiSelect.value == true
+    override fun isNovelSelected(novelId: Long): Boolean =
+        selectionModel.selectedIds.value?.contains(novelId) == true
+    override fun onToggleNovelSelection(novelId: Long) = selectionModel.toggleSelection(novelId)
 
-    override fun isNovelSelected(novelId: Long): Boolean {
-        return viewModel.selectedIds.value?.contains(novelId) == true
-    }
-
-    override fun onToggleNovelSelection(novelId: Long) {
-        viewModel.toggleSelection(novelId)
-    }
-
-    override fun onClickUser(id: Long) {
-        val intent = Intent(requireContext(), UActivity::class.java).apply {
-            putExtra(Params.USER_ID, id.toInt())
-        }
-        startActivity(intent)
-    }
-
-    override fun onClickNovel(novelId: Long) {
-        val intent = Intent(requireContext(), TemplateActivity::class.java).apply {
-            putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
-            putExtra(Params.NOVEL_ID, novelId)
-        }
-        startActivity(intent)
-    }
-
-    override fun onClickIllust(illustId: Long) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val illust = runCatching { Client.appApi.getIllust(illustId).illust }
-                .getOrNull() ?: return@launch
-            val gson = Shaft.sGson
-            val bean = gson.fromJson(gson.toJson(illust), IllustsBean::class.java)
-            val uuid = UUID.randomUUID().toString()
-            val pageData = PageData(uuid, null, listOf(bean))
-            Container.get().addPageToMap(pageData)
-            val intent = Intent(requireContext(), VActivity::class.java).apply {
-                putExtra(Params.POSITION, 0)
-                putExtra(Params.PAGE_UUID, uuid)
-            }
-            startActivity(intent)
-        }
-    }
-
-    // ── NovelSeriesHeaderActionReceiver ─────────────────────────────
-    override fun onClickToggleWatchlist(progressView: ProgressImageButton) {
+    // ── NovelSeriesHeaderActionReceiver ─────────────────────────────────
+    override fun onClickToggleWatchlist(progressView: ceui.loxia.ProgressImageButton) {
+        val detail = heroDetail() ?: return
         progressView.showProgress()
         viewLifecycleOwner.lifecycleScope.launch {
-            // catch Exception 而不是 Throwable——避免吞掉 CancellationException
-            // 让 fragment 被销毁时协程取消能正常向上传播。
             try {
-                viewModel.toggleWatchlist()
-            } catch (e: kotlinx.coroutines.CancellationException) {
+                val nowAdded = detail.watchlist_added == true
+                val seriesIdInt = detail.id.toInt()
+                val obs = if (nowAdded) Retro.getAppApi().postWatchlistNovelDelete(seriesIdInt)
+                    else Retro.getAppApi().postWatchlistNovelAdd(seriesIdInt)
+                obs.awaitFirst()
+                feedViewModel.updateItems<NovelSeriesHeroFeedItem> {
+                    it.copy(series = it.series.copy(watchlist_added = !nowAdded))
+                }
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (isAdded) ToastUtils.show(getString(R.string.task_status_error))
@@ -441,9 +397,41 @@ class NovelSeriesFragment :
         }
     }
 
-    override fun onClickReadLatestEpisode(novelId: Long) {
-        // 跳转逻辑跟列表内点击单话一致——直接复用 onClickNovel。
-        onClickNovel(novelId)
+    override fun onClickReadLatestEpisode(novelId: Long) = onClickNovel(novelId)
+
+    // ── NovelActionReceiver（卡片点击 / 收藏）────────────────────────────
+    override fun onClickNovel(novelId: Long) {
+        startActivity(Intent(requireContext(), TemplateActivity::class.java).apply {
+            putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
+            putExtra(Params.NOVEL_ID, novelId)
+        })
+    }
+
+    override fun visitNovelById(novelId: Long) = onClickNovel(novelId)
+
+    override fun onClickBookmarkNovel(sender: ProgressIndicator, novelId: Long) {
+        launchSuspend(sender) {
+            val novel = ObjectPool.get<Novel>(novelId).value
+                ?: Client.appApi.getNovel(novelId).novel?.also { ObjectPool.update(it) }
+            if (novel != null) {
+                if (novel.is_bookmarked == true) {
+                    Client.appApi.removeNovelBookmark(novelId)
+                    ObjectPool.update(novel.copy(is_bookmarked = false, total_bookmarks = novel.total_bookmarks?.minus(1)))
+                    EventReporter.report(EventReporter.Type.UNBOOKMARK, EventReporter.Target.NOVEL, novelId, novel)
+                } else {
+                    Client.appApi.addNovelBookmark(novelId, Params.TYPE_PUBLIC)
+                    RateAppManager.onUserEngaged()
+                    ObjectPool.update(novel.copy(is_bookmarked = true, total_bookmarks = novel.total_bookmarks?.plus(1)))
+                    EventReporter.report(EventReporter.Type.BOOKMARK, EventReporter.Target.NOVEL, novelId, novel)
+                }
+            }
+        }
+    }
+
+    override fun onClickUser(id: Long) {
+        startActivity(Intent(requireContext(), UActivity::class.java).apply {
+            putExtra(Params.USER_ID, id.toInt())
+        })
     }
 
     companion object {
@@ -453,4 +441,12 @@ class NovelSeriesFragment :
             arguments = Bundle().apply { putLong(ARG_SERIES_ID, seriesId) }
         }
     }
+}
+
+/** Bridge Rx2 Observable to suspend; cancellation disposes the subscription. */
+private suspend fun <T : Any> Observable<T>.awaitFirst(): T = suspendCancellableCoroutine { cont ->
+    val disposable: Disposable = subscribeOn(Schedulers.io())
+        .firstOrError()
+        .subscribe({ cont.resume(it) }, { cont.resumeWithException(it) })
+    cont.invokeOnCancellation { disposable.dispose() }
 }

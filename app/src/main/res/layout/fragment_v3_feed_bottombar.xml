@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  全屏 feeds 详情页骨架 + 底部浮层（TemplateActivity 宿主，edge-to-edge）：根底色 v3_bg，
+  内嵌标准 fragment_feed（id 保持 feed_root），底部 bottom_bar 供承载页挂「阅读 / 下载」等
+  浮动按钮（对齐旧 fragment_pixiv_list 的 bottom_covered 用途）。inset 由承载页处理。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/v3_bg">
+
+    <include
+        android:id="@+id/feed_root"
+        layout="@layout/fragment_feed" />
+
+    <FrameLayout
+        android:id="@+id/bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom" />
+
+</FrameLayout>
