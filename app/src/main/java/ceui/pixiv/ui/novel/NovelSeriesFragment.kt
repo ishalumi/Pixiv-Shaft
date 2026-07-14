@@ -131,8 +131,11 @@ class NovelSeriesFragment :
 
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            listView.updatePadding(top = bars.top + (12 * density).toInt(), bottom = bars.bottom + (84 * density).toInt())
-            bottomBar.updateLayoutParams<FrameLayout.LayoutParams> {
+            listView.updatePadding(top = bars.top + (12 * density).toInt(), bottom = bars.bottom + (96 * density).toInt())
+            // 下载 ItemBigReadButton 是 300dp 渐变遮罩容器：铺到屏幕最底(别加 margin 变漂浮)，
+            // 只在容器内底 padding 叠加导航栏 inset 抬起按钮；多选操作条是裸条，单独抬。
+            singleDownloadBtn?.updatePadding(bottom = (20 * density).toInt() + bars.bottom)
+            multiSelectBar?.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 bottomMargin = bars.bottom + (12 * density).toInt()
             }
             insets

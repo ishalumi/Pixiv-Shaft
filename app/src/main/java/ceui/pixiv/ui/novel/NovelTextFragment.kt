@@ -118,14 +118,14 @@ class NovelTextFragment :
         }
         bottomBar.addView(readButton.root)
 
-        // Edge-to-edge safe area：列表首行清状态栏、底部留出「阅读」按钮 + 导航栏空间；
-        // 按钮本身抬到导航栏之上。
+        // Edge-to-edge safe area：ItemBigReadButton 是 300dp 渐变遮罩容器，必须铺到屏幕最底
+        // （内容在其后柔和淡出），只在容器内底 padding 里叠加导航栏 inset 把按钮抬起——
+        // 千万别给容器加 bottomMargin，那会把整块渐变抬离屏幕底变成「漂浮的渐变」。
+        // 列表首行清状态栏、底部让出按钮遮罩高度。
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            listView.updatePadding(top = bars.top, bottom = bars.bottom + (84 * density).toInt())
-            bottomBar.updateLayoutParams<FrameLayout.LayoutParams> {
-                bottomMargin = bars.bottom + (12 * density).toInt()
-            }
+            listView.updatePadding(top = bars.top, bottom = bars.bottom + (96 * density).toInt())
+            readButton.root.updatePadding(bottom = (20 * density).toInt() + bars.bottom)
             insets
         }
         ViewCompat.requestApplyInsets(view)
