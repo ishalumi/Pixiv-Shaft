@@ -16,12 +16,12 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.navArgs
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentWebBinding
 import ceui.lisa.utils.Common
 import ceui.pixiv.session.SessionManager
-import ceui.pixiv.ui.common.PixivFragment
 import ceui.pixiv.ui.common.viewBinding
 import ceui.loxia.ClientManager
 import ceui.loxia.CsrfTokenProvider
@@ -29,7 +29,7 @@ import com.scwang.smart.refresh.header.MaterialHeader
 import com.tencent.mmkv.MMKV
 
 
-class WebFragment : PixivFragment(R.layout.fragment_web) {
+class WebFragment : Fragment(R.layout.fragment_web) {
 
     private val args by lazy {
         WebFragmentArgs.fromBundle(requireArguments())
