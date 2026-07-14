@@ -84,6 +84,7 @@
     <string name="you_have_download_plan">まだダウンロードされていないタスクがあります。本当に終了しますか？</string>
     <string name="sure">はい</string>
     <string name="cancel">キャンセル</string>
+    <string name="comment_emoji_panel_close">絵文字パネルを閉じる</string>
     <string name="now_downloading">ダウンロード中</string>
     <string name="ugoira_encoding">エンコード中</string>
     <string name="has_download">ダウンロード済み</string>

@@ -84,6 +84,7 @@
     <string name="you_have_download_plan">You have ongoing downloading task, still quit?</string>
     <string name="sure">Yes</string>
     <string name="cancel">Cancel</string>
+    <string name="comment_emoji_panel_close">Close emoji panel</string>
     <string name="now_downloading">Downloading</string>
     <string name="ugoira_encoding">Encoding</string>
     <string name="has_download">Completed</string>

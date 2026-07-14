@@ -84,6 +84,7 @@
     <string name="you_have_download_plan">Devam eden indirme var, yine de çıkılsın mı?</string>
     <string name="sure">Evet</string>
     <string name="cancel">İptal</string>
+    <string name="comment_emoji_panel_close">Emoji panelini kapat</string>
     <string name="now_downloading">İndiriliyor</string>
     <string name="ugoira_encoding">Kodlanıyor</string>
     <string name="has_download">Tamamlandı</string>

@@ -48,27 +48,15 @@ import ceui.pixiv.utils.setOnClick
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.scwang.smart.refresh.header.MaterialHeader
 import timber.log.Timber
-import android.graphics.Typeface
-import android.view.WindowManager
-import androidx.core.content.ContextCompat
-import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.viewpager2.widget.ViewPager2
-import ceui.loxia.Comment
 import ceui.loxia.ObjectType
-import ceui.loxia.launchSuspend
-import ceui.pixiv.chat.base.panel.BottomPanelCoordinator
-import ceui.pixiv.chat.base.panel.PanelHost
 import ceui.pixiv.chat.base.panel.PanelState
-import ceui.pixiv.chat.base.panel.attachBottomPanel
-import ceui.pixiv.ui.comments.CommentEmojiPickerAdapter
-import ceui.pixiv.ui.comments.CommentEmojiSpanner
-import ceui.pixiv.ui.comments.CommentEmojiStampPagerAdapter
-import ceui.pixiv.ui.comments.CommentStampPickerAdapter
+import ceui.pixiv.ui.comments.CommentComposerController
+import ceui.pixiv.ui.comments.CommentComposerPresentation
+import ceui.pixiv.ui.comments.CommentTarget
 import ceui.pixiv.ui.comments.CommentsComposerViewModel
-import ceui.pixiv.ui.comments.CommentsFragmentArgs
-import ceui.pixiv.ui.comments.StampCatalog
+import ceui.pixiv.ui.comments.SentComment
 
 class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
 
@@ -83,25 +71,19 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         }
     }
 
-    // 底部内联评论输入栏的发送逻辑复用评论详情页的 composer VM。objectArthurId 只有 feeds 框架的
-    // applySentComment 用到,这里内联只调 sendComment/sendStamp(只认 objectId+objectType),传 0 即可。
+    // 底部内联评论输入栏复用独立于导航参数的评论目标与 composer VM。
     private val composer by viewModels<CommentsComposerViewModel> {
         viewModelFactory {
             initializer {
-                CommentsComposerViewModel(
-                    CommentsFragmentArgs(safeArgs.illustId.toLong(), 0L, ObjectType.ILLUST)
-                )
+                CommentsComposerViewModel(CommentTarget(safeArgs.illustId.toLong(), ObjectType.ILLUST))
             }
         }
     }
 
-    /** 键盘 ↔ 表情面板状态机([setUpEmojiPanel] 创建),评论详情页同款 [attachBottomPanel]。 */
-    private lateinit var panelCoordinator: BottomPanelCoordinator
+    /** View-lifecycle scoped; the shared module owns all editor/panel implementation details. */
+    private var commentComposer: CommentComposerController? = null
     /** 内联输入栏正浮着(键盘或面板展开中):此时禁止滚动监听把悬浮胶囊放回来。 */
     private var composerActive = false
-    /** softInputMode 现场备份,见 [onResume]/[onPause]。 */
-    private var previousSoftInputMode: Int = INVALID_SOFT_INPUT_MODE
-
     private var illustAdapter: ceui.lisa.adapters.IllustAdapter? = null
 
     // ugoira 走独立的内联播放 adapter,不复用 IllustAdapter(illustAdapter 保持 null),
@@ -226,7 +208,18 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
 
         setupNavBar(illustId)
         handleSystemInsets()
-        setUpComposer()
+        commentComposer = CommentComposerController.attach(
+            fragment = this,
+            view = baseBind.commentComposer,
+            panelRoot = baseBind.composerRoot,
+            // Deliberately null: external RecyclerView touches must not dismiss this overlay.
+            panelContentView = null,
+            palette = headerAdapter.palette,
+            presentation = CommentComposerPresentation.ON_DEMAND_OVERLAY,
+            composer = composer,
+            onSent = ::applySentComment,
+            onPanelStateChanged = ::onComposerStateChanged,
+        )
 
         Timber.tag("V3MultiP").d(
             "[Fragment.initView] illustId=$illustId, " +
@@ -459,20 +452,14 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshDownloadFab()
-        // TemplateActivity 声明的是 adjustPan(VActivity 没声明,系统默认也可能平移窗口)——会破坏
-        // 底部输入栏「面板严格跟键盘等高、来回切换零抖动」的效果。现场切 adjustResize,离开再恢复,
-        // 不影响宿主承载的其它页面(同 CommentsFragment/DemoChatListFragment 已验证的打法)。
-        val window = requireActivity().window
-        previousSoftInputMode = window.attributes.softInputMode
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 
-    override fun onPause() {
-        super.onPause()
-        if (previousSoftInputMode != INVALID_SOFT_INPUT_MODE) {
-            requireActivity().window.setSoftInputMode(previousSoftInputMode)
-            previousSoftInputMode = INVALID_SOFT_INPUT_MODE
-        }
+    override fun onDestroyView() {
+        commentComposer = null
+        // These flags describe the destroyed View tree, not Fragment/domain state.
+        composerActive = false
+        fabShown = true
+        super.onDestroyView()
     }
 
     private fun renderDownloadFab(state: DownloadFab) {
@@ -522,111 +509,12 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
     // 键盘/表情面板的互斥 + 等高切换全交给 BottomPanelCoordinator(评论详情页同款 attachBottomPanel)。
     // 这里只发顶层评论,回复走完整评论列表页。
 
-    private fun setUpComposer() {
-        val density = resources.displayMetrics.density
-        val palette = headerAdapter.palette
-        baseBind.commentInput.background = palette.settingsCardBg(24f * density, (1 * density).toInt())
-        baseBind.sendButton.background = palette.pillPrimary()
-
-        setUpEmojiPanel()
-
-        fun updateSendEnabled(text: CharSequence?) {
-            val enabled = !text.isNullOrBlank()
-            baseBind.sendButton.isEnabled = enabled
-            baseBind.sendButton.alpha = if (enabled) 1f else 0.4f
-        }
-        updateSendEnabled(baseBind.commentInput.text)
-        baseBind.commentInput.addTextChangedListener { editable ->
-            if (editable != null) {
-                // 就地渲染表情图 span((heaven) 打完立刻变小图),不重 set 文本(免打断组词/丢光标)
-                CommentEmojiSpanner.clearSpans(editable)
-                CommentEmojiSpanner.applySpans(
-                    requireContext(), editable, baseBind.commentInput.textSize.toInt()
-                )
-            }
-            composer.editingComment.value = editable?.toString().orEmpty()
-            updateSendEnabled(editable)
-        }
-
-        baseBind.sendButton.setOnClick { sender ->
-            launchSuspend(sender) {
-                val result = composer.sendComment()
-                baseBind.commentInput.setText(composer.editingComment.value)
-                baseBind.commentInput.setSelection(baseBind.commentInput.text?.length ?: 0)
-                applySentComment(result)
-            }
-        }
-    }
-
-    private fun setUpEmojiPanel() {
-        val kaomojiAdapter = CommentEmojiPickerAdapter { code ->
-            val editable = baseBind.commentInput.text ?: return@CommentEmojiPickerAdapter
-            val start = baseBind.commentInput.selectionStart.coerceIn(0, editable.length)
-            val end = baseBind.commentInput.selectionEnd.coerceIn(0, editable.length)
-            editable.replace(minOf(start, end), maxOf(start, end), code)
-            baseBind.commentInput.setSelection(minOf(start, end) + code.length)
-        }
-        // 贴纸选中即单发,网络往返期间连点直接丢弃,防重复发出
-        var isSendingStamp = false
-        val stampAdapter = CommentStampPickerAdapter { stamp ->
-            if (isSendingStamp) return@CommentStampPickerAdapter
-            isSendingStamp = true
-            panelCoordinator.dismiss()
-            launchSuspend {
-                try {
-                    applySentComment(composer.sendStamp(stamp.stamp_id))
-                } finally {
-                    isSendingStamp = false
-                }
-            }
-        }
-        baseBind.emojiPager.adapter = CommentEmojiStampPagerAdapter(kaomojiAdapter, stampAdapter)
-        var stampsLoaded = false
-
-        fun styleTabs(stampSelected: Boolean) {
-            baseBind.tabKaomoji.setTextColor(ContextCompat.getColor(requireContext(), if (stampSelected) R.color.v3_text_2 else R.color.v3_text_1))
-            baseBind.tabKaomoji.setTypeface(null, if (stampSelected) Typeface.NORMAL else Typeface.BOLD)
-            baseBind.tabStamp.setTextColor(ContextCompat.getColor(requireContext(), if (stampSelected) R.color.v3_text_1 else R.color.v3_text_2))
-            baseBind.tabStamp.setTypeface(null, if (stampSelected) Typeface.BOLD else Typeface.NORMAL)
-        }
-        baseBind.emojiPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                val stampSelected = position == 1
-                styleTabs(stampSelected)
-                if (stampSelected && !stampsLoaded) {
-                    stampsLoaded = true
-                    launchSuspend { stampAdapter.submit(StampCatalog.get()) }
-                }
-            }
-        })
-        styleTabs(false)
-        baseBind.tabKaomoji.setOnClick { baseBind.emojiPager.setCurrentItem(0, true) }
-        baseBind.tabStamp.setOnClick { baseBind.emojiPager.setCurrentItem(1, true) }
-
-        panelCoordinator = attachBottomPanel(
-            host = object : PanelHost {
-                override val panelRoot get() = baseBind.composerRoot
-                override val panelView get() = baseBind.emojiPanelContainer
-                override val panelInputView get() = baseBind.commentInput
-                // 关键:这里不接 panelContentView。评论详情页那种「点列表空白处收起键盘」在本页会
-                // 反噬:本页的 panelContentView 会是铺满整屏的详情 RecyclerView,任何落在它上面的触摸
-                // (含 MIUI 投屏/镜像注入的幽灵事件)都会被 setupTapToDismiss 当成「点外部→dismiss」,
-                // clearFocus 收键盘、整条输入栏被拆掉(见 stack: setupTapToDismiss→dismiss→clearFocus)。
-                // 本页改为只在「返回键 / 下划收键盘 / 发送」时收起(都会正常走 NONE→hideComposerBar)。
-                override val panelToggleButton get() = baseBind.emojiToggle
-                override val panelToggleIconRes get() = R.drawable.chat_ic_emoji
-                override val keyboardToggleIconRes get() = R.drawable.chat_ic_keyboard
-                override fun onPanelStateChanged(state: PanelState) = onComposerStateChanged(state)
-            },
-        )
-    }
-
     /** 点「留下你的评论吧」入口:浮出输入栏 + 弹键盘,并藏起收藏/下载胶囊。 */
     private fun showComposer() {
         // 已在编辑态时重复点入口做成幂等:只在键盘意外被收起时补弹一次,绝不重跑整条 show 流程。
         // 重跑会跟在途的键盘动画抢——旧版正是这里出「再点一次入口,键盘还在但顶部输入栏没了」的 bug。
         if (composerActive) {
-            if (panelCoordinator.state != PanelState.KEYBOARD) panelCoordinator.switchToKeyboard()
+            commentComposer?.showKeyboard()
             return
         }
         composerActive = true
@@ -635,14 +523,13 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         // v3_bg 盖住,不透下面铺满整屏的详情内容(表情面板自带的 v3_surface_2 只有 ~5% alpha)。
         // 只在编辑态铺,收起就撤掉——避免常驻一条不透明条挡住 edge-to-edge 滚动到底部的内容。
         baseBind.composerRoot.setBackgroundColor(mContext.getColor(R.color.v3_bg))
-        baseBind.commentInputBar.isVisible = true
-        panelCoordinator.switchToKeyboard()
+        commentComposer?.showKeyboard()
     }
 
     /** 键盘/面板都收起且输入框为空:整条浮层退场,收藏/下载胶囊归位。 */
     private fun hideComposerBar() {
         composerActive = false
-        baseBind.commentInputBar.isVisible = false
+        commentComposer?.hide()
         baseBind.composerRoot.background = null
         showFabBar()
     }
@@ -654,19 +541,19 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             // 等键盘真收起那次再退场。
             val imeUp = ViewCompat.getRootWindowInsets(baseBind.composerRoot)
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
-            if (!imeUp && baseBind.commentInput.text.isNullOrBlank()) hideComposerBar()
+            if (!imeUp && commentComposer?.isEmpty == true) hideComposerBar()
         } else {
             // 键盘或面板展开:藏起收藏/下载胶囊,让出底部
             hideFabBar()
         }
     }
 
-    private fun applySentComment(result: Pair<Long, Comment>?) {
-        val (parentCommentId, comment) = result ?: return
+    private fun applySentComment(result: SentComment) {
+        val (parentCommentId, comment) = result
         // 内联只发顶层评论;插到预览区最前让用户立刻看到自己刚发的评论。
         if (parentCommentId <= 0L) viewModel.prependComment(comment)
         // 收键盘/面板 → 动画回调进 NONE 态,此时输入框已空,onComposerStateChanged 收浮层 + 复位胶囊。
-        panelCoordinator.dismiss()
+        commentComposer?.dismiss()
     }
 
     private fun handleSystemInsets() {
@@ -914,9 +801,6 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
     }
 
     companion object {
-        /** Sentinel — softInputMode 是打包 int,-1 不会是合法组合(同 CommentsFragment)。 */
-        private const val INVALID_SOFT_INPUT_MODE = -1
-
         @JvmStatic
         fun newInstance(illustId: Int): ArtworkV3Fragment {
             return ArtworkV3Fragment().apply {

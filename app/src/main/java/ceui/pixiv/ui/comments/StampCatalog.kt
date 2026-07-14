@@ -5,6 +5,10 @@ import ceui.loxia.Stamp
 import ceui.loxia.StampsResponse
 import ceui.pixiv.ui.common.createResponseStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -12,24 +16,33 @@ import timber.log.Timber
  * 进程内缓存一次即可,不必每次打开面板都重新请求。
  *
  * 请求失败不外抛——内部吞掉异常,退回磁盘持久化的上一次成功响应([ResponseStore],同
- * TrendingTagsDataSource 等已在用的收口);只有成功请求才写入内存/磁盘缓存,失败不会
- * 「毒化」内存缓存,下次调用(比如重新打开评论页)还会正常重试网络。
+ * TrendingTagsDataSource 等已在用的收口);网络成功只缓存非空目录，失败时若磁盘也为空则
+ * 保持未加载状态，切回贴图页仍可重试。并发首次读取由 [loadMutex] 串行化，避免重复写缓存。
  */
 object StampCatalog {
+    @Volatile
     private var cache: List<Stamp>? = null
+    private val loadMutex = Mutex()
     private val store = createResponseStore<StampsResponse>({ "stamps-catalog" })
 
     suspend fun get(): List<Stamp> {
         cache?.let { return it }
-        return try {
-            val response = Client.appApi.getStamps()
-            store.writeToCache(response)
-            response.stamps.also { cache = it }
-        } catch (ex: CancellationException) {
-            throw ex
-        } catch (ex: Exception) {
-            Timber.e(ex, "StampCatalog: fetch failed, falling back to disk cache")
-            store.loadFromCache()?.stamps.orEmpty()
+        return loadMutex.withLock {
+            cache?.let { return@withLock it }
+            try {
+                val response = Client.appApi.getStamps()
+                if (response.stamps.isNotEmpty()) {
+                    withContext(Dispatchers.IO) { store.writeToCache(response) }
+                    cache = response.stamps
+                }
+                response.stamps
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.e(ex, "StampCatalog: fetch failed, falling back to disk cache")
+                withContext(Dispatchers.IO) { store.loadFromCache()?.stamps.orEmpty() }
+                    .also { cached -> if (cached.isNotEmpty()) cache = cached }
+            }
         }
     }
 }

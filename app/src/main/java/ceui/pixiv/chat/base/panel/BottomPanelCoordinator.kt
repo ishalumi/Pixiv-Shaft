@@ -96,8 +96,9 @@ class BottomPanelCoordinator(
     }
 
     private fun detach() {
-        panelAnimator?.cancel()
+        cancelPanelAnimation()
         backCallback?.isEnabled = false
+        backCallback = null
     }
 
     // ── Public API ───────────────────────────────────────────────────────
@@ -113,10 +114,10 @@ class BottomPanelCoordinator(
 
     /** Show the panel from NONE state (padding-based animation). */
     fun showPanel() {
+        cancelPanelAnimation()
         val target = panelHeight()
         setState(PanelState.PANEL)
-        panelAnimator?.cancel()
-        panelAnimator = ValueAnimator.ofInt(navBarHeight, navBarHeight + target).apply {
+        val animator = ValueAnimator.ofInt(navBarHeight, navBarHeight + target).apply {
             duration = animDurationMs
             interpolator = DecelerateInterpolator()
             addUpdateListener {
@@ -125,40 +126,52 @@ class BottomPanelCoordinator(
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (panelAnimator !== animation || state != PanelState.PANEL) return
+                    panelAnimator = null
                     host.panelView.layoutParams.height = target
                     host.panelView.isVisible = true
                     host.panelRoot.updatePadding(bottom = navBarHeight)
                 }
             })
-            start()
         }
+        panelAnimator = animator
+        animator.start()
     }
 
     /** Hide the panel (swap to padding, animate down). */
     fun hidePanel() {
+        cancelPanelAnimation()
         setState(PanelState.NONE)
         val panelH = host.panelView.height
         if (panelH <= 0) {
             host.panelView.isVisible = false
+            host.panelView.layoutParams.height = 0
+            host.panelRoot.updatePadding(bottom = navBarHeight)
             return
         }
         host.panelView.isVisible = false
         host.panelView.layoutParams.height = 0
         host.panelRoot.updatePadding(bottom = navBarHeight + panelH)
-        panelAnimator?.cancel()
-        panelAnimator = ValueAnimator.ofInt(navBarHeight + panelH, navBarHeight).apply {
+        val animator = ValueAnimator.ofInt(navBarHeight + panelH, navBarHeight).apply {
             duration = animDurationMs
             interpolator = DecelerateInterpolator()
             addUpdateListener {
                 host.panelRoot.updatePadding(bottom = it.animatedValue as Int)
                 host.onAnchorContent()
             }
-            start()
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (panelAnimator === animation) panelAnimator = null
+                }
+            })
         }
+        panelAnimator = animator
+        animator.start()
     }
 
     /** Seamless KEYBOARD → PANEL: show panel immediately, dismiss keyboard. */
     fun switchToPanelFromKeyboard() {
+        cancelPanelAnimation()
         val height = panelHeight()
         val oldPad = host.panelRoot.paddingBottom
         val newPad = maxOf(oldPad - height, navBarHeight)
@@ -172,6 +185,7 @@ class BottomPanelCoordinator(
 
     /** Seamless PANEL → KEYBOARD: keep panel during keyboard animation. */
     fun switchToKeyboard() {
+        cancelPanelAnimation()
         setState(PanelState.KEYBOARD)
         showKeyboard()
     }
@@ -180,6 +194,7 @@ class BottomPanelCoordinator(
     fun dismiss() {
         when (state) {
             PanelState.KEYBOARD -> {
+                cancelPanelAnimation()
                 hideKeyboard()
                 host.panelInputView?.clearFocus()
             }
@@ -196,17 +211,29 @@ class BottomPanelCoordinator(
         var isImeAnimating = false
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             // 只在键盘不可见时采样导航栏高度:部分宿主(如 HyperOS)键盘弹起时会把 navigationBars
             // inset 也报成键盘高度,若照单全收会污染 navBarHeight——键盘→面板切换时
             // switchToPanelFromKeyboard 用 navBarHeight 当面板落位下限,会把面板顶高一整个键盘的
             // 高度、下方露出列表内容。键盘弹起期间保留上一次(键盘收起时)的正确导航栏高度即可。
-            if (!insets.isVisible(WindowInsetsCompat.Type.ime())) {
+            if (!imeVisible) {
                 navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             }
             if (!isImeAnimating) {
                 val bottom = if (state == PanelState.PANEL) navBarHeight
                     else insets.getInsets(insetTypes).bottom
                 v.updatePadding(bottom = bottom)
+
+                // Insets animation is optional: hardware keyboards, disabled system animations,
+                // and some OEM IMEs can update visibility without invoking onEnd(). Keep the
+                // public state canonical from the normal insets path as well. PANEL is excluded
+                // because it deliberately remains authoritative while the IME is being dismissed.
+                when {
+                    imeVisible && !host.panelView.isVisible && state != PanelState.PANEL ->
+                        setState(PanelState.KEYBOARD)
+                    !imeVisible && !host.panelView.isVisible && state == PanelState.KEYBOARD ->
+                        setState(PanelState.NONE)
+                }
             }
             insets
         }
@@ -322,6 +349,7 @@ class BottomPanelCoordinator(
     }
 
     private fun setState(new: PanelState) {
+        if (state == new) return
         state = new
         backCallback?.isEnabled = new == PanelState.PANEL
         host.panelToggleButton?.setImageResource(
@@ -329,6 +357,16 @@ class BottomPanelCoordinator(
             else host.panelToggleIconRes
         )
         host.onPanelStateChanged(new)
+    }
+
+    /** Cancel without allowing an obsolete animator's completion callback to commit stale UI. */
+    private fun cancelPanelAnimation() {
+        panelAnimator?.let { animator ->
+            animator.removeAllListeners()
+            animator.removeAllUpdateListeners()
+            animator.cancel()
+        }
+        panelAnimator = null
     }
 
     private fun panelHeight(): Int =

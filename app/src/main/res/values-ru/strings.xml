@@ -84,6 +84,7 @@
     <string name="you_have_download_plan">Есть активная загрузка. Всё равно выйти?</string>
     <string name="sure">Да</string>
     <string name="cancel">Отмена</string>
+    <string name="comment_emoji_panel_close">Закрыть панель эмодзи</string>
     <string name="now_downloading">Скачивание</string>
     <string name="ugoira_encoding">Кодирование</string>
     <string name="has_download">Готово</string>

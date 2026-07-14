@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <LinearLayout
+        android:id="@+id/comment_input_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="bottom"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp">
+
+        <ImageButton
+            android:id="@+id/emoji_toggle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="bottom"
+            android:layout_marginEnd="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/comment_emoji_picker"
+            android:padding="9dp"
+            android:src="@drawable/chat_ic_emoji"
+            app:tint="@color/v3_text_3" />
+
+        <EditText
+            android:id="@+id/comment_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="10dp"
+            android:background="@android:color/transparent"
+            android:hint="@string/string_49"
+            android:inputType="textMultiLine|textCapSentences"
+            android:maxLines="4"
+            android:minHeight="46dp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="11dp"
+            android:textColor="@color/v3_text_1"
+            android:textColorHint="@color/v3_text_3"
+            android:textSize="15sp" />
+
+        <ceui.loxia.ProgressImageButton
+            android:id="@+id/send_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="bottom"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/plaza_send"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/chat_ic_send"
+            app:tint="@color/always_white" />
+    </LinearLayout>
+
+    <!-- Height is a first-frame placeholder; BottomPanelCoordinator replaces it with the measured
+         keyboard height before showing this panel. -->
+    <LinearLayout
+        android:id="@+id/emoji_panel_container"
+        android:layout_width="match_parent"
+        android:layout_height="240dp"
+        android:background="@color/v3_surface_2"
+        android:orientation="vertical"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/tab_kaomoji"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:minHeight="48dp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="6dp"
+                android:text="@string/comment_emoji_tab_kaomoji"
+                android:textColor="@color/v3_text_1"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tab_stamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:gravity="center"
+                android:minHeight="48dp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="6dp"
+                android:text="@string/comment_emoji_tab_stamp"
+                android:textColor="@color/v3_text_2"
+                android:textSize="13sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/panel_dismiss"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/comment_emoji_panel_close"
+                android:padding="12dp"
+                android:src="@drawable/ic_baseline_keyboard_arrow_down_24"
+                app:tint="@color/v3_text_2" />
+        </LinearLayout>
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/emoji_pager"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+</merge>
