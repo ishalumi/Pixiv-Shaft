@@ -5,8 +5,6 @@ import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.findFragment
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavOptions
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.RecyclerView
 import ceui.lisa.R
 import ceui.pixiv.widgets.alertYesOrCancel
@@ -98,45 +96,6 @@ fun Fragment.launchSuspend(sender: ProgressIndicator, block: suspend CoroutineSc
     }
 }
 
-
-fun NavOptions.Builder.setHorizontalSlide(): NavOptions.Builder {
-    return setEnterAnim(R.anim.h_slide_enter)
-        .setExitAnim(R.anim.h_slide_exit)
-        .setPopEnterAnim(R.anim.h_slide_popenter)
-        .setPopExitAnim(R.anim.h_slide_popexit)
-}
-
-fun NavOptions.Builder.setVerticalSlide(): NavOptions.Builder {
-    return setEnterAnim(R.anim.v_slide_enter)
-        .setExitAnim(R.anim.v_slide_exit)
-        .setPopEnterAnim(R.anim.v_slide_popenter)
-        .setPopExitAnim(R.anim.v_slide_popexit)
-}
-
-
-fun NavOptions.Builder.setFadeIn(): NavOptions.Builder {
-    return setEnterAnim(R.anim.slow_fade_in)
-        .setExitAnim(R.anim.slow_fade_out)
-        .setPopEnterAnim(R.anim.slow_fade_in)
-        .setPopExitAnim(R.anim.slow_fade_out)
-}
-
-
-fun Fragment.pushFragment(id: Int, bundle: Bundle? = null) {
-    findNavController().navigate(
-        id,
-        bundle,
-        NavOptions.Builder().setHorizontalSlide().build()
-    )
-}
-
-fun Fragment.fadeInFragment(id: Int, bundle: Bundle? = null) {
-    findNavController().navigate(
-        id,
-        bundle,
-        NavOptions.Builder().setFadeIn().build()
-    )
-}
 
 inline fun <reified ActionReceiverT> Fragment.findActionReceiverOrNull(): ActionReceiverT? {
     var itr: Fragment? = this

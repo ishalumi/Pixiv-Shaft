@@ -5,7 +5,6 @@ apply plugin: 'kotlin-parcelize'
 apply plugin: 'com.google.gms.google-services'
 apply plugin: 'com.google.firebase.crashlytics'
 // apply plugin: 'org.jmailen.kotlinter'  // 临时停用，见根 build.gradle
-apply plugin: 'androidx.navigation.safeargs.kotlin'
 
 android {
     compileSdk 36
@@ -162,13 +161,12 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
 
 
-    //=============== Navigation
-    def nav_version = "2.8.5"
-    implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
-    implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "androidx.core:core-ktx:1.13.1"
+    // 原本由 navigation-fragment-ktx 传递引入,移除 Navigation 后需直接声明,
+    // 提供 Fragment.viewModels() / activityViewModels() 等 KTX 扩展。
+    implementation "androidx.fragment:fragment-ktx:1.8.5"
 
     api 'com.squareup.retrofit2:retrofit:2.11.0'
     api 'com.squareup.retrofit2:converter-gson:2.11.0'

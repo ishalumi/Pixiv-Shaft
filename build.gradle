@@ -23,8 +23,6 @@ buildscript {
         // 暂时停用；需要格式化时独立跑 ktlint 即可。
         // classpath "org.jmailen.gradle:kotlinter-gradle:4.4.1"
 
-        def nav_version = '2.8.5'
-        classpath "androidx.navigation:navigation-safe-args-gradle-plugin:$nav_version"
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }

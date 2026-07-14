@@ -17,7 +17,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.navArgs
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentWebBinding
 import ceui.lisa.utils.Common
@@ -31,8 +30,11 @@ import com.tencent.mmkv.MMKV
 
 class WebFragment : Fragment(R.layout.fragment_web) {
 
-    private val args by lazy {
-        WebFragmentArgs.fromBundle(requireArguments())
+    private val args by lazy { WebArgs(requireArguments()) }
+
+    private class WebArgs(b: Bundle) {
+        val url: String = b.getString("url").orEmpty()
+        val saveCookies: Boolean = b.getBoolean("save_cookies")
     }
 
     companion object {
@@ -80,11 +82,8 @@ class WebFragment : Fragment(R.layout.fragment_web) {
 
     private fun back() {
         onBackPressedCallback.isEnabled = false
-        try {
-            androidx.navigation.fragment.NavHostFragment.findNavController(this).popBackStack()
-        } catch (e: IllegalStateException) {
-            activity?.finish()
-        }
+        // WebFragment 由 TemplateActivity(裸 FragmentManager,无 NavHost)承载,直接结束宿主。
+        activity?.finish()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

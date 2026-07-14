@@ -56,7 +56,6 @@ import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressTextButton
 import ceui.loxia.combineLatest
 import ceui.loxia.flag.FlagDescFragment
-import ceui.loxia.threadSafeArgs
 import ceui.pixiv.ui.share.shareFirstImage
 import ceui.pixiv.ui.synonym.SynonymOperate
 import ceui.pixiv.ui.upscale.IllustAiHelper
@@ -79,7 +78,11 @@ import kotlinx.coroutines.withContext
 
 class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
 
-    private val safeArgs by threadSafeArgs<FragmentIllustArgs>()
+    private val safeArgs by lazy { IllustArgs(requireArguments()) }
+
+    private class IllustArgs(b: Bundle) {
+        val illustId: Int = b.getInt("illust_id")
+    }
     private val vm by viewModels<FragmentIllustViewModel> {
         FragmentIllustViewModel.Factory(safeArgs.illustId.toLong())
     }

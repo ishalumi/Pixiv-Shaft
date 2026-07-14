@@ -10,7 +10,6 @@ import ceui.loxia.KListShow
 import ceui.lisa.R
 import ceui.loxia.Novel
 import ceui.loxia.launchSuspend
-import ceui.loxia.pushFragment
 import ceui.pixiv.ui.common.findCurrentFragmentOrNull
 import ceui.pixiv.ui.common.getFileSize
 import com.blankj.utilcode.util.PathUtils

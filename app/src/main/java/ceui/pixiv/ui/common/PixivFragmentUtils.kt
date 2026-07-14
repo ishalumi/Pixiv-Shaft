@@ -14,7 +14,6 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
-import androidx.navigation.fragment.NavHostFragment
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.lisa.databinding.LayoutToolbarBinding
@@ -132,17 +131,11 @@ fun Fragment.setUpLayoutManager(listView: RecyclerView, listMode: Int = ListMode
 
 fun FragmentActivity.findCurrentFragmentOrNull(): Fragment? {
     return try {
-        val navigationFragment = supportFragmentManager.fragments
-            .filterIsInstance<NavHostFragment>()
-            .firstOrNull()
-
-        val currentFragment =
-            navigationFragment?.childFragmentManager?.fragments?.firstOrNull { it.isVisible }
-
+        // 无 NavHost(TemplateActivity 等裸 FragmentManager 宿主):取栈顶可见 fragment。
+        val currentFragment = supportFragmentManager.fragments.lastOrNull { it.isVisible }
         currentFragment?.let {
             Timber.d("Current Fragment Instance: ${it.javaClass.simpleName}")
         }
-
         currentFragment
     } catch (ex: Exception) {
         Timber.e(ex)

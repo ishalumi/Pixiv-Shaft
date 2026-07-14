@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.fragment.navArgs
 import ceui.lisa.R
 import ceui.lisa.databinding.DialogAlertBinding
 import ceui.pixiv.utils.setOnClick
@@ -14,7 +13,12 @@ import java.util.UUID
 
 class AlertPurpleDialog : PixivDialog(R.layout.dialog_alert) {
 
-    private val args by navArgs<AlertPurpleDialogArgs>()
+    private val args by lazy { AlertArgs(requireArguments()) }
+
+    private class AlertArgs(b: Bundle) {
+        val taskUuid: String = b.getString("taskUuid").orEmpty()
+        val title: String = b.getString("title").orEmpty()
+    }
     private val task: CompletableDeferred<Boolean>?
         get() {
             return viewModel.alertTaskPool[args.taskUuid]
@@ -49,7 +53,10 @@ suspend fun Fragment.alertYesOrCancel(title: String): Boolean {
     }
     dialogViewModel.alertTaskPool[taskUUID] = task
     val dialog = AlertPurpleDialog().apply {
-        arguments = AlertPurpleDialogArgs(taskUUID, title).toBundle()
+        arguments = Bundle().apply {
+            putString("taskUuid", taskUUID)
+            putString("title", title)
+        }
     }
     childFragmentManager.beginTransaction()
         .add(dialog, "AlertPurpleDialog-${taskUUID}")

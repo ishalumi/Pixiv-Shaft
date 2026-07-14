@@ -13,7 +13,6 @@ import androidx.core.view.updatePadding
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
@@ -53,7 +52,13 @@ import com.blankj.utilcode.util.BarUtils
  */
 class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentActionReceiver {
 
-    private val args by navArgs<CommentsFragmentArgs>()
+    private val args by lazy { CommentsArgs(requireArguments()) }
+
+    private class CommentsArgs(b: Bundle) {
+        val objectId: Long = b.getLong("objectId")
+        val objectArthurId: Long = b.getLong("objectArthurId")
+        val objectType: String = b.getString("objectType").orEmpty()
+    }
 
     private val composer by viewModels<CommentsComposerViewModel> {
         viewModelFactory {
@@ -262,7 +267,11 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
             objectType: String
         ): CommentsFragment {
             return CommentsFragment().apply {
-                arguments = CommentsFragmentArgs(objectId, objectArthurId, objectType).toBundle()
+                arguments = Bundle().apply {
+                    putLong("objectId", objectId)
+                    putLong("objectArthurId", objectArthurId)
+                    putString("objectType", objectType)
+                }
             }
         }
     }

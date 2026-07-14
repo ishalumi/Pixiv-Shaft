@@ -25,7 +25,6 @@ import ceui.lisa.databinding.FragmentArtworkV3Binding
 import ceui.lisa.dialogs.MuteDialog
 import ceui.lisa.download.IllustDownload
 import ceui.lisa.fragments.BaseFragment
-import ceui.lisa.fragments.FragmentIllustArgs
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Dev
@@ -35,7 +34,6 @@ import ceui.lisa.utils.ShareIllust
 import ceui.loxia.ObjectPool
 import ceui.loxia.isFullDetail
 import ceui.loxia.requireNetworkStateManager
-import ceui.loxia.threadSafeArgs
 import android.content.res.ColorStateList
 import android.graphics.Color
 import androidx.annotation.ColorInt
@@ -60,7 +58,11 @@ import ceui.pixiv.ui.comments.SentComment
 
 class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
 
-    private val safeArgs by threadSafeArgs<FragmentIllustArgs>()
+    private val safeArgs by lazy { IllustArgs(requireArguments()) }
+
+    private class IllustArgs(b: Bundle) {
+        val illustId: Int = b.getInt("illust_id")
+    }
 
     private val viewModel by viewModels<ArtworkV3ViewModel> {
         object : ViewModelProvider.Factory {
