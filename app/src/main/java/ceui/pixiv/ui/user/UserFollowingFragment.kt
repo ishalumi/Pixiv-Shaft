@@ -80,7 +80,10 @@ const val NO_PROFILE_IMG = "https://s.pximg.net/common/images/no_profile.png"
 
 @BindingAdapter("userIcon")
 fun ImageView.binding_loadUserIcon(user: User?) {
-    val url = user?.profile_image_urls?.findMaxSizeUrl() ?: return
+    // 部分账号(如被限制/注销)API 不返回任何头像字段;退化成 NO_PROFILE_IMG 走同一条网络加载
+    // 路径,跟 UserActivityV3/GlideUtil.getHead 拿到的官方"nO imaGe"占位图保持一致,
+    // 而不是本地随手换一张不一样的通用小人图标
+    val url = user?.profile_image_urls?.findMaxSizeUrl() ?: NO_PROFILE_IMG
 
     val self = this
 
@@ -90,38 +93,32 @@ fun ImageView.binding_loadUserIcon(user: User?) {
     }
 
     scaleType = ImageView.ScaleType.CENTER_CROP
-    if (url == NO_PROFILE_IMG) {
-        Glide.with(this)
-            .load(R.drawable.icon_user_mask)
-            .into(this)
-    } else {
-        Glide.with(this)
-            .load(GlideUrlChild(url))
-            .placeholder(R.drawable.icon_user_mask)
-            .addListener(object : RequestListener<Drawable> {
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable>,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    self.setTag(R.id.user_head_icon_tag, null)
-                    return false
-                }
+    Glide.with(this)
+        .load(GlideUrlChild(url))
+        .placeholder(R.drawable.icon_user_mask)
+        .addListener(object : RequestListener<Drawable> {
+            override fun onLoadFailed(
+                e: GlideException?,
+                model: Any?,
+                target: Target<Drawable>,
+                isFirstResource: Boolean
+            ): Boolean {
+                self.setTag(R.id.user_head_icon_tag, null)
+                return false
+            }
 
-                override fun onResourceReady(
-                    resource: Drawable,
-                    model: Any,
-                    target: Target<Drawable>?,
-                    dataSource: com.bumptech.glide.load.DataSource,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    self.setTag(R.id.user_head_icon_tag, url)
-                    return false
-                }
-            })
-            .into(this)
-    }
+            override fun onResourceReady(
+                resource: Drawable,
+                model: Any,
+                target: Target<Drawable>?,
+                dataSource: com.bumptech.glide.load.DataSource,
+                isFirstResource: Boolean
+            ): Boolean {
+                self.setTag(R.id.user_head_icon_tag, url)
+                return false
+            }
+        })
+        .into(this)
 }
 
 @BindingAdapter("loadSquareMedia")

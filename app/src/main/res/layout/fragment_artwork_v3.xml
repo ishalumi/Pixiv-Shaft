@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -206,6 +207,126 @@
             android:visibility="gone"
             app:indicatorSize="44dp"
             app:trackThickness="4dp" />
+
+        <!-- 评论输入浮层:平时不常驻(整条透明、输入栏 GONE),点评论区「留下你的评论吧」入口才浮出
+             (见 ArtworkV3Fragment.showComposer)。整条 LinearLayout 就是 BottomPanelCoordinator 的
+             panelRoot——gravity=bottom + wrap_content:coordinator 给它加底 padding 顶键盘/面板时,顶排
+             的输入栏会被抬到键盘/面板之上,底部 padding(透明)落在键盘背后。跟评论详情页复用同一套
+             attachBottomPanel + 表情/贴图面板,只是这里只发顶层评论(回复走完整评论列表页)。 -->
+        <LinearLayout
+            android:id="@+id/composer_root"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical">
+
+            <!-- 输入栏:平时 GONE,点入口才 VISIBLE。底色不透明,盖住浮层下方的详情内容。 -->
+            <LinearLayout
+                android:id="@+id/comment_input_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/v3_bg"
+                android:elevation="12dp"
+                android:gravity="bottom"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ImageButton
+                    android:id="@+id/emoji_toggle"
+                    android:layout_width="40dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="bottom"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/comment_emoji_picker"
+                    android:padding="9dp"
+                    android:src="@drawable/chat_ic_emoji"
+                    app:tint="@color/v3_text_3" />
+
+                <EditText
+                    android:id="@+id/comment_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    android:background="@android:color/transparent"
+                    android:hint="@string/string_49"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:maxLines="4"
+                    android:minHeight="46dp"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="11dp"
+                    android:textColor="@color/v3_text_1"
+                    android:textColorHint="@color/v3_text_3"
+                    android:textSize="15sp" />
+
+                <ceui.loxia.ProgressImageButton
+                    android:id="@+id/send_button"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="bottom"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/plaza_send"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/chat_ic_send"
+                    app:tint="@color/always_white" />
+            </LinearLayout>
+
+            <!-- 「绘文字」/「表情贴图」双 tab 面板,跟系统键盘互斥 + 等高切换(交给
+                 BottomPanelCoordinator)。XML 高度只是首帧占位,展示前按实测键盘高度覆盖。 -->
+            <LinearLayout
+                android:id="@+id/emoji_panel_container"
+                android:layout_width="match_parent"
+                android:layout_height="240dp"
+                android:background="@color/v3_surface_2"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:id="@+id/tab_kaomoji"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="6dp"
+                        android:text="@string/comment_emoji_tab_kaomoji"
+                        android:textColor="@color/v3_text_1"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tab_stamp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="6dp"
+                        android:text="@string/comment_emoji_tab_stamp"
+                        android:textColor="@color/v3_text_2"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/emoji_pager"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+            </LinearLayout>
+        </LinearLayout>
 
     </FrameLayout>
 

@@ -54,8 +54,10 @@ import ceui.lisa.utils.V3Palette
 import ceui.loxia.Comment
 import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressTextButton
+import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.comments.CommentEmojiSpanner
 import ceui.pixiv.ui.comments.translateCommentToChinese
+import ceui.pixiv.ui.user.binding_loadUserIcon
 import ceui.pixiv.utils.buildPinnedTagPreviewJson
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
@@ -73,6 +75,8 @@ class ArtworkDetailAdapter(
     var onCommentsVisible: (() -> Unit)? = null
     var onAuthorWorksVisible: (() -> Unit)? = null
     var onRelatedVisible: (() -> Unit)? = null
+    /** 「留下你的评论吧」入口被点:唤起 Fragment 底部的内联输入栏(见 ArtworkV3Fragment.showComposer)。 */
+    var onClickAddComment: (() -> Unit)? = null
 
     fun submitItems(newItems: List<ArtworkDetailItem>) {
         val t = if (BuildConfig.DEBUG) SystemClock.elapsedRealtime() else 0L
@@ -511,15 +515,26 @@ class ArtworkDetailAdapter(
         private var observing = false
 
         fun bind(item: ArtworkDetailItem.Comments) {
-            // 「查看更多」常驻评论 label 右侧:不管有没有评论(甚至加载中)都能点进完整列表
-            b.commentsMore.setTextColor(palette.textAccent)
-            b.commentsMore.setOnClick {
+            fun openCommentList() {
                 val intent = Intent(ctx, TemplateActivity::class.java)
                 intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "相关评论")
                 intent.putExtra(Params.ILLUST_ID, item.illustId)
                 intent.putExtra(Params.ILLUST_TITLE, item.illustTitle)
                 ctx.startActivity(intent)
             }
+
+            // 「查看更多」常驻评论 label 右侧:不管有没有评论(甚至加载中)都能点进完整列表
+            b.commentsMore.setTextColor(palette.textAccent)
+            b.commentsMore.setOnClick { openCommentList() }
+
+            // 「添加评论」入口:展示已登录用户头像 + 描边胶囊(跟输入栏本身的胶囊同款
+            // settingsCardBg——圆角 22dp + 1px hairline),点击唤出 Fragment 底部的内联输入栏,
+            // 不再跳走完整评论列表页。
+            val density = ctx.resources.displayMetrics.density
+            b.addCommentEntry.background = palette.settingsCardBg(22f * density, (1 * density).toInt())
+            b.addCommentAvatar.binding_loadUserIcon(SessionManager.loggedInUser)
+            b.addCommentEntry.setOnClick { onClickAddComment?.invoke() }
+
             if (!observing) {
                 observing = true
                 item.liveData.observe(fragment.viewLifecycleOwner) { comments ->

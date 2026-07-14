@@ -84,6 +84,9 @@ fun CommentsFragment.commentCardRenderer(): FeedRenderer<CommentFeedItem, CellCo
         },
         recycle = { cell ->
             Glide.with(cell.binding.userIcon).clear(cell.binding.userIcon)
+            // 同步清掉 binding_loadUserIcon 的去重 tag,否则复用的 view 换绑到同头像 URL 的另一条
+            // 评论时会误判"已加载"跳过重绘,而图其实已被上面 clear() 清空,头像永久空白
+            cell.binding.userIcon.setTag(R.id.user_head_icon_tag, null)
             Glide.with(cell.binding.commentStamp).clear(cell.binding.commentStamp)
         },
     ) { cell ->

@@ -437,6 +437,14 @@ class ArtworkV3ViewModel(
         }
     }
 
+    /** 底部内联输入栏发出的顶层评论:立刻插到预览区最前,用户不必刷新就能看到自己刚发的评论。
+     * 也把 commentsLoadTriggered 顶死,免得慢一步返回的首屏加载把这条覆盖掉。 */
+    fun prependComment(comment: Comment) {
+        commentsLoadTriggered = true
+        val current = _commentsData.value ?: emptyList()
+        _commentsData.value = listOf(comment) + current
+    }
+
     fun loadAuthorWorks() {
         if (authorWorksLoadTriggered) return
         authorWorksLoadTriggered = true

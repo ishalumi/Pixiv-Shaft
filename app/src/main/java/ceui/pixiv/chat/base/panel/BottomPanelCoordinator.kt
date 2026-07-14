@@ -196,7 +196,13 @@ class BottomPanelCoordinator(
         var isImeAnimating = false
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            // 只在键盘不可见时采样导航栏高度:部分宿主(如 HyperOS)键盘弹起时会把 navigationBars
+            // inset 也报成键盘高度,若照单全收会污染 navBarHeight——键盘→面板切换时
+            // switchToPanelFromKeyboard 用 navBarHeight 当面板落位下限,会把面板顶高一整个键盘的
+            // 高度、下方露出列表内容。键盘弹起期间保留上一次(键盘收起时)的正确导航栏高度即可。
+            if (!insets.isVisible(WindowInsetsCompat.Type.ime())) {
+                navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            }
             if (!isImeAnimating) {
                 val bottom = if (state == PanelState.PANEL) navBarHeight
                     else insets.getInsets(insetTypes).bottom
@@ -252,9 +258,16 @@ class BottomPanelCoordinator(
                 override fun onEnd(animation: WindowInsetsAnimationCompat) {
                     if (animation.typeMask and WindowInsetsCompat.Type.ime() != 0) {
                         isImeAnimating = false
-                        val imeNow = ViewCompat.getRootWindowInsets(root)
+                        val rootInsets = ViewCompat.getRootWindowInsets(root)
+                        val imeNow = rootInsets
                             ?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
-                        val keyboardVisible = imeNow > navBarHeight
+                        // 键盘可见性:优先信任 isVisible(ime) 这个 canonical 标志位——`imeNow >
+                        // navBarHeight` 只是尺寸启发式,某些宿主(如 HyperOS)键盘弹起时把 navigationBars
+                        // inset 也报成键盘高度,尺寸比较会把开着的键盘误判成收起。OR 上 isVisible 只会让
+                        //「键盘确实开着」更可靠地判成 true,不影响收起方向。
+                        val imeVisibleFlag =
+                            rootInsets?.isVisible(WindowInsetsCompat.Type.ime()) == true
+                        val keyboardVisible = imeNow > navBarHeight || imeVisibleFlag
 
                         if (keyboardVisible && host.panelView.isVisible) {
                             host.panelView.isVisible = false

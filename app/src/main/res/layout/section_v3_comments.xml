@@ -34,6 +34,40 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+    <!-- 「添加评论」假装是输入框的胶囊入口:平时底部不常驻输入框,点这里才唤出真正的输入栏
+         +表情/贴纸面板(见 ArtworkV3Fragment.showComposer),跟评论详情页复用同一套
+         attachBottomPanel。底色/圆角在代码里现算(CommentsVH.bind),跟输入栏本身的胶囊同款。 -->
+    <LinearLayout
+        android:id="@+id/add_comment_entry"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="14dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="@drawable/v3_ripple_card22"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="11dp">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/add_comment_avatar"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="10dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/v3_widget_avatar_placeholder" />
+
+        <TextView
+            android:id="@+id/add_comment_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/string_49"
+            android:textColor="@color/v3_text_3"
+            android:textSize="14sp" />
+    </LinearLayout>
+
     <!-- Loading spinner -->
     <ProgressBar
         android:id="@+id/comments_loading"
