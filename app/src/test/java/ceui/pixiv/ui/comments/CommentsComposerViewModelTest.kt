@@ -6,6 +6,7 @@ import ceui.loxia.Comment
 import ceui.loxia.ObjectType
 import ceui.loxia.PostCommentResponse
 import ceui.loxia.User
+import ceui.pixiv.feeds.FeedItem
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
@@ -98,12 +99,80 @@ class CommentsComposerViewModelTest {
         assertEquals(20L, textResult.await()?.comment?.id)
     }
 
+    @Test
+    fun `local reply does not mark a collapsed server thread as loaded`() {
+        val viewModel = viewModel(ControllableCommentApi())
+        val parent = CommentFeedItem(
+            comment = comment(id = 10L, hasReplies = true),
+            illustArthurId = 1L,
+        )
+        val items: List<FeedItem> = listOf(parent)
+
+        val updated = viewModel.applySentComment(
+            items = items,
+            parentCommentId = 10L,
+            comment = comment(id = 20L),
+            illustArthurId = 1L,
+        ).single() as CommentFeedItem
+
+        assertEquals(listOf(20L), updated.childComments.map { it.id })
+        assertTrue(updated.comment.has_replies)
+        assertTrue(!updated.repliesLoaded)
+    }
+
+    @Test
+    fun `deleting a local reply preserves collapsed server reply metadata`() {
+        val viewModel = viewModel(ControllableCommentApi())
+        val parent = CommentFeedItem(
+            comment = comment(id = 10L, hasReplies = true),
+            illustArthurId = 1L,
+            childComments = listOf(comment(id = 20L)),
+            repliesLoaded = false,
+        )
+        val items: List<FeedItem> = listOf(parent)
+
+        val updated = viewModel.applyDeletedComment(
+            items = items,
+            commentId = 20L,
+            parentCommentId = 10L,
+        ).single() as CommentFeedItem
+
+        assertTrue(updated.childComments.isEmpty())
+        assertTrue(updated.comment.has_replies)
+        assertTrue(!updated.repliesLoaded)
+    }
+
+    @Test
+    fun `expanding replies merges a locally posted reply with the server snapshot`() {
+        val viewModel = viewModel(ControllableCommentApi())
+        val parent = CommentFeedItem(
+            comment = comment(id = 10L, hasReplies = true),
+            illustArthurId = 1L,
+            childComments = listOf(comment(id = 30L)),
+        )
+        val items: List<FeedItem> = listOf(parent)
+
+        val updated = viewModel.applyExpandedReplies(
+            items = items,
+            commentId = 10L,
+            children = listOf(comment(id = 20L)),
+        ).single() as CommentFeedItem
+
+        assertEquals(listOf(30L, 20L), updated.childComments.map { it.id })
+        assertTrue(updated.repliesLoaded)
+        assertTrue(updated.comment.has_replies)
+    }
+
     private fun viewModel(api: ControllableCommentApi) = CommentsComposerViewModel(
         target = CommentTarget(objectId = 1L, objectType = ObjectType.ILLUST),
         api = api.proxy,
     )
 
-    private fun comment(id: Long) = Comment(id = id, user = User(id = id))
+    private fun comment(id: Long, hasReplies: Boolean = false) = Comment(
+        id = id,
+        has_replies = hasReplies,
+        user = User(id = id),
+    )
 
     private class ControllableCommentApi : InvocationHandler {
         val proxy: API = Proxy.newProxyInstance(

@@ -140,7 +140,9 @@ fun CommentsFragment.commentCardRenderer(): FeedRenderer<CommentFeedItem, CellCo
 
         binding.reply.isVisible = SessionManager.loggedInUid != comment.user.id
         binding.delete.isVisible = SessionManager.loggedInUid == comment.user.id
-        binding.showReply.isVisible = comment.has_replies == true && item.childComments.isEmpty()
+        // A locally sent reply can be shown before the pre-existing server thread is expanded.
+        // Keep the affordance until that complete thread has actually been fetched.
+        binding.showReply.isVisible = comment.has_replies == true && !item.repliesLoaded
 
         if (item.childComments.isNotEmpty()) {
             binding.childCommentsList.isVisible = true

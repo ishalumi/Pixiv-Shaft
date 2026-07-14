@@ -157,6 +157,8 @@ class CommentsComposerViewModel(
         return if (parentCommentId > 0L) {
             items.map { item ->
                 if (item is CommentFeedItem && item.comment.id == parentCommentId) {
+                    // Do not mark the thread loaded here. The parent may already have replies that
+                    // are still collapsed; this is only the one reply we just posted locally.
                     item.copy(childComments = listOf(comment) + item.childComments)
                 } else item
             }
@@ -172,7 +174,14 @@ class CommentsComposerViewModel(
                 if (item is CommentFeedItem && item.comment.id == parentCommentId) {
                     val remaining = item.childComments.filterNot { it.id == commentId }
                     item.copy(
-                        comment = item.comment.copy(has_replies = remaining.isNotEmpty()),
+                        // Only a fully loaded thread can prove that no replies remain. For a
+                        // collapsed thread, preserve the server's has_replies flag because its
+                        // older replies are not represented in childComments yet.
+                        comment = if (item.repliesLoaded) {
+                            item.comment.copy(has_replies = remaining.isNotEmpty())
+                        } else {
+                            item.comment
+                        },
                         childComments = remaining,
                     )
                 } else item
@@ -186,7 +195,14 @@ class CommentsComposerViewModel(
     fun applyExpandedReplies(items: List<FeedItem>, commentId: Long, children: List<Comment>): List<FeedItem> {
         return items.map { item ->
             if (item is CommentFeedItem && item.comment.id == commentId) {
-                item.copy(childComments = children)
+                // A reply posted while this GET was in flight may not be present in its snapshot.
+                // Preserve local replies and de-duplicate against the fetched thread.
+                val merged = (item.childComments + children).distinctBy { it.id }
+                item.copy(
+                    comment = item.comment.copy(has_replies = merged.isNotEmpty()),
+                    childComments = merged,
+                    repliesLoaded = true,
+                )
             } else item
         }
     }

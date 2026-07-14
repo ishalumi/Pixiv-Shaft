@@ -16,6 +16,8 @@ data class CommentFeedItem(
     val comment: Comment,
     val illustArthurId: Long,
     val childComments: List<Comment> = emptyList(),
+    /** Whether the complete reply thread has been fetched from the server. */
+    val repliesLoaded: Boolean = false,
 ) : FeedItem {
 
     override val feedKey: Any get() = comment.id

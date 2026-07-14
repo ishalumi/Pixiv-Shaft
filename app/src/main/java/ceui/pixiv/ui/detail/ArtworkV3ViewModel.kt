@@ -37,6 +37,12 @@ import timber.log.Timber
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/** Keeps acknowledged inline posts ahead of an older preview response and removes duplicates. */
+internal fun mergeCommentPreview(
+    locallyPrepended: Collection<Comment>,
+    loaded: List<Comment>,
+): List<Comment> = (locallyPrepended.toList().asReversed() + loaded).distinctBy { it.id }
+
 class ArtworkV3ViewModel(
     private val illustId: Long
 ) : ViewModel() {
@@ -45,6 +51,8 @@ class ArtworkV3ViewModel(
     private var illustBean: IllustsBean? = null
     private val gson = Gson()
     private var commentsLoadTriggered = false
+    /** Comments posted from the inline composer while the initial preview GET may still be running. */
+    private val locallyPrependedComments = LinkedHashMap<Long, Comment>()
     private var authorWorksLoadTriggered = false
     private var relatedLoadTriggered = false
     // 详情数据不完整时只回 API 拉一次完整版,避免 observer 反复 fire 触发重复请求
@@ -428,12 +436,15 @@ class ArtworkV3ViewModel(
         if (commentsLoadTriggered) return
         commentsLoadTriggered = true
         viewModelScope.launch {
-            _commentsData.value = withContext(Dispatchers.IO) {
+            val loaded = withContext(Dispatchers.IO) {
                 runCatching {
                     Client.appApi.getIllustComments(illustId).comments.take(3)
                 }
                     .getOrElse { Timber.e(it); emptyList() }
             }
+            // The POST can finish before this older GET. Always layer locally acknowledged
+            // comments over its snapshot so a successfully sent comment cannot disappear.
+            _commentsData.value = mergeCommentPreview(locallyPrependedComments.values, loaded)
         }
     }
 
@@ -441,8 +452,9 @@ class ArtworkV3ViewModel(
      * 也把 commentsLoadTriggered 顶死,免得慢一步返回的首屏加载把这条覆盖掉。 */
     fun prependComment(comment: Comment) {
         commentsLoadTriggered = true
+        locallyPrependedComments[comment.id] = comment
         val current = _commentsData.value ?: emptyList()
-        _commentsData.value = listOf(comment) + current
+        _commentsData.value = mergeCommentPreview(locallyPrependedComments.values, current)
     }
 
     fun loadAuthorWorks() {
