@@ -50,7 +50,6 @@ import ceui.pixiv.ui.novel.reader.NovelReaderV3Fragment;
 import ceui.pixiv.ui.comic.reader.ComicReaderV3Fragment;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
 import ceui.pixiv.ui.novel.NovelTextFragment;
-import ceui.pixiv.ui.novel.UncategorizedNovelsFragment;
 import ceui.lisa.fragments.FragmentNovelMarkers;
 import ceui.lisa.fragments.FragmentNovelSeries;
 import ceui.lisa.fragments.FragmentPopularNovel;
@@ -279,10 +278,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "小说系列": {
                     long sid = intent.getLongExtra(NovelSeriesFragment.ARG_SERIES_ID, 0L);
                     return NovelSeriesFragment.Companion.newInstance(sid);
-                }
-                case "未归类小说": {
-                    int uid = intent.getIntExtra(Params.USER_ID, 0);
-                    return UncategorizedNovelsFragment.Companion.newInstance((long) uid);
                 }
                 case "Web首页":
                     return new ceui.lisa.fragments.StreetMainFragment();

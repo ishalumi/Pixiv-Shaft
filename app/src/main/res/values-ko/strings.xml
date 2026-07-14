@@ -928,10 +928,6 @@
     <string name="all_works_count">총 %1$d개 작품</string>
     <string name="chat_with_him">메시지</string>
     <string name="download_all_created_novels">이 작가의 모든 소설 다운로드</string>
-    <string name="uncategorized_novels_title">미분류 작품</string>
-    <string name="uncategorized_novels_loading">독립 챕터 집계 중…</string>
-    <string name="uncategorized_novels_count">독립 챕터 %1$d개 포함</string>
-    <string name="uncategorized_novels_empty_hint">이 작가에게는 독립 챕터가 없습니다. 모든 작품이 이미 시리즈에 포함되어 있습니다.</string>
     <string name="browse_history">탐색 기록</string>
     <string name="artwork_link">작품 링크: %1$s</string>
     <string name="user_link">작가 링크: %1$s</string>

@@ -928,10 +928,6 @@
     <string name="all_works_count">全%1$d件</string>
     <string name="chat_with_him">メッセージ</string>
     <string name="download_all_created_novels">この作者のすべての小説をダウンロード</string>
-    <string name="uncategorized_novels_title">未分類作品</string>
-    <string name="uncategorized_novels_loading">単独章を集計中…</string>
-    <string name="uncategorized_novels_count">独立章 %1$d 件を含む</string>
-    <string name="uncategorized_novels_empty_hint">この作者には独立章がありません。すべての作品はシリーズに分類されています。</string>
     <string name="browse_history">閲覧履歴</string>
     <string name="artwork_link">作品リンク：%1$s</string>
     <string name="user_link">作者リンク：%1$s</string>

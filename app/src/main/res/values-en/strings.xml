@@ -928,10 +928,6 @@
     <string name="all_works_count">%1$d works total</string>
     <string name="chat_with_him">Message</string>
     <string name="download_all_created_novels">Download all novels by this author</string>
-    <string name="uncategorized_novels_title">Uncategorized works</string>
-    <string name="uncategorized_novels_loading">Counting standalone chapters...</string>
-    <string name="uncategorized_novels_count">Contains %1$d standalone chapters</string>
-    <string name="uncategorized_novels_empty_hint">This author has no standalone chapters. All works are already in series.</string>
     <string name="browse_history">Browsing history</string>
     <string name="artwork_link">Artwork link: %1$s</string>
     <string name="user_link">Author link: %1$s</string>

@@ -928,10 +928,6 @@
     <string name="all_works_count">Всего работ: %1$d</string>
     <string name="chat_with_him">Сообщение</string>
     <string name="download_all_created_novels">Скачать все новеллы этого автора</string>
-    <string name="uncategorized_novels_title">Работы без категории</string>
-    <string name="uncategorized_novels_loading">Подсчёт отдельных глав…</string>
-    <string name="uncategorized_novels_count">Содержит %1$d отдельных глав</string>
-    <string name="uncategorized_novels_empty_hint">У этого автора нет отдельных глав. Все работы уже входят в серии.</string>
     <string name="browse_history">История просмотров</string>
     <string name="artwork_link">Ссылка на иллюстрацию: %1$s</string>
     <string name="user_link">Ссылка на автора: %1$s</string>

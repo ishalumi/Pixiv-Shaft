@@ -930,10 +930,6 @@
     <string name="all_works_count">共%1$d個作品</string>
     <string name="chat_with_him">私訊</string>
     <string name="download_all_created_novels">下載此作者的全部作品</string>
-    <string name="uncategorized_novels_title">未分類作品</string>
-    <string name="uncategorized_novels_loading">正在統計獨立章節…</string>
-    <string name="uncategorized_novels_count">包含 %1$d 篇獨立章節</string>
-    <string name="uncategorized_novels_empty_hint">此作者沒有獨立章節，所有作品皆已歸入系列。</string>
     <string name="browse_history">瀏覽紀錄</string>
     <string name="artwork_link">作品連結：%1$s</string>
     <string name="user_link">作者連結：%1$s</string>

@@ -928,10 +928,6 @@
     <string name="all_works_count">Toplam %1$d eser</string>
     <string name="chat_with_him">Mesaj gönder</string>
     <string name="download_all_created_novels">Bu yazarın tüm romanlarını indir</string>
-    <string name="uncategorized_novels_title">Kategorisiz eserler</string>
-    <string name="uncategorized_novels_loading">Bağımsız bölümler sayılıyor…</string>
-    <string name="uncategorized_novels_count">%1$d bağımsız bölüm içeriyor</string>
-    <string name="uncategorized_novels_empty_hint">Bu yazarın bağımsız bölümü yok. Tüm eserler zaten serilere ait.</string>
     <string name="browse_history">Gezinme geçmişi</string>
     <string name="artwork_link">Eser bağlantısı: %1$s</string>
     <string name="user_link">Yazar bağlantısı: %1$s</string>
