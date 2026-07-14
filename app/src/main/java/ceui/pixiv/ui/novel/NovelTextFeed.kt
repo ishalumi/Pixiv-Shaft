@@ -1,12 +1,9 @@
 package ceui.pixiv.ui.novel
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
 import android.view.View
-import android.widget.TextView
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
@@ -34,6 +31,9 @@ import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.common.IllustCardActionReceiver
 import ceui.pixiv.ui.common.NOVEL_URL_HEAD
+import ceui.pixiv.ui.common.bindCopyChip
+import ceui.pixiv.ui.common.bindCopyLinkChip
+import ceui.pixiv.ui.common.bindOpenLinkChip
 import ceui.pixiv.ui.common.NovelActionReceiver
 import ceui.pixiv.ui.detail.SeriesAuthorFeedItem
 import ceui.pixiv.ui.user.UserActionReceiver
@@ -178,63 +178,40 @@ fun novelProfileRenderer(
         fullSpan = true,
     ) { cell ->
         val b = cell.binding
-        val ctx = b.root.context
         val fmt = NumberFormat.getInstance()
-
-        fun chip(view: TextView, labelRes: Int, displayValue: String, copyValue: String) {
-            view.text = ctx.getString(labelRes, displayValue)
-            view.isVisible = true
-            view.setOnClick { Common.copy(ctx, copyValue) }
-        }
-        fun linkChip(view: TextView, labelRes: Int, url: String) {
-            view.text = ctx.getString(labelRes)
-            view.isVisible = true
-            view.setOnClick { Common.copy(ctx, url) }
-        }
-        fun openLinkChip(view: TextView, labelRes: Int, url: String) {
-            view.text = ctx.getString(labelRes)
-            view.isVisible = true
-            view.setOnClick {
-                try {
-                    CustomTabsIntent.Builder().build().launchUrl(ctx, Uri.parse(url))
-                } catch (_: ActivityNotFoundException) {
-                    Common.showToast("未找到浏览器")
-                }
-            }
-        }
 
         ObjectPool.get<Novel>(cell.item.novelId).observe(lifecycleOwner) { novel ->
             if (novel == null) return@observe
             b.statViews.text = fmt.format(novel.total_view ?: 0)
             b.statBookmarks.text = fmt.format(novel.total_bookmarks ?: 0)
 
-            chip(b.chipNovelId, R.string.novel_chip_id, novel.id.toString(), novel.id.toString())
+            b.chipNovelId.bindCopyChip(R.string.novel_chip_id, novel.id.toString(), novel.id.toString())
             novel.text_length?.let {
-                chip(b.chipTextLength, R.string.novel_chip_text_length, it.toString(), it.toString())
+                b.chipTextLength.bindCopyChip(R.string.novel_chip_text_length, it.toString(), it.toString())
             } ?: run { b.chipTextLength.isVisible = false }
             novel.total_view?.let {
-                chip(b.chipTotalView, R.string.novel_chip_total_view, it.toString(), it.toString())
+                b.chipTotalView.bindCopyChip(R.string.novel_chip_total_view, it.toString(), it.toString())
             } ?: run { b.chipTotalView.isVisible = false }
             novel.total_bookmarks?.let {
-                chip(b.chipTotalBookmarks, R.string.novel_chip_total_bookmarks, it.toString(), it.toString())
+                b.chipTotalBookmarks.bindCopyChip(R.string.novel_chip_total_bookmarks, it.toString(), it.toString())
             } ?: run { b.chipTotalBookmarks.isVisible = false }
             novel.create_date?.let {
                 val display = it.replace('T', ' ').take(16)
-                chip(b.chipCreateDate, R.string.novel_chip_create_date, display, it)
+                b.chipCreateDate.bindCopyChip(R.string.novel_chip_create_date, display, it)
             } ?: run { b.chipCreateDate.isVisible = false }
             novel.user?.let { user ->
                 val name = user.name.orEmpty()
-                chip(b.chipAuthor, R.string.novel_chip_author, name, name)
-                chip(b.chipAuthorId, R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
-                openLinkChip(b.chipUserLink, R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
+                b.chipAuthor.bindCopyChip(R.string.novel_chip_author, name, name)
+                b.chipAuthorId.bindCopyChip(R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
+                b.chipUserLink.bindOpenLinkChip(R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
             } ?: run {
                 b.chipAuthor.isVisible = false
                 b.chipAuthorId.isVisible = false
                 b.chipUserLink.isVisible = false
             }
             val novelUrl = NOVEL_URL_HEAD + novel.id
-            linkChip(b.chipNovelLink, R.string.novel_chip_novel_link, novelUrl)
-            openLinkChip(b.chipOpenNovelLink, R.string.novel_chip_open_novel_link, novelUrl)
+            b.chipNovelLink.bindCopyLinkChip(R.string.novel_chip_novel_link, novelUrl)
+            b.chipOpenNovelLink.bindOpenLinkChip(R.string.novel_chip_open_novel_link, novelUrl)
         }
     }
 

@@ -1,12 +1,8 @@
 package ceui.pixiv.ui.detail
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.net.Uri
-import android.widget.TextView
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import ceui.lisa.R
@@ -42,6 +38,9 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.common.IllustCardActionReceiver
+import ceui.pixiv.ui.common.bindCopyChip
+import ceui.pixiv.ui.common.bindCopyLinkChip
+import ceui.pixiv.ui.common.bindOpenLinkChip
 import ceui.pixiv.ui.novel.NovelSeriesHeaderActionReceiver
 import ceui.loxia.Client
 import ceui.pixiv.utils.setOnClick
@@ -232,28 +231,30 @@ fun seriesAuthorRenderer(): FeedRenderer<SeriesAuthorFeedItem, SectionV3ArtistBi
         b.artistBio.isVisible = !user.comment.isNullOrBlank()
         if (b.artistBio.isVisible) b.artistBio.text = user.comment
 
-        // 关注按钮：乐观切态（feeds 条目不可变，不观察 ObjectPool），点击后交给 followUser/
-        // unfollowUser 走网络 + 进度圈；本地立即翻到目标态给即时反馈。
-        val followed = user.is_followed == true
-        if (followed) {
-            b.followBtn.text = ctx.getString(R.string.unfollow)
-            palette.applyUnfollowBtn(b.followBtn)
-            b.followBtn.setOnClick {
-                val fragment = it.findFragmentOrNull<Fragment>() ?: return@setOnClick
-                fragment.unfollowUser(it as ProgressTextButton, user.id.toInt())
+        // 关注态：绑定时读 ObjectPool 最新值（回收/重绑不回退成快照旧值）；点按乐观切态给
+        // 即时反馈，followUser/unfollowUser 走网络 + 进度圈，成功后写穿 ObjectPool。
+        fun renderFollow(followed: Boolean) {
+            if (followed) {
+                b.followBtn.text = ctx.getString(R.string.unfollow)
+                palette.applyUnfollowBtn(b.followBtn)
+            } else {
+                b.followBtn.text = ctx.getString(R.string.follow)
+                palette.applyFollowBtn(b.followBtn)
+                b.followBtn.setTextColor(Color.WHITE)
             }
-        } else {
-            b.followBtn.text = ctx.getString(R.string.follow)
-            palette.applyFollowBtn(b.followBtn)
-            b.followBtn.setTextColor(Color.WHITE)
-            b.followBtn.setOnClick {
-                val fragment = it.findFragmentOrNull<Fragment>() ?: return@setOnClick
-                fragment.followUser(it as ProgressTextButton, user.id.toInt(), Params.TYPE_PUBLIC)
-            }
-            b.followBtn.setOnLongClickListener {
-                val fragment = it.findFragmentOrNull<Fragment>() ?: return@setOnLongClickListener false
-                fragment.followUser(b.followBtn, user.id.toInt(), Params.TYPE_PRIVATE); true
-            }
+        }
+        renderFollow((ObjectPool.get<User>(user.id).value ?: user).is_followed == true)
+        b.followBtn.setOnClick {
+            val fragment = it.findFragmentOrNull<Fragment>() ?: return@setOnClick
+            val nowFollowed = (ObjectPool.get<User>(user.id).value ?: user).is_followed == true
+            renderFollow(!nowFollowed)
+            if (nowFollowed) fragment.unfollowUser(it as ProgressTextButton, user.id.toInt())
+            else fragment.followUser(it as ProgressTextButton, user.id.toInt(), Params.TYPE_PUBLIC)
+        }
+        b.followBtn.setOnLongClickListener {
+            val fragment = it.findFragmentOrNull<Fragment>() ?: return@setOnLongClickListener false
+            renderFollow(true)
+            fragment.followUser(b.followBtn, user.id.toInt(), Params.TYPE_PRIVATE); true
         }
     }
 
@@ -264,37 +265,14 @@ fun mangaProfileRenderer(): FeedRenderer<MangaProfileFeedItem, CellMangaSeriesPr
     ) { cell ->
         val b = cell.binding
         val series = cell.item.series
-        val ctx = b.root.context
 
-        fun chip(view: TextView, labelRes: Int, displayValue: String, copyValue: String) {
-            view.text = ctx.getString(labelRes, displayValue)
-            view.isVisible = true
-            view.setOnClick { Common.copy(ctx, copyValue) }
-        }
-        fun linkChip(view: TextView, labelRes: Int, url: String) {
-            view.text = ctx.getString(labelRes)
-            view.isVisible = true
-            view.setOnClick { Common.copy(ctx, url) }
-        }
-        fun openLinkChip(view: TextView, labelRes: Int, url: String) {
-            view.text = ctx.getString(labelRes)
-            view.isVisible = true
-            view.setOnClick {
-                try {
-                    CustomTabsIntent.Builder().build().launchUrl(ctx, Uri.parse(url))
-                } catch (_: ActivityNotFoundException) {
-                    Common.showToast("未找到浏览器")
-                }
-            }
-        }
-
-        chip(b.chipSeriesId, R.string.novel_chip_series_id, series.id.toString(), series.id.toString())
+        b.chipSeriesId.bindCopyChip(R.string.novel_chip_series_id, series.id.toString(), series.id.toString())
         val user = series.user
         if (user != null) {
             val name = user.name.orEmpty()
-            chip(b.chipAuthor, R.string.novel_chip_author, name, name)
-            chip(b.chipAuthorId, R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
-            openLinkChip(b.chipUserLink, R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
+            b.chipAuthor.bindCopyChip(R.string.novel_chip_author, name, name)
+            b.chipAuthorId.bindCopyChip(R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
+            b.chipUserLink.bindOpenLinkChip(R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
         } else {
             b.chipAuthor.isVisible = false
             b.chipAuthorId.isVisible = false
@@ -302,15 +280,15 @@ fun mangaProfileRenderer(): FeedRenderer<MangaProfileFeedItem, CellMangaSeriesPr
         }
         val episodeCount = mangaSeriesEpisodeCount(series)
         if (episodeCount > 0) {
-            chip(b.chipContentCount, R.string.manga_series_chip_content_count,
+            b.chipContentCount.bindCopyChip(R.string.manga_series_chip_content_count,
                 episodeCount.toString(), episodeCount.toString())
         } else {
             b.chipContentCount.isVisible = false
         }
         if (user != null) {
             val seriesUrl = "https://www.pixiv.net/user/${user.id}/series/${series.id}"
-            linkChip(b.chipSeriesLink, R.string.novel_chip_series_link, seriesUrl)
-            openLinkChip(b.chipOpenSeriesLink, R.string.novel_chip_open_series_link, seriesUrl)
+            b.chipSeriesLink.bindCopyLinkChip(R.string.novel_chip_series_link, seriesUrl)
+            b.chipOpenSeriesLink.bindOpenLinkChip(R.string.novel_chip_open_series_link, seriesUrl)
         } else {
             b.chipSeriesLink.isVisible = false
             b.chipOpenSeriesLink.isVisible = false

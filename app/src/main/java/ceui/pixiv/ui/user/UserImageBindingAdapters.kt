@@ -1,31 +1,12 @@
 package ceui.pixiv.ui.user
 
 import android.graphics.drawable.Drawable
-import android.os.Bundle
-import android.view.View
 import android.widget.ImageView
-import android.widget.TextView
-import androidx.core.view.isVisible
 import androidx.databinding.BindingAdapter
-import androidx.navigation.fragment.navArgs
 import ceui.lisa.R
-import ceui.lisa.databinding.FragmentPixivListBinding
 import ceui.lisa.utils.GlideUrlChild
-import ceui.lisa.utils.Params
-import ceui.loxia.Client
 import ceui.loxia.Illust
-import ceui.loxia.ObjectPool
 import ceui.loxia.User
-import ceui.loxia.UserResponse
-import ceui.pixiv.session.SessionManager
-import ceui.pixiv.ui.common.DataSource
-import ceui.pixiv.ui.common.PixivFragment
-import ceui.pixiv.ui.list.pixivListViewModel
-import ceui.pixiv.ui.common.ListMode
-import ceui.pixiv.ui.common.TitledViewPagerFragment
-import ceui.pixiv.ui.common.pixivValueViewModel
-import ceui.pixiv.ui.common.setUpRefreshState
-import ceui.pixiv.ui.common.viewBinding
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade
@@ -34,47 +15,13 @@ import com.bumptech.glide.request.RequestOptions.bitmapTransform
 import com.bumptech.glide.request.target.Target
 import jp.wasabeef.glide.transformations.BlurTransformation
 
-class UserFollowingFragment : PixivFragment(R.layout.fragment_pixiv_list) {
-
-    private val binding by viewBinding(FragmentPixivListBinding::bind)
-    private val args by navArgs<UserFollowingFragmentArgs>()
-    private val viewModel by pixivListViewModel {
-        DataSource(
-            dataFetcher = { Client.appApi.getFollowingUsers(args.userId, args.restrictType) },
-            itemMapper = { preview -> listOf(UserPreviewHolder(preview)) }
-        )
-    }
-    private val contentViewModel by pixivValueViewModel {
-        val rest = if (args.restrictType == Params.TYPE_PRIVATE) {
-            "hide"
-        } else {
-            "show"
-        }
-        Client.webApi.getRelatedUsers(SessionManager.loggedInUid, "following", rest)
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setUpRefreshState(binding, viewModel, ListMode.VERTICAL)
-        if (args.userId == SessionManager.loggedInUid) {
-            if (args.restrictType == Params.TYPE_PUBLIC) {
-                ObjectPool.get<UserResponse>(args.userId).observe(viewLifecycleOwner) { user ->
-                    (parentFragment as? TitledViewPagerFragment)?.let {
-                        it.getTitleLiveData(0).value =
-                            "${getString(R.string.string_391)} (${user.profile?.total_follow_users ?: 0})"
-                    }
-                }
-            } else if (args.restrictType == Params.TYPE_PRIVATE) {
-                contentViewModel.result.observe(viewLifecycleOwner) { result ->
-                    (parentFragment as? TitledViewPagerFragment)?.let {
-                        it.getTitleLiveData(1).value =
-                            "${getString(R.string.string_392)} (${result.body?.total ?: 0})"
-                    }
-                }
-            }
-        }
-    }
-}
+/**
+ * 从已删的 UserFollowingFragment.kt 抽出的全局图片 DataBinding 适配器。
+ * 这些 @BindingAdapter(userIcon / loadSquareMedia / loadMedia / loadBlurredMedia)被大量
+ * 存活布局的 app: 属性引用,[binding_loadUserIcon] 还被 CommentCardRenderer / ArtworkDetailAdapter
+ * 直接调用,[NO_PROFILE_IMG] 被 ImageHostManager 引用 —— 故随框架清理搬到独立文件
+ * (包名保持 ceui.pixiv.ui.user,现有 import / XML 属性名均不变)。
+ */
 
 const val NO_PROFILE_IMG = "https://s.pximg.net/common/images/no_profile.png"
 
@@ -151,13 +98,4 @@ fun ImageView.binding_loadBlurredMedia(displayUrl: String?) {
         .apply(bitmapTransform(BlurTransformation(25, 3)))
         .transition(withCrossFade())
         .into(this)
-}
-
-fun TextView.setTextOrGone(content: String?) {
-    if (content?.isNotEmpty() == true) {
-        isVisible = true
-        text = content
-    } else {
-        isVisible = false
-    }
 }

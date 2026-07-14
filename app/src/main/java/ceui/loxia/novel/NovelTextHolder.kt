@@ -14,7 +14,7 @@ import ceui.loxia.pushFragment
 import ceui.pixiv.ui.common.ImgUrlFragmentArgs
 import ceui.pixiv.ui.common.ListItemHolder
 import ceui.pixiv.ui.common.ListItemViewHolder
-import ceui.pixiv.ui.common.PixivFragment
+import androidx.fragment.app.Fragment
 import ceui.pixiv.utils.setOnClick
 import com.bumptech.glide.Glide
 import timber.log.Timber
@@ -81,7 +81,7 @@ class NovelImageViewHolder(private val bd: CellNovelImageBinding) : ListItemView
             Glide.with(binding.novelImage).load(GlideUrlChild(url)).placeholder(R.drawable.image_place_holder).into(binding.novelImage)
             binding.novelImage.setOnClick { sender ->
                 if (url?.isNotEmpty() == true) {
-                    sender.findFragmentOrNull<PixivFragment>()?.pushFragment(
+                    sender.findFragmentOrNull<Fragment>()?.pushFragment(
                         R.id.navigation_img_url,
                         ImgUrlFragmentArgs(
                             url,

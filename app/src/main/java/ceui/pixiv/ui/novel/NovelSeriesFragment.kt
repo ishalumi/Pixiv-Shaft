@@ -1,6 +1,5 @@
 package ceui.pixiv.ui.novel
 
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -22,25 +21,13 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
-import ceui.lisa.activities.Shaft
-import ceui.lisa.activities.TemplateActivity
-import ceui.lisa.activities.UActivity
-import ceui.lisa.activities.VActivity
-import ceui.lisa.core.Container
-import ceui.lisa.core.PageData
 import ceui.lisa.databinding.ItemBigReadButtonBinding
-import ceui.lisa.models.IllustsBean
-import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.loxia.Client
-import ceui.loxia.Illust
 import ceui.loxia.Novel
 import ceui.loxia.NovelSeriesResp
-import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressIndicator
-import ceui.loxia.launchSuspend
 import ceui.lisa.http.Retro
-import ceui.pixiv.events.EventReporter
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
@@ -49,6 +36,10 @@ import ceui.pixiv.feeds.updateItems
 import ceui.pixiv.ui.bulk.FetchProgressDialog
 import ceui.pixiv.ui.common.NovelActionReceiver
 import ceui.pixiv.ui.common.NovelMultiSelectReceiver
+import ceui.pixiv.ui.common.awaitFirstValue
+import ceui.pixiv.ui.common.openNovelDetail
+import ceui.pixiv.ui.common.openUserActivity
+import ceui.pixiv.ui.common.toggleNovelBookmark
 import ceui.pixiv.ui.detail.seriesAuthorRenderer
 import ceui.pixiv.ui.detail.seriesCaptionRenderer
 import ceui.pixiv.ui.detail.seriesSectionLabelRenderer
@@ -64,19 +55,11 @@ import ceui.pixiv.ui.task.PixivTaskType
 import ceui.pixiv.ui.user.UserActionReceiver
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
-import ceui.pixiv.widgets.RateAppManager
 import com.hjq.toast.ToastUtils
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
-import io.reactivex.Observable
-import io.reactivex.disposables.Disposable
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * 小说系列 V3 详情页（feeds 框架版）。hero + 作者 + 档案 + 简介 + 「作品列表」标题 + 章节卡。
@@ -386,7 +369,7 @@ class NovelSeriesFragment :
                 val seriesIdInt = detail.id.toInt()
                 val obs = if (nowAdded) Retro.getAppApi().postWatchlistNovelDelete(seriesIdInt)
                     else Retro.getAppApi().postWatchlistNovelAdd(seriesIdInt)
-                obs.awaitFirst()
+                obs.awaitFirstValue()
                 feedViewModel.updateItems<NovelSeriesHeroFeedItem> {
                     it.copy(series = it.series.copy(watchlist_added = !nowAdded))
                 }
@@ -403,39 +386,14 @@ class NovelSeriesFragment :
     override fun onClickReadLatestEpisode(novelId: Long) = onClickNovel(novelId)
 
     // ── NovelActionReceiver（卡片点击 / 收藏）────────────────────────────
-    override fun onClickNovel(novelId: Long) {
-        startActivity(Intent(requireContext(), TemplateActivity::class.java).apply {
-            putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
-            putExtra(Params.NOVEL_ID, novelId)
-        })
-    }
+    override fun onClickNovel(novelId: Long) = openNovelDetail(novelId)
 
     override fun visitNovelById(novelId: Long) = onClickNovel(novelId)
 
-    override fun onClickBookmarkNovel(sender: ProgressIndicator, novelId: Long) {
-        launchSuspend(sender) {
-            val novel = ObjectPool.get<Novel>(novelId).value
-                ?: Client.appApi.getNovel(novelId).novel?.also { ObjectPool.update(it) }
-            if (novel != null) {
-                if (novel.is_bookmarked == true) {
-                    Client.appApi.removeNovelBookmark(novelId)
-                    ObjectPool.update(novel.copy(is_bookmarked = false, total_bookmarks = novel.total_bookmarks?.minus(1)))
-                    EventReporter.report(EventReporter.Type.UNBOOKMARK, EventReporter.Target.NOVEL, novelId, novel)
-                } else {
-                    Client.appApi.addNovelBookmark(novelId, Params.TYPE_PUBLIC)
-                    RateAppManager.onUserEngaged()
-                    ObjectPool.update(novel.copy(is_bookmarked = true, total_bookmarks = novel.total_bookmarks?.plus(1)))
-                    EventReporter.report(EventReporter.Type.BOOKMARK, EventReporter.Target.NOVEL, novelId, novel)
-                }
-            }
-        }
-    }
+    override fun onClickBookmarkNovel(sender: ProgressIndicator, novelId: Long) =
+        toggleNovelBookmark(sender, novelId)
 
-    override fun onClickUser(id: Long) {
-        startActivity(Intent(requireContext(), UActivity::class.java).apply {
-            putExtra(Params.USER_ID, id.toInt())
-        })
-    }
+    override fun onClickUser(id: Long) = openUserActivity(id)
 
     companion object {
         const val ARG_SERIES_ID = "series_id"
@@ -444,12 +402,4 @@ class NovelSeriesFragment :
             arguments = Bundle().apply { putLong(ARG_SERIES_ID, seriesId) }
         }
     }
-}
-
-/** Bridge Rx2 Observable to suspend; cancellation disposes the subscription. */
-private suspend fun <T : Any> Observable<T>.awaitFirst(): T = suspendCancellableCoroutine { cont ->
-    val disposable: Disposable = subscribeOn(Schedulers.io())
-        .firstOrError()
-        .subscribe({ cont.resume(it) }, { cont.resumeWithException(it) })
-    cont.invokeOnCancellation { disposable.dispose() }
 }

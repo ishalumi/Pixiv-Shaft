@@ -3,7 +3,6 @@ package ceui.loxia
 import ceui.lisa.helper.LanguageHelper
 import ceui.lisa.utils.Common
 import ceui.pixiv.session.SessionManager
-import ceui.pixiv.ui.settings.SettingsFragment
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tencent.mmkv.MMKV

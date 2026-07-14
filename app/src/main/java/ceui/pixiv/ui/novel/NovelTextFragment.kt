@@ -14,12 +14,7 @@ import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.TemplateActivity
-import ceui.lisa.activities.UActivity
-import ceui.lisa.activities.VActivity
-import ceui.lisa.core.Container
-import ceui.lisa.core.PageData
 import ceui.lisa.databinding.ItemBigReadButtonBinding
-import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.lisa.view.LinearItemDecorationNoLRTB
@@ -29,8 +24,6 @@ import ceui.loxia.Novel
 import ceui.loxia.ObjectPool
 import ceui.loxia.ProgressIndicator
 import ceui.loxia.Series
-import ceui.loxia.launchSuspend
-import ceui.pixiv.events.EventReporter
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
@@ -38,7 +31,12 @@ import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustCardActionReceiver
 import ceui.pixiv.ui.common.IllustIdActionReceiver
 import ceui.pixiv.ui.common.NovelActionReceiver
+import ceui.pixiv.ui.common.openIllustsInViewer
+import ceui.pixiv.ui.common.openNovelDetail
+import ceui.pixiv.ui.common.openUserActivity
 import ceui.pixiv.ui.common.shareNovel
+import ceui.pixiv.ui.common.toggleIllustBookmark
+import ceui.pixiv.ui.common.toggleNovelBookmark
 import ceui.pixiv.ui.detail.seriesAuthorRenderer
 import ceui.pixiv.ui.novel.reader.NovelTextCache
 import ceui.pixiv.ui.novel.reader.export.ExportFormat
@@ -236,18 +234,9 @@ class NovelTextFragment :
 
     // ─── 导航 receivers（经典 Intent）──────────────────────────────────────
 
-    override fun onClickUser(id: Long) {
-        startActivity(Intent(requireContext(), UActivity::class.java).apply {
-            putExtra(Params.USER_ID, id.toInt())
-        })
-    }
+    override fun onClickUser(id: Long) = openUserActivity(id)
 
-    override fun onClickNovel(novelId: Long) {
-        startActivity(Intent(requireContext(), TemplateActivity::class.java).apply {
-            putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
-            putExtra(Params.NOVEL_ID, novelId)
-        })
-    }
+    override fun onClickNovel(novelId: Long) = openNovelDetail(novelId)
 
     override fun visitNovelById(novelId: Long) = onClickNovel(novelId)
 
@@ -266,68 +255,17 @@ class NovelTextFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             val illust = runCatching { Client.appApi.getIllust(illustId).illust }
                 .getOrNull() ?: return@launch
-            val gson = Shaft.sGson
-            val bean = gson.fromJson(gson.toJson(illust), IllustsBean::class.java)
-            val uuid = UUID.randomUUID().toString()
-            val pageData = PageData(uuid, null, listOf(bean))
-            Container.get().addPageToMap(pageData)
-            startActivity(Intent(requireContext(), VActivity::class.java).apply {
-                putExtra(Params.POSITION, 0)
-                putExtra(Params.PAGE_UUID, uuid)
-            })
+            openIllustsInViewer(listOf(illust), 0)
         }
     }
 
     // ─── bookmark receivers ────────────────────────────────────────────────
 
-    override fun onClickBookmarkNovel(sender: ProgressIndicator, novelId: Long) {
-        launchSuspend(sender) {
-            val novel = ObjectPool.get<Novel>(novelId).value
-                ?: Client.appApi.getNovel(novelId).novel?.also { ObjectPool.update(it) }
-            if (novel != null) {
-                if (novel.is_bookmarked == true) {
-                    Client.appApi.removeNovelBookmark(novelId)
-                    ObjectPool.update(
-                        novel.copy(
-                            is_bookmarked = false,
-                            total_bookmarks = novel.total_bookmarks?.minus(1)
-                        )
-                    )
-                    EventReporter.report(EventReporter.Type.UNBOOKMARK, EventReporter.Target.NOVEL, novelId, novel)
-                } else {
-                    Client.appApi.addNovelBookmark(novelId, Params.TYPE_PUBLIC)
-                    RateAppManager.onUserEngaged()
-                    ObjectPool.update(
-                        novel.copy(
-                            is_bookmarked = true,
-                            total_bookmarks = novel.total_bookmarks?.plus(1)
-                        )
-                    )
-                    EventReporter.report(EventReporter.Type.BOOKMARK, EventReporter.Target.NOVEL, novelId, novel)
-                }
-            }
-        }
-    }
+    override fun onClickBookmarkNovel(sender: ProgressIndicator, novelId: Long) =
+        toggleNovelBookmark(sender, novelId)
 
-    override fun onClickBookmarkIllust(sender: ProgressIndicator, illustId: Long) {
-        launchSuspend(sender) {
-            val illust = ObjectPool.get<Illust>(illustId).value
-                ?: Client.appApi.getIllust(illustId).illust?.also { ObjectPool.update(it) }
-            if (illust != null) {
-                val targetType = if (illust.type == "manga") EventReporter.Target.MANGA else EventReporter.Target.ILLUST
-                if (illust.is_bookmarked == true) {
-                    Client.appApi.removeBookmark(illustId)
-                    ObjectPool.update(illust.copy(is_bookmarked = false, total_bookmarks = illust.total_bookmarks?.minus(1)))
-                    EventReporter.report(EventReporter.Type.UNBOOKMARK, targetType, illustId, illust)
-                } else {
-                    Client.appApi.postBookmark(illustId)
-                    RateAppManager.onUserEngaged()
-                    ObjectPool.update(illust.copy(is_bookmarked = true, total_bookmarks = illust.total_bookmarks?.plus(1)))
-                    EventReporter.report(EventReporter.Type.BOOKMARK, targetType, illustId, illust)
-                }
-            }
-        }
-    }
+    override fun onClickBookmarkIllust(sender: ProgressIndicator, illustId: Long) =
+        toggleIllustBookmark(sender, illustId)
 
     companion object {
         fun newInstance(novelId: Long): NovelTextFragment = NovelTextFragment().apply {

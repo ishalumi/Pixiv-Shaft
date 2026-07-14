@@ -1,14 +1,11 @@
 package ceui.pixiv.ui.novel
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.net.Uri
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.LiveData
@@ -41,6 +38,9 @@ import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.common.NovelActionReceiver
 import ceui.pixiv.ui.common.NovelMultiSelectReceiver
+import ceui.pixiv.ui.common.bindCopyChip
+import ceui.pixiv.ui.common.bindCopyLinkChip
+import ceui.pixiv.ui.common.bindOpenLinkChip
 import ceui.pixiv.ui.detail.SeriesAuthorFeedItem
 import ceui.pixiv.ui.detail.SeriesCaptionFeedItem
 import ceui.pixiv.ui.detail.SeriesSectionLabelFeedItem
@@ -209,56 +209,33 @@ fun novelSeriesProfileRenderer(): FeedRenderer<NovelSeriesProfileFeedItem, CellN
     ) { cell ->
         val b = cell.binding
         val series = cell.item.series
-        val ctx = b.root.context
 
-        fun chip(view: TextView, labelRes: Int, displayValue: String, copyValue: String) {
-            view.text = ctx.getString(labelRes, displayValue)
-            view.isVisible = true
-            view.setOnClick { Common.copy(ctx, copyValue) }
-        }
-        fun linkChip(view: TextView, labelRes: Int, url: String) {
-            view.text = ctx.getString(labelRes)
-            view.isVisible = true
-            view.setOnClick { Common.copy(ctx, url) }
-        }
-        fun openLinkChip(view: TextView, labelRes: Int, url: String) {
-            view.text = ctx.getString(labelRes)
-            view.isVisible = true
-            view.setOnClick {
-                try {
-                    CustomTabsIntent.Builder().build().launchUrl(ctx, Uri.parse(url))
-                } catch (_: ActivityNotFoundException) {
-                    Common.showToast("未找到浏览器")
-                }
-            }
-        }
-
-        chip(b.chipSeriesId, R.string.novel_chip_series_id, series.id.toString(), series.id.toString())
+        b.chipSeriesId.bindCopyChip(R.string.novel_chip_series_id, series.id.toString(), series.id.toString())
         series.user?.let { user ->
             val name = user.name.orEmpty()
-            chip(b.chipAuthor, R.string.novel_chip_author, name, name)
-            chip(b.chipAuthorId, R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
-            openLinkChip(b.chipUserLink, R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
+            b.chipAuthor.bindCopyChip(R.string.novel_chip_author, name, name)
+            b.chipAuthorId.bindCopyChip(R.string.novel_chip_author_id, user.id.toString(), user.id.toString())
+            b.chipUserLink.bindOpenLinkChip(R.string.novel_chip_user_link, ShareIllust.USER_URL_Head + user.id)
         } ?: run {
             b.chipAuthor.isVisible = false
             b.chipAuthorId.isVisible = false
             b.chipUserLink.isVisible = false
         }
         if (series.content_count > 0) {
-            chip(b.chipContentCount, R.string.novel_chip_series_content_count,
+            b.chipContentCount.bindCopyChip(R.string.novel_chip_series_content_count,
                 series.content_count.toString(), series.content_count.toString())
         } else {
             b.chipContentCount.isVisible = false
         }
         if (series.total_character_count > 0) {
-            chip(b.chipCharCount, R.string.novel_chip_series_char_count,
+            b.chipCharCount.bindCopyChip(R.string.novel_chip_series_char_count,
                 series.total_character_count.toString(), series.total_character_count.toString())
         } else {
             b.chipCharCount.isVisible = false
         }
         val seriesUrl = "https://www.pixiv.net/novel/series/${series.id}"
-        linkChip(b.chipSeriesLink, R.string.novel_chip_series_link, seriesUrl)
-        openLinkChip(b.chipOpenSeriesLink, R.string.novel_chip_open_series_link, seriesUrl)
+        b.chipSeriesLink.bindCopyLinkChip(R.string.novel_chip_series_link, seriesUrl)
+        b.chipOpenSeriesLink.bindOpenLinkChip(R.string.novel_chip_open_series_link, seriesUrl)
     }
 
 fun novelSeriesCardRenderer(): FeedRenderer<NovelSeriesCardFeedItem, CellNovelV3Binding> =
@@ -307,11 +284,11 @@ fun novelSeriesCardRenderer(): FeedRenderer<NovelSeriesCardFeedItem, CellNovelV3
 
         bindNovelCardTags(b, novel, palette)
         // 绑定时从 ObjectPool 读最新收藏态：卡片回收复用后不会回退成加载时的旧值。
-        bindNovelCardBookmark(b, (ObjectPool.get<Novel>(novel.id).value ?: novel).is_bookmarked == true, palette)
+        bindNovelCardBookmark(b, (ObjectPool.get<Novel>(novel.id).value ?: novel).is_bookmarked == true)
         b.bookmarkBtn.setOnClick { sender ->
             // 乐观切态：先本地翻心，再交给 receiver 走网络 + ObjectPool。
             val nowBookmarked = (ObjectPool.get<Novel>(novel.id).value ?: novel).is_bookmarked == true
-            bindNovelCardBookmark(b, !nowBookmarked, palette)
+            bindNovelCardBookmark(b, !nowBookmarked)
             sender.findActionReceiverOrNull<NovelActionReceiver>()
                 ?.onClickBookmarkNovel(sender as ProgressIndicator, novel.id)
         }
@@ -339,7 +316,7 @@ fun novelSeriesCardRenderer(): FeedRenderer<NovelSeriesCardFeedItem, CellNovelV3
         applyCardTouchScale(b.root, 0.98f)
     }
 
-private fun bindNovelCardBookmark(b: CellNovelV3Binding, bookmarked: Boolean, palette: V3Palette) {
+private fun bindNovelCardBookmark(b: CellNovelV3Binding, bookmarked: Boolean) {
     b.bookmarkBtn.setImageResource(if (bookmarked) R.drawable.icon_liked else R.drawable.icon_not_liked)
     b.bookmarkBtn.imageTintList = if (bookmarked) null
         else ColorStateList.valueOf(b.root.context.getColor(R.color.v3_text_3))
