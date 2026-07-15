@@ -173,6 +173,9 @@ class DiscoveryFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_feed)
 
         /**
          * 池子实体 → feed 条目。零捕获（只碰 object / 全局 gson），可以安全地活到 VM 生命周期。
+         *
+         * 逐条日志沿用 legacy 的字段（id/score/source/标题/作者）：调分数权重、查 #937 这类
+         * 候选池问题就靠它。多打一个 filtered 标记——legacy 不过滤，没有这个状态。
          */
         private fun convertAndMark(entities: List<ceui.pixiv.db.DiscoveryEntity>): List<IllustFeedItem> {
             val result = mutableListOf<IllustFeedItem>()
@@ -184,7 +187,14 @@ class DiscoveryFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_feed)
                 }.getOrNull()
                 if (bean == null || bean.id <= 0) return@forEach
                 DiscoveryPool.markShown(entity.illustId)
-                IllustFeedItem.fromBean(bean)?.let(result::add)
+                val item = IllustFeedItem.fromBean(bean)
+                item?.let(result::add)
+                Timber.d(
+                    "%s   %s id=%d score=%.2f source='%s' '%s' by '%s'",
+                    TAG, if (item == null) "filtered" else "display",
+                    entity.illustId, entity.score, entity.source, bean.title,
+                    bean.user?.name ?: "?",
+                )
             }
             return result
         }
