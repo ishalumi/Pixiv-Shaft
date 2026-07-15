@@ -291,7 +291,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
                 // 插画 tab 用包装 fragment:标签筛选条在页面内部,跟随 ViewPager 横滑
                 TabKind.ILLUST -> UserV3IllustTabFragment.newInstance(userId)
                 TabKind.MANGA -> ceui.pixiv.ui.user.UserMangaFeedFragment.newInstance(userId, false)
-                TabKind.NOVEL -> ceui.lisa.fragments.FragmentUserNovel.newInstance(userId, false)
+                TabKind.NOVEL -> ceui.pixiv.ui.user.UserNovelFeedFragment.newInstance(userId, false)
                 TabKind.COLLECTION -> UserV3CollectionFragment.newInstance(userId)
                 TabKind.REQUEST -> ceui.pixiv.ui.user.RequestPlanFeedFragment.newInstance(userId)
                 TabKind.INFO -> UserV3InfoFragment()

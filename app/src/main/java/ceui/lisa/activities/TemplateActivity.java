@@ -60,7 +60,6 @@ import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
 import ceui.lisa.fragments.FragmentUserIllustByTag;
 import ceui.lisa.fragments.FragmentUserInfo;
-import ceui.lisa.fragments.FragmentUserNovel;
 import ceui.lisa.fragments.FragmentViewPager;
 import ceui.lisa.fragments.FragmentWebView;
 import ceui.lisa.fragments.FragmentWhoFollowThisUser;
@@ -245,7 +244,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             intent.getStringExtra(Params.KEY_WORD));
                 }
                 case "小说作品":
-                    return FragmentUserNovel.newInstance(intent.getIntExtra(Params.USER_ID, 0));
+                    // feeds 框架版,替代 legacy FragmentUserNovel
+                    return ceui.pixiv.ui.user.UserNovelFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0));
                 case "小说详情": {
                     NovelBean bean = (NovelBean) intent.getSerializableExtra(Params.CONTENT);
                     long tid = bean != null ? bean.getId() : intent.getLongExtra(Params.NOVEL_ID, 0L);

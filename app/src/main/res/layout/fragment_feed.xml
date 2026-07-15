@@ -17,9 +17,10 @@
             android:overScrollMode="never" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- 瀑布流首屏骨架图。纯表现层：只按 FeedUiState.showFullscreenLoading 显隐(见 FeedFragment.render)，
-         列数在 onViewCreated 从 StaggeredGridLayoutManager 灌入。普通列表布局不启用它(转圈圈兜底)。 -->
-    <ceui.pixiv.feeds.FeedStaggeredSkeletonView
+    <!-- 首屏骨架图的容器。纯表现层：只按 FeedUiState.showFullscreenLoading 显隐(见 FeedFragment.render)。
+         具体画哪种骨架由 FeedFragment.onCreateSkeletonView 按布局决定(瀑布流 / 竖向小说卡)，
+         在 onViewCreated 塞进来；返回 null 的页面不启用骨架(转圈圈兜底)。 -->
+    <FrameLayout
         android:id="@+id/feed_skeleton"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

@@ -32,7 +32,9 @@ import ceui.pixiv.events.EventReporter
 import ceui.pixiv.feeds.FeedCell
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedNovelSkeletonView
 import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedSkeletonView
 import ceui.pixiv.feeds.FeedViewModel
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.novel.NovelSeriesFragment
@@ -95,6 +97,14 @@ abstract class NovelFeedFragment(
 
     override fun onListReady(listView: RecyclerView) {
         listView.addItemDecoration(LinearItemDecoration(12.ppppx))
+    }
+
+    /**
+     * 竖向小说列表的骨架图长得像 recy_novel（左封面 + 右标题/系列/作者 + 标签流），不是瀑布流那种
+     * 等宽块——基类默认只给 StaggeredGridLayoutManager 出骨架，小说列表是 Linear，得自己给。
+     */
+    override fun onCreateSkeletonView(layoutManager: RecyclerView.LayoutManager): FeedSkeletonView {
+        return FeedNovelSkeletonView(requireContext())
     }
 
     override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {

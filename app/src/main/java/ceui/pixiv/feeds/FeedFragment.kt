@@ -3,6 +3,7 @@ package ceui.pixiv.feeds
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.annotation.LayoutRes
 import androidx.core.view.ViewCompat
@@ -105,11 +106,15 @@ abstract class FeedFragment(
         feedAdapter = adapter
 
         val layoutManager = onCreateLayoutManager()
-        // 瀑布流首屏用骨架图：列数直接读 live 的 StaggeredGridLayoutManager（跟随用户「每行几列」设置）。
-        // 其它布局 skeletonEnabled=false → render 里走转圈圈。
-        skeletonEnabled = useSkeletonFor(layoutManager)
-        if (skeletonEnabled && layoutManager is StaggeredGridLayoutManager) {
-            binding.feedSkeleton.spanCount = layoutManager.spanCount
+        // 首屏骨架图：按布局挑一种（瀑布流 / 竖向小说卡），null = 本页不用骨架 → render 里走转圈圈。
+        val skeleton = onCreateSkeletonView(layoutManager)
+        skeletonEnabled = skeleton != null
+        if (skeleton != null) {
+            binding.feedSkeleton.addView(
+                skeleton,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
         }
         binding.feedListView.apply {
             this.layoutManager = layoutManager
@@ -160,11 +165,21 @@ abstract class FeedFragment(
     protected open fun onListReady(listView: RecyclerView) {}
 
     /**
-     * 首屏加载态是否用骨架图。默认：瀑布流（[StaggeredGridLayoutManager]）用，其它布局不用
-     * → fallback 转圈圈（竖向普通列表的骨架图暂不做）。子类可覆写强开/强关。
+     * 首屏加载态画哪种骨架图；返回 null = 本页不用骨架，fallback 转圈圈。
+     *
+     * 默认只认瀑布流（[StaggeredGridLayoutManager]，列数跟随用户「每行几列」设置）——骨架必须
+     * 长得像自己那张卡，卡形状不一样的列表各自覆写（如 [ceui.pixiv.ui.common.NovelFeedFragment]
+     * 给竖向小说卡）。返回的 View 由基类塞进 feed_skeleton 容器并随视图销毁。
      */
-    protected open fun useSkeletonFor(layoutManager: RecyclerView.LayoutManager): Boolean =
-        layoutManager is StaggeredGridLayoutManager
+    protected open fun onCreateSkeletonView(
+        layoutManager: RecyclerView.LayoutManager,
+    ): FeedSkeletonView? {
+        return if (layoutManager is StaggeredGridLayoutManager) {
+            FeedStaggeredSkeletonView(requireContext()).apply { spanCount = layoutManager.spanCount }
+        } else {
+            null
+        }
+    }
 
     /** 屏幕上有内容时刷新失败的提示，默认 Toast；子类可覆盖。 */
     protected open fun onRefreshFailedWithContent(throwable: Throwable) {
