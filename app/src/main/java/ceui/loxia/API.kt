@@ -212,6 +212,17 @@ interface API {
         @Query("date") date: String? = null,
     ): IllustResponse
 
+    // 最新作品（feeds 版，替代 legacy RxJava AppApi.getNewWorks）：全站最新投稿的插画/漫画。
+    // content_type = "illust" | "manga"。
+    @GET("/v1/illust/new?filter=for_ios")
+    suspend fun getNewIllusts(
+        @Query("content_type") contentType: String,
+    ): IllustResponse
+
+    // 最新小说（feeds 版，替代 legacy RxJava AppApi.getNewNovels）：全站最新投稿的小说。
+    @GET("/v1/novel/new")
+    suspend fun getNewNovels(): NovelResponse
+
     // 对齐 pixiv iOS app 8.6.5 实际调用——
     //   - 不再带 ?filter=for_ios（app-os: ios header 已经表态；image_urls 实测一致）
     //   - 不传 include_potential_violation_works（iOS 默认 false 会让 pixiv 隐藏被自动标记为

@@ -8,6 +8,8 @@ import ceui.lisa.R;
 import ceui.lisa.activities.Shaft;
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding;
 import ceui.lisa.utils.MyOnTabSelectedListener;
+import ceui.pixiv.ui.newworks.LatestIllustFeedFragment;
+import ceui.pixiv.ui.newworks.LatestNovelFeedFragment;
 
 public class FragmentNew extends BaseFragment<ViewpagerWithTablayoutBinding> {
 
@@ -23,14 +25,18 @@ public class FragmentNew extends BaseFragment<ViewpagerWithTablayoutBinding> {
                 Shaft.getContext().getString(R.string.type_manga),
                 Shaft.getContext().getString(R.string.type_novel)
         };
+        // 三个 tab 均已迁 feeds 框架（LatestIllustFeedFragment / LatestNovelFeedFragment，
+        // 懒加载 autoLoad=false）。子 pager 必须用 BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT，
+        // 否则相邻 tab 被预创建即 RESUMED，懒加载失效、全部偷偷发请求。
         final Fragment[] mFragments = new Fragment[]{
-                FragmentLatestWorks.newInstance("illust"),
-                FragmentLatestWorks.newInstance("manga"),
-                new FragmentLatestNovel()
+                LatestIllustFeedFragment.newInstance(LatestIllustFeedFragment.TYPE_ILLUST),
+                LatestIllustFeedFragment.newInstance(LatestIllustFeedFragment.TYPE_MANGA),
+                new LatestNovelFeedFragment()
         };
         baseBind.toolbar.setNavigationOnClickListener(v -> mActivity.finish());
         baseBind.toolbarTitle.setText(R.string.string_204);
-        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager()) {
+        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(),
+                FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
             @NonNull
             @Override
             public Fragment getItem(int position) {

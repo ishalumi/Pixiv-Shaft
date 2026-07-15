@@ -456,13 +456,10 @@ public interface AppApi {
     @GET("v1/user/mypixiv?filter=for_android")
     Observable<ListUser> getNiceFriend(@Query("user_id") int user_id);
 
-    //获取最新作品
+    //获取最新作品（插画/漫画）——发现页「最新」货架仍用它（LatestIllustRepo）。
+    //最新作品页三个 tab 已迁 feeds 框架，走 loxia 的 API.getNewIllusts/getNewNovels。
     @GET("v1/illust/new?filter=for_android")
     Observable<ListIllust> getNewWorks(@Query("content_type") String content_type);
-
-    //获取最新作品
-    @GET("v1/novel/new")
-    Observable<ListNovel> getNewNovels();
 
 
     @GET("/webview/v2/novel")

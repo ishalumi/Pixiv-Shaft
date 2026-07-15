@@ -33,6 +33,7 @@ import ceui.lisa.download.IllustDownload
 import ceui.lisa.helper.IllustNovelFilter
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.models.IllustsBean
+import ceui.lisa.utils.Common
 import ceui.lisa.utils.DensityUtil
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
@@ -536,8 +537,10 @@ abstract class IllustFeedFragment(
                 val appContext = requireContext().applicationContext
                 if (inWatchLater) {
                     entityWrapper.removeFromWatchLater(appContext, item.illust.id)
+                    Common.showToast(R.string.watch_later_removed)
                 } else {
                     entityWrapper.addToWatchLater(appContext, item.illust)
+                    Common.showToast(R.string.watch_later_added)
                 }
             }
         }
