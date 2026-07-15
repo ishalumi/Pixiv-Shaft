@@ -303,6 +303,19 @@ public class FragmentSettingsDownload extends SettingsPageFragment<FragmentSetti
         baseBind.toastDownloadResultRela.setOnClickListener(v ->
                 baseBind.toastDownloadResult.performClick());
 
+        // 下载 JPEG 时把标签写进图片(XMP 关键词，issue #938）
+        baseBind.writeExifTags.setChecked(Shaft.sSettings.isWriteTagsToImageExif());
+        baseBind.writeExifTags.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Shaft.sSettings.setWriteTagsToImageExif(isChecked);
+                Common.showToast(getString(R.string.string_428));
+                Local.setSettings(Shaft.sSettings);
+            }
+        });
+        baseBind.writeExifTagsRela.setOnClickListener(v ->
+                baseBind.writeExifTags.performClick());
+
         //下载限制类型
         final String[] DOWNLOAD_START_TYPE_NAMES = new String[]{
                 getString(DownloadLimitTypeUtil.DOWNLOAD_START_TYPE_IDS[0]),

@@ -32,6 +32,7 @@ import ceui.lisa.database.AppDatabase
 import ceui.lisa.database.DownloadEntity
 import ceui.lisa.download.FileCreator
 import ceui.pixiv.download.DownloadsRegistry
+import ceui.pixiv.download.ExifKeywordWriter
 import ceui.pixiv.download.config.DownloadItems
 import ceui.pixiv.imageloader.ImageLoaderV3
 import ceui.pixiv.ui.translate.ComicTextDetectorModel
@@ -333,6 +334,19 @@ class ImageDetailActivity : BaseActivity<ActivityImageDetailBinding?>() {
                 } catch (t: Throwable) {
                     handle.onAbort()
                     throw t
+                }
+                // 可选:标签写进 JPEG XMP 关键词(issue #938)。放在 commit 之后、onAbort 作用域之外,
+                // 免得写元数据抛错误删掉已成功的文件。整段再包一层 runCatching:即便标签取值意外抛错,
+                // 也不能连累下面「已下载」写库(否则文件在盘上却不记账)。开关默认关时直接跳过,零开销。
+                if (Shaft.sSettings.isWriteTagsToImageExif()) {
+                    runCatching {
+                        ExifKeywordWriter.writeIfEnabled(
+                            this@ImageDetailActivity,
+                            handle.uri,
+                            FileCreator.customFileName(illust, page),
+                            illust.tags.orEmpty().mapNotNull { it?.name }
+                        )
+                    }
                 }
                 // 与 Manager 成功分支一致地写库(fileName 用 FileCreator=模板命名,filePath 用写盘 uri)。
                 val entity = DownloadEntity().apply {

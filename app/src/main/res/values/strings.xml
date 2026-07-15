@@ -858,6 +858,8 @@
     <string name="theme_nowUsing">（正在使用）</string>
     <string name="core_string_novel_marker">小说书签</string>
     <string name="toast_download_result">下载完成App内提示</string>
+    <string name="setting_write_exif_tags_title">下载时把标签写进图片</string>
+    <string name="setting_write_exif_tags_desc">给下载的 JPEG 写入 XMP 关键词(dc:subject),方便相册 / 图管软件按标签管理。仅 JPEG。</string>
     <string name="title_home" translatable="false">Home</string>
     <string name="show_reply">查看回复</string>
     <string name="comments">评论</string>

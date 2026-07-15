@@ -1011,6 +1011,19 @@ public class Manager {
             }
 
             try { factory.finishWrite(); } catch (Throwable t) { Common.showLog("[DL] finishWrite failed: " + t); }
+            // 可选:把作品标签写进 JPEG 的 XMP 关键词(issue #938)。开关默认关,只处理 JPEG,
+            // 内部包 try/catch —— 写元数据失败绝不影响这条已成功的下载。gif 会被扩展名过滤掉。
+            // 开关前置判断:默认关时这条下载热路径零额外开销(不建 tag 列表、不读文件)。
+            try {
+                if (Shaft.sSettings.isWriteTagsToImageExif()) {
+                    ceui.lisa.models.IllustsBean exifIllust = downloadItem.getIllust();
+                    java.util.List<String> exifTags = (exifIllust != null && exifIllust.getTags() != null)
+                            ? java.util.Arrays.asList(exifIllust.getTagNames())
+                            : java.util.Collections.<String>emptyList();
+                    ceui.pixiv.download.ExifKeywordWriter.writeIfEnabled(
+                            Shaft.getContext(), factory.getFileUri(), downloadItem.getName(), exifTags);
+                }
+            } catch (Throwable t) { Common.showLog("[DL] exif keyword write failed: " + t); }
             try { complete(downloadItem, true); } catch (Throwable t) { Common.showLog("[DL] complete(success) failed: " + t); }
 
             // 广播放第二个 Runnable，跟 content.remove 顺序保留（main thread FIFO）。

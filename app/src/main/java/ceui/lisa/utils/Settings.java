@@ -154,6 +154,10 @@ public class Settings {
     //直接下载单个作品所有P
     private boolean directDownloadAllImage = true;
 
+    // 下载 JPEG 时把作品标签写进 XMP dc:subject(相册/图管软件读的「关键词」字段)。默认关:
+    // 每张多一次全文件重写,只有显式开启才付出这次 IO(issue #938)。
+    private boolean writeTagsToImageExif = false;
+
     private boolean saveViewHistory = true;
 
     // 浏览记录云同步(pixshaft-api)。默认开启,但首次会弹一次同意框让用户选择是否关闭。
@@ -502,6 +506,14 @@ public class Settings {
 
     public void setDirectDownloadAllImage(boolean directDownloadAllImage) {
         this.directDownloadAllImage = directDownloadAllImage;
+    }
+
+    public boolean isWriteTagsToImageExif() {
+        return writeTagsToImageExif;
+    }
+
+    public void setWriteTagsToImageExif(boolean writeTagsToImageExif) {
+        this.writeTagsToImageExif = writeTagsToImageExif;
     }
 
     public String getIllustPath() {

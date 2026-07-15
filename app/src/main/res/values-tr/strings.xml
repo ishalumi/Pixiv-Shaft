@@ -832,6 +832,8 @@
     <string name="theme_nowUsing">(Kullanılıyor)</string>
     <string name="core_string_novel_marker">Roman yer imi</string>
     <string name="toast_download_result">İndirme tamamlanınca uygulama içinde bildirim göster</string>
+    <string name="setting_write_exif_tags_title">İndirirken etiketleri görsele yaz</string>
+    <string name="setting_write_exif_tags_desc">İndirilen JPEG\'lere etiketleri XMP anahtar kelimeleri (dc:subject) olarak gömer; böylece fotoğraf uygulamaları etikete göre düzenleyebilir. Yalnızca JPEG.</string>
     <string name="title_home">Home</string>
     <string name="show_reply">Yanıtları göster</string>
     <string name="comments">Yorumlar</string>

@@ -832,6 +832,8 @@
     <string name="theme_nowUsing">(используется)</string>
     <string name="core_string_novel_marker">Метки</string>
     <string name="toast_download_result">Показывать уведомление после завершения загрузки</string>
+    <string name="setting_write_exif_tags_title">Записывать теги в изображения при загрузке</string>
+    <string name="setting_write_exif_tags_desc">Встраивать теги как ключевые слова XMP (dc:subject) в загружаемые JPEG, чтобы фотоприложения могли сортировать по тегам. Только JPEG.</string>
     <string name="title_home">Home</string>
     <string name="show_reply">Показать ответы</string>
     <string name="comments">Комментарии</string>

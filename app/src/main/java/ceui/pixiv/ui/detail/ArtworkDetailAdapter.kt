@@ -256,6 +256,22 @@ class ArtworkDetailAdapter(
     private val ctx: Context get() = fragment.requireContext()
     private val glide get() = Glide.with(fragment)
 
+    /** 第 0 P 原图 URL 的文件后缀(大写,如 PNG / JPG);拿不到 URL 或无后缀返回 null。 */
+    private fun page0Extension(illust: IllustsBean): String? {
+        val url = if (illust.page_count <= 1) {
+            illust.meta_single_page?.original_image_url
+        } else {
+            illust.meta_pages?.getOrNull(0)?.image_urls?.original
+        }
+        val clean = url?.substringBefore('?')?.substringBefore('#') ?: return null
+        val dot = clean.lastIndexOf('.')
+        if (dot < 0 || dot == clean.length - 1) return null
+        val ext = clean.substring(dot + 1)
+        // 后缀里带 '/' 或过长 = 那个点其实在域名/路径里(URL 没真正的扩展名),别把整段路径当后缀显示。
+        if (ext.length > 5 || ext.contains('/')) return null
+        return ext.uppercase()
+    }
+
     // =================== ViewHolders ===================
 
     inner class HeroVH(private val b: SectionV3HeroBinding) : RecyclerView.ViewHolder(b.root) {
@@ -270,6 +286,12 @@ class ArtworkDetailAdapter(
                 "ugoira" -> ctx.getString(R.string.v3_type_ugoira)
                 else -> ctx.getString(R.string.v3_type_illustration)
             }
+            // 文件拓展名(取第 0 P 原图 URL 的后缀;多 P 只看第 0 P)。精简 / 网页来源 bean
+            // 缺原图 URL 时整段隐藏,免得留个空分隔点。issue #938 讨论衍生。
+            val ext = page0Extension(illust)
+            b.metaExt.isVisible = ext != null
+            b.metaExtSep.isVisible = ext != null
+            if (ext != null) b.metaExt.text = ext
             b.metaDate.text = Common.getLocalYYYYMMDDHHMMString(illust.create_date)
             b.metaPages.text = if (illust.page_count == 1) ctx.getString(R.string.v3_page_count_one)
             else ctx.getString(R.string.v3_page_count_many, illust.page_count)

@@ -140,6 +140,7 @@ object SettingsCatalog {
         add(Entry(DOWNLOAD, "max_concurrent_downloads_rela", R.string.setting_max_concurrent_downloads, keywords = "并发 同时 多任务 线程 速度 concurrent"))
         add(Entry(DOWNLOAD, "illust_long_press_download_rela", R.string.string_405, keywords = "长按 下载 long press"))
         add(Entry(DOWNLOAD, "toast_download_result_rela", R.string.toast_download_result, keywords = "提示 通知 完成 toast"))
+        add(Entry(DOWNLOAD, "write_exif_tags_rela", R.string.setting_write_exif_tags_title, R.string.setting_write_exif_tags_desc, keywords = "标签 关键词 exif xmp 元数据 相册 keywords metadata tags dc:subject"))
         add(Entry(DOWNLOAD, "aria2_rela", R.string.aria2_settings_title, R.string.aria2_settings_entry_desc, keywords = "aria2 远程 nas rpc 服务器 remote"))
 
         // AI 功能
