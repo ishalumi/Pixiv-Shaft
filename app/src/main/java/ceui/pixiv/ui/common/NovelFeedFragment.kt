@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.ImageButton
 import androidx.annotation.LayoutRes
@@ -35,6 +36,7 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedViewModel
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.novel.NovelSeriesFragment
+import ceui.pixiv.utils.playLikePressHaptic
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.widgets.RateAppManager
@@ -205,6 +207,12 @@ abstract class NovelFeedFragment(
         val target = novel.is_bookmarked != true
         // 乐观：当帧翻心（异步 updateItems 至少要等 ListAdapter diff 落地一两帧）
         renderNovelLike(cell.binding.like, target)
+        // 收藏触感（与插画卡共用 playLikePressHaptic）：收藏给 iOS 3D-touch 段落感,取消给单下轻 tick
+        if (target) {
+            playLikePressHaptic(cell.binding.like)
+        } else {
+            cell.binding.like.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        }
         applyNovelBookmark(novelId, target)
         val restrict = if (Shaft.sSettings.isPrivateStar()) Params.TYPE_PRIVATE else Params.TYPE_PUBLIC
         launchSuspend {

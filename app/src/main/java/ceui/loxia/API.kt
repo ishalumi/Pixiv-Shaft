@@ -131,6 +131,11 @@ interface API {
         @Query("include_ranking_illusts") include_ranking_illusts: Boolean = false,
     ): NovelResponse
 
+    // 推荐小说（feeds 版，替代 legacy RxJava AppApi.getRecmdNovel）：首屏带 ranking_novels
+    // 排行榜预览头（对齐 legacy include_ranking_novels=true）。
+    @GET("/v1/novel/recommended?include_privacy_policy=true&filter=for_ios&include_ranking_novels=true")
+    suspend fun getRecommendedNovelsWithRanking(): NovelRecommendResponse
+
     @GET("/webview/v2/novel")
     suspend fun getNovelText(@Query("id") id: Long): ResponseBody
 

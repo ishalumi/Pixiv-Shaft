@@ -14,6 +14,7 @@ import ceui.lisa.activities.TemplateActivity;
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding;
 import ceui.lisa.utils.MyOnTabSelectedListener;
 import ceui.lisa.utils.Params;
+import ceui.pixiv.ui.home.RecmdNovelFeedFragment;
 
 public class FragmentNewNovel extends BaseFragment<ViewpagerWithTablayoutBinding> {
 
@@ -28,8 +29,11 @@ public class FragmentNewNovel extends BaseFragment<ViewpagerWithTablayoutBinding
                 Shaft.getContext().getString(R.string.recommend_illust),
                 Shaft.getContext().getString(R.string.hot_tag)
         };
+        // 推荐 tab 已迁 feeds 框架（RecmdNovelFeedFragment，autoLoad 默认即时加载）。
+        // 热门标签 tab 仍是 legacy setUserVisibleHint 懒加载，故 pager 保持 behavior 0
+        // （BEHAVIOR_SET_USER_VISIBLE_HINT），不能改 RESUME_ONLY 否则热标 tab 不加载。
         final Fragment[] mFragments = new Fragment[]{
-                new FragmentRecmdNovel(),
+                new RecmdNovelFeedFragment(),
                 FragmentHotTag.newInstance(Params.TYPE_NOVEL)
         };
         baseBind.toolbarTitle.setText(R.string.type_novel);

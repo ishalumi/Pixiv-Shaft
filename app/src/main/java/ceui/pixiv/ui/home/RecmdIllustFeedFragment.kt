@@ -1,20 +1,11 @@
 package ceui.pixiv.ui.home
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.TextView
-import androidx.core.view.isVisible
 import androidx.annotation.LayoutRes
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -22,7 +13,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import androidx.viewbinding.ViewBinding
-import ceui.lisa.BuildConfig
 import ceui.lisa.R
 import ceui.lisa.activities.ColdStartSplashGate
 import ceui.lisa.activities.RankActivity
@@ -42,7 +32,6 @@ import ceui.lisa.view.SpacesItemWithHeadDecoration
 import ceui.loxia.Client
 import ceui.loxia.Illust
 import ceui.pixiv.db.discovery.DiscoveryPool
-import ceui.pixiv.feeds.FeedCell
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedLoadPhase
 import ceui.pixiv.feeds.FeedRenderer
@@ -53,7 +42,6 @@ import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
 import ceui.pixiv.utils.setOnClick
-import com.airbnb.lottie.LottieAnimationView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -155,68 +143,6 @@ open class RecmdIllustFeedFragment(
                 feedViewModel.uiState.first { it.refresh !is LoadState.Idle || it.hasLoadedOnce }
                 ColdStartSplashGate.markResolved()
             }
-        }
-        if (BuildConfig.DEBUG) {
-            addHapticDemoButton(view)
-        }
-    }
-
-    /**
-     * debug 包限定的悬浮「触感测试」按钮：点一下播收藏触感 + 在可见卡片上放爆发
-     * 动画，反复调手感不用真点收藏。release 包不存在，试完随手删也行。
-     */
-    private fun addHapticDemoButton(root: View) {
-        val demo = TextView(requireContext()).apply {
-            text = "❤ 触感测试"
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            val h = DensityUtil.dp2px(16.0f)
-            val v = DensityUtil.dp2px(10.0f)
-            setPadding(h, v, h, v)
-            background = GradientDrawable().apply {
-                cornerRadius = DensityUtil.dp2px(22.0f).toFloat()
-                setColor(0xCC101014.toInt())
-            }
-            setOnClickListener {
-                playLikePressHaptic(it)
-                playDemoBurst()
-            }
-        }
-        (root as ViewGroup).addView(
-            demo,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
-            ).apply { bottomMargin = DensityUtil.dp2px(96.0f) },
-        )
-    }
-
-    /** 在第一张带爆发层的可见卡片上播动画（复用 cell 自己的播完自动收起监听）。 */
-    private fun playDemoBurst() {
-        val listView = feedBinding.feedListView
-        for (i in 0 until listView.childCount) {
-            val child = listView.getChildAt(i)
-            val anim = child.findViewById<LottieAnimationView>(R.id.like_anim) ?: continue
-            // 演示不改收藏状态，但和真收藏一样先把静态心切红：白色空心心在动画
-            // 开头几帧盖不住，会从爆发红心边缘漏出来。播完按真实绑定状态恢复
-            //（一次性监听，自摘除，不污染真收藏路径的动画回调）
-            val button = child.findViewById<android.widget.ImageView>(R.id.like_button)
-            if (button != null) {
-                renderLikeState(button, true)
-                anim.addAnimatorListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        anim.removeAnimatorListener(this)
-                        val item = (listView.getChildViewHolder(child) as? FeedCell<*, *>)
-                            ?.itemOrNull as? IllustFeedItem
-                        renderLikeState(button, item?.illust?.is_bookmarked == true)
-                    }
-                })
-            }
-            anim.isVisible = true
-            anim.progress = 0f
-            anim.playAnimation()
-            return
         }
     }
 

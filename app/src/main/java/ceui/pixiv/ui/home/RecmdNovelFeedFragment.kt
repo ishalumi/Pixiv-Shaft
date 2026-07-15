@@ -1,0 +1,168 @@
+package ceui.pixiv.ui.home
+
+import android.content.Intent
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
+import ceui.lisa.R
+import ceui.lisa.activities.RankActivity
+import ceui.lisa.databinding.RecyRankNovelHorizontalBinding
+import ceui.lisa.databinding.RecyRecmdHeaderBinding
+import ceui.lisa.utils.DensityUtil
+import ceui.lisa.utils.GlideUtil
+import ceui.lisa.view.LinearItemHorizontalDecoration
+import ceui.lisa.view.LinearItemWithHeadDecoration
+import ceui.loxia.Client
+import ceui.loxia.Novel
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedLoadPhase
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.cachedPixivFeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.NovelFeedFragment
+import ceui.pixiv.ui.common.NovelFeedItem
+import ceui.pixiv.ui.common.openNovelDetail
+import ceui.pixiv.utils.ppppx
+import ceui.pixiv.utils.setOnClick
+import com.bumptech.glide.Glide
+
+/**
+ * 「推荐小说」页（FragmentNewNovel 的推荐 tab，feeds 框架版，替代 legacy FragmentRecmdNovel +
+ * NAdapterWithHeadView + RecmdNovelRepo）。异构列表 = 横向排行榜预览头（整行）+ 小说卡列表，
+ * 卡片/收藏/跳转全部复用基类 [NovelFeedFragment]（全 loxia Novel，零 gson）。
+ *
+ * 与 legacy 对齐：首屏 ranking_novels 渲染横向排行榜预览头（NovelHeader 同款 recy_recmd_header），
+ * 「查看更多」进 RankActivity 小说榜，卡片点击开小说详情。本地优先缓存（同 RecmdIllustFeedFragment）。
+ */
+class RecmdNovelFeedFragment : NovelFeedFragment() {
+
+    override val feedViewModel by feedViewModels {
+        // 本地优先：给稳定 slot 开磁盘缓存，冷启秒显上次首屏再拉最新覆盖。
+        cachedPixivFeedSource(
+            slot = "recmd-novel",
+            initialFetch = { Client.appApi.getRecommendedNovelsWithRanking() },
+        ) { resp, phase ->
+            mapRecmdNovelPage(resp.novels, resp.ranking_novels, phase)
+        }
+    }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(rankHeaderRenderer(), novelCardRenderer())
+    }
+
+    override fun onListReady(listView: RecyclerView) {
+        // 头部(排行榜预览)edge-to-edge、其余卡片四周 12dp:对齐 legacy LinearItemWithHeadDecoration
+        // 与插画推荐页(SpacesItemWithHeadDecoration)。不调 super(基类给全部套 12dp,会把头也缩进)。
+        listView.addItemDecoration(LinearItemWithHeadDecoration(12.ppppx))
+    }
+
+    /** 横向排行榜预览头（整行）。对齐 legacy NovelHeader：seeMore 进小说榜，点卡片开小说详情。 */
+    private fun rankHeaderRenderer() =
+        feedRenderer<NovelRankPreviewHeaderItem, RecyRecmdHeaderBinding>(
+            inflate = RecyRecmdHeaderBinding::inflate,
+            fullSpan = true,
+            create = { cell ->
+                cell.binding.seeMore.setOnClick {
+                    startActivity(Intent(requireContext(), RankActivity::class.java).apply {
+                        putExtra("dataType", "小说")
+                    })
+                }
+                cell.binding.ranking.layoutManager =
+                    LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+                cell.binding.ranking.addItemDecoration(
+                    LinearItemHorizontalDecoration(DensityUtil.dp2px(8.0f))
+                )
+                cell.binding.ranking.setHasFixedSize(true)
+            },
+        ) { cell ->
+            val item = cell.item
+            cell.binding.topRela.isVisible = true
+            // 同一批榜单重复 bind（滚动回收再回来）不重设 adapter，保留横向滚动位置。
+            if (cell.binding.ranking.tag != item) {
+                cell.binding.ranking.tag = item
+                cell.binding.ranking.adapter =
+                    RecmdNovelRankAdapter(item.rankNovels) { novelId -> openNovelDetail(novelId) }
+            }
+        }
+
+    companion object {
+        /**
+         * 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。
+         * 首屏把 ranking_novels 拼成排行榜预览头插到最前（不做内容过滤，对齐 legacy 直接展示）。
+         */
+        private fun mapRecmdNovelPage(
+            novels: List<Novel>,
+            rankNovels: List<Novel>,
+            phase: FeedLoadPhase,
+        ): List<FeedItem> {
+            val listItems = novels.mapNotNull { NovelFeedItem.of(it) }
+            if (!phase.isFirstPage) {
+                return listItems
+            }
+            return if (rankNovels.isEmpty()) {
+                listItems
+            } else {
+                listOf(NovelRankPreviewHeaderItem(rankNovels)) + listItems
+            }
+        }
+    }
+}
+
+/**
+ * 横向排行榜预览头（整行）。内容相等性按小说 id 序列：刷新拉到同一批榜单零重绑，
+ * 换了批次才重设内部 adapter。
+ */
+class NovelRankPreviewHeaderItem(val rankNovels: List<Novel>) : FeedItem {
+
+    private val rankIds: List<Long> = rankNovels.map { it.id }
+
+    override val feedKey: Any get() = "recmd_novel_rank_header"
+
+    override fun equals(other: Any?): Boolean {
+        return other is NovelRankPreviewHeaderItem && other.rankIds == rankIds
+    }
+
+    override fun hashCode(): Int = rankIds.hashCode()
+}
+
+/**
+ * 排行榜预览头里的横向小说卡 adapter（loxia 原生，recy_rank_novel_horizontal，替代 legacy NHAdapter）。
+ * 点击开小说详情（走 novelId，不传序列化 bean）。
+ */
+private class RecmdNovelRankAdapter(
+    private val novels: List<Novel>,
+    private val onClickNovel: (Long) -> Unit,
+) : RecyclerView.Adapter<RecmdNovelRankAdapter.VH>() {
+
+    class VH(val binding: RecyRankNovelHorizontalBinding) : RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        return VH(
+            RecyRankNovelHorizontalBinding.inflate(
+                LayoutInflater.from(parent.context), parent, false
+            )
+        )
+    }
+
+    override fun getItemCount(): Int = novels.size
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val novel = novels[position]
+        val b = holder.binding
+        val ctx = b.root.context
+        b.title.text = novel.title ?: ""
+        b.author.text = novel.user?.name ?: ""
+        b.novelLength.text =
+            ctx.getString(R.string.v3_novel_word_count, (novel.text_length ?: 0).toString())
+        Glide.with(ctx).load(GlideUtil.getUrl(novel.image_urls?.medium))
+            .placeholder(R.color.v3_surface_2).into(b.illustImage)
+        // 头像总是 into（不套 ?.let）：user 为 null 时 getUrl(null) 走占位，清掉复用卡的旧头像残影
+        Glide.with(ctx).load(GlideUtil.getUrl(novel.user?.profile_image_urls?.medium))
+            .placeholder(R.color.v3_surface_2).into(b.userHead)
+        b.root.setOnClick { onClickNovel(novel.id) }
+    }
+}

@@ -754,6 +754,19 @@ data class NovelResponse(
     override val nextPageUrl: String? get() = next_url
 }
 
+/**
+ * 推荐小说响应（feeds 版）：比 [NovelResponse] 多首屏的 [ranking_novels]（排行榜预览头，
+ * 只第一页带）。对齐 legacy ListNovel.getRanking_novels()。
+ */
+data class NovelRecommendResponse(
+    val novels: List<Novel> = listOf(),
+    val ranking_novels: List<Novel> = listOf(),
+    val next_url: String? = null
+) : Serializable, KListShow<Novel> {
+    override val displayList: List<Novel> get() = novels
+    override val nextPageUrl: String? get() = next_url
+}
+
 data class NovelText(
     val coverUrl: String? = null,
     val glossaryItems: List<Any>? = null,
