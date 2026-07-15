@@ -51,7 +51,7 @@ import ceui.pixiv.ui.prime.PrimeTagIndexItem;
  */
 public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
 
-    private FragmentPivisionHorizontal pivisionFragment = null;
+    private ceui.pixiv.ui.pivision.PivisionRailFeedFragment pivisionFragment = null;
     private DiscoverViewModel discoverVM = null;
 
     /** Lite 渠道不展示自建后端的两条货架(本月收藏 / 当前最热),和侧边栏门控一致。 */
@@ -269,8 +269,8 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
     @Override
     public void lazyData() {
         FragmentTransaction transaction = getChildFragmentManager().beginTransaction();
-        pivisionFragment = new FragmentPivisionHorizontal();
-        transaction.add(R.id.fragment_pivision, pivisionFragment, "FragmentPivisionHorizontal");
+        pivisionFragment = new ceui.pixiv.ui.pivision.PivisionRailFeedFragment();
+        transaction.add(R.id.fragment_pivision, pivisionFragment, "PivisionRailFeedFragment");
         transaction.commitNowAllowingStateLoss();
 
         if (discoverVM != null) {

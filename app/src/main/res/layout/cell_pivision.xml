@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  特辑(pixivision)卡片 (MD3-Expressive / V3),参考 cell_request_plan 同一套语言。
+  用普通 LinearLayout 而非 MaterialCardView —— 宿主是 QMUI/AppCompat 主题,MaterialCardView 需
+  Material3 主题会直接崩。卡底(圆角填充 + 12% 主题色 hairline)由 Renderer 用
+  V3Palette.settingsCardBg 注入 + clipToOutline 裁封面圆角,与 V3 其它卡片同款。
+
+  卡间距由列表的 LinearItemDecoration(16dp) 统一给,cell 本身不加 margin(同 recy_novel)。
+
+  视觉分层:
+  · 封面大图 + 底部渐变遮罩,标题压图上、分类 tonal 胶囊悬左上;
+  · 内容区:发布日期(次级文字) + 右侧「阅读特辑 ›」CTA。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:elevation="2dp"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:orientation="vertical">
+
+    <!-- ── 封面区 ─────────────────────────────────────────── -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="200dp">
+
+        <ImageView
+            android:id="@+id/cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/light_bg"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+        <View
+            android:id="@+id/cover_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_request_cover_scrim" />
+
+        <!-- 分类胶囊(subcategory_label,底色在代码里注入;没有该字段时 gone) -->
+        <TextView
+            android:id="@+id/category"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|top"
+            android:layout_margin="12dp"
+            android:fontFamily="@font/montserrat_semi_bold"
+            android:letterSpacing="0.02"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="5dp"
+            android:textSize="11.5sp"
+            android:visibility="gone"
+            tools:text="Illustration"
+            tools:visibility="visible" />
+
+        <!-- 标题压在封面底部 -->
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|bottom"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="14dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/montserrat_extra_bold"
+            android:maxLines="2"
+            android:shadowColor="#B3000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="6"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            tools:text="夏天的风、光与影 —— 精选插画特辑" />
+    </FrameLayout>
+
+    <!-- ── 内容区:日期 + CTA ──────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="14dp">
+
+        <TextView
+            android:id="@+id/publish_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/montserrat_regular"
+            android:letterSpacing="0.02"
+            android:maxLines="1"
+            android:textSize="12sp"
+            tools:text="2026-07-15" />
+
+        <TextView
+            android:id="@+id/cta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/montserrat_semi_bold"
+            android:letterSpacing="0.02"
+            android:maxLines="1"
+            android:text="@string/pivision_read_article"
+            android:textSize="12.5sp"
+            tools:ignore="RelativeOverlap" />
+    </LinearLayout>
+</LinearLayout>

@@ -8,6 +8,7 @@ import ceui.lisa.R;
 import ceui.lisa.activities.Shaft;
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding;
 import ceui.lisa.utils.MyOnTabSelectedListener;
+import ceui.pixiv.ui.pivision.PivisionFeedFragment;
 
 public class FragmentPv extends BaseFragment<ViewpagerWithTablayoutBinding> {
 
@@ -23,14 +24,16 @@ public class FragmentPv extends BaseFragment<ViewpagerWithTablayoutBinding> {
                 Shaft.getContext().getString(R.string.type_illust),
                 Shaft.getContext().getString(R.string.type_manga)
         };
-        final ListFragment[] mFragments = new ListFragment[]{
-                FragmentPivision.newInstance("illust"),
-                FragmentPivision.newInstance("manga")
+        // feeds 框架版特辑 tab,替代 legacy FragmentPivision
+        final Fragment[] mFragments = new Fragment[]{
+                PivisionFeedFragment.newInstance(PivisionFeedFragment.TYPE_ILLUST),
+                PivisionFeedFragment.newInstance(PivisionFeedFragment.TYPE_MANGA)
         };
 
         baseBind.toolbar.setNavigationOnClickListener(v -> mActivity.finish());
         baseBind.toolbarTitle.setText(R.string.string_191);
-        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), 0) {
+        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(),
+                FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
             @NonNull
             @Override
             public Fragment getItem(int position) {

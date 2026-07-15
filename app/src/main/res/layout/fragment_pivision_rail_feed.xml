@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  发现页「pixivision 特辑」横向货架的骨架(feeds 框架版,替代 fragment_pivision_horizontal)。
+  头部 = pixivision logo + 「查看更多」;下面直接 include fragment_feed(id 保持 feed_root),
+  列表/空态/错误态/骨架图全归 FeedFragment。
+
+  货架高度写死 article_horizontal_height(= 卡高 160dp):高度全程不变,数据到达前后页面不跳动
+  (和发现页其它货架同款做法)。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/image_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="24dp"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_pixivision_color_logo" />
+
+        <TextView
+            android:id="@+id/see_more"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/image_1"
+            android:layout_alignParentEnd="true"
+            android:layout_marginStart="@dimen/sixteen_dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="2dp"
+            android:gravity="center"
+            android:stateListAnimator="@animator/button_press_alpha"
+            android:text="@string/see_more"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="13sp"
+            app:drawableEndCompat="@drawable/ic_chevron_right_black_24dp"
+            app:drawableTint="?attr/colorPrimary" />
+    </RelativeLayout>
+
+    <!-- 首卡左缘统一由 paddingStart=20dp 控制(和发现页所有货架、标题对齐同一条 20dp 竖线)。 -->
+    <include
+        android:id="@+id/feed_root"
+        layout="@layout/fragment_feed"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/article_horizontal_height"
+        android:layout_marginTop="12dp" />
+</LinearLayout>

@@ -476,6 +476,7 @@
     <string name="string_274">好P友的插畫/漫畫作品</string>
     <string name="nice_friend_works">好P友作品</string>
     <string name="feed_count_range">%1$d–%2$d,共 %3$d</string>
+    <string name="pivision_read_article">閱讀特輯 ›</string>
     <string name="string_275">好P友的小說作品</string>
     <string name="string_276">/storage/emulated/0/Shaft/SingleNovels</string>
     <string name="string_277">匯出 TXT（資料夾中可查看）</string>

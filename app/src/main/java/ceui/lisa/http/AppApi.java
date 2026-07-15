@@ -3,7 +3,6 @@ package ceui.lisa.http;
 import java.util.HashMap;
 import java.util.List;
 
-import ceui.lisa.model.ListArticle;
 import ceui.lisa.model.ListBookmarkTag;
 import ceui.lisa.model.ListComment;
 import ceui.lisa.model.ListIllust;
@@ -199,10 +198,6 @@ public interface AppApi {
 
     @GET("v2/illust/follow")
     Observable<ListIllust> getFollowUserIllust(@Query("restrict") String restrict);
-
-
-    @GET("v1/spotlight/articles?filter=for_android")
-    Observable<ListArticle> getArticles(@Query("category") String category);
 
 
     // 统一走 v2 + filter=for_ios:相比旧 v1/for_android 多带 is_accept_request / badge /
@@ -528,10 +523,6 @@ public interface AppApi {
 
     @GET
     Observable<ListNovelOfSeries> getNextSeriesNovel(@Url String next_url);
-
-    @GET
-    Observable<ListArticle> getNextArticles(@Url String next_url);
-
 
     // 添加小说书签 相同id只能有1个 不同页数会直接覆盖
     @FormUrlEncoded
