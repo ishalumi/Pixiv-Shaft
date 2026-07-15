@@ -115,6 +115,10 @@ interface API {
     @GET("/v1/walkthrough/illusts")
     suspend fun getWalkthroughWorks(): IllustResponse
 
+    /** 好P友(mypixiv,互关好友)的插画/漫画作品流。翻页走 nextUrl,与其它 feeds 一致。 */
+    @GET("/v2/illust/mypixiv")
+    suspend fun getNiceFriendIllust(): IllustResponse
+
     @GET("/v1/{type}/recommended?include_ranking_illusts=false&include_privacy_policy=true&filter=for_ios")
     suspend fun getHomeData(
         @Path("type") type: String,

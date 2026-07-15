@@ -112,6 +112,7 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         baseBind.catWalk.setOnClickListener(v -> openFragment("画廊"));
         baseBind.catFollowNovel.setOnClickListener(v -> openFragment("关注者的小说"));
         baseBind.catDiscovery.setOnClickListener(v -> openFragment("发现"));
+        baseBind.catNiceFriend.setOnClickListener(v -> openFragment("好P友作品"));
 
         // Web 首页:仅 github 渠道(占位 Coming soon),Lite 整个 chip GONE。
         if (BuildConfig.IS_LITE) {
@@ -134,6 +135,7 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         styleCatChip(baseBind.catFollowNovel, palette, R.drawable.ic_baseline_bookmark_24);
         styleCatChip(baseBind.catDiscovery, palette, R.drawable.ic_baseline_explore_24);
         styleCatChip(baseBind.catWeb, palette, R.drawable.ic_setcat_globe);
+        styleCatChip(baseBind.catNiceFriend, palette, R.drawable.ic_baseline_how_to_reg_24);
 
         discoverVM = new ViewModelProvider(this).get(DiscoverViewModel.class);
         discoverVM.getPrimeTags().observe(getViewLifecycleOwner(), this::bindTagRail);

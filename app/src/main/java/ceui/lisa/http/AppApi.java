@@ -503,9 +503,6 @@ public interface AppApi {
     @GET("v1/user/profile/presets")
     Observable<Preset> getPresets();
 
-    @GET("v2/illust/mypixiv")
-    Observable<ListIllust> getNiceFriendIllust();
-
     @GET("v1/novel/mypixiv")
     Observable<ListNovel> getNiceFriendNovel();
 

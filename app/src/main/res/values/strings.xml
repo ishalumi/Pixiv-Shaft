@@ -494,6 +494,7 @@
     <string name="string_272">Twitter ID：</string>
     <string name="string_273">自我介绍：</string>
     <string name="string_274">好P友的插画/漫画作品</string>
+    <string name="nice_friend_works">好P友作品</string>
     <string name="string_275">好P友的小说作品</string>
     <string name="string_276" translatable="false">/storage/emulated/0/Shaft/SingleNovels</string>
     <string name="string_277">导出TXT（文件夹中可查看）</string>

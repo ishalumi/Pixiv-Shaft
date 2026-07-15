@@ -188,6 +188,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             Params.TYPE_PUBLIC, true);
                 case "好P友":
                     return new FragmentNiceFriend();
+                case "好P友作品":
+                    // feeds 框架版好P友作品流，替代 legacy FragmentNiceFriendIllust
+                    return new ceui.pixiv.ui.home.NiceFriendIllustFeedFragment();
                 case "搜索":
                     return new FragmentSearch();
                 case "详细信息":
