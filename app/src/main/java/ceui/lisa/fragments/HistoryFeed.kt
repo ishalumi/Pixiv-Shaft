@@ -69,7 +69,22 @@ class HistoryFeedSource(
         SessionManager.loggedInUid > 0L &&
             Shaft.sSettings.isCloudHistorySync && Shaft.sSettings.isCloudHistoryConsentShown
 
-    override suspend fun load(cursor: String?): FeedPage<String> = withContext(Dispatchers.IO) {
+    override suspend fun load(cursor: String?): FeedPage<String> {
+        val page = loadPage(cursor)
+        // ObjectPool.store 是普通 map + setValue(见 ObjectPool),后台线程写会与主线程 get/update
+        // 竞争撞 ConcurrentModificationException。load 由 FeedViewModel 的 viewModelScope(Main)调起,
+        // 这里回主线程再喂池,详情页 ObjectPool.get 才拿得到最新 illust。
+        if (historyType == 0) {
+            withContext(Dispatchers.Main.immediate) {
+                page.items.forEach { item ->
+                    (item as? HistoryIllustFeedItem)?.let { ObjectPool.updateIllust(it.illust) }
+                }
+            }
+        }
+        return page
+    }
+
+    private suspend fun loadPage(cursor: String?): FeedPage<String> = withContext(Dispatchers.IO) {
         val query = searchVm.query.value?.trim().orEmpty().ifEmpty { null }
         if (query != null) {
             // 搜索：单页、无翻页（nextCursor = null）
@@ -128,7 +143,6 @@ class HistoryFeedSource(
         if (historyType == 0) {
             val illust = Shaft.sGson.fromJson(entity.illustJson, IllustsBean::class.java)
                 ?: return@mapNotNull null
-            ObjectPool.updateIllust(illust)
             HistoryIllustFeedItem(entity, illust)
         } else {
             val novel = Shaft.sGson.fromJson(entity.illustJson, NovelBean::class.java)
