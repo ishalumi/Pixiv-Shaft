@@ -14,7 +14,6 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import ceui.lisa.R
 import ceui.lisa.database.AppDatabase
 import ceui.lisa.databinding.ActivityUserV3Binding
-import ceui.lisa.fragments.FragmentUserManga
 import ceui.lisa.helper.UserIllustJumpHelper
 import ceui.lisa.http.NullCtrl
 import ceui.lisa.http.Retro
@@ -291,7 +290,7 @@ class UserActivityV3 : BaseActivity<ActivityUserV3Binding>() {
             override fun createFragment(position: Int): Fragment = when (tabKinds[position]) {
                 // 插画 tab 用包装 fragment:标签筛选条在页面内部,跟随 ViewPager 横滑
                 TabKind.ILLUST -> UserV3IllustTabFragment.newInstance(userId)
-                TabKind.MANGA -> FragmentUserManga.newInstance(userId, false)
+                TabKind.MANGA -> ceui.pixiv.ui.user.UserMangaFeedFragment.newInstance(userId, false)
                 TabKind.NOVEL -> ceui.lisa.fragments.FragmentUserNovel.newInstance(userId, false)
                 TabKind.COLLECTION -> UserV3CollectionFragment.newInstance(userId)
                 TabKind.REQUEST -> ceui.pixiv.ui.user.RequestPlanFeedFragment.newInstance(userId)

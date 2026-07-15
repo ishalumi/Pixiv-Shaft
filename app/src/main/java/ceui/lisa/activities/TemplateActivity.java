@@ -60,7 +60,6 @@ import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
 import ceui.lisa.fragments.FragmentUserIllustByTag;
 import ceui.lisa.fragments.FragmentUserInfo;
-import ceui.lisa.fragments.FragmentUserManga;
 import ceui.lisa.fragments.FragmentUserNovel;
 import ceui.lisa.fragments.FragmentViewPager;
 import ceui.lisa.fragments.FragmentWebView;
@@ -217,7 +216,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             (ceui.pixiv.ui.user.RequestPlan) intent.getSerializableExtra(Params.CONTENT),
                             (ceui.loxia.User) intent.getSerializableExtra(Params.USER_MODEL));
                 case "漫画作品":
-                    return FragmentUserManga.newInstance(intent.getIntExtra(Params.USER_ID, 0),
+                    // feeds 框架版,替代 legacy FragmentUserManga
+                    return ceui.pixiv.ui.user.UserMangaFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0),
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),
                             intent.getStringExtra(Params.TARGET_DATE));
                 case "插画/漫画收藏": {

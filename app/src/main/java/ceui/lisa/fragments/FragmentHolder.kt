@@ -54,7 +54,7 @@ class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
                 titles = arrayOf(getString(R.string.type_illust), getString(R.string.type_manga), getString(R.string.userTab_other))
                 items = arrayOf<Fragment>(
                         UserIllustFeedFragment.newInstance(data.userId, false),
-                        FragmentUserManga.newInstance(data.userId, false),
+                        ceui.pixiv.ui.user.UserMangaFeedFragment.newInstance(data.userId, false),
                         FragmentUserRight()
                 )
             }

@@ -39,6 +39,9 @@ import kotlinx.coroutines.launch
  * 「某人创作的插画」列表页(feeds 框架版,替代 legacy FragmentUserIllust + UserIllustRepo)。
  * 卡片用基类 [IllustFeedFragment] 的标准瀑布流插画卡(点赞 / 长按菜单 / 详情跟滚都自带)。
  *
+ * 同时是漫画页 [UserMangaFeedFragment] 的基类:pixiv 把漫画当插画的一个 type,整页只有
+ * 接口 type / 标题 / 精华 dataType / 跳转 Kind / 有无「下载全部」几处不同,见下面几个 open seam。
+ *
  * 与 legacy 的行为对齐点:
  * - 两种形态:内嵌(UserV3IllustTabFragment,showToolbar=false)/ 独立(TemplateActivity「插画作品」,
  *   showToolbar=true 带 toolbar 菜单);
@@ -48,12 +51,38 @@ import kotlinx.coroutines.launch
  * - toolbar 菜单:收藏到精华(action_bookmark)、跳转(action_jump)、下载全部插画(action_download_all,
  *   拿到总数 >0 才显)。
  */
-class UserIllustFeedFragment : IllustFeedFragment() {
+open class UserIllustFeedFragment : IllustFeedFragment() {
 
-    private val userId: Int by lazy(LazyThreadSafetyMode.NONE) {
+    // ── 子类可换的几处「作品类型」差异（漫画见 UserMangaFeedFragment）──────────────
+    // pixiv 把漫画当插画的一个 type：同一个 /v1/user/illusts 接口、同一套卡片和菜单，
+    // 只有下面这几项不同，所以是覆写几个 seam 而不是复制一整页。
+    // 全部走 get()/lazy 语义：feedViewModel 是 lazy 委托，首次访问时子类已构造完（别改成
+    // eager val，那会在基类 init 阶段读到子类还没初始化的字段）。
+
+    /** 接口 type 参数：[Params.TYPE_ILLUST] / [Params.TYPE_MANGA]。 */
+    protected open val workType: String get() = Params.TYPE_ILLUST
+
+    /** 独立形态的 toolbar 标题。 */
+    protected open val titleRes: Int get() = R.string.string_246
+
+    /** legacy 精华功能的 dataType 路由字面量（按它分支重建页面），不是展示文案，别本地化。 */
+    protected open val featureDataType: String get() = "插画作品"
+
+    /** 「跳转」对话框按哪种作品数分页。 */
+    protected open val jumpKind: UserIllustJumpHelper.Kind get() = UserIllustJumpHelper.Kind.ILLUST
+
+    /** 是否提供「下载全部」菜单（数量口径是 total_illusts，漫画侧对齐 legacy 不提供）。 */
+    protected open val supportsDownloadAll: Boolean get() = true
+
+    /** 「跳转」选定 offset/日期后用来 replace 自己的新实例。 */
+    protected open fun newInstanceForJump(offset: Int, pickedDate: String?): androidx.fragment.app.Fragment {
+        return newInstance(userId, showToolbar, offset, pickedDate)
+    }
+
+    protected val userId: Int by lazy(LazyThreadSafetyMode.NONE) {
         requireArguments().getInt(Params.USER_ID)
     }
-    private val showToolbar: Boolean by lazy(LazyThreadSafetyMode.NONE) {
+    protected val showToolbar: Boolean by lazy(LazyThreadSafetyMode.NONE) {
         requireArguments().getBoolean(Params.FLAG)
     }
     private val initialOffset: Int by lazy(LazyThreadSafetyMode.NONE) {
@@ -73,11 +102,12 @@ class UserIllustFeedFragment : IllustFeedFragment() {
     override val applyBottomSafeInset: Boolean = true
 
     override val feedViewModel by feedViewModels(autoLoad = false) {
-        // 零捕获约定:userId / offset 先取成局部值,不把 Fragment 钉进长命 VM
+        // 零捕获约定:userId / offset / type 先取成局部值,不把 Fragment 钉进长命 VM
         val uid = userId.toLong()
         val offset = initialOffset
+        val type = workType
         PixivFeedSource({
-            Client.appApi.getUserCreatedIllusts(uid, Params.TYPE_ILLUST, offset.takeIf { it > 0 })
+            Client.appApi.getUserCreatedIllusts(uid, type, offset.takeIf { it > 0 })
         }) { resp, _ -> mapUserIllustPage(resp.displayList) }
     }
 
@@ -174,17 +204,19 @@ class UserIllustFeedFragment : IllustFeedFragment() {
     private fun setupToolbar(view: View) {
         val binding = FragmentToolbarFeedBinding.bind(view)
         setUpToolbar(binding, feedBinding.feedListView)
-        binding.toolbarTitle.setText(R.string.string_246) // 插画作品
+        binding.toolbarTitle.setText(titleRes)
         binding.toolbar.inflateMenu(R.menu.local_save)
-        // 「下载全部」单独挂 user_illust_actions,不并进 local_save(免得共用 local_save 的别的页多出这项)
-        binding.toolbar.inflateMenu(R.menu.user_illust_actions)
+        if (supportsDownloadAll) {
+            // 「下载全部」单独挂 user_illust_actions,不并进 local_save(免得共用 local_save 的别的页多出这项)
+            binding.toolbar.inflateMenu(R.menu.user_illust_actions)
 
-        val downloadAllItem: MenuItem? = binding.toolbar.menu.findItem(R.id.action_download_all)
-        // 数量没拿到前先藏,免得点了报「加载中」;拉到 >0 再显
-        downloadAllItem?.isVisible = false
-        fetchTotalIllusts { total ->
-            totalIllusts = total
-            if (total > 0) downloadAllItem?.isVisible = true
+            val downloadAllItem: MenuItem? = binding.toolbar.menu.findItem(R.id.action_download_all)
+            // 数量没拿到前先藏,免得点了报「加载中」;拉到 >0 再显
+            downloadAllItem?.isVisible = false
+            fetchTotalIllusts { total ->
+                totalIllusts = total
+                if (total > 0) downloadAllItem?.isVisible = true
+            }
         }
 
         binding.toolbar.setOnMenuItemClickListener { item ->
@@ -210,9 +242,9 @@ class UserIllustFeedFragment : IllustFeedFragment() {
     /** 收藏到精华(对齐 legacy:uuid 固定 = 同页重复收藏只留一份;dataType 是路由字面量,别本地化)。 */
     private fun saveToFeature() {
         val entity = FeatureEntity().also {
-            it.uuid = "$userId$DATA_TYPE_FEATURE"
+            it.uuid = "$userId$featureDataType"
             it.isShowToolbar = showToolbar
-            it.dataType = DATA_TYPE_FEATURE
+            it.dataType = featureDataType
             it.illustJson = Common.cutToJson(currentIllustItems().map { item -> item.bean })
             it.userID = userId
             it.dateTime = System.currentTimeMillis()
@@ -223,11 +255,11 @@ class UserIllustFeedFragment : IllustFeedFragment() {
 
     private fun showJumpDialog() {
         UserIllustJumpHelper.showJumpDialog(
-            requireActivity(), userId, UserIllustJumpHelper.Kind.ILLUST,
+            requireActivity(), userId, jumpKind,
         ) { offset, pickedDate ->
             if (isAdded && !isStateSaved) {
                 parentFragmentManager.beginTransaction()
-                    .replace(id, newInstance(userId, showToolbar, offset, pickedDate))
+                    .replace(id, newInstanceForJump(offset, pickedDate))
                     .commit()
             }
         }
@@ -256,9 +288,6 @@ class UserIllustFeedFragment : IllustFeedFragment() {
     }
 
     companion object {
-        /** legacy 精华功能的 dataType 路由字面量(按它分支重建页面),不是展示文案,别本地化。 */
-        private const val DATA_TYPE_FEATURE = "插画作品"
-
         @JvmStatic
         @JvmOverloads
         fun newInstance(
