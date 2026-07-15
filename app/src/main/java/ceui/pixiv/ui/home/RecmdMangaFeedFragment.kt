@@ -9,7 +9,7 @@ import ceui.pixiv.ui.common.viewBinding
 
 /**
  * 「推荐漫画」页（TemplateActivity 宿主）：推荐 feed 的漫画变体 + 自带 toolbar
- * （对齐 legacy FragmentRankIllust 漫画分支 showToolbar()=true）。
+ * （对齐 legacy FragmentRecmdIllust("漫画")：showToolbar() 仅漫画分支返回 true）。
  */
 class RecmdMangaFeedFragment : RecmdIllustFeedFragment(R.layout.fragment_toolbar_feed) {
 

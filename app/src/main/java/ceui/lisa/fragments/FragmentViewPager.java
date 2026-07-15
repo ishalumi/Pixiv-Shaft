@@ -36,6 +36,8 @@ import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.MyOnTabSelectedListener;
 import ceui.lisa.utils.Params;
+import ceui.pixiv.feeds.FeedFragment;
+import ceui.pixiv.ui.rank.RankIllustFeedFragment;
 
 import static android.app.Activity.RESULT_OK;
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
@@ -46,7 +48,11 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
     private static final String MUTE_RECORDS_FILE_NAME = "Shaft-MuteRecords.json";
 
     private String title;
-    private ListFragment[] mFragments = null;
+    /**
+     * 两个分支的列表体系已经不同：屏蔽记录仍是 legacy {@link ListFragment}，
+     * R18 榜是 feeds 的 {@link FeedFragment}，故按共同基类存，用处按类型分派。
+     */
+    private Fragment[] mFragments = null;
 
     public static FragmentViewPager newInstance(String title) {
         Bundle args = new Bundle();
@@ -75,7 +81,7 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
                     Shaft.getContext().getString(R.string.string_381),
                     Shaft.getContext().getString(R.string.string_354),
             };
-            mFragments = new ListFragment[]{
+            mFragments = new Fragment[]{
                     new FragmentMutedTags(),
                     new FragmentMutedUser(),
                     new FragmentMutedObjects(),
@@ -134,16 +140,26 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
                     Shaft.getContext().getString(R.string.r_eighteen_female_rank),
                     Shaft.getContext().getString(R.string.r_eighteen_ai_rank)
             };
-            mFragments = new ListFragment[]{
-//                    FragmentRankIllust.newInstance(7, "", false),
-                    FragmentRankIllust.newInstance(8, "", false),
-                    FragmentRankIllust.newInstance(9, "", false),
-                    FragmentRankIllust.newInstance(10, "", false),
-                    FragmentRankIllust.newInstance(11, "", false),
-                    FragmentRankIllust.newInstance(12, "", false)
+            // mode 写字面量而不借 RankIllustFeedFragment.ILLUST_MODES 的下标：那个数组的顺序
+            // 是 RankActivity 的 tab 顺序，借下标等于把这页绑在它的排版上（改序即静默换榜）。
+            // date 传 null = 当前榜单（走首屏磁盘缓存），与 legacy 传空串等价。
+            mFragments = new Fragment[]{
+                    RankIllustFeedFragment.newInstance("day_r18", null),
+                    RankIllustFeedFragment.newInstance("week_r18", null),
+                    RankIllustFeedFragment.newInstance("day_male_r18", null),
+                    RankIllustFeedFragment.newInstance("day_female_r18", null),
+                    RankIllustFeedFragment.newInstance("day_r18_ai", null),
             };
             baseBind.toolbarTitle.setText(R.string.string_r);
-            baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager()) {
+            // feeds 版靠 onResume 懒加载，必须 RESUME_ONLY_CURRENT：默认那档下 ViewPager 预创建的
+            // 相邻 tab 也会到 RESUMED，没打开过的榜会跟着发请求（offscreenPageLimit=1，所以是开页
+            // 即多发一个、往后每划一格再多一个）。legacy FragmentRankIllust 走 BaseLazyFragment
+            // .setUserVisibleHint 懒加载，靠的正是这里原本的默认档，两套机制别混用。
+            // 注意「懒」只对非当前 tab 成立：宿主 MainActivity 的 pager 设了
+            // offscreenPageLimit(length-1)，本页在冷启就 RESUMED，首个榜(day_r18)照发请求——
+            // 这点 legacy 也一样，不是本次改动引入的。
+            baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(),
+                    FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
                 @NonNull
                 @Override
                 public Fragment getItem(int position) {
@@ -171,13 +187,23 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
 
     public void forceRefresh() {
         try {
-            mFragments[baseBind.viewPager.getCurrentItem()].forceRefresh();
+            Fragment current = mFragments[baseBind.viewPager.getCurrentItem()];
+            if (current instanceof ListFragment) {
+                ((ListFragment<?, ?>) current).forceRefresh();
+            } else if (current instanceof FeedFragment) {
+                ((FeedFragment) current).forceRefresh();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void setMuteMenuListener(ListFragment delegate) {
+    /**
+     * 仅屏蔽记录分支用：那三个 tab（FragmentMutedTags / MutedUser / MutedObjects）各自
+     * implements OnMenuItemClickListener——是子类实现的，基类 ListFragment 并没有，所以这里
+     * 只能运行时转型。R18 分支的 feeds fragment 不走这条路（它没有 toolbar 菜单）。
+     */
+    private void setMuteMenuListener(Fragment delegate) {
         baseBind.toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_export_mute) {
                 exportMuteRecords();

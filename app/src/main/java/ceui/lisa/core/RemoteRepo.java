@@ -40,7 +40,7 @@ public abstract class RemoteRepo<Response extends ListShow<?>> extends BaseRepo 
      * <p>
      * The mRemoteRepo in {@link NetListFragment} of homepage is {@link ceui.lisa.model.RecmdIllust}
      * <p>
-     * While mRemoteRepo in {@link NetListFragment} of rank page is {@link ceui.lisa.repo.RankIllustRepo}
+     * While mRemoteRepo in {@link NetListFragment} of rank page is {@link ceui.lisa.repo.RankNovelRepo}
      * */
     public abstract Observable<? extends Response> initApi();
 
