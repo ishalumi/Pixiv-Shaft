@@ -1,5 +1,6 @@
 package ceui.pixiv.feeds
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -15,9 +16,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentFeedBinding
+import ceui.lisa.utils.V3Palette
 import kotlinx.coroutines.launch
 
 /**
@@ -60,6 +63,9 @@ abstract class FeedFragment(
     protected var feedAdapter: FeedAdapter? = null
         private set
 
+    /** 首屏是否用瀑布流骨架图（否则 fallback 转圈圈）。在 onViewCreated 按布局定，render 只读它。 */
+    private var skeletonEnabled: Boolean = false
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val feedRoot = requireNotNull(view.findViewById<View>(R.id.feed_root)) {
@@ -98,13 +104,29 @@ abstract class FeedFragment(
         )
         feedAdapter = adapter
 
+        val layoutManager = onCreateLayoutManager()
+        // 瀑布流首屏用骨架图：列数直接读 live 的 StaggeredGridLayoutManager（跟随用户「每行几列」设置）。
+        // 其它布局 skeletonEnabled=false → render 里走转圈圈。
+        skeletonEnabled = useSkeletonFor(layoutManager)
+        if (skeletonEnabled && layoutManager is StaggeredGridLayoutManager) {
+            binding.feedSkeleton.spanCount = layoutManager.spanCount
+        }
         binding.feedListView.apply {
-            layoutManager = onCreateLayoutManager()
+            this.layoutManager = layoutManager
             this.adapter = adapter
             onListReady(this)
         }
         binding.feedRefreshLayout.setOnRefreshListener { feedViewModel.refresh() }
         binding.feedStateText.setOnClickListener { feedViewModel.refresh() }
+
+        // 空态/错误态的箱子插画：mipmap 是灰色描边，这里用主题色的派生色 tint。
+        // textAccent 是 readability-adjusted 的主题色（深色→提亮、浅色→压深，V3Palette 按当前
+        // uiMode 分支），比 legacy empty_layout 的裸 ?attr/colorPrimary 柔和且日夜双模都可读；
+        // 再压 60% alpha（SRC_IN）让它像插画而非实心色块。切主题/日夜会重建 Activity → 这里重算。
+        val emptyTint = V3Palette.from(requireContext()).let { p ->
+            V3Palette.withAlpha(p.textAccent, 0.6f)
+        }
+        binding.feedEmptyImage.imageTintList = ColorStateList.valueOf(emptyTint)
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -136,6 +158,13 @@ abstract class FeedFragment(
 
     /** 列表就绪回调：加 ItemDecoration、共享 RecycledViewPool 等。 */
     protected open fun onListReady(listView: RecyclerView) {}
+
+    /**
+     * 首屏加载态是否用骨架图。默认：瀑布流（[StaggeredGridLayoutManager]）用，其它布局不用
+     * → fallback 转圈圈（竖向普通列表的骨架图暂不做）。子类可覆写强开/强关。
+     */
+    protected open fun useSkeletonFor(layoutManager: RecyclerView.LayoutManager): Boolean =
+        layoutManager is StaggeredGridLayoutManager
 
     /** 屏幕上有内容时刷新失败的提示，默认 Toast；子类可覆盖。 */
     protected open fun onRefreshFailedWithContent(throwable: Throwable) {
@@ -189,7 +218,12 @@ abstract class FeedFragment(
         val binding = feedBinding
         binding.feedRefreshLayout.isRefreshing =
             state.refresh is LoadState.Loading && state.hasLoadedOnce
-        binding.feedLoading.isVisible = state.showFullscreenLoading
+
+        // 首屏加载：瀑布流 → 骨架图，其它 → 转圈圈。骨架 View 靠自身 isShown 自管 shimmer 动画。
+        val showSkeleton = skeletonEnabled && state.showFullscreenLoading
+        binding.feedSkeleton.isVisible = showSkeleton
+        val showSpinner = state.showFullscreenLoading && !showSkeleton
+        binding.feedLoading.isVisible = showSpinner
 
         val stateText = when {
             state.showFullscreenError -> getString(R.string.list_load_failed_tap_retry)
@@ -198,7 +232,18 @@ abstract class FeedFragment(
         }
         binding.feedStateText.isVisible = stateText != null
         binding.feedStateText.text = stateText
-        binding.feedStateContainer.isVisible = state.showFullscreenLoading || stateText != null
+        // 插画跟着文案走：空态=箱子，错误态=路障锥(同款可爱 outline 风格),加载态(只有 spinner)隐藏。
+        // imageTintList(onViewCreated 设的派生色)在 setImageResource 后保留,两张图共用同一 tint。
+        val stateImage = when {
+            state.showFullscreenError -> R.drawable.ic_feed_error
+            state.showEmptyState -> R.mipmap.empty_img
+            else -> 0
+        }
+        if (stateImage != 0) {
+            binding.feedEmptyImage.setImageResource(stateImage)
+        }
+        binding.feedEmptyImage.isVisible = stateImage != 0
+        binding.feedStateContainer.isVisible = showSpinner || stateText != null
 
         // 有内容兜底时的刷新失败只提示一次，不打断浏览；已消费标记在 VM（旋转重建不重复提示）
         val refreshError = state.refresh as? LoadState.Error

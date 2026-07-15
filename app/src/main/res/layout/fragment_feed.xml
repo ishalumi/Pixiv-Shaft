@@ -17,6 +17,14 @@
             android:overScrollMode="never" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
+    <!-- 瀑布流首屏骨架图。纯表现层：只按 FeedUiState.showFullscreenLoading 显隐(见 FeedFragment.render)，
+         列数在 onViewCreated 从 StaggeredGridLayoutManager 灌入。普通列表布局不启用它(转圈圈兜底)。 -->
+    <ceui.pixiv.feeds.FeedStaggeredSkeletonView
+        android:id="@+id/feed_skeleton"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/feed_state_container"
         android:layout_width="wrap_content"
@@ -30,6 +38,19 @@
             android:id="@+id/feed_loading"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <!-- 空态/错误态插画。运行时按状态换图(空态=empty_img 箱子 / 错误=ic_feed_error 路障锥,
+             见 FeedFragment.render);两张都是灰色描边,统一用主题色派生色 SRC_IN tint(日夜双模,
+             见 FeedFragment.onViewCreated)。src 只是布局预览的默认图。只在有 state 文案时显示,加载态隐藏。 -->
+        <ImageView
+            android:id="@+id/feed_empty_image"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginBottom="8dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@mipmap/empty_img"
             android:visibility="gone" />
 
         <TextView

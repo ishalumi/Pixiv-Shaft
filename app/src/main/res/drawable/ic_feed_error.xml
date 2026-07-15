@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  列表错误态插画:一个交通路障锥(「出问题了/被挡住」的可爱隐喻),配 empty_img 箱子的可爱手绘感——
+  同为细描边 outline、圆头圆角、无实心块、日常小物件,运行时同样被 FeedFragment 用主题色派生色
+  SRC_IN tint(灰色 #9E9E9E 只是未 tint 时的占位/预览色)。viewport 取 120,与 ImageView 的
+  120dp 1:1,故 strokeWidth 数值≈显示 dp。曾试过警示三角(太尖)、难过云脸(太丑),都被打回,改成这个。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- 锥体:圆头尖顶 + 两侧斜边落到底座 -->
+    <path
+        android:pathData="M56,38 Q60,35 64,38 L75,82 L45,82 Z"
+        android:strokeColor="#9E9E9E"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 底座:圆角矩形托盘 -->
+    <path
+        android:pathData="M34,82 L86,82 Q90,82 90,86 L90,88 Q90,92 86,92 L34,92 Q30,92 30,88 L30,86 Q30,82 34,82 Z"
+        android:strokeColor="#9E9E9E"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 上反光条 -->
+    <path
+        android:pathData="M51,56 L69,56"
+        android:strokeColor="#9E9E9E"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+
+    <!-- 下反光条 -->
+    <path
+        android:pathData="M47,70 L73,70"
+        android:strokeColor="#9E9E9E"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>
