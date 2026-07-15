@@ -213,6 +213,12 @@ interface API {
     @GET("/v1/user/recommended?filter=for_ios")
     suspend fun recommendedUsers(): UserPreviewResponse
 
+    /** 相关用户（某画师的相关画师推荐，对齐 legacy AppApi.getRelatedUsers）。 */
+    @GET("/v1/user/related?filter=for_android")
+    suspend fun getRelatedUsers(
+        @Query("seed_user_id") seed_user_id: Long,
+    ): UserPreviewResponse
+
     // /v1/illust/ranking?mode=day_manga&filter=for_ios
     @GET("/v1/illust/ranking?filter=for_ios")
     suspend fun getRankingIllusts(

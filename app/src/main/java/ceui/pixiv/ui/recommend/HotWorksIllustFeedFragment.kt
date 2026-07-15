@@ -33,6 +33,10 @@ class HotWorksIllustFeedFragment : IllustFeedFragment() {
         HotWorksIllustFeedSource(source, type, window)
     }
 
+    // shaft-api-v2 的 next_url 是 shaft 绝对 URL，不是 app-api illust nextUrl；别漏进详情页 pager
+    // （getNextIllust 拿它当 @Url 请求会拿到 TrendingWorksResponse 形状，解析成空 IllustResponse）。
+    override val detailContinuationCursor: String? get() = null
+
     companion object {
         /** 服务端 enum，不是展示文案，别本地化。 */
         const val TYPE_ILLUST = "illust"

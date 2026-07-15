@@ -50,15 +50,15 @@ import ceui.lisa.fragments.FragmentNovelSeries;
 import ceui.lisa.fragments.FragmentPopularNovel;
 import ceui.lisa.fragments.FragmentPv;
 import ceui.lisa.fragments.FragmentRecmdUser;
-import ceui.lisa.fragments.FragmentRelatedIllust;
-import ceui.lisa.fragments.FragmentRelatedUser;
+import ceui.pixiv.ui.detail.RelatedIllustFeedFragment;
+import ceui.pixiv.ui.user.RelatedUserFeedFragment;
 import ceui.lisa.fragments.FragmentSAF;
 import ceui.lisa.fragments.FragmentSB;
 import ceui.lisa.fragments.FragmentSearch;
 import ceui.lisa.fragments.FragmentSearchUser;
 import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
-import ceui.lisa.fragments.FragmentUserIllustByTag;
+import ceui.pixiv.ui.user.UserIllustByTagFeedFragment;
 import ceui.lisa.fragments.FragmentUserInfo;
 import ceui.lisa.fragments.FragmentViewPager;
 import ceui.lisa.fragments.FragmentWebView;
@@ -109,7 +109,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "相关作品": {
                     int id = intent.getIntExtra(Params.ILLUST_ID, 0);
                     String title = intent.getStringExtra(Params.ILLUST_TITLE);
-                    return FragmentRelatedIllust.newInstance(id, title);
+                    return RelatedIllustFeedFragment.newInstance(id, title);
                 }
                 case "浏览记录":
                     return new FragmentHistoryTabs();
@@ -208,7 +208,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             true, intent.getIntExtra(Params.INITIAL_OFFSET, 0),
                             intent.getStringExtra(Params.TARGET_DATE));
                 case "插画标签作品": // issue #569: 按 Tag 筛选画师插画
-                    return FragmentUserIllustByTag.newInstance(intent.getIntExtra(Params.USER_ID, 0),
+                    return UserIllustByTagFeedFragment.newInstance(intent.getIntExtra(Params.USER_ID, 0),
                             intent.getStringExtra(Params.KEY_WORD));
                 case "约稿方案详情":
                     return ceui.pixiv.ui.user.RequestPlanDetailFragment.newInstance(
@@ -413,7 +413,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             intent.getIntExtra(FlagDescFragment.FlagObjectTypeKey, 0)
                     );
                 case "相关用户":
-                    return FragmentRelatedUser.newInstance(intent.getIntExtra(Params.USER_ID, 0));
+                    return RelatedUserFeedFragment.newInstance(intent.getIntExtra(Params.USER_ID, 0));
                 case "Markdown":
                     String url = intent.getStringExtra(Params.URL);
                     return FragmentMarkdown.newInstance(url);
@@ -431,7 +431,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "画师均分榜":
                     return ceui.pixiv.ui.recommend.FragmentArtistRank.newInstance("avg");
                 case "浏览量榜":
-                    return new ceui.pixiv.ui.recommend.FragmentViewRank();
+                    return ceui.pixiv.ui.recommend.ViewRankFeedFragment.newInstance();
                 case "操作记录":
                     return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 case "批量下载Debug":

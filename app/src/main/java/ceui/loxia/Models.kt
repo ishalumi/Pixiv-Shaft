@@ -632,7 +632,7 @@ data class WebResponse<T> (
 ) : Serializable
 
 // issue #569: 网页版「按 Tag 筛选画师作品」接口 /ajax/user/{id}/illusts/tag 的响应体。
-// works 里是精简 work 对象(方图 url + 字符串 tags + 宽高),由 UserIllustTagRepo 映射成 IllustsBean。
+// works 里是精简 work 对象(方图 url + 字符串 tags + 宽高),由 UserIllustByTagFeedSource.toIllustsBean 映射成 IllustsBean。
 data class UserTagIllustBody(
     val works: List<UserTagIllust>? = null,
     val total: Int = 0,
