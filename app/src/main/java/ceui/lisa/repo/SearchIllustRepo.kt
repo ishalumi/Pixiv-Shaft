@@ -47,8 +47,8 @@ class SearchIllustRepo @JvmOverloads constructor(
      */
     private var durationBucket: String? = null,
     // 作品类别（仅 illust/manga）—— content_type query 参数；null = 不传(默认档等价)。
-    // 放最尾,@JvmOverloads 生成的 N-1 arg overload 自动去掉它,既有 Java caller
-    // [ceui.lisa.fragments.FragmentSearchIllust.repository] 的 positional 调用不受影响。
+    // 放最尾靠 @JvmOverloads 的默认值兜底 positional 构造：feeds 版 [ceui.pixiv.ui.search.SearchIllustFeedSource]
+    // 用 SearchIllustRepo(null×8) 构造后靠 update(searchModel) 填参，也依赖这些默认值。
     private var contentType: String? = null,
 ) : RemoteRepo<ListIllust>() {
 

@@ -572,6 +572,20 @@ class IllustFeedItem(
         }
 
         /**
+         * 不做任何内容过滤、直接把已过滤好的 bean 建成条目（bean→loxia Illust 一次转换）。
+         * 给「上游已经用 legacy Mapper/FilterMapper 过滤过」的场景用（搜索页 [ceui.pixiv.ui.search]）——
+         * 那里的搜索专属过滤（R18 三态 / 仅看 AI）feeds 侧不复刻，绝不能再走 [of]/[fromBean] 的
+         * passesContentFilters（它在「仅看 AI」时会把 AI 作品误删，也会重复跑一遍过滤）。
+         */
+        fun rawFromBean(bean: IllustsBean?): IllustFeedItem? {
+            if (bean == null) return null
+            val illust = runCatching {
+                Shaft.sGson.fromJson(Shaft.sGson.toJsonTree(bean), Illust::class.java)
+            }.getOrNull() ?: return null
+            return IllustFeedItem(illust, bean)
+        }
+
+        /**
          * 与 legacy Mapper 对齐的内容过滤链（搜索专属的 R18 三态/仅看 AI 不适用）。
          * [skipR18Filter]：R18 专属榜单端点本身就是用来看 R18 的，不用全局 R18 过滤清空内容
          * （对齐 RankIllustRepo.enableSkipR18Filter）。整页被滤空时由 FeedViewModel

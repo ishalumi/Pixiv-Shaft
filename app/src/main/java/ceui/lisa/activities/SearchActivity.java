@@ -33,10 +33,9 @@ import androidx.viewpager.widget.ViewPager;
 import ceui.lisa.R;
 import ceui.lisa.adapters.SearchHintAdapter;
 import ceui.lisa.databinding.FragmentNewSearchBinding;
-import ceui.lisa.fragments.BaseFragment;
-import ceui.lisa.fragments.FragmentSearchIllust;
-import ceui.lisa.fragments.FragmentSearchNovel;
-import ceui.lisa.fragments.FragmentSearchUser;
+import ceui.pixiv.ui.search.SearchIllustFeedFragment;
+import ceui.pixiv.ui.search.SearchNovelFeedFragment;
+import ceui.pixiv.ui.search.SearchUserFeedFragment;
 import ceui.lisa.interfaces.Callback;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Params;
@@ -53,7 +52,7 @@ import ceui.pixiv.ui.search.v3.SearchFilterV3LegacyBridge;
 
 public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
 
-    private final BaseFragment<?>[] allPages = new BaseFragment[]{null, null,null};
+    private final Fragment[] allPages = new Fragment[]{null, null, null};
     private String keyWord = "";
     private SearchModel searchModel;
     private int index = 0;
@@ -118,17 +117,21 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
             showTagActionMenu(name);
             return kotlin.Unit.INSTANCE;
         });
-        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager(), 0) {
+        // 三个 tab 均已迁 feeds（autoLoad=false 懒加载）。必须用 BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT，
+        // 否则离屏 tab 也到 RESUMED → onResume ensureLoaded → 开屏就替用户把三个 tab 各搜一次（旧 legacy
+        // 靠 setUserVisibleHint 懒加载只搜可见 tab）。改 behavior 1 后只有可见 tab 开搜，其余进 tab 才搜。
+        baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager(),
+                FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
             @NonNull
             @Override
             public Fragment getItem(int position) {
                 if (allPages[position] == null) {
                     if (position == 0) {
-                        allPages[position] = FragmentSearchIllust.newInstance();
+                        allPages[position] = SearchIllustFeedFragment.newInstance();
                     } else if(position == 1){
-                        allPages[position] = FragmentSearchNovel.newInstance();
+                        allPages[position] = SearchNovelFeedFragment.newInstance();
                     } else if(position == 2){
-                        allPages[position] = FragmentSearchUser.newInstance(keyWord);
+                        allPages[position] = SearchUserFeedFragment.newInstance();
                     }
                 }
 
@@ -154,8 +157,8 @@ public class SearchActivity extends BaseActivity<FragmentNewSearchBinding> {
             public void onPageSelected(int position) {
                 hintViewModel.hideHints();
                 mPosition = position;
-                // V3 filter 不再用抽屉，全程禁掉抽屉触摸；老 SearchModel.isNovel 仍要保持
-                // 同步——FragmentSearchIllust / FragmentSearchNovel 通过它分流 search_target。
+                // V3 filter 不再用抽屉，全程禁掉抽屉触摸；SearchModel.isNovel 保持同步给
+                // V3 filter sheet 判当前 tab 类型（feeds 版搜索 fragment 已改看 searchType gate，不读 isNovel）。
                 MutableLiveData<Boolean> isNovel = searchModel.getIsNovel();
                 if (isNovel.getValue() != null) {
                     if ((position == 0) && isNovel.getValue()) {
