@@ -143,7 +143,7 @@ interface ShaftApiV2 {
     /**
      * 画师收藏总榜 —— 按画师全部作品的 pixiv 总收藏数求和排名(含 R-18)。服务端回 pixiv
      * user_previews 形状。user / illusts 都是原始 pixiv JSON(JsonObject),由 [ArtistRankRepo]
-     * 用 Shaft.sGson 反序列化成 UserBean / IllustsBean(和 TrendingWorksRepo 一致,不用 Retrofit
+     * 用 Shaft.sGson 反序列化成 UserBean / IllustsBean(和 HotWorksFeed 一致,不用 Retrofit
      * 默认 Gson),拼成 ListUser 复用现成「画师 + 3 预览图」列表。翻页跟随 next_url。
      */
     @GET("api/v1/discover/artists")

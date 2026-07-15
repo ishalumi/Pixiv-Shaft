@@ -16,7 +16,7 @@ import timber.log.Timber
 /**
  * 画师收藏总榜 —— 打 shaft-api-v2 的 discover/artists:按画师全部作品的 pixiv 总收藏数求和排名
  * (含 R-18)。服务端回 pixiv user_previews 形状,这里用 Shaft.sGson 把每个 user / illusts 反序列化
- * 成 UserBean / IllustsBean(和 TrendingWorksRepo 一致,不走 Retrofit 默认 Gson),拼成 [ListUser],
+ * 成 UserBean / IllustsBean(和 HotWorksFeed 一致,不走 Retrofit 默认 Gson),拼成 [ListUser],
  * 复用现成「画师 + 3 预览图」列表(UAdapter)。分页跟随服务端 next_url。
  *
  * 清零关注/收藏态:payload 里的 is_followed / is_bookmarked 是上报榜单那个客户端当时的状态,跟

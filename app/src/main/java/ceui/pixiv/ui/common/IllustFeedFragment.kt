@@ -65,7 +65,9 @@ private const val MAX_HEIGHT_RATIO = 2.0f
  * 各插画卡 Renderer 的 changePayload 直接引用本函数。
  */
 fun illustLikeChangePayload(old: IllustFeedItem, new: IllustFeedItem): Any? {
-    return if (old.illust.copy(is_bookmarked = new.illust.is_bookmarked) == new.illust) {
+    return if (old.bean.trendingScore == new.bean.trendingScore &&
+        old.illust.copy(is_bookmarked = new.illust.is_bookmarked) == new.illust
+    ) {
         PAYLOAD_ILLUST_LIKE_CHANGED
     } else {
         null
@@ -449,6 +451,17 @@ abstract class IllustFeedFragment(
         return feedViewModel.uiState.value.items.filterIsInstance<IllustFeedItem>()
     }
 
+    /**
+     * 交接给详情页 pager 的续读游标。默认就是列表当前游标——pixiv 列表的游标本身就是 nextUrl，
+     * 详情页划到底可以照着它继续请求。
+     *
+     * **本地数据源必须覆写成 null**：详情页 pager 只会把它当 URL 直接请求下一页，喂页号 /
+     * offset 进去只会请求失败（对齐 legacy——LocalListFragment 从不 setNextUrl，本地列表
+     * 开详情时 PageData.nextUrl 一直是 null）。
+     */
+    protected open val detailContinuationCursor: String?
+        get() = feedViewModel.currentCursor
+
     protected fun openDetail(item: IllustFeedItem) {
         val illustItems = currentIllustItems()
         val position = illustItems.indexOfFirst { it.illust.id == item.illust.id }
@@ -458,7 +471,7 @@ abstract class IllustFeedFragment(
             // nextUrl 一并交接给 VActivity，详情页 pager 划到底可以继续加载
             PageData(
                 syncViewModel.listPageUuid,
-                feedViewModel.currentCursor,
+                detailContinuationCursor,
                 illustItems.map { it.bean },
             )
         } else {
@@ -497,8 +510,10 @@ class IllustFeedSyncViewModel : ViewModel() {
  * 插画 feed 条目：loxia [Illust]（immutable，驱动 UI 与 DiffUtil）+ legacy [IllustsBean]
  * （可变，供详情页 pager / 下载 / 收藏等 legacy 链路共享同一实例）。
  *
- * 内容相等性只看 [illust]（immutable data class，深比较）：bean 是 legacy 可变对象、
- * 没有 equals，参与比较会让每次刷新的同内容条目都被判成「变了」而整列表白白重绑。
+ * 内容相等性看 [illust]（immutable data class，深比较）+ [bean] 的 trendingScore：bean 整体是
+ * legacy 可变对象、没有 equals，参与比较会让每次刷新的同内容条目都被判成「变了」而整列表白白重绑，
+ * 所以只额外比 trendingScore 这一个 Float 字段（本月收藏/当前最热的热度分 pill，不在 illust 上）——
+ * 刷新时同一作品热度分变了要重绑更新 pill；普通列表两侧都 null，退化成只比 illust（无副作用）。
  */
 class IllustFeedItem(
     val illust: Illust,
@@ -508,10 +523,11 @@ class IllustFeedItem(
     override val feedKey: Any get() = illust.id
 
     override fun equals(other: Any?): Boolean {
-        return other is IllustFeedItem && other.illust == illust
+        return other is IllustFeedItem && other.illust == illust &&
+                other.bean.trendingScore == bean.trendingScore
     }
 
-    override fun hashCode(): Int = illust.hashCode()
+    override fun hashCode(): Int = illust.hashCode() * 31 + (bean.trendingScore?.hashCode() ?: 0)
 
     /**
      * 收藏状态变更：bean 是可变对象且与详情页 pager 共享同一实例，就地写；

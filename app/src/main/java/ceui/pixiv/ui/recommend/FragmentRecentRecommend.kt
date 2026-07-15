@@ -95,9 +95,13 @@ class FragmentRecentRecommend : Fragment(R.layout.fragment_recent_recommend) {
         )
         // dataType 传 server 端稳定 enum,不传 localized(系统语言切换 + 状态恢复会对不上)。
         val fragments: List<Fragment> = listOf(
-            FragmentRecentIllust.newInstance(FragmentTrendingIllust.TYPE_ILLUST, window),
-            FragmentRecentIllust.newInstance(FragmentTrendingIllust.TYPE_MANGA, window),
-            FragmentRecentNovel.newInstance(window),
+            HotWorksIllustFeedFragment.newInstance(
+                HotWorksSource.RECENT, HotWorksIllustFeedFragment.TYPE_ILLUST, window
+            ),
+            HotWorksIllustFeedFragment.newInstance(
+                HotWorksSource.RECENT, HotWorksIllustFeedFragment.TYPE_MANGA, window
+            ),
+            HotWorksNovelFeedFragment.newInstance(HotWorksSource.RECENT, window),
         )
 
         binding.viewPager.adapter = object : FragmentStatePagerAdapter(

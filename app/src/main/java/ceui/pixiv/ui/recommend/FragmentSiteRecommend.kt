@@ -33,9 +33,13 @@ class FragmentSiteRecommend : Fragment(R.layout.viewpager_with_tablayout) {
         // 否则系统语言切换后 ViewPager 从 SavedState 恢复出的旧 dataType 跟新的
         // getString(...) 对不上,漫画 tab 会落到 else 分支变成插画 tab。
         val fragments: List<Fragment> = listOf(
-            FragmentTrendingIllust.newInstance(FragmentTrendingIllust.TYPE_ILLUST),
-            FragmentTrendingIllust.newInstance(FragmentTrendingIllust.TYPE_MANGA),
-            FragmentTrendingNovel(),
+            HotWorksIllustFeedFragment.newInstance(
+                HotWorksSource.TRENDING, HotWorksIllustFeedFragment.TYPE_ILLUST, null
+            ),
+            HotWorksIllustFeedFragment.newInstance(
+                HotWorksSource.TRENDING, HotWorksIllustFeedFragment.TYPE_MANGA, null
+            ),
+            HotWorksNovelFeedFragment.newInstance(HotWorksSource.TRENDING, null),
         )
 
         binding.viewPager.adapter = object : FragmentPagerAdapter(

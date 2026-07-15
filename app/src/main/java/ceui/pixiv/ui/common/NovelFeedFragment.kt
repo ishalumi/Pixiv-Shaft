@@ -36,6 +36,7 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedViewModel
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.novel.NovelSeriesFragment
+import ceui.pixiv.ui.recommend.bindTrendingScore
 import ceui.pixiv.utils.playLikePressHaptic
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
@@ -123,8 +124,9 @@ abstract class NovelFeedFragment(
             Glide.with(cell.binding.userHead).clear(cell.binding.userHead)
         },
         changePayload = { old, new ->
-            // 只有收藏态/收藏数变了 → 局部重绑;其它字段变则回退全量绑定
-            if (old.novel.copy(
+            // 只有收藏态/收藏数变了 → 局部重绑;其它字段(含热度分)变则回退全量绑定
+            if (old.trendingScore == new.trendingScore &&
+                old.novel.copy(
                     is_bookmarked = new.novel.is_bookmarked,
                     total_bookmarks = new.novel.total_bookmarks,
                 ) == new.novel
@@ -166,8 +168,8 @@ abstract class NovelFeedFragment(
         b.bookmarkCount.text = (novel.total_bookmarks ?: 0).toString()
         val wordCount = novel.text_length ?: 0
         b.howManyWord.text = ctx.getString(R.string.v3_novel_word_count, wordCount.toString())
-        // loxia Novel 无站长推荐分（那是发现页专属注入），恒隐藏。
-        b.trendingScore.isVisible = false
+        // 热度分（本月收藏/当前最热 shaft-api-v2 注入）露左上角 pill；普通列表 trendingScore=null → 自动隐藏。
+        b.trendingScore.bindTrendingScore(cell.item.trendingScore)
         // AI 生成角标（novel_ai_type == 2，与 card/v3/history/detail 同口径）
         b.badgeAi.isVisible = novel.novel_ai_type == 2
 
