@@ -1,0 +1,137 @@
+package ceui.pixiv.ui.user
+
+import android.content.Intent
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
+import ceui.lisa.R
+import ceui.lisa.activities.Shaft
+import ceui.lisa.activities.UActivity
+import ceui.lisa.databinding.RecyUserPreviewHorizontalBinding
+import ceui.lisa.models.UserPreviewsBean
+import ceui.lisa.utils.DensityUtil
+import ceui.lisa.utils.GlideUtil
+import ceui.lisa.utils.Params
+import ceui.lisa.view.LinearItemHorizontalDecoration
+import ceui.loxia.Client
+import ceui.loxia.UserPreview
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedSkeletonView
+import ceui.pixiv.feeds.FeedUserRailSkeletonView
+import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.utils.setOnClick
+import com.bumptech.glide.Glide
+
+/**
+ * 「推荐用户」横向货架（feeds 框架版，替代 legacy FragmentRecmdUserHorizontal + UserHAdapter +
+ * RecmdUserRepo(isHorizontal=true)）。宿主是动态页 [ceui.lisa.fragments.FragmentRight] 头部的
+ * `user_recmd_fragment` 容器（124dp 高）。
+ *
+ * 卡片就是 legacy 那张 `recy_user_preview_horizontal`（圆头像 + 名字），点击进画师页。
+ * 卡上没有关注按钮，所以不接 LIKED_USER 关注态同步（对齐 legacy UserHAdapter）——也因此不复用
+ * [ceui.pixiv.ui.common.UserFeedFragment] 那套竖版用户卡基类，条目自带一份。
+ *
+ * **只展示第一页**（[loadMoreEnabled] = false，对齐 legacy 的 initNextApi=null +
+ * setEnableLoadMore(false)），但数据源照常带回真实 nextUrl —— 宿主「查看更多」要靠
+ * [currentSnapshot] 把这一批 + nextUrl 交接给 推荐用户 整页续读。
+ */
+class RecmdUserRailFeedFragment : FeedFragment() {
+
+    override val loadMoreEnabled: Boolean = false
+
+    override val feedViewModel by feedViewModels {
+        PixivFeedSource({ Client.appApi.recommendedUsers() }) { resp, _ ->
+            mapUsers(resp.displayList)
+        }
+    }
+
+    override fun onCreateLayoutManager(): RecyclerView.LayoutManager {
+        return LinearLayoutManager(requireContext(), RecyclerView.HORIZONTAL, false)
+    }
+
+    override fun onListReady(listView: RecyclerView) {
+        listView.setHasFixedSize(true)
+        listView.addItemDecoration(LinearItemHorizontalDecoration(DensityUtil.dp2px(12.0f)))
+    }
+
+    override fun onCreateSkeletonView(layoutManager: RecyclerView.LayoutManager): FeedSkeletonView {
+        return FeedUserRailSkeletonView(requireContext())
+    }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(userRailRenderer())
+    }
+
+    private fun userRailRenderer() =
+        feedRenderer<RecmdUserRailItem, RecyUserPreviewHorizontalBinding>(
+            inflate = RecyUserPreviewHorizontalBinding::inflate,
+            create = { cell ->
+                cell.binding.root.setOnClick {
+                    val id = cell.item.preview.user?.id ?: return@setOnClick
+                    startActivity(
+                        Intent(requireContext(), UActivity::class.java).apply {
+                            putExtra(Params.USER_ID, id.toInt())
+                        },
+                    )
+                }
+            },
+            recycle = { cell -> Glide.with(cell.binding.userHead).clear(cell.binding.userHead) },
+        ) { cell ->
+            val user = cell.item.preview.user
+            cell.binding.userName.text = user?.name ?: ""
+            Glide.with(cell.binding.userHead)
+                .load(GlideUtil.getUrl(user?.profile_image_urls?.medium))
+                .placeholder(R.color.light_bg)
+                .error(R.drawable.no_profile)
+                .into(cell.binding.userHead)
+        }
+
+    /**
+     * 交接给「查看更多」(推荐用户 整页) 的快照：当前这一批 + 续读游标。
+     * legacy 传的是可变 bean，这里把 loxia [UserPreview] 转回去（同 IllustFeedItem.beanOf 的做法）。
+     * 转不动的条目直接丢，不让一条坏数据毁掉整次交接。
+     */
+    fun currentSnapshot(): Pair<List<UserPreviewsBean>, String?> {
+        val beans = feedViewModel.uiState.value.items
+            .filterIsInstance<RecmdUserRailItem>()
+            .mapNotNull { item ->
+                runCatching {
+                    Shaft.sGson.fromJson(
+                        Shaft.sGson.toJsonTree(item.preview),
+                        UserPreviewsBean::class.java,
+                    )
+                }.getOrNull()
+            }
+        return beans to feedViewModel.currentCursor
+    }
+
+    companion object {
+        /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
+        private fun mapUsers(previews: List<UserPreview>): List<FeedItem> {
+            return previews.mapNotNull { p ->
+                if (p.user?.id == null) null else RecmdUserRailItem(p)
+            }
+        }
+    }
+}
+
+/**
+ * 推荐用户货架条目：只持不可变的 loxia [UserPreview]。
+ *
+ * 货架卡没有关注按钮、也不参与关注态回流，所以不用
+ * [ceui.pixiv.ui.search.UserFeedItem] 那套（那份带 withFollowed / 预览图）；这里只要 id + 头像 + 名字。
+ */
+class RecmdUserRailItem(val preview: UserPreview) : FeedItem {
+
+    override val feedKey: Any get() = preview.user?.id ?: 0L
+
+    override fun equals(other: Any?): Boolean {
+        return other is RecmdUserRailItem && other.preview == preview
+    }
+
+    override fun hashCode(): Int = preview.hashCode()
+}

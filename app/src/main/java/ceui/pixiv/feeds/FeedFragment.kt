@@ -57,6 +57,13 @@ abstract class FeedFragment(
      */
     protected open val applyBottomSafeInset: Boolean = false
 
+    /**
+     * 滚到底是否自动追加下一页。货架类（只展示第一页的横向 rail）覆写为 false：
+     * 数据源照常带回真实 nextCursor（[FeedViewModel.currentCursor] 仍可交接给「查看更多」整页续读），
+     * 只是本列表自己不再往后翻——对齐 legacy 那些 `initNextApi=null` + `setEnableLoadMore(false)` 的货架。
+     */
+    protected open val loadMoreEnabled: Boolean = true
+
     private var _binding: FragmentFeedBinding? = null
     protected val feedBinding: FragmentFeedBinding
         get() = checkNotNull(_binding) { "view 尚未创建或已销毁" }
@@ -101,7 +108,7 @@ abstract class FeedFragment(
 
         val adapter = FeedAdapter(
             renderers = onCreateRenderers() + AppendFooterRenderer { feedViewModel.retryAppend() },
-            onNearEnd = { feedViewModel.loadMore() },
+            onNearEnd = { if (loadMoreEnabled) feedViewModel.loadMore() },
         )
         feedAdapter = adapter
 

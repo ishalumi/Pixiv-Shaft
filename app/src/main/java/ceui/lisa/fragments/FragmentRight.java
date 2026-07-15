@@ -36,7 +36,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 public class FragmentRight extends NetListFragment<FragmentNewRightBinding, ListIllust, IllustsBean> {
 
-    private FragmentRecmdUserHorizontal headerFragment;
+    private ceui.pixiv.ui.user.RecmdUserRailFeedFragment headerFragment;
     private boolean isTimelineMode = !Shaft.sSettings.isUseStaggeredLayout();
     // 动态页类型：true=插画/漫画(默认)，false=小说。fixes #844
     private boolean isIllustMode = true;
@@ -87,7 +87,10 @@ public class FragmentRight extends NetListFragment<FragmentNewRightBinding, List
             Intent intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "推荐用户");
             String handoffKey = null;
-            if (headerFragment != null && headerFragment.allItems != null && !headerFragment.allItems.isEmpty()) {
+            kotlin.Pair<java.util.List<ceui.lisa.models.UserPreviewsBean>, String> snapshot =
+                    headerFragment != null && headerFragment.getView() != null
+                            ? headerFragment.currentSnapshot() : null;
+            if (snapshot != null && !snapshot.getFirst().isEmpty()) {
                 // Hand off via in-memory map rather than Intent extras: the
                 // full UserPreviewsBean graph easily exceeds the ~1MB binder
                 // transaction limit and crashes on Android 15 (#820). We
@@ -96,8 +99,8 @@ public class FragmentRight extends NetListFragment<FragmentNewRightBinding, List
                 // unique key and pass only the key.
                 handoffKey = UUID.randomUUID().toString();
                 RecmdUserMap.store.put(handoffKey, new RecmdUserSnapshot(
-                        new ArrayList<>(headerFragment.allItems),
-                        headerFragment.mRemoteRepo.getNextUrl()
+                        new ArrayList<>(snapshot.getFirst()),
+                        snapshot.getSecond()
                 ));
                 intent.putExtra(Params.USER_MODEL, handoffKey);
             }
@@ -247,9 +250,11 @@ public class FragmentRight extends NetListFragment<FragmentNewRightBinding, List
         super.lazyData();
 
         FragmentTransaction transaction = getChildFragmentManager().beginTransaction();
-        FragmentRecmdUserHorizontal recmdUser = new FragmentRecmdUserHorizontal();
+        // feeds 框架版推荐用户货架,替代 legacy FragmentRecmdUserHorizontal
+        ceui.pixiv.ui.user.RecmdUserRailFeedFragment recmdUser =
+                new ceui.pixiv.ui.user.RecmdUserRailFeedFragment();
         headerFragment = recmdUser;
-        transaction.add(R.id.user_recmd_fragment, recmdUser, "FragmentRecmdUserHorizontal");
+        transaction.add(R.id.user_recmd_fragment, recmdUser, "RecmdUserRailFeedFragment");
         transaction.commitNowAllowingStateLoss();
 
         baseBind.refreshLayout.autoRefresh();
