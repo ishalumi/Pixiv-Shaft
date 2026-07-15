@@ -75,10 +75,6 @@ public interface AppApi {
     @GET("v1/manga/recommended?include_privacy_policy=true&filter=for_android&include_ranking_illusts=true")
     Observable<RecmdIllust> getRecmdManga();
 
-    @GET("v1/novel/follow")
-    Observable<ListNovel> getBookedUserSubmitNovel(@Query("restrict") String restrict);
-
-
     @GET("v1/trending-tags/{type}?filter=for_android&include_translated_tag_results=true")
     Observable<ListTrendingtag> getHotTags(@Path("type") String type);
 

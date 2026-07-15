@@ -129,6 +129,15 @@ interface API {
         @Query("restrict") restrict: String,
     ): IllustResponse
 
+    /**
+     * 已关注画师的最新小说：「动态」页的小说模式 + TemplateActivity「关注者的小说」独立页。
+     * [restrict] 同 [getFollowingIllusts]。
+     */
+    @GET("/v1/novel/follow")
+    suspend fun getFollowingNovels(
+        @Query("restrict") restrict: String,
+    ): NovelResponse
+
     @GET("/v1/{type}/recommended?include_ranking_illusts=false&include_privacy_policy=true&filter=for_ios")
     suspend fun getHomeData(
         @Path("type") type: String,

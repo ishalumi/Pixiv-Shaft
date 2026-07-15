@@ -225,7 +225,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent" />
 
-                    <!-- 小说:ceui.lisa.fragments.FragmentNewNovels(仍是 legacy 列表) -->
+                    <!-- 小说:ceui.pixiv.ui.dynamic.FollowingNovelFeedFragment -->
                     <FrameLayout
                         android:id="@+id/novel_list_container"
                         android:layout_width="match_parent"

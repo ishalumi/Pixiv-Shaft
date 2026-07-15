@@ -39,7 +39,6 @@ import ceui.lisa.fragments.FragmentMangaSeries;
 import ceui.lisa.fragments.FragmentMarkdown;
 import ceui.lisa.fragments.FragmentNew;
 import ceui.lisa.fragments.FragmentNewNovel;
-import ceui.lisa.fragments.FragmentNewNovels;
 import ceui.lisa.fragments.FragmentNiceFriend;
 import ceui.pixiv.ui.novel.reader.NovelReaderV3Fragment;
 import ceui.pixiv.ui.comic.reader.ComicReaderV3Fragment;
@@ -352,7 +351,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "捐赠":
                     return FragmentDonate.newInstance();
                 case "关注者的小说":
-                    return new FragmentNewNovels();
+                    // feeds 版(替代 legacy FragmentNewNovels);独立页带 toolbar,restrict 走默认「全部」
+                    return ceui.pixiv.ui.dynamic.FollowingNovelFeedFragment.newInstance();
                 case "漫画系列作品":
                     return FragmentMangaSeries.newInstance(intent.getIntExtra(Params.USER_ID, 0));
                 case "漫画系列详情": {

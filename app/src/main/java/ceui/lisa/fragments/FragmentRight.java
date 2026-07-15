@@ -22,9 +22,11 @@ import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.Local;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.QMUIMenuPopup;
+import ceui.lisa.utils.V3Palette;
 import ceui.lisa.view.OnCheckChangeListener;
 import ceui.pixiv.ui.dynamic.DynamicPageViewModel;
 import ceui.pixiv.ui.dynamic.FollowingIllustFeedFragment;
+import ceui.pixiv.ui.dynamic.FollowingNovelFeedFragment;
 import ceui.pixiv.ui.user.RecmdUserRailFeedFragment;
 
 /**
@@ -36,10 +38,13 @@ import ceui.pixiv.ui.user.RecmdUserRailFeedFragment;
  * <ul>
  *   <li>插画/漫画:{@link FollowingIllustFeedFragment}(feeds,替代 legacy NetListFragment +
  *       RightRepo + IAdapter/TimelineAdapter);</li>
- *   <li>小说:{@link FragmentNewNovels}(仍是 legacy 列表,另有 TemplateActivity「关注者的小说」
- *       入口,单独迁);</li>
+ *   <li>小说:{@link FollowingNovelFeedFragment}(feeds,替代 legacy FragmentNewNovels +
+ *       NewNovelRepo;同一个类也供 TemplateActivity「关注者的小说」独立页用,只是带 toolbar);</li>
  *   <li>货架:{@link RecmdUserRailFeedFragment}(feeds)。</li>
  * </ul>
+ *
+ * 两条列表现在是同一套契约(setRestrict 变了才重拉 / forceRefresh / scrollToTop),本类对它们
+ * 一视同仁。
  *
  * 页面状态(筛选范围 / 插画还是小说)放 {@link DynamicPageViewModel},跟着列表数据一起跨视图重建
  * 存活;子 fragment 一律按 tag 复用,不重复 add(旋转后 FragmentManager 会先把它们恢复回来)。
@@ -48,7 +53,7 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
 
     private static final String TAG_RAIL = "RecmdUserRailFeedFragment";
     private static final String TAG_ILLUST = "FollowingIllustFeedFragment";
-    private static final String TAG_NOVEL = "FragmentNewNovels";
+    private static final String TAG_NOVEL = "FollowingNovelFeedFragment";
 
     /** 筛选条三个位置对应的 restrict 值(顺序与 GlareLayout 的 左/中/右 一致)。 */
     private static final String[] RESTRICT_BY_INDEX = {
@@ -58,7 +63,7 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
     private DynamicPageViewModel pageModel;
     private RecmdUserRailFeedFragment railFragment;
     private FollowingIllustFeedFragment illustFragment;
-    private FragmentNewNovels novelFragment;
+    private FollowingNovelFeedFragment novelFragment;
 
     @Override
     public void initLayout() {
@@ -69,6 +74,7 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
     public void initView() {
         super.initView();
         pageModel = new ViewModelProvider(this).get(DynamicPageViewModel.class);
+        tintContentSheet();
 
         if (Dev.hideMainActivityStatus) {
             ViewGroup.LayoutParams headParams = baseBind.head.getLayoutParams();
@@ -131,7 +137,7 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
         FragmentManager fm = getChildFragmentManager();
         railFragment = (RecmdUserRailFeedFragment) fm.findFragmentByTag(TAG_RAIL);
         illustFragment = (FollowingIllustFeedFragment) fm.findFragmentByTag(TAG_ILLUST);
-        novelFragment = (FragmentNewNovels) fm.findFragmentByTag(TAG_NOVEL);
+        novelFragment = (FollowingNovelFeedFragment) fm.findFragmentByTag(TAG_NOVEL);
 
         FragmentTransaction transaction = fm.beginTransaction();
         boolean any = false;
@@ -150,12 +156,16 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
         }
     }
 
-    /** 小说列表按需建(用户切到小说模式才建,没进过就不存在,也就不发请求)。 */
+    /**
+     * 小说列表按需建(用户切到小说模式才建,没进过就不存在,也就不发请求)。
+     * 建的时候就把当前 restrict 交给它:它的 VM 会在 onCreate 里播种,赶在 feedViewModel
+     * 首屏之前——否则会先按默认「全部」拉一次再被 setRestrict 重拉。
+     */
     private void ensureNovelFragment() {
         if (novelFragment != null) {
             return;
         }
-        novelFragment = FragmentNewNovels.newInstance(pageModel.getRestrict());
+        novelFragment = FollowingNovelFeedFragment.newInstance(false, pageModel.getRestrict());
         getChildFragmentManager().beginTransaction()
                 .add(R.id.novel_list_container, novelFragment, TAG_NOVEL)
                 .commitNowAllowingStateLoss();
@@ -213,6 +223,25 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
             }
         } else if (novelFragment != null) {
             novelFragment.setRestrict(restrict);
+        }
+    }
+
+    /**
+     * 内容 sheet 的底色改跟主题走。
+     *
+     * 布局里 content_item 写的是静态 v3_menu_bg，夜间是写死的 #1A1A2E（藏青）——主题色换成
+     * 绿/粉时，这张 sheet 就成了页面上一条突兀的蓝带。改用 V3Palette.cardFill（隐约带主题色的
+     * 不透明悬浮底，日夜双模，与设置卡/悬浮胶囊同一个值）。
+     *
+     * QMUIRoundLinearLayout 的背景是 QMUIRoundDrawable（继承 GradientDrawable），只 setColor
+     * 不换 drawable，20dp 上圆角和 behavior 都不受影响。切主题/日夜会重建 Fragment → 这里重算。
+     * 列表那半边由 FollowingIllustFeedFragment.feedRootBackgroundColor 取同一个值，两边同源。
+     */
+    private void tintContentSheet() {
+        android.graphics.drawable.Drawable bg = baseBind.contentItem.getBackground();
+        if (bg instanceof android.graphics.drawable.GradientDrawable) {
+            ((android.graphics.drawable.GradientDrawable) bg)
+                    .setColor(V3Palette.from(mContext).getCardFill());
         }
     }
 

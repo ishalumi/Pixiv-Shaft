@@ -3,14 +3,12 @@ package ceui.pixiv.ui.dynamic
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.ViewModel
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import androidx.viewbinding.ViewBinding
-import ceui.lisa.R
 import ceui.lisa.activities.Shaft
-import ceui.lisa.utils.Params
+import ceui.lisa.utils.V3Palette
 import ceui.loxia.Client
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
@@ -39,20 +37,6 @@ import ceui.pixiv.ui.common.IllustFeedItem
  */
 class FollowingIllustFeedFragment : IllustFeedFragment() {
 
-    /**
-     * 本列表当前（或即将）加载所用的筛选范围。归 VM 的两个理由：数据源要现读它（见类文档），
-     * 以及它必须与列表数据一起跨视图重建存活——否则旋转后数据还是「私人」而这里复位成
-     * 「全部」，下次 [setRestrict] 就会误判成「没变」而不重拉，筛选条和内容当场对不上。
-     *
-     * 写在主线程（GlareLayout 回调）。读发生在数据源里：目前 `load` 跑在 viewModelScope
-     * （Main.immediate），但这是 FeedViewModel 的内部实现细节、不是本类能依赖的契约，
-     * 所以标 @Volatile 让「换个调度器也不会读到陈旧值」这件事不依赖别处的实现。
-     */
-    class RestrictViewModel : ViewModel() {
-        @Volatile
-        var restrict: String = Params.TYPE_ALL
-    }
-
     private val restrictViewModel: RestrictViewModel by viewModels()
 
     override val feedViewModel by feedViewModels {
@@ -63,14 +47,16 @@ class FollowingIllustFeedFragment : IllustFeedFragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        // 裸 fragment_feed 会被基类刷上 legacy 的 fragment_center(夜间 #2A2A2A)，但本列表是嵌在
-        // 动态页那张 v3_menu_bg(#1A1A2E) 圆角 sheet 里的——不改就会在筛选条下方出现一道灰/藏青
-        // 撞色的横向接缝(legacy 的 RecyclerView 没有底色，透出来的一直是 sheet 本身)。
-        // 与 PivisionFeedFragment 同一手法：宿主底色归宿主，这里跟着宿主刷。
-        view.setBackgroundResource(R.color.v3_menu_bg)
-    }
+    /**
+     * 本列表嵌在动态页那张圆角 sheet 里，底色必须跟 sheet 一致，否则筛选条下方会裂出一道
+     * 撞色横缝（裸 fragment_feed 的基类底色默认是整页的 v3_bg）。
+     *
+     * sheet 用 [V3Palette.cardFill]（隐约带主题色的不透明悬浮底，日夜双模）而不是静态的
+     * v3_menu_bg——后者夜间写死 #1A1A2E 是藏青，主题色换成绿/粉时就成了页面上一条突兀的蓝带。
+     * 这里与 FragmentRight 给 content_item 上色取的是同一个值，两边必须同源。
+     */
+    override val feedRootBackgroundColor: Int
+        get() = V3Palette.from(requireContext()).cardFill
 
     /** 时间线模式 = 单列大卡；关掉就是瀑布流。真源是设置项，设置页「关注动态布局模式」同一个开关。 */
     private val isTimelineMode: Boolean

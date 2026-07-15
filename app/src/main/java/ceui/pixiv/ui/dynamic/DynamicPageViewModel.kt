@@ -12,9 +12,8 @@ import ceui.lisa.utils.Params
  * 「全部 / 插画」，列表却还是上次的「私人 / 小说」——筛选条、类型菜单和内容当场对不上。
  * legacy 是靠「旋转后整页重拉一遍」把这个不一致洗掉的，feeds 不重拉，就得让状态跟着数据一起活。
  *
- * [restrict] 是「用户选了什么」；「某条列表实际按什么拉的」由各列表自己记
- * （见 [FollowingIllustFeedFragment.RestrictViewModel] 与 legacy FragmentNewNovels 的
- * restrict 字段）——两者故意分开，切模式时才好判断后台那条列表要不要重拉，
+ * [restrict] 是「用户选了什么」；「某条列表实际按什么拉的」由两条列表各自的
+ * [RestrictViewModel] 记——两者故意分开，切模式时才好判断后台那条列表要不要重拉，
  * 不为看不见的列表白发请求。
  *
  * 只在主线程读写（GlareLayout / 类型菜单回调、shell 的视图重建）。

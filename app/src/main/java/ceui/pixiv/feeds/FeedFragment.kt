@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.annotation.ColorInt
 import androidx.annotation.LayoutRes
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -82,12 +84,11 @@ abstract class FeedFragment(
         val binding = FragmentFeedBinding.bind(feedRoot)
         _binding = binding
 
-        // 裸 fragment_feed 自带列表底色（对齐 legacy fragment_base_list 的内容区背景），
-        // 否则宿主布局的装饰背景（如 activity_multi_view_pager 根上的 ?attr/colorPrimary）
-        // 会从透明列表后面整页透出来；自定义 contentLayoutId 的页面（fragment_toolbar_feed
-        // 等 V3 页用 v3_bg）背景归自己的根布局管，这里不越权覆盖。
+        // 裸 fragment_feed 自带列表底色，否则宿主布局的装饰背景（如 activity_multi_view_pager
+        // 根上的 ?attr/colorPrimary）会从透明列表后面整页透出来；自定义 contentLayoutId 的页面
+        //（fragment_toolbar_feed 等）背景归自己的根布局管，这里不越权覆盖。
         if (view === feedRoot) {
-            feedRoot.setBackgroundResource(R.color.fragment_center)
+            feedRoot.setBackgroundColor(feedRootBackgroundColor)
         }
 
         // 底部 safe-area:裸 fragment_feed 铺到屏幕底(UserActivityV3 tab 等无底栏宿主),列表末尾
@@ -204,6 +205,22 @@ abstract class FeedFragment(
         _binding = null
         super.onDestroyView()
     }
+
+    /**
+     * 裸 fragment_feed（没给自定义 contentLayoutId 的页面）刷的列表底色。
+     *
+     * 默认 v3_bg —— 对齐「发现」页 fragment_new_center 的底色，也是 V3 各页的统一底。
+     * 以前这里写死 legacy 的 fragment_center（夜间 #2A2A2A），比 v3_bg（夜间 #08080C）浅一大截，
+     * 结果是：宿主布局明明写了 v3_bg（如动态页的 user_recmd_fragment），列表一 attach 就被这层
+     * 基底盖成灰块，在 v3_bg 页面上糊出一条撞色横带。PivisionFeedFragment / FollowingIllustFeedFragment
+     * 都为此在 onViewCreated 里手动回刷过一遍——那类补丁现在改成覆写本属性即可。
+     *
+     * 是 @ColorInt 而不是 @ColorRes：嵌在主题派生色宿主里的列表（如动态页那张 sheet 用
+     * [V3Palette.cardFill]）要的是运行时算出来的色值，色值资源表达不了。
+     */
+    @get:ColorInt
+    protected open val feedRootBackgroundColor: Int
+        get() = ContextCompat.getColor(requireContext(), R.color.v3_bg)
 
     /**
      * 空列表时的文案，默认是通用的「居然啥也没有」。页面语义更具体时覆写
