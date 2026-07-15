@@ -49,7 +49,12 @@ class FragmentNewNovels : NetListFragment<FragmentBaseListBinding, ListNovel, No
         if (this.restrict == restrict) return
         this.restrict = restrict
         (mRemoteRepo as? NewNovelRepo)?.restrict = restrict
-        if (isAdded) {
+        // 判 view 而不是 isAdded：宿主会在自己的 onCreateView 里(经 lazyData)推一次 restrict，
+        // 那时本 fragment 已经 added 但视图还没建——mRecyclerView / mRemoteRepo 都还是 null，
+        // 旧写法会在 scrollToTop 里 NPE 再被 ListFragment 的 catch 吞掉，看着像没事其实是踩空。
+        // 这种时候本来也不该刷：首屏还没拉过，上面刚写好的字段会被 repository() 用上(initView
+        // 先于 initData/lazyData 建 repo，见 BaseFragment.onCreateView)。
+        if (view != null) {
             forceRefresh()
         }
     }

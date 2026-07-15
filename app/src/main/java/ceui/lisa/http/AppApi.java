@@ -196,10 +196,6 @@ public interface AppApi {
     Observable<ListNovel> getUserSubmitNovel(@Query("user_id") int user_id);
 
 
-    @GET("v2/illust/follow")
-    Observable<ListIllust> getFollowUserIllust(@Query("restrict") String restrict);
-
-
     // 统一走 v2 + filter=for_ios:相比旧 v1/for_android 多带 is_accept_request / badge /
     // disabled_links 等字段(字段按 filter/版本 gate,与 UA 无关,Android UA 也拿得到),
     // 旧 v1 getUserDetail 已删除,全部改用本方法。

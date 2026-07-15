@@ -128,6 +128,19 @@ public class GlareLayout extends RelativeLayout {
         }
     }
 
+    /**
+     * 直接把选中项设成 index（0全部/1公开/2私人），**不回调 listener**。
+     * 给「页面状态活得比视图久」的宿主用：视图重建后按宿主记着的状态回填选中态，
+     * 而不是让控件复位成默认的「全部」跟内容对不上（见 FragmentRight）。
+     */
+    public void setCurrentState(int index) {
+        if (index < 0 || index > 2 || index == currentState) {
+            return;
+        }
+        currentState = index;
+        check(index);
+    }
+
     public OnCheckChangeListener getListener() {
         return mListener;
     }

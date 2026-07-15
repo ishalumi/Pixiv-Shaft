@@ -119,6 +119,16 @@ interface API {
     @GET("/v2/illust/mypixiv")
     suspend fun getNiceFriendIllust(): IllustResponse
 
+    /**
+     * 「动态」页:已关注画师的最新插画/漫画。
+     * [restrict] 取 [ceui.lisa.utils.Params] 的 TYPE_ALL / TYPE_PUBLIC / TYPE_PRIVATE,
+     * 对应页面上的 全部 / 公开 / 私人 筛选。
+     */
+    @GET("/v2/illust/follow")
+    suspend fun getFollowingIllusts(
+        @Query("restrict") restrict: String,
+    ): IllustResponse
+
     @GET("/v1/{type}/recommended?include_ranking_illusts=false&include_privacy_policy=true&filter=for_ios")
     suspend fun getHomeData(
         @Path("type") type: String,

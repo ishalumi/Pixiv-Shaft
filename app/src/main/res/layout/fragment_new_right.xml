@@ -212,22 +212,20 @@
 
                 </androidx.core.widget.NestedScrollView>
 
+                <!-- 两条列表各占一个容器,同一时刻只显示一条(见 FragmentRight.applyMode)。
+                     两个都是 feeds/legacy 列表 fragment 自带下拉刷新与空态,所以本页不再有
+                     自己的 refreshLayout / empty_layout。 -->
                 <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent">
 
-                    <com.scwang.smart.refresh.layout.SmartRefreshLayout
-                        android:id="@+id/refreshLayout"
+                    <!-- 插画/漫画:ceui.pixiv.ui.dynamic.FollowingIllustFeedFragment -->
+                    <FrameLayout
+                        android:id="@+id/illust_list_container"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent">
+                        android:layout_height="match_parent" />
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/recyclerView"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent" />
-
-                    </com.scwang.smart.refresh.layout.SmartRefreshLayout>
-
+                    <!-- 小说:ceui.lisa.fragments.FragmentNewNovels(仍是 legacy 列表) -->
                     <FrameLayout
                         android:id="@+id/novel_list_container"
                         android:layout_width="match_parent"
@@ -237,14 +235,6 @@
                 </FrameLayout>
 
             </com.qmuiteam.qmui.widget.roundwidget.QMUIRoundLinearLayout>
-
-            <include
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                app:layout_anchor="@+id/content_item"
-                app:layout_anchorGravity="center"
-                layout="@layout/empty_layout" />
 
         </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
