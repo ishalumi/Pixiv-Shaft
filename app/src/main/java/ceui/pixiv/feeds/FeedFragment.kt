@@ -106,6 +106,49 @@ abstract class FeedFragment(
             ViewCompat.requestApplyInsets(listView)
         }
 
+        installList(binding)
+
+        // 下拉刷新转圈 + 空态插画共用一个 palette：V3Palette.from 解析 ?attr/colorPrimary 并按当前
+        // uiMode 分深浅支。切主题/日夜都会重建 Activity → 走到这里重算，不用自己监听。
+        val palette = V3Palette.from(requireContext())
+
+        // 下拉刷新转圈：SwipeRefreshLayout 默认是 Material 蓝箭头 + #FAFAFA 近白底盘，既不跟主题
+        // 也不跟日夜（这两个颜色 XML 设不了，只能在这里设，所以收口在基类——6 个 feed 布局都是
+        // <include fragment_feed/>，共用同一个 feed_refresh_layout）。
+        // 箭头取 textAccent，对齐 ArtworkV3Fragment / UserActivityV3 刷新头的既有取色惯例；
+        // 底盘取 cardFill（「隐约带主题色的不透明悬浮底」，语义正是这块浮起的小圆饼），不换的话
+        // 暗色模式下是块白饼。两者日夜两支恒为「浅箭头深底 / 深箭头浅底」，对比度不会塌。
+        binding.feedRefreshLayout.setColorSchemeColors(palette.textAccent)
+        binding.feedRefreshLayout.setProgressBackgroundColorSchemeColor(palette.cardFill)
+        binding.feedRefreshLayout.setOnRefreshListener { feedViewModel.refresh() }
+        binding.feedStateText.setOnClickListener { feedViewModel.refresh() }
+
+        // 空态/错误态的箱子插画：mipmap 是灰色描边，这里用主题色的派生色 tint。
+        // textAccent 是 readability-adjusted 的主题色（深色→提亮、浅色→压深，V3Palette 按当前
+        // uiMode 分支），比 legacy empty_layout 的裸 ?attr/colorPrimary 柔和且日夜双模都可读；
+        // 再压 60% alpha（SRC_IN）让它像插画而非实心色块。
+        binding.feedEmptyImage.imageTintList =
+            ColorStateList.valueOf(V3Palette.withAlpha(palette.textAccent, 0.6f))
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                feedViewModel.uiState.collect { state -> render(state) }
+            }
+        }
+    }
+
+    /**
+     * 装配列表：Renderer / Adapter / LayoutManager / 骨架图。[onViewCreated] 装一次，
+     * [rebuildList] 在运行时换列表形态时重装。
+     */
+    private fun installList(binding: FragmentFeedBinding) {
+        val listView = binding.feedListView
+        // 重装时先卸掉上一轮留下的东西：decoration 会一层层叠加，骨架会重复堆在容器里
+        while (listView.itemDecorationCount > 0) {
+            listView.removeItemDecorationAt(0)
+        }
+        binding.feedSkeleton.removeAllViews()
+
         val adapter = FeedAdapter(
             renderers = onCreateRenderers() + AppendFooterRenderer { feedViewModel.retryAppend() },
             onNearEnd = { if (loadMoreEnabled) feedViewModel.loadMore() },
@@ -123,28 +166,27 @@ abstract class FeedFragment(
                 FrameLayout.LayoutParams.MATCH_PARENT,
             )
         }
-        binding.feedListView.apply {
-            this.layoutManager = layoutManager
-            this.adapter = adapter
-            onListReady(this)
-        }
-        binding.feedRefreshLayout.setOnRefreshListener { feedViewModel.refresh() }
-        binding.feedStateText.setOnClickListener { feedViewModel.refresh() }
+        listView.layoutManager = layoutManager
+        // 必须是 setAdapter 而不是 swapAdapter：重装时 viewType 的含义会整个换掉（时间线卡和
+        // 瀑布流卡都是 0 号），setAdapter 的 compatibleWithPrevious=false 会让 RecyclerView 清掉
+        // 旧 pool，否则上一种卡的 ViewHolder 会被派给新 Renderer 当场 ClassCastException。
+        // ⚠️ 由此推论：[onListReady] 里不要 setRecycledViewPool 装共享池——共享池 attachCount != 0
+        // 时 setAdapter 不清它，[rebuildList] 就会串类型。
+        listView.adapter = adapter
+        onListReady(listView)
+    }
 
-        // 空态/错误态的箱子插画：mipmap 是灰色描边，这里用主题色的派生色 tint。
-        // textAccent 是 readability-adjusted 的主题色（深色→提亮、浅色→压深，V3Palette 按当前
-        // uiMode 分支），比 legacy empty_layout 的裸 ?attr/colorPrimary 柔和且日夜双模都可读；
-        // 再压 60% alpha（SRC_IN）让它像插画而非实心色块。切主题/日夜会重建 Activity → 这里重算。
-        val emptyTint = V3Palette.from(requireContext()).let { p ->
-            V3Palette.withAlpha(p.textAccent, 0.6f)
-        }
-        binding.feedEmptyImage.imageTintList = ColorStateList.valueOf(emptyTint)
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                feedViewModel.uiState.collect { state -> render(adapter, state) }
-            }
-        }
+    /**
+     * 运行时重装列表：换一套 Renderer / LayoutManager，**数据留在 VM 里不重拉**
+     * （用于「同一份数据、两种排布」的页面，如动态页的时间线 ↔ 瀑布流切换）。
+     *
+     * 重装后当前 [FeedUiState] 会立刻重新 render 一遍，不必等下一次数据变化。
+     * 与 legacy 换 adapter 的语义一致：滚动位置会回到顶部。view 未创建时安全 no-op。
+     */
+    protected fun rebuildList() {
+        val binding = _binding ?: return
+        installList(binding)
+        render(feedViewModel.uiState.value)
     }
 
     override fun onResume() {
@@ -162,6 +204,13 @@ abstract class FeedFragment(
         _binding = null
         super.onDestroyView()
     }
+
+    /**
+     * 空列表时的文案，默认是通用的「居然啥也没有」。页面语义更具体时覆写
+     *（如「稍后再看列表是空的」）。错误态文案不走这里——那条是框架统一的「点击重试」。
+     */
+    protected open val emptyStateText: CharSequence
+        get() = getString(R.string.empty_list_1)
 
     /** 默认竖排线性；网格用 [gridLayoutManager]，瀑布流直接返回 StaggeredGridLayoutManager。 */
     protected open fun onCreateLayoutManager(): RecyclerView.LayoutManager {
@@ -230,7 +279,9 @@ abstract class FeedFragment(
      * （如新评论发出后滚回顶部高亮）在子类覆写，而不是自己拍延迟猜时机。默认 no-op。 */
     protected open fun onListCommitted(state: FeedUiState) {}
 
-    private fun render(adapter: FeedAdapter, state: FeedUiState) {
+    /** adapter 现取不缓存：[rebuildList] 换过 adapter 之后，长活的 uiState collector 不能再往旧的提交。 */
+    private fun render(state: FeedUiState) {
+        val adapter = feedAdapter ?: return
         val displayList = when (val append = state.append) {
             is LoadState.Loading, is LoadState.Error -> state.items + AppendFooterItem(append)
             else -> state.items
@@ -249,7 +300,7 @@ abstract class FeedFragment(
 
         val stateText = when {
             state.showFullscreenError -> getString(R.string.list_load_failed_tap_retry)
-            state.showEmptyState -> getString(R.string.empty_list_1)
+            state.showEmptyState -> emptyStateText
             else -> null
         }
         binding.feedStateText.isVisible = stateText != null

@@ -186,7 +186,7 @@ class EntityWrapper(
         return _watchLaterIllustIds.contains(illustId)
     }
 
-    // 稍后再看列表变更后发本地广播,WatchLaterFragment 收到重新拉 DB。
+    // 稍后再看列表变更后发本地广播,WatchLaterFeedFragment 收到重新拉 DB。
     // LocalBroadcastManager.sendBroadcast 内部 post 到主线程,IO 线程调也安全。
     private fun notifyWatchLaterChanged() {
         LocalBroadcastManager.getInstance(context).sendBroadcast(Intent(ACTION_WATCH_LATER_CHANGED))

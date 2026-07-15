@@ -33,8 +33,8 @@ import timber.log.Timber
 /**
  * 旧 PixivFragment 框架清理后保留下来的共享工具方法 / 标记接口。
  * PixivFragment 及其列表子类、fragment_pixiv_list 均已删除,但这些 helper 仍被
- * feeds 框架(FeedFragment / 各 FeedFragment 子页)、WatchLaterFragment、PinnedTagsFragment、
- * 小说详情等存活代码复用,故独立到本文件(包名保持 ceui.pixiv.ui.common,现有 import 不变)。
+ * feeds 框架(FeedFragment / 各 FeedFragment 子页)、PinnedTagsFragment、小说详情等存活代码
+ * 复用,故独立到本文件(包名保持 ceui.pixiv.ui.common,现有 import 不变)。
  *
  * 已随框架一并删除的两个 helper:setUpRefreshState / setUpCustomAdapter —— 它们绑定
  * 已删除的 FragmentPixivListBinding,且只服务已删除的列表子类。

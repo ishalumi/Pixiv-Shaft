@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「稍后再看」toolbar 菜单。只挂一个「更多」,点开是 V3 菜单 sheet(播放全部 / 清空列表),
+  沿用本页原本 navi_more 的交互,不改成 AppCompat 原生 overflow 弹窗。
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 图标名里的 black 只是资源名:toolbar 挂 AppTheme.AppBarOverlay(Dark.ActionBar),
+         菜单图标会自动 tint 成白,同 local_save.xml 的既有做法,不用手动 setIconTintList。 -->
+    <item
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_more_vert_black_24dp"
+        android:title="@string/more_actions"
+        app:showAsAction="always" />
+</menu>
