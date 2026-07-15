@@ -6,6 +6,7 @@
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/v3_bg"
@@ -23,15 +24,40 @@
         app:title=" "
         app:titleTextColor="@android:color/white">
 
-        <TextView
-            android:id="@+id/toolbar_title"
+        <!--
+          标题 + 可选副标题(计数等)。副标题默认 GONE:本布局被所有 feeds 独立页共用,
+          不设的页面维持原来的单行居中标题,不受影响。
+        -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:textColor="@color/white"
-            android:textSize="18sp" />
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/white"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/toolbar_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.75"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="1–26 of 2000"
+                tools:visibility="visible" />
+
+        </LinearLayout>
 
     </androidx.appcompat.widget.Toolbar>
 

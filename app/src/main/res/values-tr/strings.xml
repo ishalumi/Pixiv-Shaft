@@ -473,6 +473,7 @@
     <string name="string_273">Kendini tanıt:</string>
     <string name="string_274">P-Arkadaşlar\'ın illüstrasyonları / mangaları</string>
     <string name="nice_friend_works">P-Arkadaş Eserleri</string>
+    <string name="feed_count_range">%1$d–%2$d / %3$d</string>
     <string name="string_275">P-Arkadaşlar\'ın romanları</string>
     <string name="string_276">/storage/emulated/0/Shaft/SingleNovels</string>
     <string name="string_277">TXT olarak aktar (Görmek için klasöre git)</string>

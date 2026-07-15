@@ -473,6 +473,7 @@
     <string name="string_273">자기소개:</string>
     <string name="string_274">좋 은 P 친구 의 삽화 / 만화 작품</string>
     <string name="nice_friend_works">좋은 P 친구의 작품</string>
+    <string name="feed_count_range">%1$d–%2$d / 전체 %3$d</string>
     <string name="string_275">좋 은 P 친구 의 소설 작품</string>
     <string name="string_276">/storage/emulated/0/Shaft/SingleNovels</string>
     <string name="string_277">TXT 내 보 내기 (폴 더 에서 볼 수 있 음)</string>

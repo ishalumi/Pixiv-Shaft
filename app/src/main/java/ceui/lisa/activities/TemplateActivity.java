@@ -22,15 +22,12 @@ import ceui.lisa.fragments.FragmentAboutApp;
 import ceui.lisa.fragments.FragmentBookedTag;
 import ceui.lisa.fragments.FragmentCollection;
 import ceui.lisa.fragments.FragmentColors;
-import ceui.lisa.fragments.FragmentDiscovery;
-import ceui.lisa.fragments.FragmentDoing;
 import ceui.lisa.fragments.FragmentDonate;
 import ceui.lisa.fragments.FragmentEditAccount;
 import ceui.lisa.fragments.FragmentEditFile;
 import ceui.lisa.fragments.FragmentFeature;
 import ceui.lisa.fragments.FragmentFileName;
 import ceui.lisa.fragments.FragmentFollowUser;
-import ceui.lisa.fragments.FragmentHistory;
 import ceui.lisa.fragments.FragmentHistoryTabs;
 import ceui.lisa.fragments.FragmentImageDetail;
 import ceui.lisa.fragments.FragmentLikeNovel;
@@ -39,7 +36,6 @@ import ceui.lisa.fragments.FragmentLive;
 import ceui.lisa.fragments.FragmentLocalUsers;
 import ceui.lisa.fragments.FragmentLogin;
 import ceui.lisa.fragments.FragmentMangaSeries;
-import ceui.lisa.fragments.FragmentMangaSeriesDetail;
 import ceui.lisa.fragments.FragmentMarkdown;
 import ceui.lisa.fragments.FragmentNew;
 import ceui.lisa.fragments.FragmentNewNovel;
@@ -76,7 +72,6 @@ import ceui.lisa.helper.BackHandlerHelper;
 import ceui.lisa.models.IllustsBean;
 import ceui.lisa.models.NovelBean;
 import ceui.lisa.models.UserBean;
-import ceui.lisa.utils.Local;
 import ceui.lisa.utils.Params;
 import ceui.lisa.utils.ReverseResult;
 import ceui.loxia.ObjectPool;
@@ -386,8 +381,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     assert name != null;
 
                     return PrimeTagDetailFragment.Companion.newInstance(name, path);
-                case "任务中心":
-                    return new FragmentDoing();
                 case "我的插画收藏":
                     return FragmentCollection.newInstance(0);
                 case "我的小说收藏":
@@ -425,7 +418,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "版本历史":
                     return new ceui.lisa.update.FragmentVersionHistory();
                 case "发现":
-                    return FragmentDiscovery.newInstance();
+                    // feeds 框架版发现(算法流)，替代 legacy FragmentDiscovery
+                    return new ceui.pixiv.ui.discovery.DiscoveryFeedFragment();
                 case "当前最热":
                     return new ceui.pixiv.ui.recommend.FragmentRecentRecommend();
                 case "站长推荐":

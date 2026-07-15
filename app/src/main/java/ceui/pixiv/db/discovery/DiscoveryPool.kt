@@ -367,6 +367,11 @@ object DiscoveryPool {
         }
     }
 
+    /** 候选池在库总条数（含已展示的）。同步 Room 查询——调用方自己切 IO。 */
+    fun totalCount(): Int {
+        return AppDatabase.getAppDatabase(Shaft.getContext()).discoveryDao().count()
+    }
+
     fun getStats(): String {
         return try {
             val dao = AppDatabase.getAppDatabase(Shaft.getContext()).discoveryDao()
