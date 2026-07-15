@@ -20,6 +20,8 @@ import ceui.pixiv.feeds.updateItems
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 /**
  * 浏览历史「用户」tab（feeds 框架版）。结构同 [FragmentHistoryList]，但数据是 general_table 的
@@ -31,7 +33,13 @@ class FragmentHistoryUserList : FeedFragment(), SelectableHistoryTab {
 
     private val selectionVm: HistorySelectionViewModel by viewModels()
 
-    override val feedViewModel by feedViewModels { HistoryUserFeedSource() }
+    // 懒加载:同 FragmentHistoryList,ViewPager tab 只在真正可见时才拉。
+    override val feedViewModel by feedViewModels(autoLoad = false) { HistoryUserFeedSource() }
+
+    /** 时间格式化器:renderer 复用,别每次 onBind 都 new SimpleDateFormat。 */
+    internal val userTimeFormat by lazy {
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    }
 
     override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> =
         listOf(historyUserRenderer())

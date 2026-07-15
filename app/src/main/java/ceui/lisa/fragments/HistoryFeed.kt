@@ -27,7 +27,6 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.text.SimpleDateFormat
 import java.util.Locale
 
 // ── FeedItem 模型（原 HistoryIllustHolder / HistoryNovelHolder 的数据部分）─────────────
@@ -175,9 +174,6 @@ suspend fun deleteHistoryEntities(historyType: Int, entities: List<IllustHistory
 // 定义成 FragmentHistoryList 扩展：renderer 只在 onCreateRenderers() 里 new，随 view 生死，
 // 引用 fragment 的方法安全（不违反 FeedSource 的零捕获约定）。
 
-private fun historyTimeFormat(context: android.content.Context) =
-    SimpleDateFormat(context.getString(R.string.string_350), Locale.getDefault())
-
 fun FragmentHistoryList.historyIllustRenderer(): FeedRenderer<HistoryIllustFeedItem, CellHistoryIllustV3Binding> =
     feedRenderer(
         inflate = CellHistoryIllustV3Binding::inflate,
@@ -202,7 +198,7 @@ fun FragmentHistoryList.historyIllustRenderer(): FeedRenderer<HistoryIllustFeedI
             .placeholder(R.color.v3_surface_2).into(binding.illustImage)
         binding.title.text = illust.title
         binding.author.text = illust.user?.name.orEmpty()
-        binding.time.text = historyTimeFormat(context).format(entity.time)
+        binding.time.text = historyTimeFormat.format(entity.time)
 
         when {
             illust.isGif -> { binding.pSize.isVisible = true; binding.pSize.text = "GIF" }
@@ -246,7 +242,7 @@ fun FragmentHistoryList.historyNovelRenderer(): FeedRenderer<HistoryNovelFeedIte
             .placeholder(R.color.v3_surface_2).into(binding.illustImage)
         binding.title.text = novel.title
         binding.author.text = novel.user?.name.orEmpty()
-        binding.time.text = historyTimeFormat(context).format(entity.time)
+        binding.time.text = historyTimeFormat.format(entity.time)
         binding.badgeAi.isVisible = novel.isCreatedByAI()
 
         HistorySelectBadge.bind(binding.selectCheck, item.isSelectionMode, item.isSelected)

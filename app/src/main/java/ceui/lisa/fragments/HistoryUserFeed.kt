@@ -24,18 +24,23 @@ import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 // ── FeedItem 模型（原 HistoryUserHolder 的数据部分）。isSelectionMode/isSelected 由
 //    FragmentHistoryUserList.syncSelection 通过 updateItems 回灌，键为 entity.id(uid)。──
 
 data class HistoryUserFeedItem(
     val entity: GeneralEntity,
+    val user: User?,
     val isSelectionMode: Boolean = false,
     val isSelected: Boolean = false,
 ) : FeedItem {
     override val feedKey: Any get() = entity.id
+}
+
+/** entity.json 反序列化成 User 放进 item(在 source 的 IO 线程做一次),避免 renderer 每次 onBind 都 parse。 */
+private fun GeneralEntity.toUserFeedItem(): HistoryUserFeedItem {
+    val user = runCatching { Shaft.sGson.fromJson(json, User::class.java) }.getOrNull()
+    return HistoryUserFeedItem(this, user)
 }
 
 // ── FeedSource：远端 pixshaft("user") 优先，失败/未登录/未同意回退本地 general_table。
@@ -61,7 +66,7 @@ class HistoryUserFeedSource : FeedSource<String> {
                 if (cursor == null && mapped.isEmpty()) {
                     forcedLocal = true
                 } else {
-                    return@withContext FeedPage(mapped.map { HistoryUserFeedItem(it) }, resp.nextCursor)
+                    return@withContext FeedPage(mapped.map { it.toUserFeedItem() }, resp.nextCursor)
                 }
             } catch (ex: Exception) {
                 Timber.w(ex, "remote user-history unavailable, falling back to local DB")
@@ -71,7 +76,7 @@ class HistoryUserFeedSource : FeedSource<String> {
         val offset = cursor?.toIntOrNull() ?: 0
         val entities = dao.getByRecordType(RecordType.VIEW_USER_HISTORY, offset, PAGE_SIZE)
         val next = if (entities.size >= PAGE_SIZE) (offset + entities.size).toString() else null
-        FeedPage(entities.map { HistoryUserFeedItem(it) }, next)
+        FeedPage(entities.map { it.toUserFeedItem() }, next)
     }
 
     private fun remoteToEntity(entry: HistoryEntry): GeneralEntity? {
@@ -107,8 +112,6 @@ suspend fun deleteUserHistoryEntities(entities: List<GeneralEntity>) = withConte
 
 // ── Renderer（原 HistoryUserViewHolder 的绑定逻辑）。FragmentHistoryUserList 扩展。──
 
-private fun userHistoryTimeFormat() = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-
 fun FragmentHistoryUserList.historyUserRenderer(): FeedRenderer<HistoryUserFeedItem, CellHistoryUserBinding> =
     feedRenderer(
         inflate = CellHistoryUserBinding::inflate,
@@ -119,9 +122,9 @@ fun FragmentHistoryUserList.historyUserRenderer(): FeedRenderer<HistoryUserFeedI
         val entity = item.entity
         val context = binding.root.context
 
-        val user = runCatching { Shaft.sGson.fromJson(entity.json, User::class.java) }.getOrNull()
+        val user = item.user
         binding.userName.text = user?.name ?: "User #${entity.id}"
-        binding.visitTime.text = userHistoryTimeFormat().format(entity.updatedTime)
+        binding.visitTime.text = userTimeFormat.format(entity.updatedTime)
         val avatarUrl = user?.profile_image_urls?.medium
         if (!avatarUrl.isNullOrEmpty()) {
             Glide.with(context).load(GlideUtil.getUrl(avatarUrl)).into(binding.userAvatar)

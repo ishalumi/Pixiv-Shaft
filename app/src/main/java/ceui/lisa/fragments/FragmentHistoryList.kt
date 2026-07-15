@@ -29,6 +29,8 @@ import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 /**
  * 浏览历史「插画/漫画」「小说」tab（feeds 框架版）。
@@ -45,8 +47,15 @@ class FragmentHistoryList : FeedFragment(), SelectableHistoryTab {
     private val searchVm: HistorySearchSharedViewModel by activityViewModels()
     private val selectionVm: HistorySelectionViewModel by viewModels()
 
-    override val feedViewModel by feedViewModels {
+    // 懒加载:三 tab 在同一 ViewPager(BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT),只在 tab 真正
+    // 可见(首次 RESUMED)才拉,避免开页就并发三次网络请求。
+    override val feedViewModel by feedViewModels(autoLoad = false) {
         HistoryFeedSource(historyType, searchVm)
+    }
+
+    /** 时间格式化器:renderer 复用,别每次 onBind 都 new SimpleDateFormat。随 fragment 重建拿到当前 locale。 */
+    internal val historyTimeFormat by lazy {
+        SimpleDateFormat(getString(R.string.string_350), Locale.getDefault())
     }
 
     override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> =
