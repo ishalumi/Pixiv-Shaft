@@ -908,3 +908,39 @@ data class IllustSeriesResp(
     override val nextPageUrl: String?
         get() = next_url
 }
+/**
+ * 「追更列表」的一个条目 —— 注意它是一个**系列**（漫画系列 / 小说系列），不是单个作品：
+ * `v1/watchlist/manga|novel` 的响应顶层字段就叫 `series`。所以 [id] 是系列 id，
+ * 要开「最新一话」得用 [latest_content_id]（那才是作品 id）。
+ *
+ * [mask_text] 非空即「被屏蔽/下架」的占位条目：服务端此时把 [title] 给空串、[url] 给 null、
+ * [user] 的 id 给 0，只留一句说明文案（对齐 legacy WatchlistMangaAdapter.isInvalidItem 的判定）。
+ */
+data class WatchlistSeries(
+    val id: Long = 0,
+    val title: String = "",
+    /** 系列封面。被屏蔽的条目为 null。 */
+    val url: String? = null,
+    /** 非空 = 被屏蔽/下架，此时只显示这句话。 */
+    val mask_text: String? = null,
+    val published_content_count: Int = 0,
+    /** ISO 时间串；卡片只显示前 10 位（日期部分），对齐 legacy 的 substring(0, 10)。 */
+    val last_published_content_datetime: String? = null,
+    /** 最新一话的**作品** id（不是系列 id）。 */
+    val latest_content_id: Long? = null,
+    val user: User? = null,
+) : Serializable {
+
+    /** 被屏蔽/下架的占位条目（对齐 legacy isInvalidItem：标题空 + 无封面 + 有 mask + user.id=0）。 */
+    val isMasked: Boolean
+        get() = title.isEmpty() && url == null && mask_text != null && (user?.id ?: 0L) == 0L
+}
+
+data class WatchlistResponse(
+    /** 服务端字段名就是 series —— 追更列表装的是系列。 */
+    val series: List<WatchlistSeries> = listOf(),
+    val next_url: String? = null,
+) : Serializable, KListShow<WatchlistSeries> {
+    override val displayList: List<WatchlistSeries> get() = series
+    override val nextPageUrl: String? get() = next_url
+}

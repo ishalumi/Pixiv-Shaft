@@ -229,6 +229,16 @@ interface API {
     // filter。pixiv 的 filter 决定 image_urls 返回哪套变体，漏掉它用户卡的 3 张预览图可能空白。
     // 它原先是 loxia 这组 user_preview 端点里唯一不带 filter 的（following=for_android /
     // follower=for_ios / recommended=for_ios / related=for_android），本就是个异类。
+    /**
+     * 「追更列表」——已追的漫画/小说**系列**（响应顶层字段就是 series，见 [WatchlistResponse]）。
+     * legacy AppApi.getWatchlistManga/getWatchlistNovel 逐字对齐：路径之外不带任何 query。
+     */
+    @GET("v1/watchlist/manga")
+    suspend fun getWatchlistManga(): WatchlistResponse
+
+    @GET("v1/watchlist/novel")
+    suspend fun getWatchlistNovel(): WatchlistResponse
+
     @GET("/v1/user/mypixiv?filter=for_android")
     suspend fun getUserPixivFriends(
         @Query("user_id") user_id: Long,

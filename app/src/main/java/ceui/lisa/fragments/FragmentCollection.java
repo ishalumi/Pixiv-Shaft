@@ -96,8 +96,8 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
             };
         } else if (type == 3) {
             allPages = new Fragment[]{
-                    new FragmentWatchlistManga(),
-                    new FragmentWatchlistNovel()
+                    new ceui.pixiv.ui.watchlist.WatchlistMangaFeedFragment(),
+                    new ceui.pixiv.ui.watchlist.WatchlistNovelFeedFragment()
             };
             CHINESE_TITLES = new String[]{
                     Shaft.getContext().getString(R.string.type_manga),
@@ -141,18 +141,13 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
             }
         });
         baseBind.viewPager.setPageTransformer(true, new DrawerTransformer());
-        // feed 版插画收藏页(type=0)靠 onResume 懒加载，必须 RESUME_ONLY_CURRENT 才不会
-        // type 0/1/2(插画收藏/小说收藏/关注)已全是 feeds 版,靠 onResume 懒加载 —— 必须
-        // RESUME_ONLY_CURRENT,否则相邻的「私密」tab 会被 RESUME、偷偷发一次请求。
-        //
-        // type 3(追更列表)的两个 tab 仍是 legacy BaseLazyFragment,必须留在 USER_VISIBLE_HINT:
-        // FragmentPagerAdapter 在 behavior=RESUME_ONLY_CURRENT 下走 setMaxLifecycle、**从不调
-        // setUserVisibleHint**,而 Fragment.mUserVisibleHint 默认为 true —— BaseLazyFragment 的
-        // 「getUserVisibleHint() && !isLoaded」守卫于是恒真,onCreateView 一跑就 lazyData(),
-        // 两个 tab 开页即全量加载。(注意方向:是急加载,不是不加载。)
-        final int pagerBehavior = type == 3
-                ? FragmentPagerAdapter.BEHAVIOR_SET_USER_VISIBLE_HINT
-                : FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT;
+        // 四种 type(0=插画收藏 1=小说收藏 2=关注 3=追更列表)现在全是 feeds 版,一律靠 onResume
+        // 懒加载 —— 必须 RESUME_ONLY_CURRENT,否则相邻 tab 会被 RESUME、偷偷发一次请求。
+        // (type 3 曾因两个 tab 还是 legacy BaseLazyFragment 而留过 USER_VISIBLE_HINT 特例:
+        //  RESUME_ONLY_CURRENT 下 FragmentPagerAdapter 走 setMaxLifecycle、从不调
+        //  setUserVisibleHint,而 mUserVisibleHint 默认 true → BaseLazyFragment 的懒加载守卫
+        //  恒真 → 开页即全量加载。迁 feeds 后特例已无必要。)
+        final int pagerBehavior = FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT;
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), pagerBehavior) {
             @NonNull
             @Override
