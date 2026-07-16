@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  主题色列表 cell（feeds 版，替代 databinding 的 recy_color.xml）。
+
+  样式照搬旧版：卡片本身就是那个色块，名称在左、色值在右。文字恒为 always_white 而不是
+  ?attr/textColorPrimary —— 底色是十种固定主题色（由代码 setCardBackgroundColor 塞进来），
+  既不跟主题也不跟日夜，白字在这十种上都读得出来。
+  cardBackgroundColor 的 ?attr/colorPrimary 只是预览占位，运行时必被覆盖。
+
+  间距不在 cell 上：旧版外面套一层 RelativeLayout 只为给 CardView 挂 6dp layout_margin，
+  现在 CardView 直接当根，间距由 ThemeColorFeedFragment.onListReady 的 LinearItemDecoration 给
+  —— cell 只管自己长什么样，列表才管条目之间怎么排。
+-->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="?attr/colorPrimary"
+    app:cardCornerRadius="@dimen/six_dp"
+    app:cardElevation="@dimen/four_dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:textColor="@color/always_white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="经典蓝（正在使用）" />
+
+        <TextView
+            android:id="@+id/value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_margin="16dp"
+            android:textColor="@color/always_white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="#56baec" />
+
+    </RelativeLayout>
+
+</androidx.cardview.widget.CardView>

@@ -25,6 +25,7 @@ import ceui.lisa.helper.NavigationLocationHelper;
 import ceui.lisa.helper.ThemeHelper;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.Local;
+import ceui.pixiv.ui.settings.ThemeColorCatalog;
 
 /** 设置 · 界面 */
 public class FragmentSettingsAppearance extends SettingsPageFragment<FragmentSettingsAppearanceBinding> {
@@ -264,7 +265,7 @@ public class FragmentSettingsAppearance extends SettingsPageFragment<FragmentSet
 
     private void setThemeName() {
         final int index = Shaft.sSettings.getThemeIndex();
-        baseBind.colorSelect.setText(getString(FragmentColors.COLOR_NAME_CODES[index]));
+        baseBind.colorSelect.setText(getString(ThemeColorCatalog.nameResOf(index)));
     }
 
     private String currentLanguageDisplay() {

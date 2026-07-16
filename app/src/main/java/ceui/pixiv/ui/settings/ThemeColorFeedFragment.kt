@@ -1,0 +1,119 @@
+package ceui.pixiv.ui.settings
+
+import android.graphics.Color
+import android.os.Bundle
+import android.view.View
+import androidx.annotation.StringRes
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
+import ceui.lisa.R
+import ceui.lisa.activities.Shaft
+import ceui.lisa.databinding.CellThemeColorBinding
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.lisa.utils.Common
+import ceui.lisa.utils.Local
+import ceui.lisa.view.LinearItemDecoration
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedPage
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.setUpToolbar
+import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.utils.ppppx
+
+/**
+ * 「主题色彩」列表页（feeds 框架版，替代 legacy FragmentColors + ColorAdapter + ColorItem）。
+ *
+ * 入口在 [ceui.lisa.activities.TemplateActivity]（`EXTRA_FRAGMENT = "主题颜色"`），来源是
+ * 设置 → 外观里的「主题色彩」行。
+ *
+ * 数据是 [ThemeColorCatalog] 那份静态目录，不碰网络也不碰 DB：单页、无翻页、无缓存
+ * （本地优先没有意义，数据本来就编译在包里）。点一行即写 Settings 并重启进程。
+ */
+class ThemeColorFeedFragment : FeedFragment(R.layout.fragment_toolbar_feed) {
+
+    private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
+
+    override val feedViewModel by feedViewModels<Int> {
+        // 零捕获：静态目录 + Settings 全局单例，source 不碰 Fragment（约定见 feedViewModels 文档）。
+        // 游标恒 null —— 十行就是全部，没有下一页。
+        FeedSource { FeedPage(themeColorItems(), null) }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setUpToolbar(binding, feedBinding.feedListView)
+        binding.toolbarTitle.text = getString(R.string.string_324)
+    }
+
+    /**
+     * 卡片间距归列表管，不写在 cell 的 layout_margin 上（旧版 recy_color 为了挂 margin 还多套了
+     * 一层 RelativeLayout）。18dp 是本仓竖排列表的通行值（[ceui.pixiv.ui.common.setUpLayoutManager]
+     * 的 ListMode.VERTICAL、置顶标签页都是它），比旧版那 6dp 松，卡片不再顶着屏幕边。
+     */
+    override fun onListReady(listView: RecyclerView) {
+        listView.addItemDecoration(LinearItemDecoration(18.ppppx))
+    }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(themeColorRenderer())
+    }
+
+    private fun themeColorRenderer() = feedRenderer<ThemeColorFeedItem, CellThemeColorBinding>(
+        inflate = CellThemeColorBinding::inflate,
+        create = { cell -> cell.binding.root.setOnClickListener { onPickColor(cell.item) } },
+    ) { cell ->
+        val item = cell.item
+        // 卡片本身就是色块；hex 全部来自目录里的字面量，parseColor 不会抛。
+        cell.binding.root.setCardBackgroundColor(Color.parseColor(item.hex))
+        cell.binding.name.text = if (item.selected) {
+            getString(item.nameRes) + getString(R.string.theme_nowUsing)
+        } else {
+            getString(item.nameRes)
+        }
+        cell.binding.value.text = item.hex
+    }
+
+    /**
+     * 选中即写盘 + 重启（对齐 legacy ColorAdapter.handleClick）：主题是 Activity 级的
+     * `setTheme(AppTheme_IndexN)`，只能靠重进程整体换掉，没法就地重绘。
+     *
+     * 点当前这一行直接吞掉 —— 否则用户点一下自己正在用的颜色，App 会白重启一次。
+     */
+    private fun onPickColor(item: ThemeColorFeedItem) {
+        if (item.index == Shaft.sSettings.themeIndex) return
+        Shaft.sSettings.themeIndex = item.index
+        Local.setSettings(Shaft.sSettings)
+        Common.restart()
+        Common.showToast(getString(R.string.string_428), 2)
+    }
+}
+
+/**
+ * 一行主题色。[selected] 是「装配这一页那一刻的当前主题」的快照 —— 选中即重启进程，
+ * 页面不存在「选完还留在原地看它换勾」的状态，不需要就地更新。
+ */
+data class ThemeColorFeedItem(
+    val index: Int,
+    @StringRes val nameRes: Int,
+    val hex: String,
+    val selected: Boolean,
+) : FeedItem {
+
+    override val feedKey: Any get() = index
+}
+
+/**
+ * 顶层函数（非成员方法）：给 [ThemeColorFeedFragment.feedViewModel] 的 [FeedSource] lambda 用。
+ * 写成成员方法会隐式捕获 Fragment 实例，而 FeedSource 被 VM 持有到页面最终销毁
+ * （零捕获约定见 [ceui.pixiv.feeds.feedViewModels] 文档）。
+ */
+private fun themeColorItems(): List<FeedItem> {
+    val current = Shaft.sSettings.themeIndex
+    return ThemeColorCatalog.entries.mapIndexed { index, entry ->
+        ThemeColorFeedItem(index, entry.nameRes, entry.hex, index == current)
+    }
+}

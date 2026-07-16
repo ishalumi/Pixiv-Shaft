@@ -21,7 +21,6 @@ import ceui.lisa.databinding.ActivityFragmentBinding;
 import ceui.lisa.fragments.FragmentAboutApp;
 import ceui.lisa.fragments.FragmentBookedTag;
 import ceui.lisa.fragments.FragmentCollection;
-import ceui.lisa.fragments.FragmentColors;
 import ceui.lisa.fragments.FragmentDonate;
 import ceui.lisa.fragments.FragmentEditAccount;
 import ceui.lisa.fragments.FragmentEditFile;
@@ -379,7 +378,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "小说书签":
                     return new FragmentNovelMarkers();
                 case "主题颜色":
-                    return new FragmentColors();
+                    // feeds 框架版(替代 legacy FragmentColors);静态目录单页,带 toolbar
+                    return new ceui.pixiv.ui.settings.ThemeColorFeedFragment();
                 case "测试测试":
                     return new FragmentSAF();
                 case "举报插画":

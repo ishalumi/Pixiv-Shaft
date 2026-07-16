@@ -39,6 +39,7 @@ import ceui.lisa.viewmodel.AppLevelViewModel;
 import ceui.loxia.ServicesProvider;
 import ceui.pixiv.db.EntityWrapper;
 import ceui.pixiv.session.SessionManager;
+import ceui.pixiv.ui.settings.ThemeColorCatalog;
 import ceui.pixiv.utils.NetworkStateManager;
 import io.reactivex.exceptions.UndeliverableException;
 import io.reactivex.plugins.RxJavaPlugins;
@@ -570,21 +571,14 @@ public class Shaft extends Application implements ServicesProvider {
         }
     }
 
+    /**
+     * 当前主题色的 #RRGGBB。色值收口在 {@link ceui.pixiv.ui.settings.ThemeColorCatalog}——
+     * 「主题色彩」列表页读的是同一份，以前这里的 switch 是第二份硬编码，已经和列表页漂了
+     * （6 号一处 #F44336 一处 #f44336，Color.parseColor 大小写不敏感所以没人发现）。
+     * 越界回落 0 号，与 updateTheme 的 default 分支一致。
+     */
     public static String getThemeColor() {
-        int current = Shaft.sSettings.getThemeIndex();
-        return switch (current) {
-            case 0 -> "#686bdd";
-            case 1 -> "#56baec";
-            case 2 -> "#008BF3";
-            case 3 -> "#03d0bf";
-            case 4 -> "#fee65e";
-            case 5 -> "#fe83a2";
-            case 6 -> "#F44336";
-            case 7 -> "#673AB7";
-            case 8 -> "#4CAF50";
-            case 9 -> "#E91E63";
-            default -> "#686bdd";
-        };
+        return ThemeColorCatalog.hexOf(Shaft.sSettings.getThemeIndex());
     }
 
     @Override
