@@ -2,7 +2,6 @@ package ceui.pixiv.ui.pivision
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
@@ -47,13 +46,6 @@ class PivisionFeedFragment : FeedFragment() {
         // illust 页与发现页货架同 slot(pivision-illust) → 共用同一份本地优先快照。
         val category = dataType
         pivisionSource(category)
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        // V3 卡要配 V3 底:基类给裸 fragment_feed 铺的是 legacy 列表底(fragment_center,夜间 #2A2A2A),
-        // 和卡底 cardFill 几乎同色,卡会糊进背景里。
-        view.setBackgroundResource(R.color.v3_bg)
     }
 
     override fun onListReady(listView: RecyclerView) {

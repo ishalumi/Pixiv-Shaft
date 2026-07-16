@@ -26,6 +26,8 @@ import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import com.bumptech.glide.Glide
 import com.google.gson.JsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -50,7 +52,13 @@ class EventHistoryFeedSource : FeedSource<Long> {
         val resp = ShaftApiV2Client.service.eventsHistory(
             clientId = cid, limit = 50, eventType = null, before = cursor,
         )
-        return FeedPage(resp.items.map { EventHistoryFeedItem(it) }, resp.next_before)
+        // 预解析挪 Default：parsed 是整个 meta 的 gson 反序列化，lazy 首次求值原本落在首次
+        // onBind（主线程滚动路径，每页 50 条逐条 parse）。这里在后台先把 lazy 焐热，bind 只读值
+        // （对齐「bean 预解析别 per-bind」的既有裁决）。
+        val items = withContext(Dispatchers.Default) {
+            resp.items.map { EventHistoryFeedItem(it).also { feedItem -> feedItem.parsed } }
+        }
+        return FeedPage(items, resp.next_before)
     }
 }
 
@@ -119,6 +127,12 @@ private fun parseTarget(targetType: String, meta: JsonObject?): ParsedTarget? {
 fun eventHistoryRenderer(): FeedRenderer<EventHistoryFeedItem, CellEventHistoryBinding> =
     feedRenderer(
         inflate = CellEventHistoryBinding::inflate,
+        create = { cell ->
+            // 监听只挂一次，点击那一刻经 cell.item 取当下条目（绑定零 lambda 分配）
+            cell.binding.root.setOnClickListener { v ->
+                cell.itemOrNull?.parsed?.openIntent?.invoke(v.context)
+            }
+        },
         recycle = { Glide.with(it.binding.thumb).clear(it.binding.thumb) },
     ) { cell ->
         val binding = cell.binding
@@ -144,7 +158,6 @@ fun eventHistoryRenderer(): FeedRenderer<EventHistoryFeedItem, CellEventHistoryB
             .placeholder(R.color.v3_surface_2)
             .into(binding.thumb)
 
-        binding.root.setOnClickListener { parsed?.openIntent?.invoke(context) }
         binding.root.isClickable = parsed != null
     }
 

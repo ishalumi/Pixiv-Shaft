@@ -15,6 +15,7 @@ import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.lisa.models.IllustsBean
 import ceui.pixiv.db.discovery.DiscoveryPool
 import ceui.pixiv.db.discovery.ProfileManager
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedPage
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedViewModels
@@ -75,6 +76,11 @@ class DiscoveryFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_feed)
 
     /** 本地池子没有 nextUrl，详情页 pager 不能续读——喂页号进去只会当 URL 请求失败。 */
     override val detailContinuationCursor: String? get() = null
+
+    // 候选池的 illustJson 是**采集那一刻**冻结的快照，可能已存了几天。喂池会拿旧的
+    // is_bookmarked=false / user.is_followed 盖掉当前会话里更新的收藏/关注态
+    // （mergeKeepingExisting 不把 false 当空值）。同 WatchLaterFeedFragment 先例。
+    override fun poolableBeansOf(item: FeedItem): List<IllustsBean> = emptyList()
 
     /** 候选池在库总数归 VM（数据不塞 Fragment），旋转 / 视图重建后不重查。 */
     private val countViewModel: DiscoveryPoolCountViewModel by viewModels()

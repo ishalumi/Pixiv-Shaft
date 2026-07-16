@@ -201,6 +201,8 @@ private fun bindWatchlistCard(
         // INVISIBLE 而非 GONE：保住卡片高度，屏蔽条目不会比邻居矮一截（对齐 legacy）
         actionButton.visibility = View.INVISIBLE
         cover.visibility = View.INVISIBLE
+        // 头像也要藏：复用的 holder 从正常条目重绑到屏蔽条目时，上一条画师的头像会原样留着
+        userHead.visibility = View.INVISIBLE
         return
     }
     title.text = series.title
@@ -213,6 +215,7 @@ private fun bindWatchlistCard(
     )
     actionButton.visibility = View.VISIBLE
     cover.visibility = View.VISIBLE
+    userHead.visibility = View.VISIBLE
     Glide.with(cover).load(GlideUtil.getUrl(series.url)).into(cover)
     series.user?.let { Glide.with(userHead).load(GlideUtil.getHead(it)).into(userHead) }
 }

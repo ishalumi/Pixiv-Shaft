@@ -19,7 +19,9 @@ import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.feeds.updateItems
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -100,7 +102,8 @@ class FragmentHistoryUserList : FeedFragment(), SelectableHistoryTab {
         if (entities.isEmpty()) { onComplete(0); return }
         val ids = entities.map { it.id }.toSet()
         viewLifecycleOwner.lifecycleScope.launch {
-            deleteUserHistoryEntities(entities)
+            // 同 FragmentHistoryList.deleteHistory：删除本体不随 view 生死，防半途取消「复活」。
+            withContext(NonCancellable) { deleteUserHistoryEntities(entities) }
             if (view == null) return@launch
             feedViewModel.removeItems { (it as? HistoryUserFeedItem)?.entity?.id in ids }
             onComplete(ids.size)

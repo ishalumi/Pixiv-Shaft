@@ -217,6 +217,7 @@ fun seriesAuthorRenderer(): FeedRenderer<SeriesAuthorFeedItem, SectionV3ArtistBi
     feedRenderer(
         inflate = SectionV3ArtistBinding::inflate,
         fullSpan = true,
+        recycle = { Glide.with(it.binding.artistAvatar).clear(it.binding.artistAvatar) },
     ) { cell ->
         val b = cell.binding
         val user = cell.item.user
@@ -339,6 +340,7 @@ fun seriesSectionLabelRenderer(): FeedRenderer<SeriesSectionLabelFeedItem, ItemV
 fun mangaEpisodeRenderer(): FeedRenderer<MangaEpisodeFeedItem, CellMangaSeriesItemBinding> =
     feedRenderer(
         inflate = CellMangaSeriesItemBinding::inflate,
+        recycle = { Glide.with(it.binding.cover).clear(it.binding.cover) },
     ) { cell ->
         val b = cell.binding
         val illust = cell.item.illust

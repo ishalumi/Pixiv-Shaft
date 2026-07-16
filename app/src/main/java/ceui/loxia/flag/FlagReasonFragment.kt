@@ -31,7 +31,6 @@ import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
-import kotlinx.coroutines.delay
 
 /**
  * 举报第一步：选违规类型（feeds 框架版）。违规类型列表由服务端 /v1/illust/report/topic-list

@@ -8,6 +8,7 @@ import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.network.ShaftApiV2
 import ceui.lisa.network.ShaftApiV2Client
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedPage
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedViewModels
@@ -56,6 +57,11 @@ class BookmarkRankFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_fe
     // shaft-api-v2 的 next_url 是 shaft 绝对 URL,不是 app-api illust nextUrl;别漏进详情页 pager
     // (getNextIllust 拿它当 @Url 请求会拿到 MostBookmarkedResponse 形状,解析成空 IllustResponse)。
     override val detailContinuationCursor: String? get() = null
+
+    // 榜单 bean 是第三方上报快照:is_bookmarked 被 source 伪造成 false、user.is_followed 是
+    // 上报者的——都不可信,喂池会把当前用户更新的收藏/关注态盖回去(mergeKeepingExisting 不把
+    // false 当空值,AppLevelViewModelHelper.fill 直接灌关注态)。同 WatchLaterFeedFragment 先例。
+    override fun poolableBeansOf(item: FeedItem): List<IllustsBean> = emptyList()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

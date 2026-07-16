@@ -123,6 +123,28 @@ suspend fun deleteUserHistoryEntities(entities: List<GeneralEntity>) = withConte
 fun FragmentHistoryUserList.historyUserRenderer(): FeedRenderer<HistoryUserFeedItem, CellHistoryUserBinding> =
     feedRenderer(
         inflate = CellHistoryUserBinding::inflate,
+        create = { cell ->
+            // 监听只挂一次,点击那一刻经 cell.item 取当下条目(框架约定:绑定零 lambda 分配)
+            val binding = cell.binding
+            binding.root.setOnClickListener { v ->
+                val item = cell.itemOrNull ?: return@setOnClickListener
+                if (item.isSelectionMode) {
+                    toggleUserHistorySelect(item.entity)
+                } else {
+                    v.context.startActivity(Intent(v.context, UActivity::class.java).apply {
+                        putExtra(Params.USER_ID, item.entity.id.toInt())
+                    })
+                }
+            }
+            binding.root.setOnLongClickListener {
+                val item = cell.itemOrNull ?: return@setOnLongClickListener false
+                if (!item.isSelectionMode) confirmDeleteUserHistory(item.entity)
+                true
+            }
+            binding.deleteItem.setOnClickListener {
+                cell.itemOrNull?.let { item -> confirmDeleteUserHistory(item.entity) }
+            }
+        },
         recycle = { Glide.with(it.binding.userAvatar).clear(it.binding.userAvatar) },
     ) { cell ->
         val binding = cell.binding
@@ -140,17 +162,4 @@ fun FragmentHistoryUserList.historyUserRenderer(): FeedRenderer<HistoryUserFeedI
 
         HistorySelectBadge.bind(binding.selectCheck, item.isSelectionMode, item.isSelected)
         binding.deleteItem.isVisible = !item.isSelectionMode
-
-        binding.root.setOnClickListener {
-            if (item.isSelectionMode) { toggleUserHistorySelect(entity); return@setOnClickListener }
-            context.startActivity(Intent(context, UActivity::class.java).apply {
-                putExtra(Params.USER_ID, entity.id.toInt())
-            })
-        }
-        binding.root.setOnLongClickListener {
-            if (item.isSelectionMode) return@setOnLongClickListener true
-            confirmDeleteUserHistory(entity)
-            true
-        }
-        binding.deleteItem.setOnClickListener { confirmDeleteUserHistory(entity) }
     }

@@ -1,6 +1,8 @@
 package ceui.pixiv.ui.recommend
 
 import android.os.Bundle
+import ceui.lisa.models.IllustsBean
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 
@@ -29,6 +31,10 @@ class YearRankIllustFeedFragment : IllustFeedFragment() {
     // shaft-api-v2 的 next_url 是 shaft 绝对 URL,不是 app-api illust nextUrl;别漏进详情页 pager
     // (getNextIllust 拿它当 @Url 请求会拿到 MostBookmarkedResponse 形状,解析成空 IllustResponse)。
     override val detailContinuationCursor: String? get() = null
+
+    // 榜单 bean 是第三方上报快照:is_bookmarked 被 source 伪造成 false、user.is_followed 是
+    // 上报者的——都不可信,喂池会把当前用户更新的收藏/关注态盖回去。同 WatchLaterFeedFragment 先例。
+    override fun poolableBeansOf(item: FeedItem): List<IllustsBean> = emptyList()
 
     companion object {
         private const val ARG_YEAR = "year_rank_year"

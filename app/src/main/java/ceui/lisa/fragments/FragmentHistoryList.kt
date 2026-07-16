@@ -30,8 +30,10 @@ import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.feeds.updateItems
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -169,7 +171,10 @@ class FragmentHistoryList : FeedFragment(), SelectableHistoryTab {
         if (entities.isEmpty()) { onComplete(0); return }
         val ids = entities.map { it.illustID }.toSet()
         viewLifecycleOwner.lifecycleScope.launch {
-            deleteHistoryEntities(historyType, entities)
+            // 删除本体不随 view 生死：点完删除立刻退出页面会取消本协程，把逐条删除拦腰斩断，
+            // 剩余条目本地/远端都没删、下次进来「复活」。NonCancellable 保证这一批删完；
+            // 之后的列表更新才归 view 管，view 没了协程在此结束即可。
+            withContext(NonCancellable) { deleteHistoryEntities(historyType, entities) }
             if (view == null) return@launch
             feedViewModel.removeItems { item ->
                 (item as? HistoryIllustFeedItem)?.entity?.illustID in ids ||

@@ -122,7 +122,7 @@ class RecmdUserRailFeedFragment : FeedFragment() {
  * 推荐用户货架条目：只持不可变的 loxia [UserPreview]。
  *
  * 货架卡没有关注按钮、也不参与关注态回流，所以不用
- * [ceui.pixiv.ui.search.UserFeedItem] 那套（那份带 withFollowed / 预览图）；这里只要 id + 头像 + 名字。
+ * [ceui.pixiv.ui.common.UserFeedItem] 那套（那份带 withFollowed / 预览图）；这里只要 id + 头像 + 名字。
  */
 class RecmdUserRailItem(val preview: UserPreview) : FeedItem {
 

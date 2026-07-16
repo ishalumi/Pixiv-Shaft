@@ -12,6 +12,7 @@ import ceui.lisa.models.TagsBean
 import ceui.lisa.models.UserBean
 import ceui.lisa.utils.Params
 import ceui.loxia.UserTagIllust
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedPage
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedViewModels
@@ -51,6 +52,12 @@ class UserIllustByTagFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar
     // 游标是网页 offset（"48"），不是 app-api illust nextUrl；base KDoc 要求本地/非 URL 源覆写成
     // null，否则详情页 pager 把它当 @Url 请求 getNextIllust("48") → 404。
     override val detailContinuationCursor: String? get() = null
+
+    // 网页 ajax 的精简 work 没有 is_bookmarked / total_bookmarks / is_followed 字段，
+    // toIllustsBean 出来全是 primitive 默认值 false/0。喂池会把当前用户刚点的收藏/关注态
+    // 盖回假值（mergeKeepingExisting 不把 false/0 当空值）——本页入口就在画师主页的标签
+    // 筛选条，刚关注完点进来立刻复现。详情页 isFullDetail 守卫会回拉全量，不缺这份。
+    override fun poolableBeansOf(item: FeedItem): List<IllustsBean> = emptyList()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

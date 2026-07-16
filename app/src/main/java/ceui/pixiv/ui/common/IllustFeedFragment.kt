@@ -104,8 +104,9 @@ abstract class IllustFeedFragment(
      * 条目里需要合入 ObjectPool / 灌关注状态的 bean。默认取插画条目自身的 bean；
      * 携带附属 bean 的条目（排行榜预览头等）由子类覆盖补充。
      *
-     * ⚠️ 覆写时交出来的 bean 必须是「过过 [IllustFeedItem] 内容过滤链」的 —— 下游
-     * [ceui.lisa.helper.AppLevelViewModelHelper] 直接 `getUser().getId()`，不判空。
+     * ⚠️ 交出来的 bean 的收藏 / 关注态必须是**当前用户的新鲜值**：本地快照（稍后再看 / 发现池 /
+     * 历史）、第三方上报榜单（shaft-api-v2 系）、精简网页 bean（按 Tag 筛选）都不是——那些页面
+     * 一律覆写成 `emptyList()`，否则 mergeKeepingExisting 会拿旧值 / 假值盖掉池里更新的状态。
      */
     protected open fun poolableBeansOf(item: FeedItem): List<IllustsBean> {
         return if (item is IllustFeedItem) listOf(item.bean) else emptyList()

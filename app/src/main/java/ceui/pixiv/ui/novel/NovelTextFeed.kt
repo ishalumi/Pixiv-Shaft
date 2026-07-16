@@ -7,6 +7,8 @@ import android.view.View
 import androidx.core.text.HtmlCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import ceui.lisa.R
 import ceui.lisa.activities.TemplateActivity
 import ceui.lisa.databinding.CellNovelActionsBinding
@@ -24,6 +26,7 @@ import ceui.loxia.ObjectPool
 import ceui.loxia.Series
 import ceui.loxia.User
 import ceui.loxia.findActionReceiverOrNull
+import ceui.pixiv.feeds.FeedCell
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedPage
 import ceui.pixiv.feeds.FeedRenderer
@@ -110,45 +113,85 @@ class NovelTextFeedSource(private val novelId: Long) : FeedSource<Int> {
     }
 }
 
-// ── Renderers（复用旧 cell XML，bind 逻辑对齐旧 ViewHolder；单实例条目安全 observe）──
+// ── Renderers（复用旧 cell XML，bind 逻辑对齐旧 ViewHolder）──
+
+/**
+ * bind 阶段挂 LiveData 的辅助：每个 cell 一只勾，重绑先摘旧勾、回收也摘——否则 holder
+ * 回收再重绑会往同一条 LiveData 上叠 observer（issue #912 同型：泄漏到 view 销毁，且每次
+ * emission 重复跑全部绑定逻辑）。不能图省事 `removeObservers(owner)`：同一篇小说的 LiveData
+ * 被本页多张卡（头卡/统计卡/标签卡/简介卡）共享，那会把别的卡也摘下来。
+ */
+private class CellObserverSlot<T>(private val lifecycleOwner: LifecycleOwner) {
+    private var live: LiveData<T>? = null
+    private var observer: Observer<T>? = null
+
+    fun rebind(newLive: LiveData<T>, onChange: (T) -> Unit) {
+        detach()
+        val obs = Observer<T> { onChange(it) }
+        live = newLive
+        observer = obs
+        newLive.observe(lifecycleOwner, obs)
+    }
+
+    fun detach() {
+        val l = live ?: return
+        observer?.let(l::removeObserver)
+        live = null
+        observer = null
+    }
+}
 
 fun novelHeaderRenderer(
     lifecycleOwner: LifecycleOwner,
-): FeedRenderer<NovelHeaderFeedItem, CellNovelHeaderBinding> =
-    feedRenderer(
+): FeedRenderer<NovelHeaderFeedItem, CellNovelHeaderBinding> {
+    val slots = HashMap<FeedCell<*, *>, CellObserverSlot<Novel>>()
+    return feedRenderer(
         inflate = CellNovelHeaderBinding::inflate,
         fullSpan = true,
-        create = { cell -> cell.binding.lifecycleOwner = lifecycleOwner },
-    ) { cell ->
-        val b = cell.binding
-        val novelId = cell.item.novelId
-        val ctx = b.root.context
-        val liveNovel = ObjectPool.get<Novel>(novelId)
-        b.novel = liveNovel
-        b.bookmark.setOnClick {
-            it.findActionReceiverOrNull<NovelActionReceiver>()?.onClickBookmarkNovel(it, novelId)
-        }
-        b.bookmark.setOnLongClickListener { sender ->
-            val novel = liveNovel.value ?: return@setOnLongClickListener false
-            openTagBookmarkForNovel(sender, novel); true
-        }
-        val d = ctx.resources.displayMetrics.density
-        val palette = V3Palette.from(ctx)
-        b.seriesStrip.background = palette.seriesStripBg(20f * d)
-        b.seriesIcon.background = palette.seriesIconBg(10f * d)
-        b.seriesName.setTextColor(palette.seriesStripText)
-        b.seriesLabel.setTextColor(palette.seriesStripText)
-        b.seriesChevron.setTextColor(palette.seriesStripText)
-        b.seriesStrip.setOnClick { sender ->
-            liveNovel.value?.series?.let { series ->
+        create = { cell ->
+            val b = cell.binding
+            b.lifecycleOwner = lifecycleOwner
+            val ctx = b.root.context
+            val d = ctx.resources.displayMetrics.density
+            val palette = V3Palette.from(ctx)
+            b.seriesStrip.background = palette.seriesStripBg(20f * d)
+            b.seriesIcon.background = palette.seriesIconBg(10f * d)
+            b.seriesName.setTextColor(palette.seriesStripText)
+            b.seriesLabel.setTextColor(palette.seriesStripText)
+            b.seriesChevron.setTextColor(palette.seriesStripText)
+            // 监听只挂一次，点击那一刻经 cell.item 取当下条目（绑定零 lambda 分配）
+            b.bookmark.setOnClick { sender ->
+                val novelId = cell.itemOrNull?.novelId ?: return@setOnClick
+                sender.findActionReceiverOrNull<NovelActionReceiver>()
+                    ?.onClickBookmarkNovel(sender, novelId)
+            }
+            b.bookmark.setOnLongClickListener { sender ->
+                val novel = cell.itemOrNull?.let { ObjectPool.get<Novel>(it.novelId).value }
+                    ?: return@setOnLongClickListener false
+                openTagBookmarkForNovel(sender, novel)
+                true
+            }
+            b.seriesStrip.setOnClick { sender ->
+                val series = cell.itemOrNull
+                    ?.let { ObjectPool.get<Novel>(it.novelId).value }?.series ?: return@setOnClick
                 sender.findActionReceiverOrNull<NovelSeriesActionReceiver>()
                     ?.onClickNovelSeries(sender, series)
             }
-        }
-        b.title.setOnClick { Common.copy(ctx, liveNovel.value?.title) }
-        b.title.setOnLongClickListener { Common.copy(ctx, liveNovel.value?.title); true }
-        liveNovel.observe(lifecycleOwner) { novel ->
-            if (novel == null) return@observe
+            val copyTitle = {
+                val title = cell.itemOrNull?.let { ObjectPool.get<Novel>(it.novelId).value }?.title
+                Common.copy(ctx, title)
+            }
+            b.title.setOnClick { copyTitle() }
+            b.title.setOnLongClickListener { copyTitle(); true }
+        },
+        recycle = { cell -> slots[cell]?.detach() },
+    ) { cell ->
+        val b = cell.binding
+        val ctx = b.root.context
+        val liveNovel = ObjectPool.get<Novel>(cell.item.novelId)
+        b.novel = liveNovel
+        slots.getOrPut(cell) { CellObserverSlot(lifecycleOwner) }.rebind(liveNovel) { novel ->
+            if (novel == null) return@rebind
             b.bookmark.imageTintList = if (novel.is_bookmarked == true) null
                 else ColorStateList.valueOf(ctx.getColor(R.color.v3_text_3))
             b.metaDate.text = novel.create_date?.replace('T', ' ')?.take(16).orEmpty()
@@ -169,19 +212,23 @@ fun novelHeaderRenderer(
             }
         }
     }
+}
 
 fun novelProfileRenderer(
     lifecycleOwner: LifecycleOwner,
-): FeedRenderer<NovelProfileFeedItem, CellNovelProfileBinding> =
-    feedRenderer(
+): FeedRenderer<NovelProfileFeedItem, CellNovelProfileBinding> {
+    val slots = HashMap<FeedCell<*, *>, CellObserverSlot<Novel>>()
+    return feedRenderer(
         inflate = CellNovelProfileBinding::inflate,
         fullSpan = true,
+        recycle = { cell -> slots[cell]?.detach() },
     ) { cell ->
         val b = cell.binding
         val fmt = NumberFormat.getInstance()
 
-        ObjectPool.get<Novel>(cell.item.novelId).observe(lifecycleOwner) { novel ->
-            if (novel == null) return@observe
+        slots.getOrPut(cell) { CellObserverSlot(lifecycleOwner) }
+            .rebind(ObjectPool.get<Novel>(cell.item.novelId)) { novel ->
+            if (novel == null) return@rebind
             b.statViews.text = fmt.format(novel.total_view ?: 0)
             b.statBookmarks.text = fmt.format(novel.total_bookmarks ?: 0)
 
@@ -214,6 +261,7 @@ fun novelProfileRenderer(
             b.chipOpenNovelLink.bindOpenLinkChip(R.string.novel_chip_open_novel_link, novelUrl)
         }
     }
+}
 
 fun novelActionsRenderer(): FeedRenderer<NovelActionsFeedItem, CellNovelActionsBinding> =
     feedRenderer(
@@ -239,31 +287,37 @@ fun novelActionsRenderer(): FeedRenderer<NovelActionsFeedItem, CellNovelActionsB
 
 fun novelTagsRenderer(
     lifecycleOwner: LifecycleOwner,
-): FeedRenderer<NovelTagsFeedItem, CellNovelTagsBinding> =
-    feedRenderer(
+): FeedRenderer<NovelTagsFeedItem, CellNovelTagsBinding> {
+    val slots = HashMap<FeedCell<*, *>, CellObserverSlot<Novel>>()
+    return feedRenderer(
         inflate = CellNovelTagsBinding::inflate,
         fullSpan = true,
+        create = { cell -> cell.binding.tagsFlow.searchIndex = 1 }, // novels tab in SearchActivity
+        recycle = { cell -> slots[cell]?.detach() },
     ) { cell ->
         val b = cell.binding
-        b.tagsFlow.searchIndex = 1 // novels tab in SearchActivity
-        ObjectPool.get<Novel>(cell.item.novelId).observe(lifecycleOwner) { novel ->
-            b.tagsFlow.setTags(novel?.tags.orEmpty())
-        }
+        slots.getOrPut(cell) { CellObserverSlot(lifecycleOwner) }
+            .rebind(ObjectPool.get<Novel>(cell.item.novelId)) { novel ->
+                b.tagsFlow.setTags(novel?.tags.orEmpty())
+            }
     }
+}
 
 fun novelCaptionRenderer(
     lifecycleOwner: LifecycleOwner,
-): FeedRenderer<NovelCaptionFeedItem, CellNovelCaptionBinding> =
-    feedRenderer(
+): FeedRenderer<NovelCaptionFeedItem, CellNovelCaptionBinding> {
+    val slots = HashMap<FeedCell<*, *>, CellObserverSlot<Novel>>()
+    return feedRenderer(
         inflate = CellNovelCaptionBinding::inflate,
         fullSpan = true,
         create = { cell -> cell.binding.lifecycleOwner = lifecycleOwner },
+        recycle = { cell -> slots[cell]?.detach() },
     ) { cell ->
         val b = cell.binding
         val ctx = b.root.context
         val liveNovel = ObjectPool.get<Novel>(cell.item.novelId)
         b.novel = liveNovel
-        liveNovel.observe(lifecycleOwner) { novel ->
+        slots.getOrPut(cell) { CellObserverSlot(lifecycleOwner) }.rebind(liveNovel) { novel ->
             val rawCaption = novel.caption.orEmpty()
             val hasCaption = rawCaption.isNotEmpty()
             val normalizedCaption = rawCaption.replace("\r\n", "\n").replace("\n", "<br/>")
@@ -306,3 +360,4 @@ fun novelCaptionRenderer(
             }
         }
     }
+}

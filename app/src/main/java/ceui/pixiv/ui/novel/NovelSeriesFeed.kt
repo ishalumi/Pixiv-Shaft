@@ -241,6 +241,10 @@ fun novelSeriesProfileRenderer(): FeedRenderer<NovelSeriesProfileFeedItem, CellN
 fun novelSeriesCardRenderer(): FeedRenderer<NovelSeriesCardFeedItem, CellNovelV3Binding> =
     feedRenderer(
         inflate = CellNovelV3Binding::inflate,
+        recycle = { cell ->
+            Glide.with(cell.binding.novelCover).clear(cell.binding.novelCover)
+            Glide.with(cell.binding.authorAvatar).clear(cell.binding.authorAvatar)
+        },
     ) { cell ->
         val b = cell.binding
         val novel = cell.item.novel

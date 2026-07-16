@@ -12,6 +12,7 @@ import ceui.lisa.databinding.CellHistoryIllustV3Binding
 import ceui.lisa.databinding.CellHistoryNovelV3Binding
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.NovelBean
+import ceui.lisa.models.UserBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
 import ceui.loxia.Client
@@ -42,6 +43,26 @@ data class HistoryIllustFeedItem(
     val isSelected: Boolean = false,
 ) : FeedItem {
     override val feedKey: Any get() = entity.illustID
+
+    // entity(Java) / IllustsBean 都没有 equals，data class 默认实现退化成引用比较——刷新产出的
+    // 同内容新实例会被 DiffUtil 判「变了」而全表重绑（Glide 请求全部重发）。渲染消费的快照内容
+    // 由 illustID + time 指纹（重看同一作品会刷新 time，快照 JSON 随之更新），再加两个选择态。
+    // 手写按这四样比，对齐 IllustFeedItem 手写 equals 的先例。
+    override fun equals(other: Any?): Boolean {
+        return other is HistoryIllustFeedItem &&
+                other.entity.illustID == entity.illustID &&
+                other.entity.time == entity.time &&
+                other.isSelectionMode == isSelectionMode &&
+                other.isSelected == isSelected
+    }
+
+    override fun hashCode(): Int {
+        var result = entity.illustID
+        result = 31 * result + entity.time.hashCode()
+        result = 31 * result + isSelectionMode.hashCode()
+        result = 31 * result + isSelected.hashCode()
+        return result
+    }
 }
 
 data class HistoryNovelFeedItem(
@@ -51,6 +72,23 @@ data class HistoryNovelFeedItem(
     val isSelected: Boolean = false,
 ) : FeedItem {
     override val feedKey: Any get() = entity.illustID
+
+    // 同 HistoryIllustFeedItem：手写内容相等性，防引用比较导致的全表重绑。
+    override fun equals(other: Any?): Boolean {
+        return other is HistoryNovelFeedItem &&
+                other.entity.illustID == entity.illustID &&
+                other.entity.time == entity.time &&
+                other.isSelectionMode == isSelectionMode &&
+                other.isSelected == isSelected
+    }
+
+    override fun hashCode(): Int {
+        var result = entity.illustID
+        result = 31 * result + entity.time.hashCode()
+        result = 31 * result + isSelectionMode.hashCode()
+        result = 31 * result + isSelected.hashCode()
+        return result
+    }
 }
 
 // ── FeedSource：远端 pixshaft(按 uid) 优先，失败/未登录/未同意回退本地 DAO。搜索走单页。──
@@ -76,11 +114,25 @@ class HistoryFeedSource(
         val page = loadPage(cursor)
         // ObjectPool.store 是普通 map + setValue(见 ObjectPool),后台线程写会与主线程 get/update
         // 竞争撞 ConcurrentModificationException。load 由 FeedViewModel 的 viewModelScope(Main)调起,
-        // 这里回主线程再喂池,详情页 ObjectPool.get 才拿得到最新 illust。
+        // 这里回主线程再喂池,详情页 ObjectPool.get 才拿得到 illust。
+        //
+        // 只做 putIfAbsent,绝不覆盖:历史条目的 illustJson 是**浏览当时**冻结的快照,直接
+        // updateIllust 会拿旧的 is_bookmarked=false / is_followed=false 盖掉当前会话里更新的池值
+        // (mergeKeepingExisting 不把 false 当空值——用户刚在别处收藏了作品 X,打开含 X 的历史页,
+        // 红心就被旧快照打回灰心)。V3 详情页要的是「池里有这条」,不是「池里是旧快照」。
+        // user 单独判:作品 miss 但作者已在池里(在别处刚关注)时,不能让陈旧关注态顺手合进去。
         if (historyType == 0) {
             withContext(Dispatchers.Main.immediate) {
                 page.items.forEach { item ->
-                    (item as? HistoryIllustFeedItem)?.let { ObjectPool.updateIllust(it.illust) }
+                    val illust = (item as? HistoryIllustFeedItem)?.illust ?: return@forEach
+                    if (ObjectPool.getIllust(illust.id.toLong()).value == null) {
+                        ObjectPool.update(illust)
+                    }
+                    illust.user?.let { user ->
+                        if (ObjectPool.get<UserBean>(user.id.toLong()).value == null) {
+                            ObjectPool.updateUser(user)
+                        }
+                    }
                 }
             }
         }
@@ -218,6 +270,26 @@ suspend fun deleteHistoryEntities(historyType: Int, entities: List<IllustHistory
 fun FragmentHistoryList.historyIllustRenderer(): FeedRenderer<HistoryIllustFeedItem, CellHistoryIllustV3Binding> =
     feedRenderer(
         inflate = CellHistoryIllustV3Binding::inflate,
+        create = { cell ->
+            // 监听只挂一次,点击那一刻经 cell.item 取当下条目(框架约定:绑定零 lambda 分配)
+            val binding = cell.binding
+            binding.root.setOnClickListener {
+                val item = cell.itemOrNull ?: return@setOnClickListener
+                if (item.isSelectionMode) toggleHistorySelect(item.entity)
+                else openHistoryIllust(item.illust)
+            }
+            binding.root.setOnLongClickListener {
+                val item = cell.itemOrNull ?: return@setOnLongClickListener false
+                if (!item.isSelectionMode) confirmDeleteHistory(item.entity)
+                true
+            }
+            binding.deleteItem.setOnClickListener {
+                cell.itemOrNull?.let { item -> confirmDeleteHistory(item.entity) }
+            }
+            binding.author.setOnClickListener {
+                cell.itemOrNull?.illust?.user?.id?.let { uid -> openHistoryUser(uid) }
+            }
+        },
         recycle = { Glide.with(it.binding.illustImage).clear(it.binding.illustImage) },
     ) { cell ->
         val binding = cell.binding
@@ -269,25 +341,38 @@ fun FragmentHistoryList.historyIllustRenderer(): FeedRenderer<HistoryIllustFeedI
 
         HistorySelectBadge.bind(binding.selectCheck, item.isSelectionMode, item.isSelected)
         binding.deleteItem.isVisible = !item.isSelectionMode
-
-        binding.root.setOnClickListener {
-            if (item.isSelectionMode) { toggleHistorySelect(entity); return@setOnClickListener }
-            openHistoryIllust(illust)
-        }
-        binding.root.setOnLongClickListener {
-            if (item.isSelectionMode) return@setOnLongClickListener true
-            confirmDeleteHistory(entity)
-            true
-        }
-        binding.deleteItem.setOnClickListener { confirmDeleteHistory(entity) }
-        binding.author.setOnClickListener {
-            illust.user?.id?.let { uid -> openHistoryUser(uid) }
-        }
     }
 
 fun FragmentHistoryList.historyNovelRenderer(): FeedRenderer<HistoryNovelFeedItem, CellHistoryNovelV3Binding> =
     feedRenderer(
         inflate = CellHistoryNovelV3Binding::inflate,
+        create = { cell ->
+            // 同 historyIllustRenderer:监听只挂一次,点击时经 cell.item 取当下条目
+            val binding = cell.binding
+            binding.root.setOnClickListener { v ->
+                val item = cell.itemOrNull ?: return@setOnClickListener
+                if (item.isSelectionMode) {
+                    toggleHistorySelect(item.entity)
+                } else {
+                    v.context.startActivity(Intent(v.context, TemplateActivity::class.java).apply {
+                        putExtra(Params.CONTENT, item.novel)
+                        putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
+                        putExtra("hideStatusBar", true)
+                    })
+                }
+            }
+            binding.root.setOnLongClickListener {
+                val item = cell.itemOrNull ?: return@setOnLongClickListener false
+                if (!item.isSelectionMode) confirmDeleteHistory(item.entity)
+                true
+            }
+            binding.deleteItem.setOnClickListener {
+                cell.itemOrNull?.let { item -> confirmDeleteHistory(item.entity) }
+            }
+            binding.author.setOnClickListener {
+                cell.itemOrNull?.novel?.user?.id?.let { uid -> openHistoryUser(uid) }
+            }
+        },
         recycle = { Glide.with(it.binding.illustImage).clear(it.binding.illustImage) },
     ) { cell ->
         val binding = cell.binding
@@ -305,22 +390,4 @@ fun FragmentHistoryList.historyNovelRenderer(): FeedRenderer<HistoryNovelFeedIte
 
         HistorySelectBadge.bind(binding.selectCheck, item.isSelectionMode, item.isSelected)
         binding.deleteItem.isVisible = !item.isSelectionMode
-
-        binding.root.setOnClickListener {
-            if (item.isSelectionMode) { toggleHistorySelect(entity); return@setOnClickListener }
-            context.startActivity(Intent(context, TemplateActivity::class.java).apply {
-                putExtra(Params.CONTENT, novel)
-                putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
-                putExtra("hideStatusBar", true)
-            })
-        }
-        binding.root.setOnLongClickListener {
-            if (item.isSelectionMode) return@setOnLongClickListener true
-            confirmDeleteHistory(entity)
-            true
-        }
-        binding.deleteItem.setOnClickListener { confirmDeleteHistory(entity) }
-        binding.author.setOnClickListener {
-            novel.user?.id?.let { uid -> openHistoryUser(uid) }
-        }
     }

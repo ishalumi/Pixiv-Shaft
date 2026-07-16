@@ -5,9 +5,12 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import ceui.lisa.R
@@ -33,7 +36,14 @@ import ceui.pixiv.ui.common.setUpToolbar
 import com.qmuiteam.qmui.skin.QMUISkinManager
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * 「某人创作的插画」列表页(feeds 框架版,替代 legacy FragmentUserIllust + UserIllustRepo)。
@@ -95,8 +105,8 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
     /** 首屏只交付一次(标签回调 + targetDate 定位);旋转重建后 VM 已有数据会再交付一次(宿主自去重)。 */
     private var firstPageDelivered = false
 
-    /** 作者插画总数;-1=未拉到。仅 toolbar 形态用来决定「下载全部」是否可点。 */
-    private var totalIllusts: Int = -1
+    /** 作者作品总数归 VM(数据不塞 Fragment):旋转/视图重建不重查。仅 toolbar 形态消费。 */
+    private val totalWorksViewModel: UserTotalWorksViewModel by viewModels()
 
     // 内嵌 UserActivityV3 tab(无底栏)时,列表底部补手势条 inset;带 toolbar 独立页由 setUpToolbar 自理
     override val applyBottomSafeInset: Boolean = true
@@ -213,9 +223,13 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
             val downloadAllItem: MenuItem? = binding.toolbar.menu.findItem(R.id.action_download_all)
             // 数量没拿到前先藏,免得点了报「加载中」;拉到 >0 再显
             downloadAllItem?.isVisible = false
-            fetchTotalIllusts { total ->
-                totalIllusts = total
-                if (total > 0) downloadAllItem?.isVisible = true
+            totalWorksViewModel.ensureLoaded(userId.toLong())
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    totalWorksViewModel.total.collect { total ->
+                        if (total > 0) downloadAllItem?.isVisible = true
+                    }
+                }
             }
         }
 
@@ -229,28 +243,25 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
         }
     }
 
-    private fun fetchTotalIllusts(onResult: (Int) -> Unit) {
-        val uid = userId.toLong()
-        viewLifecycleOwner.lifecycleScope.launch {
-            val total = runCatching {
-                Client.appApi.getUserProfile(uid).profile?.total_illusts ?: 0
-            }.getOrNull()
-            if (total != null && view != null) onResult(total)
-        }
-    }
-
     /** 收藏到精华(对齐 legacy:uuid 固定 = 同页重复收藏只留一份;dataType 是路由字面量,别本地化)。 */
     private fun saveToFeature() {
-        val entity = FeatureEntity().also {
-            it.uuid = "$userId$featureDataType"
-            it.isShowToolbar = showToolbar
-            it.dataType = featureDataType
-            it.illustJson = Common.cutToJson(currentIllustItems().map { item -> item.bean })
-            it.userID = userId
-            it.dateTime = System.currentTimeMillis()
+        // 快照在主线程取(列表状态归主线程),整表 gson 序列化 + 同步 Room 写挪 IO——
+        // 跳页后列表可达数百条,本仓有主线程写 Room 出 ANR 的前科(addTask 那次)。
+        val beans = currentIllustItems().map { it.bean }
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val entity = FeatureEntity().also {
+                    it.uuid = "$userId$featureDataType"
+                    it.isShowToolbar = showToolbar
+                    it.dataType = featureDataType
+                    it.illustJson = Common.cutToJson(beans)
+                    it.userID = userId
+                    it.dateTime = System.currentTimeMillis()
+                }
+                AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao().insertFeature(entity)
+            }
+            Common.showToast("已收藏到精华")
         }
-        AppDatabase.getAppDatabase(requireContext()).downloadDao().insertFeature(entity)
-        Common.showToast("已收藏到精华")
     }
 
     private fun showJumpDialog() {
@@ -266,7 +277,7 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
     }
 
     private fun confirmDownloadAll() {
-        val total = totalIllusts
+        val total = totalWorksViewModel.total.value
         if (total <= 0) return // 按钮该藏着,兜底
         val authorName = currentIllustItems().firstOrNull()?.bean?.user?.name ?: "user"
         showDownloadAllConfirm(authorName, total)
@@ -311,6 +322,36 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
             return illusts.mapNotNull { illust ->
                 val bean = IllustFeedItem.beanOf(illust) ?: return@mapNotNull null
                 IllustFeedItem.of(illust, bean)
+            }
+        }
+    }
+
+    /**
+     * 作者作品总数的小 VM(只服务「下载全部」菜单的显隐与确认框文案)。
+     * 单独一个小 VM 而不是塞进 FeedViewModel:它跟列表翻页状态没关系(数据归 ViewModel + 按需建小 VM)。
+     */
+    class UserTotalWorksViewModel : ViewModel() {
+
+        private val _total = MutableStateFlow(-1)
+
+        /** -1 = 还没拉到;仅 >0 时「下载全部」可见。 */
+        val total: StateFlow<Int> = _total.asStateFlow()
+
+        private var started = false
+
+        fun ensureLoaded(uid: Long) {
+            if (started) return
+            started = true
+            viewModelScope.launch {
+                try {
+                    _total.value = Client.appApi.getUserProfile(uid).profile?.total_illusts ?: 0
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (ex: Exception) {
+                    // 菜单项保持隐藏即可,失败允许下次进页重试
+                    Timber.w(ex, "拉取作者作品总数失败")
+                    started = false
+                }
             }
         }
     }
