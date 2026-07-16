@@ -113,6 +113,7 @@ class FeedViewModel<Cursor : Any>(
                         showingCache = true,
                         // 整代替换：磁盘快照的条目实例与之前任何一代都无关
                         structureVersion = it.structureVersion + 1,
+                        refreshGeneration = it.refreshGeneration + 1,
                     )
                 }
                 val displayMs = (System.nanoTime() - refreshStartNanos) / 1_000_000
@@ -153,6 +154,7 @@ class FeedViewModel<Cursor : Any>(
                         showingCache = false,
                         // 整代替换：新一代网络首屏与屏幕上的旧条目实例无关
                         structureVersion = it.structureVersion + 1,
+                        refreshGeneration = it.refreshGeneration + 1,
                     )
                 }
             } catch (ex: CancellationException) {

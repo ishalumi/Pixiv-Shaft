@@ -35,6 +35,25 @@ data class FeedUiState(
      * 只需扫描新增的尾部；版本变了就必须假设任意位置的条目实例都可能换了，全量重扫。
      */
     val structureVersion: Int = 0,
+    /**
+     * 整代替换的代号：**只有** [FeedViewModel.refresh] 的整代提交（磁盘缓存首屏、网络首屏）
+     * 才自增；loadMore / appendItems / updateItems / removeItems 一律不推进。
+     *
+     * 存在的理由是 [structureVersion] 表达不了「整代换人」这件事：点赞、删除一条也会推进
+     * structureVersion，拿它当整代信号会让每次点赞都把列表清表回顶。
+     *
+     * [FeedFragment] 用它决定是否**绕开跨代 diff**：新旧两代之间往往有个别 id 恰好重合
+     *（榜单名次变了、推荐流回吐同一作品），ListAdapter 默认 `detectMoves=true` 会把这几个
+     * 重合项当 move 锚点做移动动画，而 StaggeredGridLayoutManager 对 move + 整行重排有已知
+     * 缺陷（本仓 [ceui.lisa.helper.StaggeredManager] 就在吞它抛的 IndexOutOfBounds）——
+     * 结果就是用户看到的「旧数据往上顶一下、塌成零散卡片和黑色空档，再重排成新数据」。
+     * 顺带一个观感问题：重合项连 holder 带已解码的图一起被复用，所以它秒显，而全新项要等
+     * Glide 走网络，两者一先一后，整屏看着很割裂。
+     *
+     * 整代替换本就没有「移动」语义（是换了一批内容，不是同一批换了位置），不该让 DiffUtil
+     * 去猜。
+     */
+    val refreshGeneration: Int = 0,
 ) {
 
     /** 首屏还没出过数据时的全屏加载态。 */

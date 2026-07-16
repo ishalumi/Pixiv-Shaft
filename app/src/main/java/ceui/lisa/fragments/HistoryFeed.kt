@@ -29,6 +29,9 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.Locale
 
+/** 历史卡封面高度下限 = 宽的 0.5 倍(对齐改造前 `coerceAtLeast(itemWidth / 2)` 的语义)。 */
+private const val MIN_HISTORY_HEIGHT_RATIO = 0.5f
+
 // ── FeedItem 模型（原 HistoryIllustHolder / HistoryNovelHolder 的数据部分）─────────────
 // isSelectionMode / isSelected 由 FragmentHistoryList.syncSelection 通过 updateItems 回灌。
 
@@ -121,10 +124,28 @@ class HistoryFeedSource(
                 forcedLocal = true
             }
         }
-        // 本地分页：cursor = 已加载 offset（字符串编码）
-        val offset = cursor?.toIntOrNull() ?: 0
+        // 本地分页。
+        //
+        // 手上的 cursor 可能是**远端游标**（远端翻页中途失败、刚回退到这里），它和本地 offset
+        // 是两套完全不同的语义，只是都被 FeedSource<String> 挤进了同一个 String。过去这里直接
+        // `cursor.toIntOrNull() ?: 0` 硬转，两条路都是错的：
+        // - 不透明 token（如 base64）转不出 → 退成 0 → 返回本地第 1 页。那页全是已加载过的重复
+        //   id，被 loadMore 的 dedupByIdentity 滤空 → 空页追载按 30/60/90… 往后跳，
+        //   MAX_EMPTY_PAGE_HOPS=5 只覆盖本地前 150 条；已加载超过 150 条时五跳全是重复 →
+        //   reachedEnd 永久置位，列表再也翻不动（只能下拉刷新救回来）。
+        // - 若服务端游标恰好是纯数字（秒级时间戳），toIntOrNull() 会**成功** → offset 十几亿 →
+        //   查回空页 → 当场判到底。更隐蔽。
+        // 所以本地游标显式带前缀：认得出的才是本地 offset，认不出的一律当「从头开始本地翻页」。
+        // 远端与本地都按浏览时间倒序，重开一次本地分页最多与已加载内容重叠，由 dedupByIdentity
+        // 兜住，不会像上面那样死锁在 reachedEnd。
+        val offset = cursor?.takeIf { it.startsWith(LOCAL_CURSOR_PREFIX) }
+            ?.removePrefix(LOCAL_CURSOR_PREFIX)?.toIntOrNull() ?: 0
         val entities = dao.getViewHistoryByType(historyType, PAGE_SIZE, offset)
-        val next = if (entities.size >= PAGE_SIZE) (offset + entities.size).toString() else null
+        val next = if (entities.size >= PAGE_SIZE) {
+            "$LOCAL_CURSOR_PREFIX${offset + entities.size}"
+        } else {
+            null
+        }
         FeedPage(entities.toFeedItems(), next)
     }
 
@@ -154,6 +175,12 @@ class HistoryFeedSource(
     companion object {
         const val PAGE_SIZE = 30
         const val SEARCH_LIMIT = 100
+
+        /**
+         * 本地分页游标的前缀。远端游标是服务端的不透明字符串，两者共用 FeedSource<String> 的
+         * 同一个游标位——不显式区分就没法在拿到一个游标时判断它属于哪套语义。
+         */
+        const val LOCAL_CURSOR_PREFIX = "local:"
     }
 }
 
@@ -199,16 +226,33 @@ fun FragmentHistoryList.historyIllustRenderer(): FeedRenderer<HistoryIllustFeedI
         val entity = item.entity
         val context = binding.root.context
 
-        val screenWidth = context.resources.displayMetrics.widthPixels
-        val itemWidth = (screenWidth - context.resources.getDimensionPixelSize(R.dimen.four_dp) * 6) / 2
-        val imageHeight = if (illust.width > 0) {
-            (itemWidth.toFloat() * illust.height / illust.width).toInt().coerceAtLeast(itemWidth / 2)
-        } else itemWidth
-        binding.illustImage.layoutParams = binding.illustImage.layoutParams.apply {
-            width = itemWidth
-            height = imageHeight
+        // 只按元数据驱动宽高比,宽度交给瀑布流列自身(DynamicHeightImageView 在 onMeasure 用真实
+        // 列宽算高,对齐 recy_illust_stagger)。
+        //
+        // 这里曾经是 `itemWidth = (screenWidth - 4dp*6) / 2` 再把像素宽高钉死在 layoutParams 上。
+        // 那个 /2 是 legacy 写死两列时代的残留:LayoutManager 改成跟随「每行几列」设置之后,3/4 列
+        // 时 ImageView 仍按屏宽/2 量,塞进屏宽/3 的卡里被横向裁掉,而高度又按错的宽度算出来,
+        // 卡整体高 1.5~2 倍。默认值是 2 列,所以只在非默认档露馅。
+        // 顺带治了绝对像素的老毛病:复用的卡片横竖屏切换后会揣着旧方向的尺寸。
+        val ratio = if (illust.width > 0 && illust.height > 0) {
+            (illust.height.toFloat() / illust.width).coerceAtLeast(MIN_HISTORY_HEIGHT_RATIO)
+        } else {
+            1f
         }
+        binding.illustImage.setHeightRatio(ratio)
+        // 请求尺寸必须显式 override,不能靠 Glide 自己量。
+        //
+        // 旧代码把像素宽高钉在 layoutParams 上,恰好命中 Glide SizeDeterminer 的第一个分支
+        //（`paramSize > 0` 直接采用）—— 它是无意中在替 override 干活。改成 wrap_content 之后
+        // paramSize 是 -2,会掉到 `view.getHeight()`,而 setHeightRatio 只 requestLayout()、
+        // 不同步改 getHeight(),bind 又发生在 measure 之前 → 复用的 holder 上读到的是**上一条目
+        // 的高**。scaleType=centerCrop 让 into(ImageView) 按「请求尺寸的宽高比」解码裁图,随后
+        // view 按新 ratio 重新量高、再 centerCrop 一次 → 二次裁切放大,图糊且只剩一小块
+        //（Glide 不会因为 relayout 重发请求）。同 recy_illust_stagger 那段注释治的病。
+        val columnWidth = (context.resources.displayMetrics.widthPixels /
+                Shaft.sSettings.lineCount).coerceAtLeast(1)
         Glide.with(context).load(GlideUtil.getMediumImg(illust))
+            .override(columnWidth, (columnWidth * ratio).toInt().coerceAtLeast(1))
             .placeholder(R.color.v3_surface_2).into(binding.illustImage)
         binding.title.text = illust.title
         binding.author.text = illust.user?.name.orEmpty()

@@ -73,9 +73,17 @@ class HistoryUserFeedSource : FeedSource<String> {
                 forcedLocal = true
             }
         }
-        val offset = cursor?.toIntOrNull() ?: 0
+        // 本地游标显式带前缀,别拿远端游标硬转 offset —— 详见 HistoryFeedSource 同处的注释
+        //（远端翻页中途失败会带着服务端的不透明游标落到这里，硬转要么退成 0 死锁在
+        // reachedEnd、要么在纯数字游标上「转成功」拿到十几亿的 offset）。
+        val offset = cursor?.takeIf { it.startsWith(HistoryFeedSource.LOCAL_CURSOR_PREFIX) }
+            ?.removePrefix(HistoryFeedSource.LOCAL_CURSOR_PREFIX)?.toIntOrNull() ?: 0
         val entities = dao.getByRecordType(RecordType.VIEW_USER_HISTORY, offset, PAGE_SIZE)
-        val next = if (entities.size >= PAGE_SIZE) (offset + entities.size).toString() else null
+        val next = if (entities.size >= PAGE_SIZE) {
+            "${HistoryFeedSource.LOCAL_CURSOR_PREFIX}${offset + entities.size}"
+        } else {
+            null
+        }
         FeedPage(entities.map { it.toUserFeedItem() }, next)
     }
 

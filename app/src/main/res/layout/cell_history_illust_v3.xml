@@ -19,11 +19,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <ImageView
+            <!--
+              高度靠 setHeightRatio 在 onMeasure 里按真实列宽算(对齐 recy_illust_stagger):
+              宽度必须留给瀑布流列自己定,绝不在 bind 时写死像素——写死就锁在某一个列数/某一个
+              屏幕方向上,换「每行几列」设置或横竖屏切换后复用的卡片会揣着旧尺寸把整列搞乱。
+            -->
+            <ceui.lisa.view.DynamicHeightImageView
                 android:id="@+id/illust_image"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:adjustViewBounds="true"
                 android:background="@color/v3_surface_2"
                 android:contentDescription="@null"
                 android:scaleType="centerCrop" />

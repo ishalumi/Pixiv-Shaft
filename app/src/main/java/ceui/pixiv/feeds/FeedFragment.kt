@@ -185,6 +185,9 @@ abstract class FeedFragment(
         // 时 setAdapter 不清它，[rebuildList] 就会串类型。
         listView.adapter = adapter
         onListReady(listView)
+        // 必须记在 onListReady 之后：有的页面在那里主动 itemAnimator = null（历史页/事件页），
+        // 记早了换代结束会把 DefaultItemAnimator 装回它们身上，等于替它们把动画又打开。
+        listItemAnimator = listView.itemAnimator
     }
 
     /**
@@ -306,6 +309,77 @@ abstract class FeedFragment(
      * （如新评论发出后滚回顶部高亮）在子类覆写，而不是自己拍延迟猜时机。默认 no-op。 */
     protected open fun onListCommitted(state: FeedUiState) {}
 
+    /** 上一次 render 提交过的整代代号，用于识别「这次是换了一代」。随 view 重建归零（那时 adapter 也是空的）。 */
+    private var lastRenderedGeneration: Int = 0
+
+    /** [installList] 记下的 itemAnimator 真值（含子类在 onListReady 里关掉动画的情形）。 */
+    private var listItemAnimator: RecyclerView.ItemAnimator? = null
+
+
+    /**
+     * 提交一整代新内容：先同步清空再整段插入，**不让 DiffUtil 参与**。
+     *
+     * `submitList(null)` 会走 AsyncListDiffer 的同步快路（整段 remove），紧接着对空表
+     * `submitList(新表)` 也是同步快路（整段 insert）—— 两次都不排后台 diff、不产生 move。
+     * 跨代 diff 的害处见 [FeedUiState.refreshGeneration]。
+     *
+     * 这一段还必须关掉 itemAnimator，理由有两层：
+     * - 观感：整段 remove + 整段 insert 会被 DefaultItemAnimator 演成一轮淡出淡入，而全新卡还得
+     *   等 Glide 出图，动画只会把「有的秒显、有的后到」放得更明显。整代替换的正确观感是
+     *   「内容就地换掉」，不是表演。
+     * - 稳定性：整段增删 + SGLM 的 predictive animation 正是 [ceui.lisa.helper.StaggeredManager]
+     *   专门吞 IndexOutOfBounds 的那个组合，没必要在这条路上惹它。
+     *
+     * ⚠️ 恢复必须 post 到下一帧，不能在 submitList 的回调里就地恢复：RecyclerView 是在
+     * **layout 时**才读 mItemAnimator 决定播不播动画的，而不是在 notifyItemRange* 那一刻；
+     * 上面两次提交都走同步快路，回调在本帧内就跑完了，就地恢复等于什么都没关掉。
+     * post 的这一帧里点赞恰好落地也只是少一次局部动画，不影响正确性。
+     */
+    private fun commitNewGeneration(
+        adapter: FeedAdapter,
+        displayList: List<FeedItem>,
+        state: FeedUiState,
+    ) {
+        val listView = feedBinding.feedListView
+        // 恢复值取 installList 记下的真值，**不要**在这里 `val a = listView.itemAnimator` 捕获后再装回：
+        // 那样两次换代若落在同一帧内（恢复的 post 还没跑），第二次捕获到的就是第一次摘空后的 null，
+        // 它的 post 会把 animator 永久设成 null。取真值则重入多少次都幂等。
+        listView.itemAnimator = null
+        adapter.submitList(null)
+        adapter.submitList(displayList) {
+            resetToTop(listView)
+            // view 可能在这一帧后就销毁；listView 是捕获的强引用，post 照常跑，只是往一个已 detach
+            // 的列表上设回 animator——无害且不泄漏（listView 随 view 一起回收）。
+            listView.post { listView.itemAnimator = listItemAnimator }
+            onListCommitted(state)
+        }
+    }
+
+    /**
+     * 把列表确定性地拨回顶部，并清掉 LayoutManager 的跨代残留。
+     *
+     * 清空→重填**不会**让 [StaggeredGridLayoutManager] 忘掉上一代的状态，两样都得手动清，
+     * 少一样就是一个用户看得见的 bug：
+     * - span 偏移 / lookup 是上一代的残留：某一列以为自己已经填到某个 y，新一代首屏那一列
+     *   顶部就空出一大块黑的。[StaggeredGridLayoutManager.invalidateSpanAssignments] 是唯一
+     *   能清掉它的公开 API。
+     * - `scrollToPosition(0)` 只给位置、不给偏移，SGLM 会拿旧 anchor 去凑出一个偏移 → 刷完
+     *   停在「顶部偏下」而不是顶部。必须用 `scrollToPositionWithOffset(0, 0)` 把偏移也定死。
+     *
+     * （[androidx.recyclerview.widget.GridLayoutManager] 继承自 [LinearLayoutManager]，走同一支。）
+     */
+    private fun resetToTop(listView: RecyclerView) {
+        when (val manager = listView.layoutManager) {
+            is StaggeredGridLayoutManager -> {
+                manager.invalidateSpanAssignments()
+                manager.scrollToPositionWithOffset(0, 0)
+            }
+
+            is LinearLayoutManager -> manager.scrollToPositionWithOffset(0, 0)
+            else -> manager?.scrollToPosition(0)
+        }
+    }
+
     /** adapter 现取不缓存：[rebuildList] 换过 adapter 之后，长活的 uiState collector 不能再往旧的提交。 */
     private fun render(state: FeedUiState) {
         val adapter = feedAdapter ?: return
@@ -313,7 +387,18 @@ abstract class FeedFragment(
             is LoadState.Loading, is LoadState.Error -> state.items + AppendFooterItem(append)
             else -> state.items
         }
-        adapter.submitList(displayList) { onListCommitted(state) }
+        // 整代替换（下拉刷新 / 冷启的缓存→网络）**且新旧两代真的会撕**时才绕开 DiffUtil，
+        // 见 [FeedUiState.refreshGeneration] 和 [wouldScrambleAcrossGenerations]。
+        // adapter 还空着（首屏、旋转重建、rebuildList 换过 adapter）时没有「旧代」可撕。
+        val newGeneration = state.refreshGeneration != lastRenderedGeneration
+        lastRenderedGeneration = state.refreshGeneration
+        if (newGeneration && adapter.itemCount > 0 && displayList.isNotEmpty() &&
+            needsCleanSwapAcrossGenerations(adapter.currentList, displayList)
+        ) {
+            commitNewGeneration(adapter, displayList, state)
+        } else {
+            adapter.submitList(displayList) { onListCommitted(state) }
+        }
 
         val binding = feedBinding
         binding.feedRefreshLayout.isRefreshing =

@@ -383,6 +383,49 @@ class FeedViewModelTest {
         assertEquals(versionBefore + 1, vm.uiState.value.structureVersion)
     }
 
+    /**
+     * refreshGeneration 只认「整代替换」：refresh 的每次整代提交 +1，其余编辑一律不动。
+     *
+     * 这是 FeedFragment 绕开跨代 diff 的唯一信号。**不能拿 structureVersion 顶替**——点赞/删除
+     * 也会推进 structureVersion，用它当整代信号会让每次点赞都把列表清表回顶。
+     */
+    @Test
+    fun `refreshGeneration only advances on whole-generation commits`() = runTest(dispatcher) {
+        val vm = FeedViewModel(
+            FakeSource(listOf(listOf(Row(1, "a"), Row(2, "b")), listOf(Row(3, "c"))))
+        )
+        advanceUntilIdle()
+        val genAfterFirstLoad = vm.uiState.value.refreshGeneration
+        assertEquals("首屏是一次整代提交", 1, genAfterFirstLoad)
+
+        // 翻页：纯尾部追加,不是换代
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(genAfterFirstLoad, vm.uiState.value.refreshGeneration)
+
+        // 点赞/就地改：structureVersion 会动,代号不能动
+        val versionBefore = vm.uiState.value.structureVersion
+        vm.updateItems(Row::class.java) { row -> if (row.id == 1) row.copy(text = "liked") else row }
+        assertEquals(versionBefore + 1, vm.uiState.value.structureVersion)
+        assertEquals(
+            "点赞不是换代——推进了代号会让列表被清表回顶",
+            genAfterFirstLoad, vm.uiState.value.refreshGeneration,
+        )
+
+        // 删除一条：同上
+        vm.removeItems { it.feedKey == 2 }
+        assertEquals(genAfterFirstLoad, vm.uiState.value.refreshGeneration)
+
+        // 追加外部条目(详情页续拉回传)：同上
+        vm.appendItems(listOf(Row(99, "z")))
+        assertEquals(genAfterFirstLoad, vm.uiState.value.refreshGeneration)
+
+        // 下拉刷新：换代
+        vm.refresh()
+        advanceUntilIdle()
+        assertEquals(genAfterFirstLoad + 1, vm.uiState.value.refreshGeneration)
+    }
+
     // ── 本地优先（FeedSource.loadFromCache）──────────────────────────────────
 
     /**

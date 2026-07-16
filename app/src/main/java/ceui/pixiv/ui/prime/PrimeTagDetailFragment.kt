@@ -5,8 +5,10 @@ import android.view.View
 import androidx.core.os.bundleOf
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
+import ceui.lisa.models.IllustsBean
 import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.pixiv.feeds.FeedPage
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
@@ -42,6 +44,22 @@ class PrimeTagDetailFragment : IllustFeedFragment(R.layout.fragment_toolbar_feed
             FeedPage(items, null)
         }
     }
+
+    /**
+     * **不把本页的 bean 合进 ObjectPool / 全局关注态**（同 [ceui.pixiv.ui.watchlater.WatchLaterFeedFragment]
+     * 的规则，本地源一律关喂池）。
+     *
+     * 基类默认会把列表 bean 喂给 [ceui.pixiv.ui.common.IllustFeedPoolSync]，因为别的 feed 页拿的
+     * 都是刚下行的新鲜数据。本页拿的是 **assets 里打包那一刻冻结的 JSON** —— 比稍后再看那份还老，
+     * 且永远不会更新。喂进去就是拿旧值盖新值：`ObjectPool.mergeKeepingExisting` 只把
+     * null/空串/空数组当「空」，`is_bookmarked=false`、`total_bookmarks=15835` 都是正经 JSON 原始值，
+     * 照盖不误 → 用户已收藏的作品在详情页显示成未收藏；`AppLevelViewModelHelper.fill` 对 IllustsBean
+     * 传的是默认 UpdateMethod（不像它自己的历史分支那样用 IF_ABSENT），旧的 is_followed=false
+     * 会把用户这次会话里刚点的「已关注」打回。
+     *
+     * 关掉不影响从本页点进详情：VActivity 只在池里 miss 时才用 PageData 的 bean 填池。
+     */
+    override fun poolableBeansOf(item: FeedItem): List<IllustsBean> = emptyList()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

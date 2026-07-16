@@ -43,6 +43,12 @@ class RecmdUserRailFeedFragment : FeedFragment() {
 
     override val loadMoreEnabled: Boolean = false
 
+    // 横向 rail 必须关掉下拉刷新：SwipeRefreshLayout 只在 canChildScrollUp() 为真时才放行手势，
+    // 而那条路最终问的是 LayoutManager.canScrollVertically() —— 横向 LinearLayoutManager 恒 false，
+    // 于是 SRL 认为「列表滚不动」，把竖向拖拽全认领走。后果:转圈被拖出来画在 124dp 高的推荐条里，
+    // 松手还会真的 refresh()，推荐用户在用户手指底下悄悄重排。
+    override val refreshEnabled: Boolean = false
+
     override val feedViewModel by feedViewModels {
         pixivFeedSource({ Client.appApi.recommendedUsers() }) { resp, _ ->
             mapUsers(resp.displayList)
