@@ -353,7 +353,7 @@ class FeedViewModel<Cursor : Any>(
 
     companion object {
         /** 连续零新条目页的追载上限，防止异常数据导致无限翻页。 */
-        private const val MAX_EMPTY_PAGE_HOPS = 5
+        private const val MAX_EMPTY_PAGE_HOPS = 2
     }
 }
 
