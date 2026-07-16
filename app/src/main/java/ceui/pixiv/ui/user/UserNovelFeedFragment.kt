@@ -82,7 +82,7 @@ class UserNovelFeedFragment : NovelFeedFragment() {
 
         /** 页响应 → 条目。跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
         private fun mapUserNovelPage(novels: List<Novel>): List<FeedItem> {
-            return novels.mapNotNull { NovelFeedItem.of(it) }
+            return novels.mapNotNull { NovelFeedItem.of(it, skipMuteUserFilter = true) }
         }
     }
 }

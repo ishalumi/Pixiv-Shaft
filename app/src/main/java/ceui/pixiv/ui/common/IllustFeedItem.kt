@@ -97,8 +97,9 @@ class IllustFeedItem(
             bean: IllustsBean,
             skipR18Filter: Boolean = false,
             skipAiFilter: Boolean = false,
+            skipMuteUserFilter: Boolean = false,
         ): IllustFeedItem? {
-            if (!passesContentFilters(bean, skipR18Filter, skipAiFilter)) return null
+            if (!passesContentFilters(bean, skipR18Filter, skipAiFilter, skipMuteUserFilter)) return null
             return IllustFeedItem(illust, bean)
         }
 
@@ -112,8 +113,9 @@ class IllustFeedItem(
             bean: IllustsBean?,
             skipR18Filter: Boolean = false,
             skipAiFilter: Boolean = false,
+            skipMuteUserFilter: Boolean = false,
         ): IllustFeedItem? {
-            if (bean == null || !passesContentFilters(bean, skipR18Filter, skipAiFilter)) return null
+            if (bean == null || !passesContentFilters(bean, skipR18Filter, skipAiFilter, skipMuteUserFilter)) return null
             val illust = runCatching {
                 Shaft.sGson.fromJson(Shaft.sGson.toJsonTree(bean), Illust::class.java)
             }.getOrNull() ?: return null
@@ -151,11 +153,15 @@ class IllustFeedItem(
             bean: IllustsBean,
             skipR18Filter: Boolean,
             skipAiFilter: Boolean = false,
+            skipMuteUserFilter: Boolean = false,
         ): Boolean {
             if (!bean.isVisible) return false
             if (IllustNovelFilter.judgeTag(bean)) return false
             if (IllustNovelFilter.judgeID(bean)) return false
-            if (IllustNovelFilter.judgeUserID(bean)) return false
+            // 屏蔽画师过滤：在「该画师本人作品页」让步（skipMuteUserFilter）——整页都是这个画师，
+            // 全滤空只会触发空页追载狂翻页（offset 30/60/90…）；你主动点进他主页就该看到其作品
+            // （同 skipR18Filter / skipAiFilter「点进专属页就别用全局过滤把它清空」的思路）。
+            if (!skipMuteUserFilter && IllustNovelFilter.judgeUserID(bean)) return false
             if (!skipR18Filter && IllustNovelFilter.judgeR18Filter(bean)) return false
             if (!skipAiFilter && Shaft.sSettings.isDeleteAIIllust() && bean.isCreatedByAI) return false
             return true

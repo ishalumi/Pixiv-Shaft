@@ -101,7 +101,7 @@ class UserIllustByTagFeedSource(
         val loaded = offset + works.size
         // gson-free 映射 + 内容过滤挪 Default，保住 load 的 main-safe 契约。
         val items = withContext(Dispatchers.Default) {
-            works.mapNotNull { IllustFeedItem.fromBean(it.toIllustsBean()) }
+            works.mapNotNull { IllustFeedItem.fromBean(it.toIllustsBean(), skipMuteUserFilter = true) }
         }
         val next = if (works.isNotEmpty() && loaded < total) loaded.toString() else null
         return FeedPage(items, next)

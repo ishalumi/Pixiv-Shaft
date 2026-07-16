@@ -55,8 +55,9 @@ class NovelFeedItem(
             novel: Novel,
             trendingScore: Float? = null,
             skipR18Filter: Boolean = false,
+            skipMuteUserFilter: Boolean = false,
         ): NovelFeedItem? {
-            return if (passesContentFilters(novel, skipR18Filter)) {
+            return if (passesContentFilters(novel, skipR18Filter, skipMuteUserFilter)) {
                 NovelFeedItem(novel, trendingScore)
             } else {
                 null
@@ -67,10 +68,16 @@ class NovelFeedItem(
          * 与 legacy [ceui.lisa.core.Mapper] 的小说分支逐条对齐（tag / id / 作者 / R18 过滤）。
          * 走 [IllustNovelFilter] 的 loxia Novel 重载，无需 NovelBean。
          */
-        private fun passesContentFilters(novel: Novel, skipR18Filter: Boolean): Boolean {
+        private fun passesContentFilters(
+            novel: Novel,
+            skipR18Filter: Boolean,
+            skipMuteUserFilter: Boolean = false,
+        ): Boolean {
             if (IllustNovelFilter.judgeTag(novel)) return false
             if (IllustNovelFilter.judgeID(novel)) return false
-            if (IllustNovelFilter.judgeUserID(novel)) return false
+            // 屏蔽画师过滤在「该作者本人小说页」让步（同插画侧）：整页都是这个作者，全滤空只会触发
+            // 空页追载狂翻页；主动点进作者页就该看到其小说。
+            if (!skipMuteUserFilter && IllustNovelFilter.judgeUserID(novel)) return false
             if (!skipR18Filter && IllustNovelFilter.judgeR18Filter(novel)) return false
             return true
         }

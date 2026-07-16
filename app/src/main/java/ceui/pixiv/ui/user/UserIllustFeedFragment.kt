@@ -321,7 +321,9 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
         private fun mapUserIllustPage(illusts: List<Illust>): List<FeedItem> {
             return illusts.mapNotNull { illust ->
                 val bean = IllustFeedItem.beanOf(illust) ?: return@mapNotNull null
-                IllustFeedItem.of(illust, bean)
+                // 画师本人作品页：让步「屏蔽画师」过滤（否则屏蔽了本画师后，整页全被滤空 → 空页追载
+                // 狂翻 offset）。R18/标签/AI/作品ID 过滤照常。
+                IllustFeedItem.of(illust, bean, skipMuteUserFilter = true)
             }
         }
     }
