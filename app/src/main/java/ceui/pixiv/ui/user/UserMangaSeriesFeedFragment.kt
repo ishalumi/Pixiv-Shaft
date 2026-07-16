@@ -1,0 +1,203 @@
+package ceui.pixiv.ui.user
+
+import android.content.Intent
+import android.os.Bundle
+import android.text.TextUtils
+import android.view.View
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
+import ceui.lisa.R
+import ceui.lisa.activities.TemplateActivity
+import ceui.lisa.database.AppDatabase
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.lisa.databinding.RecyMangaSeriesBinding
+import ceui.lisa.feature.FeatureEntity
+import ceui.lisa.model.ListMangaSeries
+import ceui.lisa.models.MangaSeriesItem
+import ceui.lisa.repo.MangaSeriesRepo
+import ceui.lisa.utils.Common
+import ceui.lisa.utils.GlideUtil
+import ceui.lisa.utils.Params
+import ceui.lisa.view.LinearItemDecorationNoLRTB
+import ceui.pixiv.feeds.FeedCell
+import ceui.pixiv.feeds.FeedFragment
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedPage
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedSource
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.awaitFirstValue
+import ceui.pixiv.ui.common.setUpToolbar
+import ceui.pixiv.ui.common.viewBinding
+import ceui.pixiv.utils.ppppx
+import ceui.pixiv.utils.setOnClick
+import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * 「漫画系列作品」列表页（feeds 框架版，替代 legacy [ceui.lisa.fragments.FragmentMangaSeries] +
+ * MangaSeriesAdapter）。某画师的漫画系列总览，宿主是 TemplateActivity，用 feeds 独立页统一的
+ * fragment_toolbar_feed（webview 5 件套 toolbar），toolbar 标题 [R.string.string_230]。
+ *
+ * 卡形与交互 1:1 复刻 legacy MangaSeriesAdapter 的 recy_manga_series（databinding 生成的
+ * [RecyMangaSeriesBinding] 天然实现 ViewBinding，直接喂 [feedRenderer]，对齐 NovelMarkersFeedFragment
+ * 复用 recy_novel_markers 的做法）：封面 + 系列标题 + 话数，整卡点击进「漫画系列详情」。
+ *
+ * toolbar 菜单沿用 legacy 的 [R.menu.local_save]，只处理 action_bookmark：把当前整份列表收藏成
+ * 一条精华（FeatureEntity），DB 写入切 IO（对齐记忆里的「DB 写 IO」约束）。
+ */
+class UserMangaSeriesFeedFragment : FeedFragment(R.layout.fragment_toolbar_feed) {
+
+    private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
+
+    /** toolbar 收藏动作要用的画师 id（fragment 作用域读 arguments，非零捕获路径，直接读安全）。 */
+    private val userID: Int
+        get() = requireArguments().getInt(Params.USER_ID)
+
+    override val feedViewModel by feedViewModels {
+        // 零捕获：只把 userID(Int) 读成局部 val 按值传给 source，source 自持 repo、不碰 Fragment / View。
+        val uid = requireArguments().getInt(Params.USER_ID)
+        UserMangaSeriesFeedSource(uid)
+    }
+
+    /**
+     * 封面 Glide 请求管理器，建一次复用（对齐 NovelMarkersFeedFragment.rowGlide）：
+     * bind 加载 / recycle 清理都走它，避免每处 `Glide.with(view)` 递归找承载 fragment。
+     */
+    private val rowGlide: RequestManager by lazy { Glide.with(this) }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setUpToolbar(binding, feedBinding.feedListView)
+        binding.toolbarTitle.text = getString(R.string.string_230)
+        binding.toolbar.inflateMenu(R.menu.local_save)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_bookmark) {
+                bookmarkAsFeature()
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(mangaSeriesRenderer())
+    }
+
+    override fun onListReady(listView: RecyclerView) {
+        // 卡间距对齐 legacy 的 LinearItemDecorationNoLRTB(dp2px(1f))：只在条目之间留 1dp 顶距。
+        listView.addItemDecoration(LinearItemDecorationNoLRTB(1.ppppx))
+    }
+
+    private fun mangaSeriesRenderer() = feedRenderer<MangaSeriesFeedItem, RecyMangaSeriesBinding>(
+        inflate = RecyMangaSeriesBinding::inflate,
+        // 点击监听只在 onCreate 注册一次，绑定时零 lambda 分配；点击那一刻读 cell.item 拿当下条目。
+        create = { cell ->
+            cell.binding.root.setOnClick { openSeries(cell.item.series) }
+        },
+        recycle = { cell ->
+            rowGlide.clear(cell.binding.imageView)
+        },
+    ) { cell -> bindRow(cell) }
+
+    private fun bindRow(cell: FeedCell<MangaSeriesFeedItem, RecyMangaSeriesBinding>) {
+        val b = cell.binding
+        val series = cell.item.series
+        b.seriesTitle.text = "#%s".format(series.title)
+        b.seriesSize.text = "共%d话".format(series.series_work_count)
+        // 与 legacy 一致：封面 medium 为空时不发请求（recycle 已清掉上一张，不会串图）。
+        if (!TextUtils.isEmpty(series.cover_image_urls.medium)) {
+            rowGlide.load(GlideUtil.getUrl(series.cover_image_urls.medium)).into(b.imageView)
+        }
+    }
+
+    /** 整卡点击：进「漫画系列详情」，携带系列 id（与 legacy itemView 点击一字不差）。 */
+    private fun openSeries(series: MangaSeriesItem) {
+        val intent = Intent(requireContext(), TemplateActivity::class.java)
+        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画系列详情")
+        intent.putExtra(Params.MANGA_SERIES_ID, series.id)
+        startActivity(intent)
+    }
+
+    /**
+     * 把当前整份列表收藏成一条精华（FeatureEntity），复刻 legacy action_bookmark：
+     * uuid = userID + "漫画系列作品"，dataType 同名，illustJson 走 [Common.cutToJson]（仅前 5 条）。
+     * DB 写入切 IO，成功后主线程 toast。
+     */
+    private fun bookmarkAsFeature() {
+        val ctx = context ?: return
+        val uid = userID
+        val allItems = feedViewModel.uiState.value.items
+            .filterIsInstance<MangaSeriesFeedItem>()
+            .map { it.series }
+        val entity = FeatureEntity().apply {
+            uuid = uid.toString() + "漫画系列作品"
+            dataType = "漫画系列作品"
+            illustJson = Common.cutToJson(allItems)
+            userID = uid
+            dateTime = System.currentTimeMillis()
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                AppDatabase.getAppDatabase(ctx.applicationContext).downloadDao().insertFeature(entity)
+            }
+            Common.showToast(getString(R.string.series_bookmarked_feature))
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        fun newInstance(userID: Int): UserMangaSeriesFeedFragment {
+            return UserMangaSeriesFeedFragment().apply {
+                arguments = Bundle().apply {
+                    putInt(Params.USER_ID, userID)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 漫画系列条目：持 legacy [MangaSeriesItem]（网络下行的 illust_series_details 单条）。
+ * feedKey 用系列 id（[MangaSeriesItem.getId] 返回 int，同类内唯一稳定）。
+ */
+class MangaSeriesFeedItem(val series: MangaSeriesItem) : FeedItem {
+    override val feedKey: Any get() = series.id
+}
+
+/**
+ * 漫画系列数据源：包裹既有的 [MangaSeriesRepo]，把 Rx→suspend 桥一下（对齐 NovelMarkersFeedSource）。
+ * load(null) → getUserMangaSeries；load(cursor) → setNextUrl + getNextUserMangaSeries；过滤走 repo
+ * 自己的 mapper()（默认 [ceui.lisa.core.Mapper]，与 legacy `.map(mFunction)` 同一条流水线，对
+ * MangaSeriesItem 列表实为空操作但保持链路一致）。网络请求前的同步重活切 IO，映射 / 建条目切 Default。
+ * 游标 = nextUrl。
+ *
+ * 零 Fragment 捕获：只吃一个 userID(Int)，自持 repo，不碰 View / Context。
+ */
+class UserMangaSeriesFeedSource(userID: Int) : FeedSource<String> {
+
+    private val repo = MangaSeriesRepo(userID)
+
+    override suspend fun load(cursor: String?): FeedPage<String> {
+        // initApi / initNextApi 在返回 Observable 前是纯同步的（Retro 组装请求），放 IO 稳妥；
+        // 真正的挂起在 awaitFirstValue 内部（subscribeOn(io) + firstOrError）。
+        val resp: ListMangaSeries = if (cursor == null) {
+            withContext(Dispatchers.IO) { repo.initApi() }.awaitFirstValue()
+        } else {
+            val api = withContext(Dispatchers.IO) {
+                repo.setNextUrl(cursor)
+                repo.initNextApi()
+            }
+            requireNotNull(api) { "MangaSeriesRepo.initNextApi 返回 null" }.awaitFirstValue()
+        }
+        // 默认 Mapper 只过滤 IllustsBean/NovelBean，对 MangaSeriesItem 是 no-op → 不套，直接建条目。
+        val items: List<FeedItem> = resp.list.orEmpty().map { MangaSeriesFeedItem(it) }
+        return FeedPage(items, resp.nextUrl?.takeIf { it.isNotEmpty() })
+    }
+}

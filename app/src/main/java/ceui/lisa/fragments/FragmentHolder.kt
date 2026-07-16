@@ -71,8 +71,6 @@ class FragmentHolder : BaseFragment<FragmentHolderBinding>() {
                 items.forEach { frag ->
                     if (frag is FeedFragment) {
                         frag.forceRefresh()
-                    } else if (frag is NetListFragment<*, *, *>) {
-                        frag.refresh()
                     }
                 }
             }

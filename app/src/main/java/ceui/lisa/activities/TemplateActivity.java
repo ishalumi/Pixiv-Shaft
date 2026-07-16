@@ -19,7 +19,7 @@ import com.jaredrummler.android.colorpicker.ColorPickerDialogListener;
 import ceui.lisa.R;
 import ceui.lisa.databinding.ActivityFragmentBinding;
 import ceui.lisa.fragments.FragmentAboutApp;
-import ceui.lisa.fragments.FragmentBookedTag;
+import ceui.pixiv.ui.collection.BookedTagFeedFragment;
 import ceui.lisa.fragments.FragmentCollection;
 import ceui.lisa.fragments.FragmentDonate;
 import ceui.lisa.fragments.FragmentEditAccount;
@@ -28,10 +28,10 @@ import ceui.pixiv.ui.feature.FeatureFeedFragment;
 import ceui.lisa.fragments.FragmentFileName;
 import ceui.lisa.fragments.FragmentHistoryTabs;
 import ceui.lisa.fragments.FragmentImageDetail;
-import ceui.lisa.fragments.FragmentListSimpleUser;
+import ceui.pixiv.ui.user.LikeUsersFeedFragment;
 import ceui.lisa.fragments.FragmentLocalUsers;
 import ceui.lisa.fragments.FragmentLogin;
-import ceui.lisa.fragments.FragmentMangaSeries;
+import ceui.pixiv.ui.user.UserMangaSeriesFeedFragment;
 import ceui.lisa.fragments.FragmentMarkdown;
 import ceui.lisa.fragments.FragmentNew;
 import ceui.lisa.fragments.FragmentNewNovel;
@@ -39,13 +39,13 @@ import ceui.pixiv.ui.novel.reader.NovelReaderV3Fragment;
 import ceui.pixiv.ui.comic.reader.ComicReaderV3Fragment;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
 import ceui.pixiv.ui.novel.NovelTextFragment;
-import ceui.lisa.fragments.FragmentNovelMarkers;
-import ceui.lisa.fragments.FragmentNovelSeries;
+import ceui.pixiv.ui.novel.NovelMarkersFeedFragment;
+import ceui.pixiv.ui.user.UserNovelSeriesFeedFragment;
 import ceui.lisa.fragments.FragmentPv;
 import ceui.pixiv.ui.detail.RelatedIllustFeedFragment;
 import ceui.pixiv.ui.user.RelatedUserFeedFragment;
 import ceui.lisa.fragments.FragmentSAF;
-import ceui.lisa.fragments.FragmentSB;
+import ceui.pixiv.ui.bookmark.SelectTagFeedFragment;
 import ceui.lisa.fragments.FragmentSearch;
 import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
@@ -132,13 +132,13 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "账号管理":
                     return new FragmentLocalUsers();
                 case "按标签筛选": {
-                    return FragmentBookedTag.newInstance(intent.getIntExtra(Params.DATA_TYPE, 0), intent.getStringExtra(EXTRA_KEYWORD));
+                    return BookedTagFeedFragment.newInstance(intent.getIntExtra(Params.DATA_TYPE, 0), intent.getStringExtra(EXTRA_KEYWORD));
                 }
                 case "按标签收藏": {
                     int id = intent.getIntExtra(Params.ILLUST_ID, 0);
                     String type = intent.getStringExtra(Params.DATA_TYPE);
                     String[] tagNames = intent.getStringArrayExtra(Params.TAG_NAMES);
-                    return FragmentSB.newInstance(id, type, tagNames);
+                    return SelectTagFeedFragment.newInstance(id, type, tagNames);
                 }
                 case "关于软件":
                     return new FragmentAboutApp();
@@ -175,7 +175,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return ceui.pixiv.ui.user.UserFansFeedFragment.newInstance(
                             intent.getIntExtra(Params.USER_ID, 0));
                 case "喜欢这个作品的用户":
-                    return FragmentListSimpleUser.newInstance((IllustsBean) intent.getSerializableExtra(Params.CONTENT));
+                    return LikeUsersFeedFragment.newInstance((IllustsBean) intent.getSerializableExtra(Params.CONTENT));
                 case "小说系列详情": {
                     // Legacy 路由——桥接到新页 NovelSeriesFragment。保留 case
                     // 兼容外部深链或仍在路上的字符串拼接调用；内部入口都已迁到
@@ -335,7 +335,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     // feeds 版(替代 legacy FragmentNewNovels);独立页带 toolbar,restrict 走默认「全部」
                     return ceui.pixiv.ui.dynamic.FollowingNovelFeedFragment.newInstance();
                 case "漫画系列作品":
-                    return FragmentMangaSeries.newInstance(intent.getIntExtra(Params.USER_ID, 0));
+                    return UserMangaSeriesFeedFragment.newInstance(intent.getIntExtra(Params.USER_ID, 0));
                 case "漫画系列详情": {
                     // 迁到 V3 漫画系列详情页 IllustSeriesFragment（标题优先的单话列表，
                     // 不再是旧瀑布流）。系列 id 兼容旧调用的 MANGA_SERIES_ID(int) 与
@@ -347,7 +347,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return ceui.pixiv.ui.detail.IllustSeriesFragment.Companion.newInstance(sid);
                 }
                 case "小说系列作品":
-                    return new FragmentNovelSeries();
+                    return UserNovelSeriesFeedFragment.newInstance(intent.getIntExtra(Params.USER_ID, 0));
                 case "精华列":
                     return new FeatureFeedFragment();
                 case "我的作业环境":
@@ -373,7 +373,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "我的关注":
                     return FragmentCollection.newInstance(2);
                 case "小说书签":
-                    return new FragmentNovelMarkers();
+                    return new NovelMarkersFeedFragment();
                 case "主题颜色":
                     // feeds 框架版(替代 legacy FragmentColors);静态目录单页,带 toolbar
                     return new ceui.pixiv.ui.settings.ThemeColorFeedFragment();

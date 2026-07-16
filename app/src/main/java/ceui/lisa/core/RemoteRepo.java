@@ -1,6 +1,5 @@
 package ceui.lisa.core;
 
-import ceui.lisa.fragments.NetListFragment;
 import ceui.lisa.http.NullCtrl;
 import ceui.lisa.interfaces.ListShow;
 import io.reactivex.Observable;
@@ -38,9 +37,9 @@ public abstract class RemoteRepo<Response extends ListShow<?>> extends BaseRepo 
      * <p>
      * For expample:
      * <p>
-     * The mRemoteRepo in {@link NetListFragment} of homepage is {@link ceui.lisa.model.RecmdIllust}
+     * The remote repo of the homepage list is {@link ceui.lisa.model.RecmdIllust}
      * <p>
-     * While mRemoteRepo in {@link NetListFragment} of a legacy list page is a concrete RemoteRepo subclass
+     * While the remote repo of a legacy list page is a concrete RemoteRepo subclass
      * */
     public abstract Observable<? extends Response> initApi();
 
