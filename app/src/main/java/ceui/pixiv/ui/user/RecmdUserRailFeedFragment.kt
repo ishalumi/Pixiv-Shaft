@@ -5,10 +5,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
-import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.UActivity
 import ceui.lisa.databinding.RecyUserPreviewHorizontalBinding
-import ceui.lisa.models.UserPreviewsBean
 import ceui.lisa.utils.DensityUtil
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
@@ -97,22 +95,17 @@ class RecmdUserRailFeedFragment : FeedFragment() {
         }
 
     /**
-     * 交接给「查看更多」(推荐用户 整页) 的快照：当前这一批 + 续读游标。
-     * legacy 传的是可变 bean，这里把 loxia [UserPreview] 转回去（同 IllustFeedItem.beanOf 的做法）。
-     * 转不动的条目直接丢，不让一条坏数据毁掉整次交接。
+     * 交接给「查看更多」([RecmdUserFeedFragment] 整页) 的快照：当前这一批 + 续读游标。
+     *
+     * 直接给 loxia [UserPreview]：整页也是 feeds 版、要的就是这个类型。以前这里 gson 转成 legacy
+     * `UserPreviewsBean` 是为了迁就 legacy 消费方 FragmentRecmdUser，那边下线后转换只剩浪费
+     * （对面还得再转回来）。少一层转换也就没有「转不动的条目」要兜了。
      */
-    fun currentSnapshot(): Pair<List<UserPreviewsBean>, String?> {
-        val beans = feedViewModel.uiState.value.items
+    fun currentSnapshot(): Pair<List<UserPreview>, String?> {
+        val previews = feedViewModel.uiState.value.items
             .filterIsInstance<RecmdUserRailItem>()
-            .mapNotNull { item ->
-                runCatching {
-                    Shaft.sGson.fromJson(
-                        Shaft.sGson.toJsonTree(item.preview),
-                        UserPreviewsBean::class.java,
-                    )
-                }.getOrNull()
-            }
-        return beans to feedViewModel.currentCursor
+            .map { it.preview }
+        return previews to feedViewModel.currentCursor
     }
 
     companion object {

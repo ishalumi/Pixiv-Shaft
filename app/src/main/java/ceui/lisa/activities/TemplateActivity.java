@@ -27,10 +27,8 @@ import ceui.lisa.fragments.FragmentEditAccount;
 import ceui.lisa.fragments.FragmentEditFile;
 import ceui.lisa.fragments.FragmentFeature;
 import ceui.lisa.fragments.FragmentFileName;
-import ceui.lisa.fragments.FragmentFollowUser;
 import ceui.lisa.fragments.FragmentHistoryTabs;
 import ceui.lisa.fragments.FragmentImageDetail;
-import ceui.lisa.fragments.FragmentLikeNovel;
 import ceui.lisa.fragments.FragmentListSimpleUser;
 import ceui.lisa.fragments.FragmentLive;
 import ceui.lisa.fragments.FragmentLocalUsers;
@@ -48,23 +46,18 @@ import ceui.lisa.fragments.FragmentNovelMarkers;
 import ceui.lisa.fragments.FragmentNovelSeries;
 import ceui.lisa.fragments.FragmentPopularNovel;
 import ceui.lisa.fragments.FragmentPv;
-import ceui.lisa.fragments.FragmentRecmdUser;
 import ceui.pixiv.ui.detail.RelatedIllustFeedFragment;
 import ceui.pixiv.ui.user.RelatedUserFeedFragment;
 import ceui.lisa.fragments.FragmentSAF;
 import ceui.lisa.fragments.FragmentSB;
 import ceui.lisa.fragments.FragmentSearch;
-import ceui.lisa.fragments.FragmentSearchUser;
 import ceui.lisa.fragments.FragmentSettingsHub;
 import ceui.lisa.fragments.SettingsCatalog;
 import ceui.pixiv.ui.user.UserIllustByTagFeedFragment;
 import ceui.lisa.fragments.FragmentUserInfo;
 import ceui.lisa.fragments.FragmentViewPager;
 import ceui.lisa.fragments.FragmentWebView;
-import ceui.lisa.fragments.FragmentWhoFollowThisUser;
 import ceui.lisa.fragments.FragmentWorkSpace;
-import ceui.lisa.fragments.RecmdUserMap;
-import ceui.lisa.fragments.RecmdUserSnapshot;
 import ceui.lisa.helper.BackHandlerHelper;
 import ceui.lisa.models.IllustsBean;
 import ceui.lisa.models.NovelBean;
@@ -125,27 +118,14 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "设置分类":
                     return SettingsCatalog.fragmentFor(
                             intent.getStringExtra(SettingsCatalog.EXTRA_CATEGORY));
-                case "推荐用户": {
-                    // Paired with FragmentRight#seeMore: the producer stashes
-                    // the Feed horizontal preview's snapshot under a random
-                    // key in RecmdUserMap and passes the key here. We remove
-                    // it on consume so the map doesn't leak.
-                    String recmdKey = intent.getStringExtra(Params.USER_MODEL);
-                    if (recmdKey == null) {
-                        return new FragmentRecmdUser();
-                    }
-                    RecmdUserSnapshot snapshot = RecmdUserMap.store.remove(recmdKey);
-                    if (snapshot == null) {
-                        return new FragmentRecmdUser();
-                    }
-                    return new FragmentRecmdUser(snapshot.items, snapshot.nextUrl);
-                }
+                case "推荐用户":
+                    // 与 FragmentRight#seeMore 配对：货架把自己那批快照存进 RecmdUserMap，
+                    // 只把 key 传过来。取用/清理都归 RecmdUserFeedFragment 自己（数据落进 VM，
+                    // 旋转不重拉；key 为 null 或 map 已失效时它自己退化成网络首屏）。
+                    return ceui.pixiv.ui.user.RecmdUserFeedFragment.newInstance(
+                            intent.getStringExtra(Params.USER_MODEL));
                 case "特辑":
                     return new FragmentPv();
-                case "搜索用户": {
-                    String keyword = intent.getStringExtra(EXTRA_KEYWORD);
-                    return FragmentSearchUser.newInstance(keyword);
-                }
                 case "以图搜图":
                     ReverseResult result = intent.getParcelableExtra(Params.REVERSE_SEARCH_RESULT);
                     Uri imageUri = intent.getParcelableExtra(Params.REVERSE_SEARCH_IMAGE_URI);
@@ -175,7 +155,8 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     // feeds 框架版画廊，替代 legacy FragmentWalkThrough
                     return new ceui.pixiv.ui.home.WalkthroughFeedFragment();
                 case "正在关注":
-                    return FragmentFollowUser.newInstance(
+                    // feeds 框架版，替代 legacy FragmentFollowUser + FollowUserRepo + UAdapter
+                    return ceui.pixiv.ui.user.FollowUserFeedFragment.newInstance(
                             getIntent().getIntExtra(Params.USER_ID, 0),
                             Params.TYPE_PUBLIC, true);
                 case "好P友":
@@ -190,7 +171,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "最新作品":
                     return new FragmentNew();
                 case "粉丝":
-                    return FragmentWhoFollowThisUser.newInstance(intent.getIntExtra(Params.USER_ID, 0));
+                    // feeds 框架版，替代 legacy FragmentWhoFollowThisUser + WhoFollowThisUserRepo + UAdapter
+                    return ceui.pixiv.ui.user.UserFansFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0));
                 case "喜欢这个作品的用户":
                     return FragmentListSimpleUser.newInstance((IllustsBean) intent.getSerializableExtra(Params.CONTENT));
                 case "小说系列详情": {
@@ -238,7 +221,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "小说收藏": {
                     // STAR_TYPE / KEY_WORD 可选：同义词词典管理页跳转时带上（issue #904）
                     String novelStarType = intent.getStringExtra(Params.STAR_TYPE);
-                    return FragmentLikeNovel.newInstance(intent.getIntExtra(Params.USER_ID, 0),
+                    // feeds 框架版，替代 legacy FragmentLikeNovel + LikeNovelRepo + NAdapter
+                    return ceui.pixiv.ui.collection.LikeNovelFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0),
                             novelStarType != null ? novelStarType : Params.TYPE_PUBLIC, true,
                             intent.getStringExtra(Params.KEY_WORD));
                 }
@@ -427,9 +412,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "站长推荐":
                     return new ceui.pixiv.ui.recommend.FragmentSiteRecommend();
                 case "画师榜":
-                    return ceui.pixiv.ui.recommend.FragmentArtistRank.newInstance("total");
+                    return ceui.pixiv.ui.recommend.ArtistRankFeedFragment.newInstance("total");
                 case "画师均分榜":
-                    return ceui.pixiv.ui.recommend.FragmentArtistRank.newInstance("avg");
+                    return ceui.pixiv.ui.recommend.ArtistRankFeedFragment.newInstance("avg");
                 case "浏览量榜":
                     return ceui.pixiv.ui.recommend.ViewRankFeedFragment.newInstance();
                 case "操作记录":

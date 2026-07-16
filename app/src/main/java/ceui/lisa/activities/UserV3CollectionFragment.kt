@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import ceui.lisa.R
-import ceui.lisa.fragments.FragmentLikeNovel
+import ceui.pixiv.ui.collection.LikeNovelFeedFragment
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.V3Palette
 import ceui.pixiv.ui.collection.LikeIllustFeedFragment
@@ -86,7 +86,7 @@ class UserV3CollectionFragment : Fragment() {
 
     private fun showSegment(seg: Int) {
         val frag = when (seg) {
-            SEG_NOVEL -> FragmentLikeNovel.newInstance(userId, Params.TYPE_PUBLIC, false)
+            SEG_NOVEL -> LikeNovelFeedFragment.newInstance(userId, Params.TYPE_PUBLIC, false)
             else -> LikeIllustFeedFragment.newInstance(userId, Params.TYPE_PUBLIC, false)
         }
         childFragmentManager.beginTransaction()

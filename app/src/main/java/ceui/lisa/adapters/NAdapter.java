@@ -33,17 +33,10 @@ import kotlin.jvm.functions.Function2;
 
 public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
 
-    private boolean showShop = false;
 
     public NAdapter(List<NovelBean> targetList, Context context) {
         super(targetList, context);
         handleClick();
-    }
-
-    public NAdapter(List<NovelBean> targetList, Context context, boolean showShop) {
-        super(targetList, context);
-        handleClick();
-        this.showShop = showShop;
     }
 
     @Override
@@ -60,27 +53,19 @@ public class NAdapter extends BaseAdapter<NovelBean, RecyNovelBinding> {
             bindView.baseBind.series.setTextColor(palette.getTextAccent());
             bindView.baseBind.series.setText(String.format(mContext.getString(R.string.string_184),
                     target.getSeries().getTitle()));
-            if (showShop) {
-
-            } else {
-                bindView.baseBind.series.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        Intent intent = new Intent(mContext, TemplateActivity.class);
-                        intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, (long) allItems.get(position).getSeries().getId());
-                        intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列");
-                        mContext.startActivity(intent);
-                    }
-                });
-            }
+            bindView.baseBind.series.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Intent intent = new Intent(mContext, TemplateActivity.class);
+                    intent.putExtra(NovelSeriesFragment.ARG_SERIES_ID, (long) allItems.get(position).getSeries().getId());
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说系列");
+                    mContext.startActivity(intent);
+                }
+            });
         } else {
             bindView.baseBind.series.setVisibility(View.GONE);
         }
-        if (showShop) {
-            bindView.baseBind.title.setText(String.format(Locale.getDefault(), "#%d %s", position + 1, target.getTitle()));
-        } else {
-            bindView.baseBind.title.setText(target.getTitle());
-        }
+        bindView.baseBind.title.setText(target.getTitle());
         // Respect the user's "show tags on novel cards" setting. Feed an empty
         // list when disabled so V3TagFlowView clears its chips and collapses to
         // zero height. compact=true 让 chip 比详情页小一号;searchIndex=1 让点击

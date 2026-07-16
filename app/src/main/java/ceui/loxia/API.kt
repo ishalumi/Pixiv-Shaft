@@ -183,6 +183,8 @@ interface API {
     suspend fun getUserBookmarkedNovels(
         @Query("user_id") user_id: Long,
         @Query("restrict") restrict: String,
+        /** 按收藏标签过滤（「按标签筛选」/同义词词典跳转），null = 不过滤（对齐插画侧）。 */
+        @Query("tag") tag: String? = null,
     ): NovelResponse
 
     @GET("/v1/user/novels")
@@ -207,10 +209,14 @@ interface API {
         @Query("user_id") user_id: Long,
     ): ceui.pixiv.ui.user.UserRequestPlansResponse
 
-    @GET("/v1/user/following")
+    // filter=for_android 对齐 legacy AppApi.getFollowUser：本接口此前零调用方，迁「关注列表」页
+    // (FollowUserFeedFragment) 时按 legacy 端点补齐，不影响其它页。
+    @GET("/v1/user/following?filter=for_android")
     suspend fun getFollowingUsers(
         @Query("user_id") user_id: Long,
         @Query("restrict") restrict: String,
+        /** 「跳页」用的起始偏移(offset>0 时首屏从此拉,后续 next_url 照常翻);null=从头。 */
+        @Query("offset") offset: Int? = null,
     ): UserPreviewResponse
 
     @GET("/v1/user/follower?filter=for_ios")
@@ -245,6 +251,16 @@ interface API {
         // 指定日期看往期榜单（日期选择器）；null 时 Retrofit 不带该参数 = 最新一期
         @Query("date") date: String? = null,
     ): IllustResponse
+
+    // 小说排行榜（feeds 版，替代 legacy RxJava AppApi.getRankNovel）：mode 见
+    // RankNovelFeedFragment.NOVEL_MODES。legacy 带的是 filter=for_android，这里跟 loxia 侧
+    // getRankingIllusts 统一成 for_ios（小说响应无 image_urls 变体差异，两者等价）。
+    @GET("/v1/novel/ranking?filter=for_ios")
+    suspend fun getRankingNovels(
+        @Query("mode") mode: String,
+        // 指定日期看往期榜单（日期选择器）；null 时 Retrofit 不带该参数 = 最新一期
+        @Query("date") date: String? = null,
+    ): NovelResponse
 
     // 最新作品（feeds 版，替代 legacy RxJava AppApi.getNewWorks）：全站最新投稿的插画/漫画。
     // content_type = "illust" | "manga"。

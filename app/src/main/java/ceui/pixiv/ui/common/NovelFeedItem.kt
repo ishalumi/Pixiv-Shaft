@@ -44,20 +44,34 @@ class NovelFeedItem(
     }
 
     companion object {
-        /** 过滤 + 建条目；整页被滤空时由 FeedViewModel 空页追载兜住。 */
-        fun of(novel: Novel, trendingScore: Float? = null): NovelFeedItem? {
-            return if (passesContentFilters(novel)) NovelFeedItem(novel, trendingScore) else null
+        /**
+         * 过滤 + 建条目；整页被滤空时由 FeedViewModel 空页追载兜住。
+         *
+         * [skipR18Filter]：R18 专属榜单端点本身就是用来看 R18 的，别用全局 R18 过滤把它清空
+         *（对齐插画侧 [ceui.pixiv.ui.common.IllustFeedItem.of] 的同名参数 / RankIllustRepo
+         * 的 enableSkipR18Filter）。
+         */
+        fun of(
+            novel: Novel,
+            trendingScore: Float? = null,
+            skipR18Filter: Boolean = false,
+        ): NovelFeedItem? {
+            return if (passesContentFilters(novel, skipR18Filter)) {
+                NovelFeedItem(novel, trendingScore)
+            } else {
+                null
+            }
         }
 
         /**
          * 与 legacy [ceui.lisa.core.Mapper] 的小说分支逐条对齐（tag / id / 作者 / R18 过滤）。
          * 走 [IllustNovelFilter] 的 loxia Novel 重载，无需 NovelBean。
          */
-        private fun passesContentFilters(novel: Novel): Boolean {
+        private fun passesContentFilters(novel: Novel, skipR18Filter: Boolean): Boolean {
             if (IllustNovelFilter.judgeTag(novel)) return false
             if (IllustNovelFilter.judgeID(novel)) return false
             if (IllustNovelFilter.judgeUserID(novel)) return false
-            if (IllustNovelFilter.judgeR18Filter(novel)) return false
+            if (!skipR18Filter && IllustNovelFilter.judgeR18Filter(novel)) return false
             return true
         }
     }

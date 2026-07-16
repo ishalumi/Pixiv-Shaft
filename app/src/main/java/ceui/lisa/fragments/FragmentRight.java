@@ -296,12 +296,12 @@ public class FragmentRight extends BaseLazyFragment<FragmentNewRightBinding> {
         Intent intent = new Intent(mContext, TemplateActivity.class);
         intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "推荐用户");
         String handoffKey = null;
-        kotlin.Pair<java.util.List<ceui.lisa.models.UserPreviewsBean>, String> snapshot =
+        kotlin.Pair<java.util.List<ceui.loxia.UserPreview>, String> snapshot =
                 railFragment != null && railFragment.getView() != null
                         ? railFragment.currentSnapshot() : null;
         if (snapshot != null && !snapshot.getFirst().isEmpty()) {
             // Hand off via in-memory map rather than Intent extras: the
-            // full UserPreviewsBean graph easily exceeds the ~1MB binder
+            // full UserPreview graph easily exceeds the ~1MB binder
             // transaction limit and crashes on Android 15 (#820). We
             // still want the detail page to show the same batch the
             // user was just looking at, so stash a snapshot under a

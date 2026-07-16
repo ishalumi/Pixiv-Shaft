@@ -23,6 +23,8 @@ import ceui.lisa.activities.TemplateActivity;
 import ceui.lisa.databinding.ViewpagerWithTablayoutBinding;
 import ceui.lisa.utils.MyOnTabSelectedListener;
 import ceui.lisa.utils.Params;
+import ceui.pixiv.ui.collection.LikeNovelFeedFragment;
+import ceui.pixiv.ui.user.FollowUserFeedFragment;
 
 import ceui.pixiv.session.SessionManager;
 import ceui.pixiv.ui.bulk.BulkActions;
@@ -72,9 +74,9 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
             };
         } else if (type == 1) {
             allPages = new Fragment[]{
-                    FragmentLikeNovel.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
+                    LikeNovelFeedFragment.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
                             Params.TYPE_PUBLIC, false),
-                    FragmentLikeNovel.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
+                    LikeNovelFeedFragment.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
                             Params.TYPE_PRIVATE, false)
             };
             CHINESE_TITLES = new String[]{
@@ -83,9 +85,9 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
             };
         } else if (type == 2) {
             allPages = new Fragment[]{
-                    FragmentFollowUser.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
+                    FollowUserFeedFragment.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
                             Params.TYPE_PUBLIC, false),
-                    FragmentFollowUser.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
+                    FollowUserFeedFragment.newInstance((int) SessionManager.INSTANCE.getLoggedInUid(),
                             Params.TYPE_PRIVATE, false)
             };
             CHINESE_TITLES = new String[]{
@@ -140,11 +142,17 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
         });
         baseBind.viewPager.setPageTransformer(true, new DrawerTransformer());
         // feed 版插画收藏页(type=0)靠 onResume 懒加载，必须 RESUME_ONLY_CURRENT 才不会
-        // 偷偷预载相邻的私密收藏 tab；其余类型仍是 legacy BaseLazyFragment(userVisibleHint)，
-        // 保持旧行为（同 RankActivity 小说 tab 的处理）
-        final int pagerBehavior = type == 0
-                ? FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT
-                : FragmentPagerAdapter.BEHAVIOR_SET_USER_VISIBLE_HINT;
+        // type 0/1/2(插画收藏/小说收藏/关注)已全是 feeds 版,靠 onResume 懒加载 —— 必须
+        // RESUME_ONLY_CURRENT,否则相邻的「私密」tab 会被 RESUME、偷偷发一次请求。
+        //
+        // type 3(追更列表)的两个 tab 仍是 legacy BaseLazyFragment,必须留在 USER_VISIBLE_HINT:
+        // FragmentPagerAdapter 在 behavior=RESUME_ONLY_CURRENT 下走 setMaxLifecycle、**从不调
+        // setUserVisibleHint**,而 Fragment.mUserVisibleHint 默认为 true —— BaseLazyFragment 的
+        // 「getUserVisibleHint() && !isLoaded」守卫于是恒真,onCreateView 一跑就 lazyData(),
+        // 两个 tab 开页即全量加载。(注意方向:是急加载,不是不加载。)
+        final int pagerBehavior = type == 3
+                ? FragmentPagerAdapter.BEHAVIOR_SET_USER_VISIBLE_HINT
+                : FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT;
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getChildFragmentManager(), pagerBehavior) {
             @NonNull
             @Override
@@ -209,8 +217,9 @@ public class FragmentCollection extends BaseFragment<ViewpagerWithTablayoutBindi
         int idx = baseBind.viewPager.getCurrentItem();
         if (idx < 0 || idx >= allPages.length) return;
         Fragment current = allPages[idx];
-        if (current instanceof FragmentFollowUser) {
-            FragmentFollowUser.showJumpPageDialog(mActivity, (FragmentFollowUser) current);
+        if (current instanceof FollowUserFeedFragment) {
+            // 取数改挂 fragment 自己的 viewLifecycleOwner,故是实例方法(内含 view==null 守卫)
+            ((FollowUserFeedFragment) current).showJumpPageDialog();
         }
     }
 

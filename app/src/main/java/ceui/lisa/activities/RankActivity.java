@@ -14,7 +14,7 @@ import java.util.Calendar;
 
 import ceui.lisa.R;
 import ceui.lisa.databinding.ActivityMultiViewPagerBinding;
-import ceui.lisa.fragments.FragmentRankNovel;
+import ceui.pixiv.ui.rank.RankNovelFeedFragment;
 import ceui.lisa.utils.Common;
 import ceui.lisa.utils.MyOnTabSelectedListener;
 import ceui.pixiv.ui.rank.RankIllustFeedFragment;
@@ -75,12 +75,11 @@ public class RankActivity extends BaseActivity<ActivityMultiViewPagerBinding> im
         final String[] titles = getTitles(CHINESE_TITLES, CHINESE_TITLES_MANGA, CHINESE_TITLES_NOVEL);
         final Fragment[] mFragments = getFragments(CHINESE_TITLES, CHINESE_TITLES_MANGA, CHINESE_TITLES_NOVEL);
 
-        // feed 版排行榜页靠 onResume 懒加载（ViewPager 预创建的相邻 tab 不该偷偷发请求），
-        // 必须用 RESUME_ONLY_CURRENT 让只有可见 tab 到 RESUMED；小说 tab 仍是 legacy
-        // BaseLazyFragment（setUserVisibleHint 懒加载），保持旧行为。
-        final int pagerBehavior = "小说".equals(dataType)
-                ? FragmentPagerAdapter.BEHAVIOR_SET_USER_VISIBLE_HINT
-                : FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT;
+        // 插画/漫画/小说三种榜现在全是 feeds 版，都靠 onResume 懒加载（ViewPager 预创建的相邻 tab
+        // 不该偷偷发请求）——必须 RESUME_ONLY_CURRENT，只让可见 tab 到 RESUMED。
+        // 小说曾经单独挂 BEHAVIOR_SET_USER_VISIBLE_HINT（那时它还是 legacy BaseLazyFragment），
+        // 迁完后若留着那一档，6 个小说榜（含 R18）会在建 pager 时全部发请求。
+        final int pagerBehavior = FragmentPagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT;
         baseBind.viewPager.setAdapter(new FragmentPagerAdapter(getSupportFragmentManager(), pagerBehavior) {
             @Override
             public Fragment getItem(int i) {
@@ -135,7 +134,8 @@ public class RankActivity extends BaseActivity<ActivityMultiViewPagerBinding> im
         } else if ("小说".equals(dataType)) {
             mFragments = new Fragment[CHINESE_TITLES_NOVEL.length];
             for (int i = 0; i < CHINESE_TITLES_NOVEL.length; i++) {
-                mFragments[i] = FragmentRankNovel.newInstance(i, queryDate);
+                mFragments[i] = RankNovelFeedFragment.newInstance(
+                        RankNovelFeedFragment.NOVEL_MODES[i], queryDate);
             }
         } else {
             mFragments = new Fragment[0];
