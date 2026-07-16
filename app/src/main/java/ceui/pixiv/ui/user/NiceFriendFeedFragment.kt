@@ -1,0 +1,61 @@
+package ceui.pixiv.ui.user
+
+import android.os.Bundle
+import android.view.View
+import ceui.lisa.R
+import ceui.lisa.databinding.FragmentToolbarFeedBinding
+import ceui.lisa.utils.Params
+import ceui.loxia.Client
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
+import ceui.pixiv.ui.common.UserFeedFragment
+import ceui.pixiv.ui.common.UserFeedItem
+import ceui.pixiv.ui.common.setUpToolbar
+import ceui.pixiv.ui.common.viewBinding
+
+/**
+ * 「好P友」页（feeds 框架版，替代 legacy FragmentNiceFriend + NiceFriendRepo + UAdapter）。
+ *
+ * mypixiv = pixiv 的互关好友。用户卡渲染 / 关注切换（含长按私密关注）/ LIKED_USER 广播跨列表
+ * 同步 / 点击进画师页全部继承 [UserFeedFragment]；本类只声明数据源和 toolbar。
+ *
+ * 端点与 legacy 一致：`/v1/user/mypixiv?user_id=`（loxia 的 [ceui.loxia.API.getUserPixivFriends]，
+ * 与 legacy `AppApi.getNiceFriend(int)` 同路径同参数），翻页走响应自带的 nextUrl。
+ *
+ * 3 张预览图不足留空、不拿小说封面补位——见 [UserFeedFragment] 的裁决说明。
+ */
+class NiceFriendFeedFragment : UserFeedFragment(R.layout.fragment_toolbar_feed) {
+
+    private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
+
+    // legacy 从 Activity 的 intent 直接读 int USER_ID（它没有 newInstance），这里收进 arguments，
+    // 好让 Fragment 自洽、可被复用。
+    private val userId: Long by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getInt(Params.USER_ID).toLong()
+    }
+
+    override val feedViewModel by feedViewModels {
+        // 零捕获：先把 Fragment 属性取成局部 val 再进 source 的 lambda
+        val userId = userId
+        pixivFeedSource({ Client.appApi.getUserPixivFriends(userId) }) { resp, _ ->
+            resp.user_previews.map { UserFeedItem(it) }
+        }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setUpToolbar(binding, feedBinding.feedListView)
+        binding.toolbarTitle.text = getString(R.string.string_235)
+    }
+
+    companion object {
+        @JvmStatic
+        fun newInstance(userId: Int): NiceFriendFeedFragment {
+            return NiceFriendFeedFragment().apply {
+                arguments = Bundle().apply {
+                    putInt(Params.USER_ID, userId)
+                }
+            }
+        }
+    }
+}

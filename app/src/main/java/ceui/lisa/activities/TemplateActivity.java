@@ -37,14 +37,12 @@ import ceui.lisa.fragments.FragmentMangaSeries;
 import ceui.lisa.fragments.FragmentMarkdown;
 import ceui.lisa.fragments.FragmentNew;
 import ceui.lisa.fragments.FragmentNewNovel;
-import ceui.lisa.fragments.FragmentNiceFriend;
 import ceui.pixiv.ui.novel.reader.NovelReaderV3Fragment;
 import ceui.pixiv.ui.comic.reader.ComicReaderV3Fragment;
 import ceui.pixiv.ui.novel.NovelSeriesFragment;
 import ceui.pixiv.ui.novel.NovelTextFragment;
 import ceui.lisa.fragments.FragmentNovelMarkers;
 import ceui.lisa.fragments.FragmentNovelSeries;
-import ceui.lisa.fragments.FragmentPopularNovel;
 import ceui.lisa.fragments.FragmentPv;
 import ceui.pixiv.ui.detail.RelatedIllustFeedFragment;
 import ceui.pixiv.ui.user.RelatedUserFeedFragment;
@@ -160,7 +158,11 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                             getIntent().getIntExtra(Params.USER_ID, 0),
                             Params.TYPE_PUBLIC, true);
                 case "好P友":
-                    return new FragmentNiceFriend();
+                    // feeds 框架版，替代 legacy FragmentNiceFriend + NiceFriendRepo + UAdapter。
+                    // legacy 直接从 Activity 的 intent 读 USER_ID（它没有 newInstance），
+                    // 新版收进 arguments，故这里显式传。
+                    return ceui.pixiv.ui.user.NiceFriendFeedFragment.newInstance(
+                            intent.getIntExtra(Params.USER_ID, 0));
                 case "好P友作品":
                     // feeds 框架版好P友作品流，替代 legacy FragmentNiceFriendIllust
                     return new ceui.pixiv.ui.home.NiceFriendIllustFeedFragment();
@@ -215,7 +217,9 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "推荐漫画":
                     return ceui.pixiv.ui.home.RecmdMangaFeedFragment.newInstance();
                 case "热度小说":
-                    return FragmentPopularNovel.newInstance(intent.getStringExtra(Params.KEY_WORD));
+                    // feeds 框架版，替代 legacy FragmentPopularNovel + PopularNovelRepo + NAdapter
+                    return ceui.pixiv.ui.search.PopularNovelFeedFragment.newInstance(
+                            intent.getStringExtra(Params.KEY_WORD));
                 case "推荐小说":
                     return new FragmentNewNovel();
                 case "小说收藏": {

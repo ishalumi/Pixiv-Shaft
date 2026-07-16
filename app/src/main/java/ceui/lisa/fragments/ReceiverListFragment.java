@@ -17,9 +17,7 @@ import com.scwang.smart.refresh.header.FalsifyFooter;
 import ceui.lisa.adapters.BaseAdapter;
 import ceui.lisa.adapters.EventAdapter;
 import ceui.lisa.adapters.IAdapter;
-import ceui.lisa.adapters.NAdapter;
 import ceui.lisa.adapters.SimpleUserAdapter;
-import ceui.lisa.adapters.UAdapter;
 import ceui.lisa.core.Container;
 import ceui.lisa.core.PageData;
 import ceui.lisa.interfaces.ListShow;
@@ -51,15 +49,10 @@ public abstract class ReceiverListFragment<Layout extends ViewDataBinding,
                 addPageLoadReceiver();
                 addPageScrollReceiver();
             }
-        } else if (mAdapter instanceof UAdapter || mAdapter instanceof SimpleUserAdapter) {
+        } else if (mAdapter instanceof SimpleUserAdapter) {
             IntentFilter intentFilter = new IntentFilter();
             mReceiver = new CommonReceiver((BaseAdapter<Starable, ?>) mAdapter);
             intentFilter.addAction(Params.LIKED_USER);
-            LocalBroadcastManager.getInstance(mContext).registerReceiver(mReceiver, intentFilter);
-        } else if (mAdapter instanceof NAdapter) {
-            IntentFilter intentFilter = new IntentFilter();
-            mReceiver = new CommonReceiver((BaseAdapter<Starable, ?>) mAdapter);
-            intentFilter.addAction(Params.LIKED_NOVEL);
             LocalBroadcastManager.getInstance(mContext).registerReceiver(mReceiver, intentFilter);
         }
     }
