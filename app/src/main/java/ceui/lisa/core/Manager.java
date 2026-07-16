@@ -37,9 +37,9 @@ import ceui.lisa.utils.Params;
 import ceui.lisa.utils.PixivOperate;
 import ceui.pixiv.download.aria2.Aria2Dispatcher;
 import ceui.pixiv.imageloader.ImageLoaderV3;
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.disposables.Disposable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -660,16 +660,17 @@ public class Manager {
      */
     private void dispatchToAria2(DownloadItem downloadItem) {
         final String itemUuid = downloadItem.getUuid();
-        Disposable d = io.reactivex.rxjava3.core.Observable.<String>create(emitter -> {
+        Disposable d = io.reactivex.Observable.<String>create(emitter -> {
             try {
                 String gid = Aria2Dispatcher.dispatch(downloadItem);
                 emitter.onNext(gid);
                 emitter.onComplete();
             } catch (Exception e) {
-                // tryOnError：disposed 后静默丢弃，不走 RxJavaPlugins.onError。
-                // 项目只给 RxJava 2 设了全局 error handler，RxJava 3 的
-                // UndeliverableException 会直接 crash —— isDisposed() 检查 + onError()
-                // 之间存在 TOCTOU 竞态，tryOnError 是为此设计的竞态安全 API。
+                // tryOnError：disposed 后静默丢弃这个 error。isDisposed() 检查与
+                // onError() 之间存在 TOCTOU 竞态，若竞态漏网、在 disposed 后普通
+                // onError()，会走 Shaft.java 里设的 RxJavaPlugins.setErrorHandler
+                // （只记录、不 crash）；tryOnError 是为此设计的竞态安全 API，直接
+                // 把这种情况静默掉，更干净。
                 emitter.tryOnError(e);
             }
         })
@@ -781,7 +782,7 @@ public class Manager {
 
         // 并发模式下：每个传输的 disposable 单独存到 handles，按 uuid key
         final String itemUuid = downloadItem.getUuid();
-        Disposable d = io.reactivex.rxjava3.core.Observable.<String>create(emitter -> {
+        Disposable d = io.reactivex.Observable.<String>create(emitter -> {
             Response response = null;
             InputStream inputStream = null;
             OutputStream outputStream = null;

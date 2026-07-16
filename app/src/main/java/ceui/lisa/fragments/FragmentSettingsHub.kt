@@ -1,6 +1,7 @@
 package ceui.lisa.fragments
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -9,8 +10,8 @@ import android.widget.ImageView
 import android.widget.TextView
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentSettingsHubBinding
+import androidx.core.content.ContextCompat
 import ceui.lisa.utils.Common
-import com.tbruyelle.rxpermissions3.RxPermissions
 
 /**
  * 设置主页（两级设置的第一级）：MD3-E 分类列表 + 全量设置项搜索。
@@ -42,15 +43,28 @@ class FragmentSettingsHub : BaseFragment<FragmentSettingsHubBinding>() {
         })
 
         // Android 10 以下：设置页涉及备份/恢复等文件读写，进入时先要存储权限（沿用旧设置页行为）。
-        if (!Common.isAndroidQ()) {
-            RxPermissions(this)
-                .requestEachCombined(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                .subscribe { permission ->
-                    if (!permission.granted) {
-                        Common.showToast(getString(R.string.access_denied))
-                        finish()
-                    }
-                }
+        if (!Common.isAndroidQ() && ContextCompat.checkSelfPermission(
+                requireContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                REQUEST_CODE_STORAGE_PERMISSION
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
+            if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                Common.showToast(getString(R.string.access_denied))
+                finish()
+            }
         }
     }
 
@@ -137,5 +151,6 @@ class FragmentSettingsHub : BaseFragment<FragmentSettingsHubBinding>() {
 
     companion object {
         private const val MAX_RESULTS = 30
+        private const val REQUEST_CODE_STORAGE_PERMISSION = 1001
     }
 }

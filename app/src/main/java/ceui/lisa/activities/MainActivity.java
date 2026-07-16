@@ -5,6 +5,7 @@ import static ceui.lisa.R.id.nav_slideshow;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.pm.PackageManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
@@ -25,6 +26,8 @@ import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -37,7 +40,6 @@ import com.bumptech.glide.Glide;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialogAction;
-import com.tbruyelle.rxpermissions3.RxPermissions;
 
 import java.io.File;
 
@@ -333,28 +335,36 @@ public class MainActivity extends BaseActivity<ActivityCoverBinding> {
     @Override
     protected void initData() {
         if (SessionManager.INSTANCE.isLoggedIn()) {
-            if (Common.isAndroidQ()) {
+            if (Common.isAndroidQ() || ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                // Android 10+ 无需 WRITE_EXTERNAL_STORAGE；pre-Q 已授权也直接进。
                 initFragment();
-//                startActivity(new Intent(this, ListActivity.class));
             } else {
-                new RxPermissions(mActivity)
-                        .requestEachCombined(
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE
-                        )
-                        .subscribe(permission -> {
-                            if (permission.granted) {
-                                initFragment();
-                            } else {
-                                Common.showToast(mActivity.getString(R.string.access_denied));
-                                finish();
-                            }
-                        });
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        REQUEST_CODE_STORAGE_PERMISSION);
             }
         } else {
             Intent intent = new Intent(mContext, TemplateActivity.class);
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "登录注册");
             startActivity(intent);
             finish();
+        }
+    }
+
+    private static final int REQUEST_CODE_STORAGE_PERMISSION = 1001;
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+            @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                initFragment();
+            } else {
+                Common.showToast(getString(R.string.access_denied));
+                finish();
+            }
         }
     }
 
