@@ -6,7 +6,6 @@ import java.util.List;
 import ceui.lisa.model.ListBookmarkTag;
 import ceui.lisa.model.ListComment;
 import ceui.lisa.model.ListIllust;
-import ceui.lisa.model.ListLive;
 import ceui.lisa.model.ListMangaOfSeries;
 import ceui.lisa.model.ListMangaSeries;
 import ceui.lisa.model.ListNovel;
@@ -458,9 +457,6 @@ public interface AppApi {
     @POST("v1/user/profile/edit")
     Observable<NullResponse> updateUserProfile(@Part List<MultipartBody.Part> parts);
 
-
-    @GET("v1/live/list")
-    Observable<ListLive> getLiveList(@Query("list_type") String list_type);
 
     @GET("v1/illust/bookmark/users?filter=for_android")
     Observable<ListSimpleUser> getUsersWhoLikeThisIllust(@Query("illust_id") int illust_id);

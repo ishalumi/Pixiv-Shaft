@@ -1346,7 +1346,6 @@
 
     <!-- 杂项 -->
     <string name="series_bookmarked_feature">已收藏到精华</string>
-    <string name="title_popular_live">人气直播</string>
     <string name="confirm_logout">确定退出登录吗</string>
 
     <!-- 个人中心调试入口 -->

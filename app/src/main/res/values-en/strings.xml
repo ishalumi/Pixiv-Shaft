@@ -1241,7 +1241,6 @@
     <string name="task_status_done">Done</string>
     <string name="task_status_error">Error</string>
     <string name="series_bookmarked_feature">Bookmarked to features</string>
-    <string name="title_popular_live">Popular Live</string>
     <string name="confirm_logout">Confirm logout?</string>
     <string name="mine_cache_table">Cache Table</string>
     <string name="mine_progress_table">Progress Table</string>

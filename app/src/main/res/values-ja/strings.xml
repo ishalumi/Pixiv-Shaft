@@ -1241,7 +1241,6 @@
     <string name="task_status_done">完了</string>
     <string name="task_status_error">エラー</string>
     <string name="series_bookmarked_feature">ハイライトにブックマークしました</string>
-    <string name="title_popular_live">人気の配信</string>
     <string name="confirm_logout">ログアウトしますか</string>
     <string name="mine_cache_table">キャッシュテーブル</string>
     <string name="mine_progress_table">進捗テーブル</string>

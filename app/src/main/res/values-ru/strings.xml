@@ -1241,7 +1241,6 @@
     <string name="task_status_done">Готово</string>
     <string name="task_status_error">Ошибка</string>
     <string name="series_bookmarked_feature">Добавлено в подборку</string>
-    <string name="title_popular_live">Популярные трансляции</string>
     <string name="confirm_logout">Выйти из аккаунта?</string>
     <string name="mine_cache_table">Таблица кэша</string>
     <string name="mine_progress_table">Таблица прогресса</string>

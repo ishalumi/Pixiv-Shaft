@@ -1241,7 +1241,6 @@
     <string name="task_status_done">Tamamlandı</string>
     <string name="task_status_error">Hata</string>
     <string name="series_bookmarked_feature">Öne çıkanlara eklendi</string>
-    <string name="title_popular_live">Popüler Canlı Yayın</string>
     <string name="confirm_logout">Çıkış yapılsın mı?</string>
     <string name="mine_cache_table">Önbellek Tablosu</string>
     <string name="mine_progress_table">İlerleme Tablosu</string>

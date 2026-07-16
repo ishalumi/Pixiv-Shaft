@@ -1241,7 +1241,6 @@
     <string name="task_status_done">완료</string>
     <string name="task_status_error">오류</string>
     <string name="series_bookmarked_feature">하이라이트에 북마크됨</string>
-    <string name="title_popular_live">인기 라이브</string>
     <string name="confirm_logout">로그아웃 하시겠습니까</string>
     <string name="mine_cache_table">캐시 테이블</string>
     <string name="mine_progress_table">진행 테이블</string>

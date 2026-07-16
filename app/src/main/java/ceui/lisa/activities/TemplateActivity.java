@@ -29,7 +29,6 @@ import ceui.lisa.fragments.FragmentFileName;
 import ceui.lisa.fragments.FragmentHistoryTabs;
 import ceui.lisa.fragments.FragmentImageDetail;
 import ceui.lisa.fragments.FragmentListSimpleUser;
-import ceui.lisa.fragments.FragmentLive;
 import ceui.lisa.fragments.FragmentLocalUsers;
 import ceui.lisa.fragments.FragmentLogin;
 import ceui.lisa.fragments.FragmentMangaSeries;
@@ -320,8 +319,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 }
                 case "编辑个人资料":
                     return new FragmentEditFile();
-                case "热门直播":
-                    return new FragmentLive();
                 case "标签屏蔽记录":
                     return FragmentViewPager.newInstance(Params.VIEW_PAGER_MUTED);
                 case "修改命名方式":

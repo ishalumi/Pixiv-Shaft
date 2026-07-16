@@ -1243,7 +1243,6 @@
     <string name="task_status_done">完成了</string>
     <string name="task_status_error">出錯了</string>
     <string name="series_bookmarked_feature">已收藏到精華</string>
-    <string name="title_popular_live">人氣直播</string>
     <string name="confirm_logout">確定登出嗎</string>
     <string name="mine_cache_table">快取表</string>
     <string name="mine_progress_table">進度表</string>
