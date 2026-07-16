@@ -181,6 +181,65 @@ interface ShaftApiV2 {
         val next_url: String? = null,
     )
 
+    /**
+     * 全站收藏榜 —— 单作按 pixiv 总收藏数排(含 R-18)。item 复用 [TrendingWorkItem]
+     * (target_id/bookmark_count/bean;score 恒 0)。翻页跟随 next_url。
+     *
+     * 三个可选筛选,可任意组合(Retrofit 对 null @Query 不发该参数,所以不传即无筛选):
+     * - [ai]   only=只看 AI 生成 / exclude=只看非 AI。⚠️ **novel 没有 illust_ai_type 字段**
+     *          (pixiv 的 NovelBean 里就没有),传了会 400 `ai_filter_unsupported_for_novel`
+     *          —— 服务端刻意不静默返回空,免得被读成「小说里没有 AI 作品」。
+     * - [year] 创作年份(4 位)。可选年份见 [discoverYears]。
+     * - [q]    标题 **或** 画师名子串模糊搜索,大小写不敏感。
+     *
+     * ⚠️ 收藏数是服务端 first-write-wins 的**定格值**(我们的用户首次看到该作时的数字),
+     * 不是实时 —— 这是「历史殿堂榜」。要实时热度用 [trendingWorks] / [recentWorks]。
+     */
+    @GET("api/v1/discover/most-bookmarked")
+    suspend fun mostBookmarked(
+        @Query("type") type: String = "illust",
+        @Query("limit") limit: Int = 30,
+        @Query("offset") offset: Int = 0,
+        @Query("ai") ai: String? = null,
+        @Query("year") year: String? = null,
+        @Query("q") q: String? = null,
+    ): MostBookmarkedResponse
+
+    /** 翻页专用:直接打 server 返回的 `next_url`(绝对 URL,已带 ai/year/q)。 */
+    @GET
+    suspend fun mostBookmarkedByUrl(@Url url: String): MostBookmarkedResponse
+
+    data class MostBookmarkedResponse(
+        val type: String,
+        val limit: Int,
+        val items: List<TrendingWorkItem>,
+        val offset: Int? = null,
+        val next_url: String? = null,
+        /** 服务端回显的筛选值,没传就是 null。 */
+        val ai: String? = null,
+        val year: String? = null,
+    )
+
+    /**
+     * 「年代榜」的年份选择器数据源:有哪些年、每年多少作品(年份降序)。
+     * `year` 是**字符串**,直接透传给 [mostBookmarked] 的 year 参数。
+     * 分布极度倾斜(2026 年占 56%,2007 年只有几十个),所以 UI 要把 count 显出来。
+     */
+    @GET("api/v1/discover/years")
+    suspend fun discoverYears(
+        @Query("type") type: String = "illust",
+    ): YearsResponse
+
+    data class YearsResponse(
+        val type: String,
+        val years: List<YearBucket> = listOf(),
+    )
+
+    data class YearBucket(
+        val year: String = "",
+        val count: Int = 0,
+    )
+
     data class ArtistRankResponse(
         val user_previews: List<ArtistPreviewItem> = listOf(),
         val next_url: String? = null,

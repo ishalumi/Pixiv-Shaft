@@ -1738,6 +1738,13 @@
     <string name="artist_avg_rank_title">Artists by Avg Bookmarks</string>
     <string name="view_rank">Most Viewed</string>
     <string name="view_rank_title">Most Viewed Works</string>
+    <string name="bookmark_rank">Most Bookmarked</string>
+    <string name="bookmark_rank_title">Most Bookmarked Works</string>
+    <string name="ai_rank">AI Ranking</string>
+    <string name="ai_rank_title">Most Bookmarked AI Works</string>
+    <string name="year_rank">By Year</string>
+    <string name="year_rank_title">Ranking by Year</string>
+    <string name="year_rank_load_failed">Failed to load year list</string>
     <string name="recent_window_live">Live</string>
     <string name="recent_window_day">Daily ranking</string>
     <string name="recent_window_week">Weekly ranking</string>

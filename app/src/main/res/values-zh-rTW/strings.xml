@@ -1740,6 +1740,13 @@
     <string name="artist_avg_rank_title">繪師平均收藏榜</string>
     <string name="view_rank">瀏覽量榜</string>
     <string name="view_rank_title">全站瀏覽量榜</string>
+    <string name="bookmark_rank">收藏榜</string>
+    <string name="bookmark_rank_title">全站收藏榜</string>
+    <string name="ai_rank">AI 榜</string>
+    <string name="ai_rank_title">AI 作品收藏榜</string>
+    <string name="year_rank">年代榜</string>
+    <string name="year_rank_title">年代收藏榜</string>
+    <string name="year_rank_load_failed">年份列表載入失敗</string>
     <string name="recent_window_live">即時</string>
     <string name="recent_window_day">日榜</string>
     <string name="recent_window_week">週榜</string>

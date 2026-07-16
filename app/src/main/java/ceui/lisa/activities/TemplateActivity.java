@@ -417,6 +417,14 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return ceui.pixiv.ui.recommend.ArtistRankFeedFragment.newInstance("avg");
                 case "浏览量榜":
                     return ceui.pixiv.ui.recommend.ViewRankFeedFragment.newInstance();
+                case "收藏榜":
+                    return ceui.pixiv.ui.recommend.BookmarkRankFeedFragment.newInstance(null);
+                case "AI榜":
+                    // 同一个 Fragment,多带一个 ?ai=only(同画师榜/均分榜共用 ArtistRankFeedFragment)
+                    return ceui.pixiv.ui.recommend.BookmarkRankFeedFragment.newInstance(
+                            ceui.pixiv.ui.recommend.BookmarkRankFeedFragmentKt.AI_ONLY);
+                case "年代榜":
+                    return ceui.pixiv.ui.recommend.YearRankFragment.newInstance();
                 case "操作记录":
                     return new ceui.pixiv.ui.recommend.FragmentEventHistory();
                 case "批量下载Debug":

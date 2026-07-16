@@ -1738,6 +1738,13 @@
     <string name="artist_avg_rank_title">작가 평균 북마크 순위</string>
     <string name="view_rank">조회수 순위</string>
     <string name="view_rank_title">전체 조회수 순위</string>
+    <string name="bookmark_rank">북마크 순위</string>
+    <string name="bookmark_rank_title">전체 북마크 순위</string>
+    <string name="ai_rank">AI 순위</string>
+    <string name="ai_rank_title">AI 작품 북마크 순위</string>
+    <string name="year_rank">연도별 순위</string>
+    <string name="year_rank_title">연도별 북마크 순위</string>
+    <string name="year_rank_load_failed">연도 목록을 불러오지 못했습니다</string>
     <string name="recent_window_live">실시간</string>
     <string name="recent_window_day">일간</string>
     <string name="recent_window_week">주간</string>

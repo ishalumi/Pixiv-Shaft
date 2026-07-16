@@ -92,8 +92,13 @@ class IllustFeedItem(
         }
 
         /** 过滤 + 建条目；[beanOf] 拆开单独暴露是给「过滤前整页喂 DiscoveryPool」的场景。 */
-        fun of(illust: Illust, bean: IllustsBean, skipR18Filter: Boolean = false): IllustFeedItem? {
-            if (!passesContentFilters(bean, skipR18Filter)) return null
+        fun of(
+            illust: Illust,
+            bean: IllustsBean,
+            skipR18Filter: Boolean = false,
+            skipAiFilter: Boolean = false,
+        ): IllustFeedItem? {
+            if (!passesContentFilters(bean, skipR18Filter, skipAiFilter)) return null
             return IllustFeedItem(illust, bean)
         }
 
@@ -103,8 +108,12 @@ class IllustFeedItem(
         }
 
         /** 详情 pager 回传的是 legacy bean，反向转一次。 */
-        fun fromBean(bean: IllustsBean?, skipR18Filter: Boolean = false): IllustFeedItem? {
-            if (bean == null || !passesContentFilters(bean, skipR18Filter)) return null
+        fun fromBean(
+            bean: IllustsBean?,
+            skipR18Filter: Boolean = false,
+            skipAiFilter: Boolean = false,
+        ): IllustFeedItem? {
+            if (bean == null || !passesContentFilters(bean, skipR18Filter, skipAiFilter)) return null
             val illust = runCatching {
                 Shaft.sGson.fromJson(Shaft.sGson.toJsonTree(bean), Illust::class.java)
             }.getOrNull() ?: return null
@@ -130,18 +139,25 @@ class IllustFeedItem(
          * [skipR18Filter]：R18 专属榜单端点本身就是用来看 R18 的，不用全局 R18 过滤清空内容
          * （对齐 RankIllustRepo.enableSkipR18Filter）。整页被滤空时由 FeedViewModel
          * 空页追载兜住，不会翻页停摆。
+         * [skipAiFilter]：同理，给「AI 专属榜单」用——用户主动点进 AI 榜,全局「屏蔽 AI 作品」
+         * 就不该把它清空（那是用户设的「我平时不想看到 AI」，不是「我点开 AI 榜也不想看」）。
+         * 只让步 AI 这一条：屏蔽画师/标签/作品 ID、R18 过滤在 AI 榜里照常生效。
          *
          * ⚠️ 这里面 judgeTag/judgeID/judgeUserID 各是一次**同步 Room 查询**，调用方必须在后台线程
          * 跑（各 mapper 已由 PixivFeedSource 派到 Dispatchers.Default；详情回传链见
          * [IllustFeedDetailSync]），并且要容忍它抛错（Room 磁盘异常）。
          */
-        private fun passesContentFilters(bean: IllustsBean, skipR18Filter: Boolean): Boolean {
+        private fun passesContentFilters(
+            bean: IllustsBean,
+            skipR18Filter: Boolean,
+            skipAiFilter: Boolean = false,
+        ): Boolean {
             if (!bean.isVisible) return false
             if (IllustNovelFilter.judgeTag(bean)) return false
             if (IllustNovelFilter.judgeID(bean)) return false
             if (IllustNovelFilter.judgeUserID(bean)) return false
             if (!skipR18Filter && IllustNovelFilter.judgeR18Filter(bean)) return false
-            if (Shaft.sSettings.isDeleteAIIllust() && bean.isCreatedByAI) return false
+            if (!skipAiFilter && Shaft.sSettings.isDeleteAIIllust() && bean.isCreatedByAI) return false
             return true
         }
     }

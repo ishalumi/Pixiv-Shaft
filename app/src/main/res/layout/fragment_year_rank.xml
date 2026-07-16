@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  年代榜专用布局。基于 fragment_recent_recommend.xml,两点不同:
+    1. tabMode=scrollable —— 年份 tab 有 20 个(2007–2026),fixed 会挤成一坨;
+    2. 多一个居中 ProgressBar —— 年份列表是异步拉 /discover/years 拿的(不像
+       「当前最热」的窗口是硬编码 4 个),拉到之前没有 tab 可建。
+  同样不复用 viewpager_with_tablayout.xml:那个被多处引用,不能为单一页面加控件。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+
+    </data>
+
+    <ceui.pixiv.widgets.TopInsetLinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="?attr/colorPrimary">
+
+        <androidx.coordinatorlayout.widget.CoordinatorLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <com.google.android.material.appbar.AppBarLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/app_bar"
+                android:background="?attr/colorPrimary">
+
+                <androidx.appcompat.widget.Toolbar
+                    android:id="@+id/toolbar"
+                    android:layout_width="match_parent"
+                    android:theme="@style/AppTheme.AppBarOverlay"
+                    app:popupTheme="@style/AppTheme.PopupOverlay"
+                    android:layout_height="?attr/actionBarSize"
+                    android:elevation="@dimen/six_dp"
+                    app:layout_scrollFlags="scroll|enterAlways"
+                    app:navigationIcon="@drawable/ic_arrow_back_white_shadow"
+                    app:title=" "
+                    app:titleTextColor="@android:color/white">
+
+                    <TextView
+                        android:id="@+id/toolbar_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:textColor="@color/white"
+                        android:textSize="18sp" />
+
+                </androidx.appcompat.widget.Toolbar>
+
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/tab_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="35dp"
+                    android:background="?attr/colorPrimary"
+                    app:tabIndicatorColor="@android:color/white"
+                    app:tabIndicatorFullWidth="false"
+                    app:tabMode="scrollable"
+                    app:tabPaddingStart="@dimen/twelve_dp"
+                    app:tabPaddingEnd="@dimen/twelve_dp"
+                    app:tabSelectedTextColor="@android:color/white"
+                    app:tabTextColor="@color/light_new_primary_color" />
+
+            </com.google.android.material.appbar.AppBarLayout>
+
+            <androidx.viewpager.widget.ViewPager
+                android:id="@+id/view_pager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?android:attr/colorBackground"
+                app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+            <!-- 拉 /discover/years 期间;拿到年份建完 tab 就 GONE。 -->
+            <ProgressBar
+                android:id="@+id/years_loading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center" />
+
+        </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+    </ceui.pixiv.widgets.TopInsetLinearLayout>
+</layout>

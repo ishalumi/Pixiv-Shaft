@@ -1738,6 +1738,13 @@
     <string name="artist_avg_rank_title">Художники по средним закладкам</string>
     <string name="view_rank">По просмотрам</string>
     <string name="view_rank_title">Самые просматриваемые</string>
+    <string name="bookmark_rank">По закладкам</string>
+    <string name="bookmark_rank_title">Самые добавляемые в закладки</string>
+    <string name="ai_rank">ИИ-рейтинг</string>
+    <string name="ai_rank_title">Рейтинг ИИ-работ по закладкам</string>
+    <string name="year_rank">По годам</string>
+    <string name="year_rank_title">Рейтинг по годам</string>
+    <string name="year_rank_load_failed">Не удалось загрузить список годов</string>
     <string name="recent_window_live">В реальном времени</string>
     <string name="recent_window_day">За день</string>
     <string name="recent_window_week">За неделю</string>

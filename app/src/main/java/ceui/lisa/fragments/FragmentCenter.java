@@ -86,13 +86,17 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         setupRail(baseBind.siteRail, 4, 180);
         setupRail(baseBind.recentRail, 4, 180);
 
-        // 本月收藏 / 当前最热 / 画师榜 / 均分榜 / 浏览量榜走自建 shaft-api-v2,Lite 渠道不展示 —— GONE。
+        // 本月收藏 / 当前最热 / 画师榜 / 均分榜 / 浏览量榜 / 收藏榜 / AI 榜 / 年代榜
+        // 走自建 shaft-api-v2,Lite 渠道不展示 —— GONE。
         if (BuildConfig.IS_LITE) {
             baseBind.siteSection.setVisibility(View.GONE);
             baseBind.recentSection.setVisibility(View.GONE);
             baseBind.catArtistRank.setVisibility(View.GONE);
             baseBind.catArtistAvgRank.setVisibility(View.GONE);
             baseBind.catViewRank.setVisibility(View.GONE);
+            baseBind.catBookmarkRank.setVisibility(View.GONE);
+            baseBind.catAiRank.setVisibility(View.GONE);
+            baseBind.catYearRank.setVisibility(View.GONE);
         }
 
         // ── 「查看全部」跳原来的整页 ──
@@ -109,6 +113,9 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         baseBind.catArtistRank.setOnClickListener(v -> openFragment("画师榜"));
         baseBind.catArtistAvgRank.setOnClickListener(v -> openFragment("画师均分榜"));
         baseBind.catViewRank.setOnClickListener(v -> openFragment("浏览量榜"));
+        baseBind.catBookmarkRank.setOnClickListener(v -> openFragment("收藏榜"));
+        baseBind.catAiRank.setOnClickListener(v -> openFragment("AI榜"));
+        baseBind.catYearRank.setOnClickListener(v -> openFragment("年代榜"));
         baseBind.catWalk.setOnClickListener(v -> openFragment("画廊"));
         baseBind.catFollowNovel.setOnClickListener(v -> openFragment("关注者的小说"));
         baseBind.catDiscovery.setOnClickListener(v -> openFragment("发现"));
@@ -131,6 +138,9 @@ public class FragmentCenter extends SwipeFragment<FragmentNewCenterBinding> {
         styleCatChip(baseBind.catArtistRank, palette, R.drawable.ic_setcat_person);
         styleCatChip(baseBind.catArtistAvgRank, palette, R.drawable.ic_baseline_star_24);
         styleCatChip(baseBind.catViewRank, palette, R.drawable.ic_baseline_remove_red_eye_24);
+        styleCatChip(baseBind.catBookmarkRank, palette, R.drawable.ic_like_heart_fill);
+        styleCatChip(baseBind.catAiRank, palette, R.drawable.baseline_auto_awesome_24);
+        styleCatChip(baseBind.catYearRank, palette, R.drawable.ic_date_range_black_24dp);
         styleCatChip(baseBind.catWalk, palette, R.drawable.ic_collections_black_24dp);
         styleCatChip(baseBind.catFollowNovel, palette, R.drawable.ic_baseline_bookmark_24);
         styleCatChip(baseBind.catDiscovery, palette, R.drawable.ic_baseline_explore_24);
