@@ -48,20 +48,21 @@ import timber.log.Timber
 private val PAYLOAD_NOVEL_BOOKMARK = Any()
 
 /**
- * 小说列表页的共享基类（feeds 框架版，对齐插画侧 [IllustFeedFragment]，替代 legacy
- * NetListFragment + NAdapter）。子类只声明数据源（feedViewModels + mapper 产出 [NovelFeedItem]）；
- * 本类统一提供主力小说卡（recy_novel，与 legacy NAdapter 同一张布局同一套点击语义）：
+ * 小说列表页的共享基类（对齐插画侧 [IllustFeedFragment]）。子类只声明数据源
+ *（feedViewModels + mapper 产出 [NovelFeedItem]）；本类统一提供主力小说卡（recy_novel）：
  *
  * - 全程 loxia [Novel] data class：收藏走 [Client] 的 addNovelBookmark/removeNovelBookmark，
  *   跳转走 [DetailFeedSupport] 的 openNovelDetail/openUserActivity，标签流 [ceui.pixiv.widgets.V3TagFlowView]
  *   直接吃 loxia [ceui.loxia.Tag]——不并存 legacy 可变 bean、不做 gson 往返；
- * - 收藏与 legacy NAdapter.postLikeNovel 完全对齐：乐观切态 + 尊重私密收藏设置 + 成功 toast +
- *   收藏后自动关注作者(isAutoFollowAfterStar) + 事件埋点 + RateApp,并收发 LIKED_NOVEL 广播
- *   与其它小说列表(含仍是 legacy 的收藏/画师小说列表)双向同步收藏态；
- * - 点击语义对齐 NAdapter：卡片开小说详情 / 封面看封面大图 / 头像·作者进画师页 /
- *   系列进小说系列页 / 爱心长按进「按标签收藏」；
+ * - 收藏：乐观切态 + 尊重私密收藏设置 + 成功 toast + 收藏后自动关注作者(isAutoFollowAfterStar)
+ *   + 事件埋点 + RateApp + 网络失败回退，并收发 LIKED_NOVEL 广播与其它小说列表双向同步收藏态；
+ * - 点击语义：卡片开小说详情 / 封面看封面大图 / 头像·作者进画师页 / 系列进小说系列页 /
+ *   爱心长按进「按标签收藏」；
  * - 收藏态只有 is_bookmarked / total_bookmarks 变时走局部重绑 payload，不重跑 Glide(对齐插画卡)；
  * - LinearLayoutManager 竖向列表（recy_novel 卡本身无 margin，靠 12dp LinearItemDecoration 分隔）。
+ *
+ * 卡片布局与全部交互语义源自 legacy `NAdapter`（迁移时逐条对齐）。**该类已随最后一个调用方
+ * 一起删除**（见「NAdapter 三个页面全部迁 feeds」那次提交），要考古去 git 历史，别在工作区找。
  */
 abstract class NovelFeedFragment(
     @LayoutRes contentLayoutId: Int = R.layout.fragment_feed,
@@ -71,7 +72,7 @@ abstract class NovelFeedFragment(
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // 其它列表/详情页收藏某小说 → 广播回流本列表(双向同步,对齐 legacy NAdapter 的 CommonReceiver)
+        // 其它列表/详情页收藏某小说 → 广播回流本列表(双向同步;沿用 legacy CommonReceiver 的广播契约)
         feedLikeSync<NovelFeedItem>(
             feedViewModel = feedViewModel,
             action = Params.LIKED_NOVEL,
@@ -169,7 +170,7 @@ abstract class NovelFeedFragment(
         b.badgeAi.isVisible = novel.novel_ai_type == 2
 
         // 标签流：尊重「显示标签」设置，关时喂空列表折叠。compact + 去 # 前缀 + 超 6 折叠成「+N」，
-        // searchIndex=1 让点击跳搜索页「小说」tab（全部对齐 NAdapter）。
+        // searchIndex=1 让点击跳搜索页「小说」tab。
         val tags = if (Shaft.sSettings.isShowNovelCardTags()) novel.tags.orEmpty() else emptyList()
         b.novelTag.compact = true
         b.novelTag.searchIndex = 1

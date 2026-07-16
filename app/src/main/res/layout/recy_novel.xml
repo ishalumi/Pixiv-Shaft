@@ -42,7 +42,8 @@
                         android:contentDescription="@null"
                         android:scaleType="centerCrop" />
 
-                    <!-- 站长推荐 score pill,叠在封面左上角。NAdapter 不 setVisibility 时 style 自带 gone。 -->
+                    <!-- 站长推荐 score pill,叠在封面左上角。绑定方(NovelFeedFragment 的小说卡 renderer)不
+                         setVisibility 时 style 自带 gone。 -->
                     <TextView
                         android:id="@+id/trending_score"
                         style="@style/TrendingScorePill"
@@ -226,7 +227,8 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 标签流:整卡满宽,紧凑 chip(比详情页小一号)。tag 数由 NAdapter 设的 maxTags
+            <!-- 标签流:整卡满宽,紧凑 chip(比详情页小一号)。tag 数由绑定方(NovelFeedFragment 的
+                 小说卡 renderer)设的 maxTags
                  折叠成「+N」(参考小说 V3 系列详情页 item),不再用 maxLine 把末尾 chip 硬切。
                  关闭「显示标签」时喂空列表折叠。 -->
             <ceui.pixiv.widgets.V3TagFlowView

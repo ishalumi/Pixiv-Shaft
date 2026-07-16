@@ -37,10 +37,13 @@ private val PAYLOAD_USER_FOLLOW = Any()
  * 画师榜 [ceui.pixiv.ui.recommend.ArtistRankFeedFragment]。
  *
  * **3 张预览图只显插画，不足留空——这是用户裁决，适用于本基类的每一个页面，别再翻。**
- * legacy [ceui.lisa.adapters.UAdapter] 在插画不足 3 张时会拿小说封面补位；迁移时问过一轮
+ * legacy `UAdapter` 在插画不足 3 张时会拿小说封面补位；迁移时问过一轮
  *「关注列表里小说家密度比搜索页高得多，是不是该恢复补位」，答复是**不需要**。
  * 所以 [ceui.loxia.UserPreview.novels] 保持 `List<Any>?`（拿不到封面 URL 也无所谓），
  * 不必为了补位把它改成 `List<Novel>`。
+ *
+ * 卡片布局与交互语义源自 legacy `UAdapter`（迁移时逐条对齐）。**该类已随最后一个调用方一起
+ * 删除**，要考古去 git 历史，别在工作区找。
  */
 abstract class UserFeedFragment(
     @LayoutRes contentLayoutId: Int = R.layout.fragment_feed,
@@ -104,7 +107,7 @@ abstract class UserFeedFragment(
         val user = preview.user
         val ctx = b.root.context
 
-        // 3 张方形预览图，边长 = 屏宽/3（对齐 legacy UAdapter）。只显示插画预览（用户裁决：不足留空）。
+        // 3 张方形预览图，边长 = 屏宽/3。只显示插画预览（用户裁决：不足留空，见类文档）。
         val size = ctx.resources.displayMetrics.widthPixels / 3
         val slots = listOf(b.userShowOne, b.userShowTwo, b.userShowThree)
         slots.forEach { iv ->
@@ -141,7 +144,7 @@ abstract class UserFeedFragment(
         }
     }
 
-    /** 长按 = 私密关注（对齐 legacy UAdapter.onItemLongClick）。 */
+    /** 长按 = 私密关注（沿用 legacy 的长按语义）。 */
     private fun privateFollow(cell: FeedCell<UserFeedItem, RecyUserPreviewBinding>) {
         val user = cell.item.user ?: return
         renderFollow(cell.binding, true)
