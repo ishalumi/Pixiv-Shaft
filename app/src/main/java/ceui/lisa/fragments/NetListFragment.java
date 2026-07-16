@@ -20,7 +20,6 @@ import java.util.List;
 
 import ceui.lisa.R;
 import ceui.lisa.adapters.BaseAdapter;
-import ceui.lisa.adapters.EventAdapter;
 import ceui.lisa.adapters.IAdapter;
 import ceui.lisa.adapters.SimpleUserAdapter;
 import ceui.lisa.core.AutoLoadPolicy;
@@ -250,7 +249,7 @@ public abstract class NetListFragment<Layout extends ViewDataBinding,
     public void onAdapterPrepared() {
         mAdapter.setUuid(uuid);
         //注册本地广播
-        if (mAdapter instanceof IAdapter || mAdapter instanceof EventAdapter) {
+        if (mAdapter instanceof IAdapter) {
             {
                 IntentFilter intentFilter = new IntentFilter();
                 mReceiver = new CommonReceiver((BaseAdapter<Starable, ?>) mAdapter);
