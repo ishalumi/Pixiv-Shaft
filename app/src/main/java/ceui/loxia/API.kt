@@ -224,7 +224,12 @@ interface API {
         @Query("user_id") user_id: Long,
     ): UserPreviewResponse
 
-    @GET("/v1/user/mypixiv")
+    // filter=for_android 对齐 legacy AppApi.getNiceFriend：本接口此前零调用方（声明了但从没被
+    // 跑过），迁「好P友」页(NiceFriendFeedFragment)时才第一次激活它——补上 legacy 一直带着的
+    // filter。pixiv 的 filter 决定 image_urls 返回哪套变体，漏掉它用户卡的 3 张预览图可能空白。
+    // 它原先是 loxia 这组 user_preview 端点里唯一不带 filter 的（following=for_android /
+    // follower=for_ios / recommended=for_ios / related=for_android），本就是个异类。
+    @GET("/v1/user/mypixiv?filter=for_android")
     suspend fun getUserPixivFriends(
         @Query("user_id") user_id: Long,
     ): UserPreviewResponse

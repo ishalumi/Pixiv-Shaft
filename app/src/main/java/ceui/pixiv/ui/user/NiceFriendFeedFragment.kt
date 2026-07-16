@@ -19,8 +19,10 @@ import ceui.pixiv.ui.common.viewBinding
  * mypixiv = pixiv 的互关好友。用户卡渲染 / 关注切换（含长按私密关注）/ LIKED_USER 广播跨列表
  * 同步 / 点击进画师页全部继承 [UserFeedFragment]；本类只声明数据源和 toolbar。
  *
- * 端点与 legacy 一致：`/v1/user/mypixiv?user_id=`（loxia 的 [ceui.loxia.API.getUserPixivFriends]，
- * 与 legacy `AppApi.getNiceFriend(int)` 同路径同参数），翻页走响应自带的 nextUrl。
+ * 端点与 legacy 一致：`/v1/user/mypixiv?filter=for_android`（loxia 的
+ * [ceui.loxia.API.getUserPixivFriends]），翻页走响应自带的 nextUrl。
+ * 注意 `filter=for_android` 是迁移时补上的——那个声明此前零调用方、一直漏着 filter，
+ * 而 legacy `AppApi.getNiceFriend` 一直带着它（见该声明处的注释）。
  *
  * 3 张预览图不足留空、不拿小说封面补位——见 [UserFeedFragment] 的裁决说明。
  */
