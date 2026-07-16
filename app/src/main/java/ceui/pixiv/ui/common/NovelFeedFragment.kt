@@ -41,6 +41,7 @@ import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import ceui.pixiv.widgets.RateAppManager
 import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestManager
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 
@@ -69,6 +70,14 @@ abstract class NovelFeedFragment(
 ) : FeedFragment(contentLayoutId) {
 
     abstract override val feedViewModel: FeedViewModel<String>
+
+    /**
+     * 封面 / 头像的 Glide 请求管理器，建一次复用（对齐插画侧 [IllustFeedFragment.illustGlide]）。
+     * 别在每次 bind / recycle 里 `Glide.with(view)`：那条重载每次都递归遍历宿主 fragment 树找
+     * 承载 view 的 fragment，一张卡 fling 时要跑好几次，全在帧路径上。`Glide.with(Fragment)`
+     * 直接命中、无查找，解析出的又是同一个 RequestManager（view 本就在本 Fragment 里），行为等价。
+     */
+    private val novelGlide: RequestManager by lazy { Glide.with(this) }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -116,8 +125,8 @@ abstract class NovelFeedFragment(
             }
         },
         recycle = { cell ->
-            Glide.with(cell.binding.cover).clear(cell.binding.cover)
-            Glide.with(cell.binding.userHead).clear(cell.binding.userHead)
+            novelGlide.clear(cell.binding.cover)
+            novelGlide.clear(cell.binding.userHead)
         },
         changePayload = { old, new ->
             // 只有收藏态/收藏数变了 → 局部重绑;其它字段(含热度分)变则回退全量绑定
@@ -180,10 +189,10 @@ abstract class NovelFeedFragment(
         b.novelTag.isVisible = tags.isNotEmpty()
 
         val coverUrl = novel.image_urls?.let { it.large ?: it.medium ?: it.square_medium }
-        Glide.with(ctx).load(GlideUtil.getUrl(coverUrl))
+        novelGlide.load(GlideUtil.getUrl(coverUrl))
             .placeholder(R.color.v3_surface_2).error(R.color.v3_surface_2)
             .into(b.cover)
-        novel.user?.let { Glide.with(ctx).load(GlideUtil.getHead(it)).into(b.userHead) }
+        novel.user?.let { novelGlide.load(GlideUtil.getHead(it)).into(b.userHead) }
 
         renderNovelLike(b.like, novel.is_bookmarked == true)
     }

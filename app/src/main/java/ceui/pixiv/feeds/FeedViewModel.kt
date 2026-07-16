@@ -327,17 +327,20 @@ class FeedViewModel<Cursor : Any>(
      */
     fun <T : FeedItem> updateItems(itemClass: Class<T>, transform: (T) -> T) {
         mutateItems { list ->
-            var changed = false
-            val next = list.map { item ->
+            // Copy-on-write：命中改动前不分配。最常见的调用形态是 like 广播绕回本页——transform
+            // 幂等原样返回、零条目真的变（见 withBookmarked / withFollowed），此时该原样返回同一
+            // 实例（[mutateItems] 据此判定「什么也没改」而不发新状态）。用 list.map 则每次都造一个
+            // 等价新列表再丢掉，白白触发一轮全表 diff + structureVersion 消费方全表重扫。
+            var mutated: ArrayList<FeedItem>? = null
+            list.forEachIndexed { index, item ->
                 if (itemClass.isInstance(item)) {
                     val updated = transform(itemClass.cast(item))
-                    if (updated !== item) changed = true
-                    updated
-                } else {
-                    item
+                    if (updated !== item) {
+                        (mutated ?: ArrayList(list).also { mutated = it })[index] = updated
+                    }
                 }
             }
-            if (changed) next else list
+            mutated ?: list
         }
     }
 

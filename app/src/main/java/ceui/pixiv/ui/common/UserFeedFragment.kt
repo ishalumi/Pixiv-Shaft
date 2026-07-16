@@ -22,6 +22,7 @@ import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestManager
 
 /** 关注态局部重绑的 payload 标记（按引用识别）。 */
 private val PAYLOAD_USER_FOLLOW = Any()
@@ -48,6 +49,14 @@ private val PAYLOAD_USER_FOLLOW = Any()
 abstract class UserFeedFragment(
     @LayoutRes contentLayoutId: Int = R.layout.fragment_feed,
 ) : FeedFragment(contentLayoutId) {
+
+    /**
+     * 头像 + 3 张预览图的 Glide 请求管理器，建一次复用（对齐插画侧 [IllustFeedFragment.illustGlide]）。
+     * 一张用户卡 recycle 时要清 4 个 ImageView，bind 时要加载 4 张图——每处都 `Glide.with(view)`
+     * 就是 8 次递归遍历 fragment 树找承载 fragment，全在 fling 帧路径上。`Glide.with(Fragment)`
+     * 直接命中、无查找，解析出的是同一个 RequestManager，行为等价。
+     */
+    private val userGlide: RequestManager by lazy { Glide.with(this) }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -79,9 +88,9 @@ abstract class UserFeedFragment(
             }
         },
         recycle = { cell ->
-            Glide.with(cell.binding.userHead).clear(cell.binding.userHead)
+            userGlide.clear(cell.binding.userHead)
             listOf(cell.binding.userShowOne, cell.binding.userShowTwo, cell.binding.userShowThree)
-                .forEach { Glide.with(it).clear(it) }
+                .forEach { userGlide.clear(it) }
         },
         changePayload = { old, new ->
             // 只有关注态变 → 局部重绑关注按钮，不重跑 3 张预览图 + 头像 Glide（对齐插画/小说卡）。
@@ -117,11 +126,11 @@ abstract class UserFeedFragment(
         slots.forEachIndexed { i, iv ->
             val illust = illusts.getOrNull(i)
             val url = illust?.image_urls?.let { it.square_medium ?: it.medium }
-            Glide.with(ctx).load(GlideUtil.getUrl(url)).placeholder(R.color.light_bg).into(iv)
+            userGlide.load(GlideUtil.getUrl(url)).placeholder(R.color.light_bg).into(iv)
         }
 
         b.userName.text = user?.name ?: ""
-        Glide.with(ctx).load(GlideUtil.getUrl(user?.profile_image_urls?.medium))
+        userGlide.load(GlideUtil.getUrl(user?.profile_image_urls?.medium))
             .error(R.drawable.no_profile).into(b.userHead)
         renderFollow(b, user?.is_followed == true)
     }

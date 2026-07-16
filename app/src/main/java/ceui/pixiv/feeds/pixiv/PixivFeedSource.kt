@@ -20,6 +20,15 @@ import timber.log.Timber
 import kotlin.time.Duration
 
 /**
+ * 翻页反序列化用的共享 Gson（沿用 legacy DataSource 的 vanilla Gson）；缓存快照另走 Shaft.sGson
+ * （见 feedFirstPageCache）。两者都是无自定义适配器的普通 Gson，行为一致，各自独立。
+ *
+ * 进程级单例而不是每个 [PixivFeedSource] 各持一个：Gson 线程安全、可复用，且内部按类型缓存
+ * TypeAdapter；全 app 同时存活上百个 feed 源，人手一个只是白白重复反射建缓存、多占内存。
+ */
+private val pagingGson = Gson()
+
+/**
  * pixiv nextUrl 翻页协议到 [FeedSource] 的桥接。
  *
  * 住在 `feeds.pixiv` 子包而不是 `feeds` 核心：核心（[FeedViewModel] / [FeedFragment] / [FeedSource]）
@@ -57,16 +66,12 @@ class PixivFeedSource<Resp : KListShow<*>>(
     private val mapper: (response: Resp, phase: FeedLoadPhase) -> List<FeedItem>,
 ) : FeedSource<String> {
 
-    // 仅用于 replayNextUrl 的翻页反序列化（沿用 legacy DataSource 的 vanilla Gson）；缓存快照另走
-    // Shaft.sGson（见 feedFirstPageCache）。两者都是无自定义适配器的普通 Gson，行为一致，各自独立。
-    private val gson = Gson()
-
     override suspend fun load(cursor: String?): FeedPage<String> {
         val phase = if (cursor == null) FeedLoadPhase.FirstPage else FeedLoadPhase.NextPage
         val response: Resp = if (cursor == null) {
             initialFetch()
         } else {
-            replayNextUrl(gson, cursor, responseClass)
+            replayNextUrl(pagingGson, cursor, responseClass)
         }
         val nextCursor = nextCursorOf(response)
         // 条目映射可能不便宜（转换、过滤、逐条建模），挪到后台保住 main-safe 契约
