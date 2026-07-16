@@ -158,21 +158,36 @@ class IllustFeedPoolSync(
                     } else {
                         state.items
                     }
+                    // poolableBeansOf 是子类可覆写的开放钩子，下游 ObjectPool.updateIllust /
+                    // AppLevelViewModelHelper.fill 也都吃外部数据。这里抛出来的话后果与
+                    // IllustFeedDetailSync 的 ADD_DATA 循环同类：collector 会连同
+                    // repeatOnLifecycle 一起终止且**不自愈**（本 view 生命周期内此后所有列表数据
+                    // 都不再合池，详情页从此渲染陈旧数据），异常还会经无 handler 的 lifecycleScope
+                    // 直奔线程默认处理器崩掉进程。合池是旁路职责，失败绝不该拖垮浏览。
+                    val freshBeans = mutableListOf<IllustsBean>()
+                    try {
+                        itemsToScan.forEach { item ->
+                            poolableBeansOf(item).forEach { bean ->
+                                if (syncViewModel.pooledBeans.put(bean.id.toLong(), bean) !== bean) {
+                                    ObjectPool.updateIllust(bean)
+                                    freshBeans.add(bean)
+                                }
+                            }
+                        }
+                        if (freshBeans.isNotEmpty()) {
+                            AppLevelViewModelHelper.fill(freshBeans)
+                        }
+                    } catch (ce: CancellationException) {
+                        throw ce
+                    } catch (ex: Throwable) {
+                        Timber.w(ex, "feeds: 合池失败，跳过本次扫描（下次数据变化重扫）")
+                        return@collect
+                    }
+                    // 扫描游标在**成功之后**才推进：失败时保持旧游标，下一次发射会重扫这批条目。
+                    // （放在扫描前推进的话，抛错那批就被永久判定为「已扫过」，再也进不了池。）
                     scannedItems = state.items
                     scannedSize = state.items.size
                     scannedVersion = state.structureVersion
-                    val freshBeans = mutableListOf<IllustsBean>()
-                    itemsToScan.forEach { item ->
-                        poolableBeansOf(item).forEach { bean ->
-                            if (syncViewModel.pooledBeans.put(bean.id.toLong(), bean) !== bean) {
-                                ObjectPool.updateIllust(bean)
-                                freshBeans.add(bean)
-                            }
-                        }
-                    }
-                    if (freshBeans.isNotEmpty()) {
-                        AppLevelViewModelHelper.fill(freshBeans)
-                    }
                 }
             }
         }

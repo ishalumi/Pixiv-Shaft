@@ -6,16 +6,12 @@ import ceui.lisa.R
 import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.lisa.utils.Params
 import ceui.loxia.Client
-import ceui.loxia.UserPreviewResponse
-import ceui.pixiv.feeds.FeedPage
-import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.ui.common.UserFeedFragment
 import ceui.pixiv.ui.common.UserFeedItem
-import ceui.pixiv.feeds.pixiv.replayNextUrl
 import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
-import com.google.gson.Gson
 
 /**
  * 「相关用户」页（feeds 框架版，替代 legacy FragmentRelatedUser + RelatedUserRepo + UAdapter）。
@@ -32,8 +28,11 @@ class RelatedUserFeedFragment : UserFeedFragment(R.layout.fragment_toolbar_feed)
     }
 
     override val feedViewModel by feedViewModels {
-        // VM 只长期持有 source；RelatedUserFeedSource 只吃一个 Long，天然零 Fragment 捕获。
-        RelatedUserFeedSource(userId)
+        // 零捕获：先把 Fragment 属性取成局部 val 再进 source 的 lambda
+        val userId = userId
+        pixivFeedSource(
+            initialFetch = { Client.appApi.getRelatedUsers(userId) },
+        ) { resp, _ -> resp.user_previews.map { UserFeedItem(it) } }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -51,24 +50,5 @@ class RelatedUserFeedFragment : UserFeedFragment(R.layout.fragment_toolbar_feed)
                 }
             }
         }
-    }
-}
-
-/**
- * 相关用户数据源：v1/user/related（suspend [ceui.loxia.API.getRelatedUsers]，对齐 legacy
- * AppApi.getRelatedUsers）。翻页走 [replayNextUrl]（UserPreviewResponse 实现 KListShow）。
- */
-class RelatedUserFeedSource(private val userId: Long) : FeedSource<String> {
-
-    private val gson = Gson()
-
-    override suspend fun load(cursor: String?): FeedPage<String> {
-        val resp: UserPreviewResponse = if (cursor == null) {
-            Client.appApi.getRelatedUsers(userId)
-        } else {
-            replayNextUrl(gson, cursor, UserPreviewResponse::class.java)
-        }
-        val items = resp.user_previews.map { UserFeedItem(it) }
-        return FeedPage(items, resp.next_url?.takeIf { it.isNotEmpty() })
     }
 }

@@ -15,15 +15,14 @@ import ceui.loxia.Illust
 import ceui.loxia.IllustResponse
 import ceui.pixiv.db.discovery.DiscoveryPool
 import ceui.pixiv.feeds.FeedItem
-import ceui.pixiv.feeds.FeedPage
-import ceui.pixiv.feeds.FeedSource
+import ceui.pixiv.feeds.FeedLoadPhase
 import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.feeds.pixiv.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
-import ceui.pixiv.feeds.pixiv.replayNextUrl
 import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,9 +53,20 @@ class RelatedIllustFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_f
     }
 
     override val feedViewModel by feedViewModels {
-        // VM 只长期持有 source；RelatedIllustFeedSource 只吃一个 Long，天然零 Fragment 捕获。
-        // （工厂 lambda 本身读 illustId 会闭包 this，但它只在建 VM 时跑一次、不被 VM 留存，无泄漏。）
-        RelatedIllustFeedSource(illustId)
+        // 零捕获：先把 Fragment 属性取成局部 val 再进 source 的 lambda
+        val illustId = illustId
+        pixivFeedSource(
+            initialFetch = { Client.appApi.getRelatedIllusts(illustId) },
+            // 翻页门控：「相关作品无限下滑」关时只出首页（nextCursor=null 让 loadMore 直接 return，
+            // 对齐 legacy RelatedIllustRepo.hasNext）。每次翻页现读设置，与旧实现同语义。
+            nextCursorOf = { resp ->
+                if (Shaft.sSettings.isRelatedIllustNoLimit) {
+                    resp.next_url?.takeIf { it.isNotEmpty() }
+                } else {
+                    null
+                }
+            },
+        ) { resp, phase -> mapRelatedPage(resp.illusts, phase, illustId) }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -110,48 +120,23 @@ class RelatedIllustFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_f
     }
 }
 
-/**
- * 相关作品数据源：v2/illust/related（suspend）。翻页 replayNextUrl；`isRelatedIllustNoLimit` 关时
- * 只出首页（nextCursor=null，对齐 legacy RelatedIllustRepo.hasNext）。每页过滤前整页喂 DiscoveryPool。
- */
-class RelatedIllustFeedSource(private val illustId: Long) : FeedSource<String> {
-
-    private val gson = Gson()
-
-    override suspend fun load(cursor: String?): FeedPage<String> {
-        val resp: IllustResponse = if (cursor == null) {
-            Client.appApi.getRelatedIllusts(illustId)
-        } else {
-            replayNextUrl(gson, cursor, IllustResponse::class.java)
-        }
-        val items = withContext(Dispatchers.Default) {
-            mapRelatedPage(resp.illusts, cursor == null, illustId)
-        }
-        // 翻页门控：「相关作品无限下滑」关时只出首页（nextCursor=null 让 loadMore 直接 return）。
-        val next = if (Shaft.sSettings.isRelatedIllustNoLimit) {
-            resp.next_url?.takeIf { it.isNotEmpty() }
-        } else {
-            null
-        }
-        return FeedPage(items, next)
+/** 跑在 Default 线程（[PixivFeedSource] 派发）、被 VM 长期持有，放顶层保证零捕获。 */
+private fun mapRelatedPage(
+    illusts: List<Illust>,
+    phase: FeedLoadPhase,
+    illustId: Long,
+): List<FeedItem> {
+    val pairs = illusts.mapNotNull { illust ->
+        IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
     }
-
-    companion object {
-        /** 跑在 Default 线程、被 VM 长期持有，放伴生对象保证零捕获。 */
-        private fun mapRelatedPage(
-            illusts: List<Illust>,
-            isFirstPage: Boolean,
-            illustId: Long,
-        ): List<FeedItem> {
-            val pairs = illusts.mapNotNull { illust ->
-                IllustFeedItem.beanOf(illust)?.let { bean -> illust to bean }
-            }
-            // 对齐 RelatedIllustRepo.doOnNext：过滤前整页喂 DiscoveryPool。
-            DiscoveryPool.collect(
-                pairs.map { it.second },
-                if (isFirstPage) "related:$illustId" else "related_next:$illustId",
-            )
-            return pairs.mapNotNull { (illust, bean) -> IllustFeedItem.of(illust, bean) }
-        }
+    // 对齐 RelatedIllustRepo.doOnNext：过滤前整页喂 DiscoveryPool。喂画像池是「拉取成功」型
+    // 副作用，按 phase 门控——本源目前没配缓存（CacheRestore 走不到），但门控写在这里，
+    // 将来给它开本地优先时不会拿磁盘上的旧数据重放去污染画像池。
+    if (phase.isFreshFetch) {
+        DiscoveryPool.collect(
+            pairs.map { it.second },
+            if (phase.isFirstPage) "related:$illustId" else "related_next:$illustId",
+        )
     }
+    return pairs.mapNotNull { (illust, bean) -> IllustFeedItem.of(illust, bean) }
 }
