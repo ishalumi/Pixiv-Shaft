@@ -275,13 +275,24 @@ class FeedViewModel<Cursor : Any>(
      * [FeedUiState.structureVersion] 自增，强制增量消费方（如 IllustFeedPoolSync）全量重扫。
      * 已知是纯尾部追加（旧前缀条目引用保证不变，如 `existing + fresh`）的调用方可传 false，
      * 让消费方只需扫描新增的尾部——[appendItems] 已经这样做，其余调用方保持默认。
+     *
+     * [edit] 原样返回入参列表（同一实例）即视为「什么也没改」：不换 items、不推进
+     * structureVersion、不发新状态。零变化的编辑因此是真正免费的——否则一次 no-op 也会造出
+     * 等价新列表，白白触发一轮全量 diff + 让下游（[FeedUiState.structureVersion] 的消费方）
+     * 全表重扫。本页自己发起的收藏经广播绕回自己就是这种 no-op，很常见。
      */
     fun mutateItems(structural: Boolean = true, edit: (List<FeedItem>) -> List<FeedItem>) {
-        _uiState.update {
-            it.copy(
-                items = edit(it.items),
-                structureVersion = if (structural) it.structureVersion + 1 else it.structureVersion,
-            )
+        _uiState.update { state ->
+            val next = edit(state.items)
+            if (next === state.items) {
+                state
+            } else {
+                state.copy(
+                    items = next,
+                    structureVersion =
+                        if (structural) state.structureVersion + 1 else state.structureVersion,
+                )
+            }
         }
     }
 
@@ -300,17 +311,34 @@ class FeedViewModel<Cursor : Any>(
         }
     }
 
-    /** 就地更新某一类条目（点赞 / 收藏切换等），不触发网络重载。 */
+    /**
+     * 就地更新某一类条目（点赞 / 收藏切换等），不触发网络重载。
+     *
+     * [transform] 返回入参本身（同一实例）即「这条没变」；全表都没变时整次调用不产生任何状态变更
+     *（见 [mutateItems]）。所以 transform 应当在已是目标态时原样返回——`withBookmarked` /
+     * `withFollowed` 都是这么写的。
+     */
     fun <T : FeedItem> updateItems(itemClass: Class<T>, transform: (T) -> T) {
         mutateItems { list ->
-            list.map { item ->
-                if (itemClass.isInstance(item)) transform(itemClass.cast(item)) else item
+            var changed = false
+            val next = list.map { item ->
+                if (itemClass.isInstance(item)) {
+                    val updated = transform(itemClass.cast(item))
+                    if (updated !== item) changed = true
+                    updated
+                } else {
+                    item
+                }
             }
+            if (changed) next else list
         }
     }
 
     fun removeItems(predicate: (FeedItem) -> Boolean) {
-        mutateItems { list -> list.filterNot(predicate) }
+        mutateItems { list ->
+            val next = list.filterNot(predicate)
+            if (next.size == list.size) list else next
+        }
     }
 
     companion object {

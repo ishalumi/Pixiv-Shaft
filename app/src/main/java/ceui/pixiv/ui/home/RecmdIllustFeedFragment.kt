@@ -40,6 +40,7 @@ import ceui.pixiv.feeds.pixiv.cachedPixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
+import ceui.pixiv.ui.common.staggerIllustRenderer
 import ceui.pixiv.ui.common.IllustFeedItem
 import ceui.pixiv.utils.setOnClick
 import kotlinx.coroutines.Dispatchers

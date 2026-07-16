@@ -20,7 +20,9 @@ import ceui.lisa.core.PageData
 import ceui.lisa.database.IllustHistoryEntity
 import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.models.IllustsBean
+import ceui.lisa.utils.DensityUtil
 import ceui.lisa.utils.Params
+import ceui.lisa.view.SpacesItemDecoration
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
@@ -73,6 +75,14 @@ class FragmentHistoryList : FeedFragment(), SelectableHistoryTab {
 
     override fun onListReady(listView: RecyclerView) {
         listView.itemAnimator = null
+        // 插画历史的间距对齐全站其它插画瀑布流(IllustFeedFragment 同款 8dp SpacesItemDecoration:
+        // 按 lineCount 分档给左/中/右不同的左右偏移,边缘 8dp、中缝 8dp)。原先是靠 cell_history_illust_v3
+        // 自带的 5dp layout_margin 撑间距 —— 比全站标准窄一圈、几乎贴着屏幕边,且不跟 lineCount 走。
+        // 小说历史是单列:SpacesItemDecoration 按 spanIndex 算左右偏移,单列会算出左 8dp/右 4dp 的
+        // 偏心,故不挂,继续用 cell_history_novel_v3 自带的 margin。
+        if (historyType != TYPE_NOVEL) {
+            listView.addItemDecoration(SpacesItemDecoration(DensityUtil.dp2px(8.0f)))
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

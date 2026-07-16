@@ -41,6 +41,29 @@ class SearchIllustFeedFragment : IllustFeedFragment() {
         SearchIllustFeedSource(searchModel)
     }
 
+    /**
+     * 不把搜索游标交给详情页 pager 续读（基类默认会交）。
+     *
+     * 基类那句默认（「pixiv 列表的游标本身就是 nextUrl，详情页划到底可以照着它继续请求」）隐含
+     * 一个前提：**nextUrl 拉回来的东西就是本列表的结果集**。搜索不满足——搜索的结果集是由
+     * [ceui.lisa.repo.SearchIllustRepo] 的 FilterMapper 流水线定义的（R-18 三态 / 仅看 AI /
+     * 收藏数门槛 / 隐藏已收藏），nextUrl 只是那条流水线的入料。
+     *
+     * 而详情 pager 的回传链复现不了这条流水线：VActivity 用的是裸 `Mapper`（不认 searchR18Restriction
+     * / searchOnlyAi），回到本页 `feedItemFromBean` 默认走 [IllustFeedItem.fromBean] →
+     * `passesContentFilters`（只有全局过滤链）。两头都丢，于是：
+     * - R-18 限制选「仅安全」→ 续拉页整页 R-18 全部放行，追回列表；
+     * - 「仅看 AI」+ 全局「屏蔽 AI 作品」开 → 首屏靠 FilterMapper 的 `!searchOnlyAi` 让步保住 AI，
+     *   续拉页没有这个让步，`passesContentFilters` 把 AI 全删干净 —— 与用户诉求正好相反。
+     *
+     * 交 null 即关掉续读：详情页仍可在交接来的快照里翻，只是划到底不再自动续拉（对齐所有本地源
+     * 的既有做法）。要恢复续读，得先让回传链拿得到搜索档位、能一比一复现 FilterMapper，
+     * 而不是把这个游标交出去。[IllustFeedItem.rawFromBean] 的文档已经写明「搜索专属过滤 feeds 侧
+     * 不复刻」——本页正是那条禁令的适用对象。
+     */
+    override val detailContinuationCursor: String?
+        get() = null
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         searchModel.nowGo.observe(viewLifecycleOwner) {

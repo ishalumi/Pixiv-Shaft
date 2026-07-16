@@ -352,6 +352,37 @@ class FeedViewModelTest {
         assertEquals(listOf(Row(2, "liked")), vm.uiState.value.items)
     }
 
+    /**
+     * 零变化的编辑必须真的免费：不换 items 实例、不推进 structureVersion。
+     *
+     * 否则 no-op 也会造出等价新列表 → 一轮全量 diff + 让 structureVersion 的增量消费方
+     *（IllustFeedPoolSync）全表重扫。这不是理论情形：本页自己发起的收藏会经 LIKED_* 广播
+     * 绕回自己，而 `withBookmarked` / `withFollowed` 在已是目标态时原样返回 —— 每次点赞
+     * 都会撞上这条路径。
+     */
+    @Test
+    fun `no-op updateItems keeps the list instance and structureVersion`() = runTest(dispatcher) {
+        val vm = FeedViewModel(FakeSource(listOf(listOf(Row(1, "a"), Row(2, "b")))))
+        advanceUntilIdle()
+
+        val itemsBefore = vm.uiState.value.items
+        val versionBefore = vm.uiState.value.structureVersion
+
+        // transform 原样返回（幂等 withBookmarked 的形状）
+        vm.updateItems(Row::class.java) { it }
+        assertSame("零变化不该换 items 实例", itemsBefore, vm.uiState.value.items)
+        assertEquals("零变化不该推进 structureVersion", versionBefore, vm.uiState.value.structureVersion)
+
+        // 谓词没命中任何条目的删除，同样免费
+        vm.removeItems { it.feedKey == 999 }
+        assertSame(itemsBefore, vm.uiState.value.items)
+        assertEquals(versionBefore, vm.uiState.value.structureVersion)
+
+        // 对照：真的改了才推进
+        vm.updateItems(Row::class.java) { row -> if (row.id == 2) row.copy(text = "liked") else row }
+        assertEquals(versionBefore + 1, vm.uiState.value.structureVersion)
+    }
+
     // ── 本地优先（FeedSource.loadFromCache）──────────────────────────────────
 
     /**

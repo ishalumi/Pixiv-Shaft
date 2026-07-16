@@ -185,9 +185,25 @@ public class PixivOperate {
      */
     public static void postLike(IllustsBean illustsBean, String starType, boolean showRelated,
                                 int index, String sourcePageUuid) {
+        postLike(illustsBean, starType, showRelated, index, sourcePageUuid, null);
+    }
+
+    /**
+     * @param onFailed 网络失败时回调（主线程），供调用方回滚自己的 UI 状态。可为 null。
+     *                 bean 自身的 is_bookmarked 由本方法回滚，不需要调用方管。
+     */
+    public static void postLike(IllustsBean illustsBean, String starType, boolean showRelated,
+                                int index, String sourcePageUuid, Runnable onFailed) {
         if (illustsBean == null) {
             return;
         }
+
+        // 乐观写在发请求之前（下面两个分支），失败必须还原。
+        // 不还原的后果不只是「心的颜色错了」：postLike 是按 bean 当前的 is_bookmarked 决定发
+        // 收藏还是取消的，bean 停在乐观值 → 用户下一次点击会被反转成相反的操作（想收藏，结果
+        // 先白发一个 dislike，得点两下才收上）。所以这一刀必须落在 bean 上，而不是只让各 UI
+        // 层自己回滚自己的副本。
+        final boolean wasBookmarked = illustsBean.isIs_bookmarked();
 
         if (illustsBean.isIs_bookmarked()) { //已收藏
             illustsBean.setIs_bookmarked(false);
@@ -195,6 +211,15 @@ public class PixivOperate {
                     .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(new ErrorCtrl<NullResponse>() {
+                        @Override
+                        public void error(Throwable e) {
+                            super.error(e); // 保留既有的本地化错误 toast
+                            illustsBean.setIs_bookmarked(wasBookmarked);
+                            if (onFailed != null) {
+                                onFailed.run();
+                            }
+                        }
+
                         @Override
                         public void next(NullResponse nullResponse) {
                             Intent intent = new Intent(Params.LIKED_ILLUST);
@@ -219,6 +244,15 @@ public class PixivOperate {
                     .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(new ErrorCtrl<NullResponse>() {
+                        @Override
+                        public void error(Throwable e) {
+                            super.error(e); // 保留既有的本地化错误 toast
+                            illustsBean.setIs_bookmarked(wasBookmarked);
+                            if (onFailed != null) {
+                                onFailed.run();
+                            }
+                        }
+
                         @Override
                         public void next(NullResponse nullResponse) {
                             RateAppManager.INSTANCE.onUserEngaged();

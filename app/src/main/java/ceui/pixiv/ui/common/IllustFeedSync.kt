@@ -18,11 +18,13 @@ import ceui.loxia.ObjectPool
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedUiState
 import ceui.pixiv.feeds.FeedViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * 插画列表与 legacy 详情链路的广播协同，从 [IllustFeedFragment] 拆出的独立协作件
@@ -88,8 +90,23 @@ class IllustFeedDetailSync(
         // （STOPPED），追加要照做，返回列表时数据已就位
         viewLifecycleOwner.lifecycleScope.launch {
             for (listIllust in addDataQueue) {
-                val fresh = withContext(Dispatchers.Default) {
-                    listIllust.list.orEmpty().mapNotNull(itemFromBean)
+                // itemFromBean 会跑用户 mapper（子类可覆写）→ passesContentFilters，那里面是三次
+                // 同步 Room 查询（IllustNovelFilter 的 judgeTag/judgeID/judgeUserID）。它抛出来的话
+                // 后果有两层，都很糟：lifecycleScope 没有 CoroutineExceptionHandler，异常直奔线程
+                // 默认处理器 → 崩进程（Shaft 那个重入 Looper.loop 的兜底接不住协程异常）；而且这个
+                // for 循环会**永久终止**，此后本 view 生命周期内所有详情续拉的页全部静默丢弃、
+                // adoptCursor 再不执行，用户看不到任何错误。
+                // 框架对同一个 mapper 在别处都显式兜了（FeedViewModel.refresh/loadMore/loadFromCache
+                // 全包了 try/catch，注释写着「绝不能崩进程」），这里是唯一漏的一处。取消照常传播。
+                val fresh = try {
+                    withContext(Dispatchers.Default) {
+                        listIllust.list.orEmpty().mapNotNull(itemFromBean)
+                    }
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (ex: Throwable) {
+                    Timber.w(ex, "feeds: 详情回传页映射失败，跳过这一页（列表照常可用）")
+                    continue
                 }
                 feedViewModel.appendItems(fresh)
                 feedViewModel.adoptCursor(listIllust.nextUrl?.takeIf { it.isNotEmpty() })
