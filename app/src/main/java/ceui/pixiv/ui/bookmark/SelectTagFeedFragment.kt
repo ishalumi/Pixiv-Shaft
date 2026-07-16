@@ -74,6 +74,12 @@ class SelectTagFeedFragment : FeedFragment(R.layout.fragment_select_tag_feed) {
         SelectTagFeedSource(id, t, names)
     }
 
+    /**
+     * 关掉下拉刷新：这是一张收藏表单，不是浏览列表。下拉会重拉整份标签列表、把用户已勾选的标签
+     * （以及 addTag 新加的）全部冲掉，语义上有害无益；标签列表进页一次性拉全即可。
+     */
+    override val refreshEnabled: Boolean = false
+
     override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> =
         listOf(selectTagRenderer())
 
