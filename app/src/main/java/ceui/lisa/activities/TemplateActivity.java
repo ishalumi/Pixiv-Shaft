@@ -216,10 +216,6 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                     return new ceui.pixiv.ui.download.DownloadManagerV3Fragment();
                 case "推荐漫画":
                     return ceui.pixiv.ui.home.RecmdMangaFeedFragment.newInstance();
-                case "热度小说":
-                    // feeds 框架版，替代 legacy FragmentPopularNovel + PopularNovelRepo + NAdapter
-                    return ceui.pixiv.ui.search.PopularNovelFeedFragment.newInstance(
-                            intent.getStringExtra(Params.KEY_WORD));
                 case "推荐小说":
                     return new FragmentNewNovel();
                 case "小说收藏": {

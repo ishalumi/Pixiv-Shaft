@@ -299,20 +299,6 @@ interface API {
         @Query("height_max") height_max: Int? = null,
     ): IllustResponse
 
-    /**
-     * 「热度小说」页（搜索结果页跳过来的热门预览）。
-     *
-     * 与下面那个搜索 V3 用的 [popularPreviewNovel] 打的是同一条路径，但**参数集不同**，故单列一条：
-     * legacy `AppApi.popularNovelPreview(word, null, null, null)` 只传 word，`sort` 压根不发；
-     * 而 V3 那个版本 `sort` 是非空必填。硬拿 V3 版顶替就得替 legacy 编一个它从没发过的 sort，
-     * 那是在改请求，不是迁移。query 常量（filter / include_translated / merge_plain）与 legacy
-     * 的 @GET 逐字一致。
-     */
-    @GET("v1/search/popular-preview/novel?filter=for_android&include_translated_tag_results=true&merge_plain_keyword_results=true")
-    suspend fun popularPreviewNovelByWord(
-        @Query("word") word: String,
-    ): NovelResponse
-
     @GET("/v1/search/popular-preview/novel")
     suspend fun popularPreviewNovel(
         @Query("word") word: String,
