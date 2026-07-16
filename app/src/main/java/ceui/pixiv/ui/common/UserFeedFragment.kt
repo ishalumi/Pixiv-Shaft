@@ -32,7 +32,15 @@ private val PAYLOAD_USER_FOLLOW = Any()
  * 子类只需提供 [feedViewModel]（数据源），并可传自定义布局（如带 toolbar 的 fragment_toolbar_feed）。
  *
  * 现有实现：搜索用户 [ceui.pixiv.ui.search.SearchUserFeedFragment]、相关用户
- * [ceui.pixiv.ui.user.RelatedUserFeedFragment]。3 张预览图只显插画（用户裁决：不足留空）。
+ * [ceui.pixiv.ui.user.RelatedUserFeedFragment]、正在关注 [ceui.pixiv.ui.user.FollowUserFeedFragment]、
+ * 粉丝 [ceui.pixiv.ui.user.UserFansFeedFragment]、推荐用户 [ceui.pixiv.ui.user.RecmdUserFeedFragment]、
+ * 画师榜 [ceui.pixiv.ui.recommend.ArtistRankFeedFragment]。
+ *
+ * **3 张预览图只显插画，不足留空——这是用户裁决，适用于本基类的每一个页面，别再翻。**
+ * legacy [ceui.lisa.adapters.UAdapter] 在插画不足 3 张时会拿小说封面补位；迁移时问过一轮
+ *「关注列表里小说家密度比搜索页高得多，是不是该恢复补位」，答复是**不需要**。
+ * 所以 [ceui.loxia.UserPreview.novels] 保持 `List<Any>?`（拿不到封面 URL 也无所谓），
+ * 不必为了补位把它改成 `List<Novel>`。
  */
 abstract class UserFeedFragment(
     @LayoutRes contentLayoutId: Int = R.layout.fragment_feed,
