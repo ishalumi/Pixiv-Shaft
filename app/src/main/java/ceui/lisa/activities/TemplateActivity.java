@@ -24,7 +24,7 @@ import ceui.lisa.fragments.FragmentCollection;
 import ceui.lisa.fragments.FragmentDonate;
 import ceui.lisa.fragments.FragmentEditAccount;
 import ceui.lisa.fragments.FragmentEditFile;
-import ceui.lisa.fragments.FragmentFeature;
+import ceui.pixiv.ui.feature.FeatureFeedFragment;
 import ceui.lisa.fragments.FragmentFileName;
 import ceui.lisa.fragments.FragmentHistoryTabs;
 import ceui.lisa.fragments.FragmentImageDetail;
@@ -349,7 +349,7 @@ public class TemplateActivity extends BaseActivity<ActivityFragmentBinding> impl
                 case "小说系列作品":
                     return new FragmentNovelSeries();
                 case "精华列":
-                    return new FragmentFeature();
+                    return new FeatureFeedFragment();
                 case "我的作业环境":
                     return new FragmentWorkSpace();
                 case "PrimeTagsList":

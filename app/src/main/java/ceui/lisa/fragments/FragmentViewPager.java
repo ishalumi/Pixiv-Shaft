@@ -37,6 +37,9 @@ import ceui.lisa.utils.Dev;
 import ceui.lisa.utils.MyOnTabSelectedListener;
 import ceui.lisa.utils.Params;
 import ceui.pixiv.feeds.FeedFragment;
+import ceui.pixiv.ui.muted.MutedObjectsFeedFragment;
+import ceui.pixiv.ui.muted.MutedTagsFeedFragment;
+import ceui.pixiv.ui.muted.MutedUserFeedFragment;
 import ceui.pixiv.ui.rank.RankIllustFeedFragment;
 
 import static android.app.Activity.RESULT_OK;
@@ -49,8 +52,9 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
 
     private String title;
     /**
-     * 两个分支的列表体系已经不同：屏蔽记录仍是 legacy {@link ListFragment}，
-     * R18 榜是 feeds 的 {@link FeedFragment}，故按共同基类存，用处按类型分派。
+     * 两个分支现在都是 feeds 的 {@link FeedFragment}（屏蔽记录三 tab 已迁 feeds、R18 榜本就是），
+     * 故按共同基类 {@link Fragment} 存。{@link #forceRefresh()} 里对 {@link ListFragment} 的
+     * 分支已无实际命中，留作防御（万一以后又塞回 legacy 页）。
      */
     private Fragment[] mFragments = null;
 
@@ -82,9 +86,9 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
                     Shaft.getContext().getString(R.string.string_354),
             };
             mFragments = new Fragment[]{
-                    new FragmentMutedTags(),
-                    new FragmentMutedUser(),
-                    new FragmentMutedObjects(),
+                    new MutedTagsFeedFragment(),
+                    new MutedUserFeedFragment(),
+                    new MutedObjectsFeedFragment(),
             };
             baseBind.toolbar.inflateMenu(R.menu.delete_and_add);
             setMuteMenuListener(mFragments[0]);
@@ -199,9 +203,30 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
     }
 
     /**
-     * 仅屏蔽记录分支用：那三个 tab（FragmentMutedTags / MutedUser / MutedObjects）各自
-     * implements OnMenuItemClickListener——是子类实现的，基类 ListFragment 并没有，所以这里
-     * 只能运行时转型。R18 分支的 feeds fragment 不走这条路（它没有 toolbar 菜单）。
+     * 导入屏蔽记录后刷新全部 tab（而非仅当前 tab）：三个屏蔽 tab 现在是 eager 的 FeedFragment，
+     * 开页即各自加载过一次、之后不再自查；只刷当前 tab 会让导入到别的 tab 的记录一直不显示，
+     * 直到关掉重开。legacy 三 tab 是懒加载（BaseLazyFragment），首次可见才拉，无此问题。
+     * 尚未创建视图的 tab（超出 offscreenPageLimit）forceRefresh 会 no-op，由框架在首次可见时
+     * 自然拉到最新数据。
+     */
+    private void refreshAllMutedTabs() {
+        if (mFragments == null) {
+            return;
+        }
+        for (Fragment fragment : mFragments) {
+            if (fragment instanceof FeedFragment) {
+                ((FeedFragment) fragment).forceRefresh();
+            } else if (fragment instanceof ListFragment) {
+                ((ListFragment<?, ?>) fragment).forceRefresh();
+            }
+        }
+    }
+
+    /**
+     * 仅屏蔽记录分支用：那三个 tab（MutedTagsFeedFragment / MutedUserFeedFragment /
+     * MutedObjectsFeedFragment）各自 implements OnMenuItemClickListener——是子类实现的，基类
+     * FeedFragment 并没有，所以这里只能运行时转型。R18 分支的 feeds fragment 不走这条路
+     *（它没有 toolbar 菜单）。
      */
     private void setMuteMenuListener(Fragment delegate) {
         baseBind.toolbar.setOnMenuItemClickListener(item -> {
@@ -290,7 +315,7 @@ public class FragmentViewPager extends BaseFragment<ViewpagerWithTablayoutBindin
                     }
                     int finalImported = imported;
                     mActivity.runOnUiThread(() -> {
-                        forceRefresh();
+                        refreshAllMutedTabs();
                         Common.showToast(getString(R.string.mute_records_import_success, finalImported));
                     });
                 } catch (Exception e) {
