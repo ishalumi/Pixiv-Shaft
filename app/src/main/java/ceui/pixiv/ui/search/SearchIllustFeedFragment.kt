@@ -70,11 +70,24 @@ class SearchIllustFeedSource(private val searchModel: SearchModel) : FeedSource<
         // 8 个必填参数先给 null，全部由 update(searchModel) 填；构造时 super 已建好 FilterMapper。
         val r = repo ?: SearchIllustRepo(null, null, null, null, null, null, null, null).also { repo = it }
         val list: ListIllust = if (cursor == null) {
-            r.update(searchModel) // 读最新参数 + 配置 FilterMapper
-            r.initApi().awaitFirstValue()
+            // update + initApi 必须切 IO：两者都在「返回 Observable 之前」同步跑完重活——
+            // update(searchModel) 经 PixivOperate.insertSearchHistory 做阻塞 Room 读+写，
+            // initApi() 在「内置热门榜」档位还会同步读 assets + gson 全量解析整包 illust。
+            // 而 FeedSource.load 由 viewModelScope(Dispatchers.Main.immediate)发起，在第一个
+            // 真正的挂起点(awaitFirstValue 里的 subscribeOn(io))之前一直跑在主线程；又因为
+            // AppDatabase 开了 allowMainThreadQueries()，这段不会抛异常、只会静默卡主线程。
+            // 每次搜索都发生。（下面的过滤早就切了 Default，唯独漏了发请求前这一段。）
+            val api = withContext(Dispatchers.IO) {
+                r.update(searchModel) // 读最新参数 + 配置 FilterMapper
+                r.initApi()
+            }
+            api.awaitFirstValue()
         } else {
-            r.setNextUrl(cursor)
-            r.initNextApi().awaitFirstValue()
+            val api = withContext(Dispatchers.IO) {
+                r.setNextUrl(cursor)
+                r.initNextApi()
+            }
+            api.awaitFirstValue()
         }
         val items = withContext(Dispatchers.Default) {
             @Suppress("UNCHECKED_CAST")

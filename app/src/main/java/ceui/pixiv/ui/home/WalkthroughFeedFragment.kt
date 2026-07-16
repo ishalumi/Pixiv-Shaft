@@ -5,7 +5,7 @@ import android.view.View
 import ceui.lisa.R
 import ceui.lisa.databinding.FragmentToolbarFeedBinding
 import ceui.loxia.Client
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
@@ -24,7 +24,7 @@ class WalkthroughFeedFragment : IllustFeedFragment(R.layout.fragment_toolbar_fee
     private val binding by viewBinding(FragmentToolbarFeedBinding::bind)
 
     override val feedViewModel by feedViewModels {
-        PixivFeedSource({ Client.appApi.getWalkthroughWorks() }) { resp, _ ->
+        pixivFeedSource({ Client.appApi.getWalkthroughWorks() }) { resp, _ ->
             resp.displayList.mapNotNull { IllustFeedItem.from(it) }
         }
     }

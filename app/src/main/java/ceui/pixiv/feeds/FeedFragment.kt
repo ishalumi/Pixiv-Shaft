@@ -66,6 +66,15 @@ abstract class FeedFragment(
      */
     protected open val loadMoreEnabled: Boolean = true
 
+    /**
+     * 是否允许下拉刷新。与 [loadMoreEnabled] 对称：横向 rail / 嵌在别人滚动容器里的货架覆写为 false
+     * （它们的手势归宿主，自己吃掉下拉会打架）。
+     *
+     * 有这个钩子之前，唯一需要它的页面只能伸手进 `feedBinding.feedRefreshLayout.isEnabled = false`——
+     * 那是全仓唯一一处绕过框架直操内部 binding 的地方，正是「缺了对称钩子」逼出来的。
+     */
+    protected open val refreshEnabled: Boolean = true
+
     private var _binding: FragmentFeedBinding? = null
     protected val feedBinding: FragmentFeedBinding
         get() = checkNotNull(_binding) { "view 尚未创建或已销毁" }
@@ -121,6 +130,7 @@ abstract class FeedFragment(
         // 暗色模式下是块白饼。两者日夜两支恒为「浅箭头深底 / 深箭头浅底」，对比度不会塌。
         binding.feedRefreshLayout.setColorSchemeColors(palette.textAccent)
         binding.feedRefreshLayout.setProgressBackgroundColorSchemeColor(palette.cardFill)
+        binding.feedRefreshLayout.isEnabled = refreshEnabled
         binding.feedRefreshLayout.setOnRefreshListener { feedViewModel.refresh() }
         binding.feedStateText.setOnClickListener { feedViewModel.refresh() }
 

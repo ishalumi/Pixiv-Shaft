@@ -91,7 +91,19 @@ class IllustSeriesFeedSource(private val seriesId: Long) : FeedSource<String> {
     // 供单话话号（降序 = total - pos）与「阅读最新一话」用。source 有状态，随 load(null) 重置。
     private var descending = true
     private var episodeTotal = 0
-    private var emitted = 0
+
+    /**
+     * 已吐出的话 id（也就是话号的位次来源），随 load(null) 重置。
+     *
+     * 曾经这里是个裸计数器 `emitted++`：话号 = 已吐出的话数，而这个推算隐含「吐出的每一话
+     * 都会上屏」——[FeedViewModel] 并不承诺这一点。它按 identity（此处即 [MangaEpisodeFeedItem.feedKey]
+     * = illust.id）去重，服务端翻页窗口漂移时必然丢条；空页追载还会连续调 load。被丢掉的话
+     * 照样把计数器推进过，于是之后所有话号整体偏移，且一次翻页内无法自愈（只有刷新才归零）。
+     *
+     * 改由 source 自己按同一个 id 去重：吐出的必是没吐过的话，「已吐出」与「已上屏」恒等，
+     * 位次可信——依赖的不变量由自己保证，而不是指望调用方。
+     */
+    private val emittedEpisodeIds = HashSet<Long>()
 
     override suspend fun load(cursor: String?): FeedPage<String> {
         val resp: IllustSeriesResp = if (cursor == null) {
@@ -108,7 +120,7 @@ class IllustSeriesFeedSource(private val seriesId: Long) : FeedSource<String> {
         val episodes = resp.displayList
 
         if (cursor == null) {
-            emitted = 0
+            emittedEpisodeIds.clear()
             val firstEpisodeId = resp.illust_series_first_illust?.id
             descending = firstEpisodeId == null || episodes.isEmpty() ||
                     episodes.first().id != firstEpisodeId
@@ -136,13 +148,15 @@ class IllustSeriesFeedSource(private val seriesId: Long) : FeedSource<String> {
         episodes.forEach { illust ->
             ObjectPool.update(illust)
             illust.user?.let { ObjectPool.update(it) }
+            // 已吐过的话直接跳过（合池照做：漂移页里回来的是同一话的较新副本）
+            if (!emittedEpisodeIds.add(illust.id)) return@forEach
+            val pos = emittedEpisodeIds.size - 1
             val idx = if (descending && episodeTotal > 0) {
-                (episodeTotal - emitted).coerceAtLeast(1)
+                (episodeTotal - pos).coerceAtLeast(1)
             } else {
-                emitted + 1
+                pos + 1
             }
             items.add(MangaEpisodeFeedItem(illust, idx))
-            emitted++
         }
 
         return FeedPage(items, resp.next_url)

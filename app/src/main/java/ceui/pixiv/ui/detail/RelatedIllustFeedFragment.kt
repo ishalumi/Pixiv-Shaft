@@ -20,7 +20,7 @@ import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
-import ceui.pixiv.ui.common.replayNextUrl
+import ceui.pixiv.feeds.pixiv.replayNextUrl
 import ceui.pixiv.ui.common.setUpToolbar
 import ceui.pixiv.ui.common.viewBinding
 import com.google.gson.Gson

@@ -12,7 +12,7 @@ import ceui.lisa.utils.V3Palette
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.pixiv.feeds.FeedItem
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.NovelFeedFragment
 import ceui.pixiv.ui.common.NovelFeedItem
@@ -44,7 +44,7 @@ class FollowingNovelFeedFragment : NovelFeedFragment() {
     override val feedViewModel by feedViewModels {
         // 取成局部 val:捕获的是 VM 实例(与 FeedViewModel 同 store、同寿命),不是 Fragment
         val holder = restrictViewModel
-        PixivFeedSource({ Client.appApi.getFollowingNovels(holder.restrict) }) { resp, _ ->
+        pixivFeedSource({ Client.appApi.getFollowingNovels(holder.restrict) }) { resp, _ ->
             mapFollowingNovelPage(resp.displayList)
         }
     }

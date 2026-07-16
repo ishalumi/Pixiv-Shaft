@@ -54,6 +54,10 @@ class PivisionRailFeedFragment : FeedFragment(R.layout.fragment_pivision_rail_fe
         SinglePageFeedSource(pivisionSource(PIVISION_CATEGORY_ILLUST))
     }
 
+    // 货架嵌在发现页的 NestedScrollView 里,自己不该再吃竖向下拉(整页刷新归发现页的
+    // SmartRefreshLayout);legacy 也只在 onFirstLoaded 开过 refresh、实际点不到。
+    override val refreshEnabled: Boolean = false
+
     override fun onCreateLayoutManager(): RecyclerView.LayoutManager {
         return LinearLayoutManager(requireContext(), RecyclerView.HORIZONTAL, false)
     }
@@ -72,9 +76,6 @@ class PivisionRailFeedFragment : FeedFragment(R.layout.fragment_pivision_rail_fe
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // 货架嵌在发现页的 NestedScrollView 里,自己不该再吃竖向下拉(整页刷新归发现页的
-        // SmartRefreshLayout);legacy 也只在 onFirstLoaded 开过 refresh、实际点不到。
-        feedBinding.feedRefreshLayout.isEnabled = false
         binding.seeMore.setOnClick {
             startActivity(
                 Intent(requireContext(), TemplateActivity::class.java).apply {

@@ -10,7 +10,7 @@ import ceui.lisa.utils.Params
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.pixiv.feeds.FeedItem
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.NovelFeedFragment
 import ceui.pixiv.ui.common.NovelFeedItem
@@ -44,7 +44,7 @@ class UserNovelFeedFragment : NovelFeedFragment() {
     override val feedViewModel by feedViewModels(autoLoad = false) {
         // 零捕获约定:userId 先取成局部值,不把 Fragment 钉进长命 VM
         val uid = userId.toLong()
-        PixivFeedSource({ Client.appApi.getUserCreatedNovels(uid) }) { resp, _ ->
+        pixivFeedSource({ Client.appApi.getUserCreatedNovels(uid) }) { resp, _ ->
             mapUserNovelPage(resp.displayList)
         }
     }

@@ -21,7 +21,7 @@ import ceui.lisa.utils.Params
 import ceui.loxia.Client
 import ceui.loxia.Illust
 import ceui.pixiv.feeds.FeedItem
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.common.IllustFeedFragment
@@ -68,7 +68,7 @@ class LikeIllustFeedFragment : IllustFeedFragment() {
             // 旋转复用旧 VM 不重跑，保留用户当下改过的过滤条件
             it.tag = requireArguments().getString(Params.KEY_WORD).orEmpty()
         }
-        PixivFeedSource({
+        pixivFeedSource({
             Client.appApi.getUserBookmarkedIllusts(
                 userId, starType, filter.tag.takeIf { tag -> tag.isNotEmpty() }
             )

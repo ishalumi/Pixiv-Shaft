@@ -7,8 +7,8 @@ import ceui.loxia.Client
 import ceui.pixiv.db.discovery.DiscoveryPool
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedLoadPhase
-import ceui.pixiv.feeds.PixivFeedSource
-import ceui.pixiv.feeds.cachedPixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
+import ceui.pixiv.feeds.pixiv.cachedPixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
@@ -55,7 +55,7 @@ class RankIllustFeedFragment : IllustFeedFragment() {
                 mapRankPage(resp.displayList, phase, mode, skipR18Filter)
             }
         } else {
-            PixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, phase ->
+            pixivFeedSource({ Client.appApi.getRankingIllusts(mode, queryDate) }) { resp, phase ->
                 mapRankPage(resp.displayList, phase, mode, skipR18Filter)
             }
         }

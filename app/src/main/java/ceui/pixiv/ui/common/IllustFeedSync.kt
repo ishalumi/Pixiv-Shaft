@@ -25,12 +25,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 插画列表与 legacy 详情/收藏链路的广播协同，从 [IllustFeedFragment] 拆出的独立协作件
+ * 插画列表与 legacy 详情链路的广播协同，从 [IllustFeedFragment] 拆出的独立协作件
  * （不依赖 Fragment 继承，混排页等任何 feeds 页面都能挂）：
  *
- * - LIKED_ILLUST：详情页/其他列表点的收藏经广播回流本列表（双向同步）；
  * - FRAGMENT_ADD_DATA：详情 pager 用 nextUrl 续拉的页追加回列表并接管游标；
  * - FRAGMENT_SCROLL_TO_POSITION：返回时列表跟到详情页正在看的那张。
+ *
+ * 收藏态回流（LIKED_ILLUST）不在这里：它与小说 / 画师那两条广播是同一件事，统一走
+ * [FeedLikeSync]（本类 [bind] 内一并挂上，调用方无感）。
  *
  * ADD_DATA 的 bean→条目映射是整页 gson 往返，不允许占主线程（广播恰恰在详情页
  * 滑动动画进行中到达）；这里经 [Channel] 单消费者搬到 Default 线程执行——
@@ -50,16 +52,14 @@ class IllustFeedDetailSync(
         val broadcastManager = LocalBroadcastManager.getInstance(context)
         val addDataQueue = Channel<ListIllust>(Channel.UNLIMITED)
 
-        val likedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val extras = intent?.extras ?: return
-                val illustId = extras.getInt(Params.ID).toLong()
-                val isLiked = extras.getBoolean(Params.IS_LIKED)
-                feedViewModel.updateItems(IllustFeedItem::class.java) { item ->
-                    if (item.illust.id == illustId) item.withBookmarked(isLiked) else item
-                }
-            }
-        }
+        // 收藏态回流与小说 / 画师两条广播同形，收口在 FeedLikeSync（自带注销）
+        feedLikeSync<IllustFeedItem>(
+            feedViewModel = feedViewModel,
+            action = Params.LIKED_ILLUST,
+            idOf = { it.illust.id },
+            transform = { item, liked -> item.withBookmarked(liked) },
+        ).bind(context, viewLifecycleOwner)
+
         val addDataReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 val extras = intent?.extras ?: return
@@ -79,7 +79,6 @@ class IllustFeedDetailSync(
             }
         }
 
-        broadcastManager.registerReceiver(likedReceiver, IntentFilter(Params.LIKED_ILLUST))
         broadcastManager.registerReceiver(addDataReceiver, IntentFilter(Params.FRAGMENT_ADD_DATA))
         broadcastManager.registerReceiver(
             scrollReceiver, IntentFilter(Params.FRAGMENT_SCROLL_TO_POSITION)
@@ -99,7 +98,6 @@ class IllustFeedDetailSync(
 
         viewLifecycleOwner.lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {
-                broadcastManager.unregisterReceiver(likedReceiver)
                 broadcastManager.unregisterReceiver(addDataReceiver)
                 broadcastManager.unregisterReceiver(scrollReceiver)
                 addDataQueue.close()

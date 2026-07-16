@@ -1,12 +1,15 @@
-package ceui.pixiv.feeds
+package ceui.pixiv.feeds.pixiv
 
 import ceui.loxia.KListShow
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedLoadPhase
+import ceui.pixiv.feeds.FeedPage
+import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.cache.CachedFirstPage
 import ceui.pixiv.feeds.cache.DEFAULT_FEED_CACHE_MAX_AGE
 import ceui.pixiv.feeds.cache.FeedFirstPageCache
 import ceui.pixiv.feeds.cache.feedCacheWriteScope
 import ceui.pixiv.feeds.cache.feedFirstPageCache
-import ceui.pixiv.ui.common.replayNextUrl
 import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -17,25 +20,40 @@ import timber.log.Timber
 import kotlin.time.Duration
 
 /**
- * pixiv nextUrl 翻页协议到 [FeedSource] 的桥接（core 框架本身不认识 pixiv）。
+ * pixiv nextUrl 翻页协议到 [FeedSource] 的桥接。
  *
- * - 第一页走类型安全的 Retrofit suspend 接口；
- * - 后续页复用 [replayNextUrl]（与 common/DataSource 同一份协议实现）；
+ * 住在 `feeds.pixiv` 子包而不是 `feeds` 核心：核心（[FeedViewModel] / [FeedFragment] / [FeedSource]）
+ * 对 pixiv 一无所知，所有协议知识收在本子包，依赖方向恒为 `ui → feeds.pixiv → feeds`。
+ *
+ * - 第一页走类型安全的 Retrofit suspend 接口；后续页复用 [replayNextUrl]；
  * - [mapper] 拿到整个响应做条目映射（在 Default 线程执行，禁止碰 View），并按 [FeedLoadPhase]
  *   区分首屏 / 翻页 / 缓存恢复——插 section 头、按响应字段分组、逐条转换/过滤都表达得出来；
  * - [mapper] 允许携带每页副作用（喂 DiscoveryPool、写推荐浏览历史等），但必须容忍
  *   重复执行：刷新会对第一页重放，空页追载会连续调用——副作用要幂等或重放无害；
  *   **缓存恢复（[FeedLoadPhase.CacheRestore]）时别做「拉取成功」副作用**（拿旧数据重放会污染下游）；
+ * - [nextCursorOf] 是翻页门控钩子，默认取响应的 nextUrl。返回 null 即「到此为止」——
+ *   「只出首页」的货架 / 被设置项门控的列表（如「相关作品无限下滑」关时）用它表达，
+ *   不必为了改一个游标就手抄整套协议（那样会连带丢掉缓存、phase 区分与 main-safe 保证）；
  * - 传了 [cache] 即开「本地优先」：首屏网络成功后落盘，冷启时 [loadFromCache] 秒显旧首屏
- *   （见 [cachedPixivFeedSource] 便捷构造器）；不传则退化为纯网络（现状）；
+ *   （见 [cachedPixivFeedSource]）；不传则退化为纯网络；
  * - 本类实例被 [FeedViewModel] 持有到页面最终销毁：[initialFetch] / [mapper] / [cache] 不要捕获
- *   Fragment / View / Context，需要的值先取成局部变量（零捕获约定见 [feedViewModels] 文档）。
+ *   Fragment / View / Context，需要的值先取成局部变量（零捕获约定见 feedViewModels 文档）。
+ *
+ * [responseClass] 是构造期就交进来的类型令牌（用 [pixivFeedSource] / [cachedPixivFeedSource]
+ * 由 reified 类型参数自动填）。曾经它是个 `@Volatile var`，在首屏 `load(null)` 成功时才被
+ * 运行时类型立起来——于是 `load(cursor != null)` 必须 `requireNotNull` 兜「首页尚未加载」这个
+ * 本不该存在的运行时态，[loadFromCache] 也得专门补一句「先立起 responseClass」以防缓存展示
+ * 期间用户翻页。类型在构造期完全可知，交进来即可让这类时序耦合在编译期消失；顺带修掉
+ * 「缓存按静态类型 [Resp] 序列化、翻页却按运行时类型反序列化」的不一致。
  */
 class PixivFeedSource<Resp : KListShow<*>>(
+    private val responseClass: Class<Resp>,
     private val initialFetch: suspend () -> Resp,
     private val cache: FeedFirstPageCache<Resp>? = null,
     /** 首屏落盘的 scope（fire-and-forget，见 [feedCacheWriteScope]）。单测注入可控 scope 以便等待。 */
     private val cacheWriteScope: CoroutineScope = feedCacheWriteScope,
+    /** 翻页门控：给出下一页游标，null = 到此为止。默认取响应自带的 nextUrl。 */
+    private val nextCursorOf: (Resp) -> String? = { it.nextPageUrl?.takeIf(String::isNotEmpty) },
     private val mapper: (response: Resp, phase: FeedLoadPhase) -> List<FeedItem>,
 ) : FeedSource<String> {
 
@@ -43,23 +61,14 @@ class PixivFeedSource<Resp : KListShow<*>>(
     // Shaft.sGson（见 feedFirstPageCache）。两者都是无自定义适配器的普通 Gson，行为一致，各自独立。
     private val gson = Gson()
 
-    @Volatile
-    private var responseClass: Class<Resp>? = null
-
     override suspend fun load(cursor: String?): FeedPage<String> {
-        val phase: FeedLoadPhase
+        val phase = if (cursor == null) FeedLoadPhase.FirstPage else FeedLoadPhase.NextPage
         val response: Resp = if (cursor == null) {
-            phase = FeedLoadPhase.FirstPage
-            initialFetch().also {
-                @Suppress("UNCHECKED_CAST")
-                responseClass = it.javaClass as Class<Resp>
-            }
+            initialFetch()
         } else {
-            phase = FeedLoadPhase.NextPage
-            val clazz = requireNotNull(responseClass) { "首页尚未加载，不该有 nextUrl" }
-            replayNextUrl(gson, cursor, clazz)
+            replayNextUrl(gson, cursor, responseClass)
         }
-        val nextCursor = response.nextPageUrl?.takeIf { it.isNotEmpty() }
+        val nextCursor = nextCursorOf(response)
         // 条目映射可能不便宜（转换、过滤、逐条建模），挪到后台保住 main-safe 契约
         val items = withContext(Dispatchers.Default) { mapper(response, phase) }
         // 落盘首屏：只在映射出内容时缓存（首页整页被滤空 #729 时不存无用快照，否则每次冷启都
@@ -77,10 +86,6 @@ class PixivFeedSource<Resp : KListShow<*>>(
         val store = cache ?: return null
         val cached: CachedFirstPage<Resp> = store.read() ?: return null
         return try {
-            // 先立起 responseClass：万一缓存展示期间（网络刷新失败留在 Error 而非 Loading）用户翻页，
-            // replayNextUrl 也有类可用（正常路径 loadMore 被 refresh=Loading 守卫挡住，不会走到）
-            @Suppress("UNCHECKED_CAST")
-            responseClass = cached.payload.javaClass as Class<Resp>
             // 计时打点：与 FeedFirstPageCache.read() 的磁盘读取耗时分开看——冷启路径慢的话，
             // 得知道是 IO/反序列化慢还是 mapper（逐条 bean 转换等）慢，两者优化手段完全不同。
             val mapStartNanos = System.nanoTime()
@@ -106,9 +111,30 @@ class PixivFeedSource<Resp : KListShow<*>>(
 }
 
 /**
+ * 纯网络 [PixivFeedSource]：`Resp` 由 [initialFetch] 的返回类型推断，类型令牌自动填。
+ *
+ * 用法（零捕获：先把 Fragment 属性取成局部 val 再进 lambda）：
+ * ```
+ * pixivFeedSource(initialFetch = { Client.appApi.getUserIllusts(userId) }) { resp, _ ->
+ *     resp.displayList.mapNotNull(IllustFeedItem::from)
+ * }
+ * ```
+ * 需要翻页门控（只出首页 / 被设置项关掉后不再翻）时传 [nextCursorOf]。
+ */
+inline fun <reified Resp : KListShow<*>> pixivFeedSource(
+    noinline initialFetch: suspend () -> Resp,
+    noinline nextCursorOf: (Resp) -> String? = { it.nextPageUrl?.takeIf(String::isNotEmpty) },
+    noinline mapper: (response: Resp, phase: FeedLoadPhase) -> List<FeedItem>,
+): PixivFeedSource<Resp> = PixivFeedSource(
+    responseClass = Resp::class.java,
+    initialFetch = initialFetch,
+    nextCursorOf = nextCursorOf,
+    mapper = mapper,
+)
+
+/**
  * 「本地优先」版 [PixivFeedSource] 便捷构造器：给一个稳定 [slot] 即开磁盘缓存。
  *
- * `Resp` 由 [initialFetch] 的返回类型推断，内部据此建 [feedFirstPageCache] 做 gson 序列化。
  * 用法（零捕获：先把 Fragment 属性取成局部 val 再进 lambda）：
  * ```
  * cachedPixivFeedSource("recmd-$apiType",
@@ -120,9 +146,12 @@ inline fun <reified Resp : KListShow<*>> cachedPixivFeedSource(
     slot: String,
     maxAge: Duration = DEFAULT_FEED_CACHE_MAX_AGE,
     noinline initialFetch: suspend () -> Resp,
+    noinline nextCursorOf: (Resp) -> String? = { it.nextPageUrl?.takeIf(String::isNotEmpty) },
     noinline mapper: (response: Resp, phase: FeedLoadPhase) -> List<FeedItem>,
 ): PixivFeedSource<Resp> = PixivFeedSource(
+    responseClass = Resp::class.java,
     initialFetch = initialFetch,
     cache = feedFirstPageCache(slot, Resp::class.java, maxAge),
+    nextCursorOf = nextCursorOf,
     mapper = mapper,
 )

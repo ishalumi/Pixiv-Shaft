@@ -11,7 +11,7 @@ import ceui.loxia.NotificationItem
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.utils.ppppx
@@ -24,7 +24,7 @@ import ceui.pixiv.utils.ppppx
 class NotificationListFragment : FeedFragment() {
 
     override val feedViewModel by feedViewModels<String> {
-        PixivFeedSource(initialFetch = { Client.appApi.getNotificationList() }) { resp, _ ->
+        pixivFeedSource(initialFetch = { Client.appApi.getNotificationList() }) { resp, _ ->
             resp.displayList.map { NotificationFeedItem(it) }
         }
     }

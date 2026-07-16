@@ -14,7 +14,7 @@ import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedSkeletonView
 import ceui.pixiv.feeds.FeedTimelineSkeletonView
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedFragment
 import ceui.pixiv.ui.common.IllustFeedItem
@@ -42,7 +42,7 @@ class FollowingIllustFeedFragment : IllustFeedFragment() {
     override val feedViewModel by feedViewModels {
         // 取成局部 val:捕获的是 VM 实例(与 FeedViewModel 同 store、同寿命),不是 Fragment
         val holder = restrictViewModel
-        PixivFeedSource({ Client.appApi.getFollowingIllusts(holder.restrict) }) { resp, _ ->
+        pixivFeedSource({ Client.appApi.getFollowingIllusts(holder.restrict) }) { resp, _ ->
             resp.displayList.mapNotNull { IllustFeedItem.from(it) }
         }
     }

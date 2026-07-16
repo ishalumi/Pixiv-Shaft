@@ -1,9 +1,6 @@
 package ceui.pixiv.ui.common
 
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -72,27 +69,15 @@ abstract class NovelFeedFragment(
 
     abstract override val feedViewModel: FeedViewModel<String>
 
-    /** 其它列表/详情页收藏某小说 → 广播回流本列表(双向同步,对齐 legacy NAdapter 的 CommonReceiver)。 */
-    private val likedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val extras = intent?.extras ?: return
-            val novelId = extras.getInt(Params.ID).toLong()
-            val isLiked = extras.getBoolean(Params.IS_LIKED)
-            feedViewModel.updateItems(NovelFeedItem::class.java) { item ->
-                if (item.novel.id == novelId) item.withBookmarked(isLiked) else item
-            }
-        }
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        LocalBroadcastManager.getInstance(requireContext())
-            .registerReceiver(likedReceiver, IntentFilter(Params.LIKED_NOVEL))
-    }
-
-    override fun onDestroyView() {
-        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(likedReceiver)
-        super.onDestroyView()
+        // 其它列表/详情页收藏某小说 → 广播回流本列表(双向同步,对齐 legacy NAdapter 的 CommonReceiver)
+        feedLikeSync<NovelFeedItem>(
+            feedViewModel = feedViewModel,
+            action = Params.LIKED_NOVEL,
+            idOf = { it.novel.id },
+            transform = { item, liked -> item.withBookmarked(liked) },
+        ).bind(requireContext(), viewLifecycleOwner)
     }
 
     override fun onListReady(listView: RecyclerView) {

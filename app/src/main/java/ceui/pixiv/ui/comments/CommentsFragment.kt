@@ -32,7 +32,7 @@ import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedUiState
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.session.SessionManager
 import ceui.pixiv.ui.detail.showV3Menu
@@ -71,7 +71,7 @@ class CommentsFragment : FeedFragment(R.layout.fragment_comments_feed), CommentA
         val objectId = args.objectId
         val objectType = args.objectType
         val illustArthurId = args.objectArthurId
-        PixivFeedSource(
+        pixivFeedSource(
             initialFetch = {
                 if (objectType == ObjectType.ILLUST) {
                     Client.appApi.getIllustComments(objectId)

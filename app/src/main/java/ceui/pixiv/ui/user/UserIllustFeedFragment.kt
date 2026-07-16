@@ -24,7 +24,7 @@ import ceui.loxia.Client
 import ceui.loxia.Illust
 import ceui.pixiv.db.queue.WorkType
 import ceui.pixiv.feeds.FeedItem
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.bulk.startAuthorWorksBulkDownload
 import ceui.pixiv.ui.common.IllustFeedFragment
@@ -106,7 +106,7 @@ open class UserIllustFeedFragment : IllustFeedFragment() {
         val uid = userId.toLong()
         val offset = initialOffset
         val type = workType
-        PixivFeedSource({
+        pixivFeedSource({
             Client.appApi.getUserCreatedIllusts(uid, type, offset.takeIf { it > 0 })
         }) { resp, _ -> mapUserIllustPage(resp.displayList) }
     }

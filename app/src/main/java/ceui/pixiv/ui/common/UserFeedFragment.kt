@@ -1,13 +1,9 @@
 package ceui.pixiv.ui.common
 
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.LayoutRes
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
@@ -42,27 +38,15 @@ abstract class UserFeedFragment(
     @LayoutRes contentLayoutId: Int = R.layout.fragment_feed,
 ) : FeedFragment(contentLayoutId) {
 
-    /** 关注态跨列表同步：其它页/本页关注某用户 → LIKED_USER 广播回流。 */
-    private val likedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            val extras = intent?.extras ?: return
-            val userId = extras.getInt(Params.ID).toLong()
-            val followed = extras.getBoolean(Params.IS_LIKED)
-            feedViewModel.updateItems(UserFeedItem::class.java) { item ->
-                if (item.user?.id == userId) item.withFollowed(followed) else item
-            }
-        }
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        LocalBroadcastManager.getInstance(requireContext())
-            .registerReceiver(likedReceiver, IntentFilter(Params.LIKED_USER))
-    }
-
-    override fun onDestroyView() {
-        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(likedReceiver)
-        super.onDestroyView()
+        // 关注态跨列表同步：其它页/本页关注某用户 → LIKED_USER 广播回流
+        feedLikeSync<UserFeedItem>(
+            feedViewModel = feedViewModel,
+            action = Params.LIKED_USER,
+            idOf = { it.user?.id },
+            transform = { item, followed -> item.withFollowed(followed) },
+        ).bind(requireContext(), viewLifecycleOwner)
     }
 
     override fun onListReady(listView: RecyclerView) {

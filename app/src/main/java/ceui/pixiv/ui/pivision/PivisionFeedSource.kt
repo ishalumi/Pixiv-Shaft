@@ -5,8 +5,8 @@ import ceui.loxia.Client
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedPage
 import ceui.pixiv.feeds.FeedSource
-import ceui.pixiv.feeds.PixivFeedSource
-import ceui.pixiv.feeds.cachedPixivFeedSource
+import ceui.pixiv.feeds.pixiv.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.cachedPixivFeedSource
 
 /** pixivision 分类。发现页货架与特辑页的 illust tab 共用 [CATEGORY_ILLUST]（同一份本地优先缓存）。 */
 const val PIVISION_CATEGORY_ILLUST = "illust"

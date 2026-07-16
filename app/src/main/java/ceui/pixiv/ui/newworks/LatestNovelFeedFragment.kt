@@ -3,7 +3,7 @@ package ceui.pixiv.ui.newworks
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.pixiv.feeds.FeedItem
-import ceui.pixiv.feeds.cachedPixivFeedSource
+import ceui.pixiv.feeds.pixiv.cachedPixivFeedSource
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.NovelFeedFragment
 import ceui.pixiv.ui.common.NovelFeedItem

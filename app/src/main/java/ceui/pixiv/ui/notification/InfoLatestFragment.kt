@@ -15,7 +15,7 @@ import ceui.loxia.InfoItem
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.utils.ppppx
@@ -29,7 +29,7 @@ import ceui.pixiv.utils.ppppx
 class InfoLatestFragment : FeedFragment() {
 
     override val feedViewModel by feedViewModels<String> {
-        PixivFeedSource(initialFetch = { Client.appApi.getInfoLatest() }) { resp, _ ->
+        pixivFeedSource(initialFetch = { Client.appApi.getInfoLatest() }) { resp, _ ->
             resp.displayList.flatMap { category ->
                 listOf(InfoCategoryHeaderFeedItem(category, showMore = true)) +
                     category.info_list.map { InfoEntryFeedItem(it) }

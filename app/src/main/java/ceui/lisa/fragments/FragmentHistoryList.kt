@@ -10,14 +10,15 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
+import ceui.lisa.activities.Shaft
 import ceui.lisa.activities.UActivity
 import ceui.lisa.activities.VActivity
 import ceui.lisa.core.Container
 import ceui.lisa.core.PageData
 import ceui.lisa.database.IllustHistoryEntity
+import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Params
 import ceui.pixiv.feeds.FeedFragment
@@ -62,8 +63,12 @@ class FragmentHistoryList : FeedFragment(), SelectableHistoryTab {
         listOf(historyIllustRenderer(), historyNovelRenderer())
 
     override fun onCreateLayoutManager(): RecyclerView.LayoutManager {
-        val spanCount = if (historyType == TYPE_NOVEL) 1 else 2
-        return StaggeredGridLayoutManager(spanCount, StaggeredGridLayoutManager.VERTICAL)
+        // 插画历史跟随用户「每行几列」设置（与全仓插画瀑布流同源，见 IllustFeedFragment）——
+        // 曾经这里硬编码成 2，是唯一一条自成一派、无视该设置的插画列表。小说历史是竖向单列卡。
+        // 用 StaggeredManager 而不是裸 StaggeredGridLayoutManager：后者存在的理由就是吞掉
+        // AOSP predictive-layout 在 fling + 插页同帧时的内部崩溃。
+        val spanCount = if (historyType == TYPE_NOVEL) 1 else Shaft.sSettings.lineCount
+        return StaggeredManager(spanCount, RecyclerView.VERTICAL)
     }
 
     override fun onListReady(listView: RecyclerView) {

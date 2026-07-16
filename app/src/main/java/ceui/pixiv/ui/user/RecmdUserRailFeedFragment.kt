@@ -20,7 +20,7 @@ import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedSkeletonView
 import ceui.pixiv.feeds.FeedUserRailSkeletonView
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.utils.setOnClick
@@ -44,7 +44,7 @@ class RecmdUserRailFeedFragment : FeedFragment() {
     override val loadMoreEnabled: Boolean = false
 
     override val feedViewModel by feedViewModels {
-        PixivFeedSource({ Client.appApi.recommendedUsers() }) { resp, _ ->
+        pixivFeedSource({ Client.appApi.recommendedUsers() }) { resp, _ ->
             mapUsers(resp.displayList)
         }
     }

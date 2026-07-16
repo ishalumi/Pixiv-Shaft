@@ -20,7 +20,7 @@ import ceui.loxia.TrendingTag
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.IllustFeedItem
@@ -49,7 +49,7 @@ class HotTagsFeedFragment : FeedFragment() {
     override val feedViewModel by feedViewModels(autoLoad = false) {
         // 零捕获约定（见 feedViewModels 文档）：contentType 取成局部值，不把 Fragment 钉进 VM
         val contentType = contentType
-        PixivFeedSource({ Client.appApi.trendingTags(contentType) }) { resp, _ ->
+        pixivFeedSource({ Client.appApi.trendingTags(contentType) }) { resp, _ ->
             resp.trend_tags.mapIndexed { index, trendingTag ->
                 // 详情页 / Glide 走 legacy IllustsBean，映射线程一次性转好
                 val bean = trendingTag.illust?.let { IllustFeedItem.beanOf(it) }

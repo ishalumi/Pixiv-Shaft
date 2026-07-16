@@ -331,7 +331,7 @@ inline fun <reified T : FeedItem> FeedViewModel<*>.updateItems(noinline transfor
  * override val feedViewModel by feedViewModels {
  *     // 先把 Fragment 属性取成局部值再给 lambda 用（零捕获约定，见下）
  *     val userId = userId
- *     PixivFeedSource({ Client.appApi.getUserIllusts(userId) }) { resp, _ -> ... }
+ *     pixivFeedSource({ Client.appApi.getUserIllusts(userId) }) { resp, _ -> ... }
  * }
  * ```
  *

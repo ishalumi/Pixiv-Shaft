@@ -12,7 +12,7 @@ import ceui.loxia.Client
 import ceui.pixiv.feeds.FeedFragment
 import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedRenderer
-import ceui.pixiv.feeds.PixivFeedSource
+import ceui.pixiv.feeds.pixiv.pixivFeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.setUpToolbar
@@ -41,7 +41,7 @@ class InfoCategoryListFragment : FeedFragment(R.layout.fragment_toolbar_feed) {
     override val feedViewModel by feedViewModels<String> {
         // 零捕获约定:先取成局部 val 再给 PixivFeedSource 用,不捕获 Fragment 本身。
         val cid = categoryId
-        PixivFeedSource(initialFetch = { Client.appApi.getInfoList(cid) }) { resp, _ ->
+        pixivFeedSource(initialFetch = { Client.appApi.getInfoList(cid) }) { resp, _ ->
             resp.displayList.map { InfoEntryFeedItem(it) }
         }
     }
