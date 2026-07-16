@@ -129,6 +129,11 @@ class IllustFeedDetailSync(
  * AppLevelViewModel（对齐 legacy NetListFragment 每页 tidyAppViewModel，
  * UActivity/UserActivityV3 的关注按钮消费它）。
  *
+ * **只喂真正下行的网络数据**：本地优先恢复的那一代（[FeedUiState.itemsFromCache]）整代跳过 ——
+ * 合池是「拉取成功」的副作用，拿磁盘快照重放会把更新的收藏 / 关注态盖回去（详见 collect 内注释）。
+ * 这条与 [ceui.pixiv.feeds.FeedLoadPhase.CacheRestore] 是同一件事的两半：phase 管住 [FeedSource]
+ * 边界内的 mapper 副作用，本状态字段管住 Fragment 层这些靠 collect 驱动的消费方。
+ *
  * 按 bean 实例去重（[IllustFeedSyncViewModel.pooledBeans]）：同一实例只合一次，
  * 刷新产出的同 id 新实例携带更新的服务端数据，必须重新合入——按 id 永久去重会把它挡在池外。
  *
@@ -151,6 +156,20 @@ class IllustFeedPoolSync(
                 uiState.collect { state ->
                     // 只有条目列表本身换了才扫描；纯加载态变化（append Loading/Idle）直接跳过
                     if (state.items === scannedItems) return@collect
+                    // 本地优先恢复的那一代**绝不喂池**：磁盘快照最长
+                    // [ceui.pixiv.feeds.cache.DEFAULT_FEED_CACHE_MAX_AGE]，里面的 is_bookmarked=false /
+                    // is_followed=false / total_bookmarks 全是「正经值」而非空值，而 ObjectPool 的
+                    // mergeKeepingExisting 只把 null / 空串 / 空数组当空 —— 旧值会原样盖掉池里更新的
+                    // 收藏态、收藏数；AppLevelViewModel 的默认 method 也只在传入 FOLLOWED 时早退，
+                    // 旧的 NOT_FOLLOW 会把刚点的「已关注」打回。#897 的「只补字段不降级」不变量挡不住
+                    // 这类污染：快照存的是完整 bean，坏的是新鲜度不是完整度。
+                    //
+                    // 门控读 itemsFromCache 而**不是** showingCache：后者刷新失败时为 false，而屏幕上
+                    // 那一代仍是快照，读它会恰好在离线（本地优先最该起作用的场景）放行陈旧 bean。
+                    //
+                    // 这里 return 时不推进扫描游标，所以网络那一代落地时（structureVersion 已自增）
+                    // 照常全量重扫，缓存代跳过的条目会被新鲜实例补上。
+                    if (state.itemsFromCache) return@collect
                     val canScanTailOnly = state.structureVersion == scannedVersion &&
                             state.items.size >= scannedSize
                     val itemsToScan = if (canScanTailOnly) {

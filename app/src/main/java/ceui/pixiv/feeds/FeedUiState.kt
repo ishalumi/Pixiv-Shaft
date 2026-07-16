@@ -19,13 +19,18 @@ data class FeedUiState(
     /** 是否成功完成过至少一次刷新，用于区分「首屏加载」和「后续刷新」。 */
     val hasLoadedOnce: Boolean = false,
     /**
-     * 当前展示的是磁盘缓存的旧首屏、且网络刷新仍在进行（本地优先）。
-     * 刷新结束即转 false：成功=已被新数据替换；失败=不再是「更新中」（内容仍在，靠
-     * `refresh is Error && items 非空` 表达「显示旧数据 + 刷新失败」）。
-     * 默认无额外视觉（render 靠 hasLoadedOnce + refresh=Loading 已得到「内容 + 顶部刷新圈」），
-     * 想显式加「更新中」胶囊的页面直接绑它即可（严格等价「显示缓存 ∧ 刷新中」，不会误亮）。
+     * 当前这一代 [items] 是 [FeedSource.loadFromCache] 恢复的磁盘快照（本地优先），而不是刚下行的
+     * 网络数据。**只在整代提交时翻**：缓存首屏置 true，网络首屏置 false；刷新失败不动它——
+     * 屏幕上那一代**仍然是**快照，只是不再「更新中」了。
+     *
+     * 这是个关于**数据来源**的事实，不是 UI 结论（「是否显示更新中」是它的派生值，见 [showingCache]）。
+     * 需要它的不只是 UI：快照最长 [ceui.pixiv.feeds.cache.DEFAULT_FEED_CACHE_MAX_AGE]，
+     * 拿旧数据重放「拉取成功」的副作用会污染下游。[FeedLoadPhase.CacheRestore] 只覆盖到
+     * [FeedSource] 边界内的 mapper；住在 Fragment 层、靠 collect 本状态驱动的副作用消费方
+     * （[ceui.pixiv.ui.common.IllustFeedPoolSync] 喂 ObjectPool / 关注态）拿不到 phase，只能读这个字段。
+     * 新增此类消费方时务必门控它，否则陈旧 bean 会把更新的收藏 / 关注态盖回去。
      */
-    val showingCache: Boolean = false,
+    val itemsFromCache: Boolean = false,
     /**
      * 结构版本号：items 发生「非纯追加」变化（refresh 整代替换、[FeedViewModel.mutateItems]
      * 的默认结构性编辑）时自增；[FeedViewModel.loadMore] / [FeedViewModel.appendItems] 的纯尾部
@@ -55,6 +60,20 @@ data class FeedUiState(
      */
     val refreshGeneration: Int = 0,
 ) {
+
+    /**
+     * 正在展示磁盘缓存的旧首屏、且网络刷新仍在进行（本地优先的「更新中」）。
+     *
+     * 派生自 [itemsFromCache] ∧ 刷新中，不是存储字段：刷新一旦停下（成功=已被新数据替换，
+     * 此时 itemsFromCache 已翻 false；失败=内容仍在但不再是「更新中」），它自动为 false。
+     * 默认无额外视觉（render 靠 hasLoadedOnce + refresh=Loading 已得到「内容 + 顶部刷新圈」），
+     * 想显式加「更新中」胶囊的页面直接绑它即可，不会误亮。
+     *
+     * ⚠️ 副作用门控**不要**读这个（要读 [itemsFromCache]）：刷新失败时它为 false，而屏幕上那一代
+     * 仍是快照——拿它当「这批数据新鲜吗」的判据，恰好会在离线时把陈旧 bean 放行。
+     */
+    val showingCache: Boolean
+        get() = itemsFromCache && refresh is LoadState.Loading
 
     /** 首屏还没出过数据时的全屏加载态。 */
     val showFullscreenLoading: Boolean

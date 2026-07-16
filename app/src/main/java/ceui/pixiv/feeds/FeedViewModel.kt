@@ -110,7 +110,7 @@ class FeedViewModel<Cursor : Any>(
                         append = LoadState.Idle,
                         reachedEnd = cached.nextCursor == null,
                         hasLoadedOnce = true,
-                        showingCache = true,
+                        itemsFromCache = true,
                         // 整代替换：磁盘快照的条目实例与之前任何一代都无关
                         structureVersion = it.structureVersion + 1,
                         refreshGeneration = it.refreshGeneration + 1,
@@ -151,7 +151,7 @@ class FeedViewModel<Cursor : Any>(
                         refresh = LoadState.Idle,
                         reachedEnd = freshCursor == null || hopCapExhausted,
                         hasLoadedOnce = true,
-                        showingCache = false,
+                        itemsFromCache = false,
                         // 整代替换：新一代网络首屏与屏幕上的旧条目实例无关
                         structureVersion = it.structureVersion + 1,
                         refreshGeneration = it.refreshGeneration + 1,
@@ -163,9 +163,14 @@ class FeedViewModel<Cursor : Any>(
                 Timber.e(ex)
                 // 已用缓存兜底（items 非空）时：不覆盖内容，只置 refresh=Error，由 render 的
                 // 「有内容刷新失败」一次性 Toast 提示；showFullscreenError 要求 items 为空，故缓存内容
-                // 不被顶成全屏错误——离线冷启也能继续浏览上次的首屏。showingCache 归 false：它的语义是
-                //「显示缓存且刷新仍在进行」，刷新已停在 Error 就不再成立（内容仍在，只是不再是「更新中」）。
-                _uiState.update { it.copy(refresh = LoadState.Error(ex), showingCache = false) }
+                // 不被顶成全屏错误——离线冷启也能继续浏览上次的首屏。
+                //
+                // [FeedUiState.itemsFromCache] 刻意**不动**：屏幕上这一代仍然是磁盘快照，只是不再
+                // 「更新中」了。「显示缓存且刷新仍在进行」由派生的 [FeedUiState.showingCache] 表达，
+                // refresh 停在 Error 它自然为 false，无需在此手动归零——手动归零会把「这一代来自缓存」
+                // 这个事实抹掉，而副作用消费方（IllustFeedPoolSync 喂 ObjectPool / 关注态）正是靠它
+                // 门控的，抹掉就会在离线时把陈旧 bean 当新鲜数据放行、把更新的收藏 / 关注态盖回去。
+                _uiState.update { it.copy(refresh = LoadState.Error(ex)) }
             }
         }
     }

@@ -547,6 +547,55 @@ class FeedViewModelTest {
     }
 
     @Test
+    fun `itemsFromCache marks only the cache generation`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10), Row(11))),
+            cachedPage = FeedPage(listOf(Row(1), Row(2)), 1),
+            networkGate = gate,
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        // 缓存那一代：条目来自磁盘快照。副作用消费方（IllustFeedPoolSync 喂 ObjectPool / 关注态）
+        // 靠这个字段整代跳过——重放旧快照会把用户刚点的收藏 / 关注盖回去。
+        assertTrue(vm.uiState.value.itemsFromCache)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        // 网络那一代是真正下行的新鲜数据，门放开
+        assertFalse(vm.uiState.value.itemsFromCache)
+    }
+
+    @Test
+    fun `refresh failure keeps itemsFromCache so stale beans stay gated`() = runTest(dispatcher) {
+        // 回归测：itemsFromCache 曾是 showingCache 那个存储字段，刷新失败时被手动归零，而 items
+        // 仍是快照那一代 —— 消费方于是把陈旧 bean 当新鲜数据放行，恰好在离线（本地优先最该起作用
+        // 的场景）把收藏 / 关注态盖回去。「这一代来自哪」是事实（itemsFromCache），「是否更新中」
+        // 是结论（showingCache）：刷新停在 Error 只该让后者变 false。
+        val source = FakeCacheableSource(
+            networkPages = listOf(listOf(Row(10))),
+            cachedPage = FeedPage(listOf(Row(1), Row(2)), 1),
+            failNetworkRefresh = true,
+        )
+        val vm = FeedViewModel(source)
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(listOf(Row(1), Row(2)), state.items) // 屏幕上这一代仍是快照
+        assertTrue(state.refresh is LoadState.Error)
+        assertTrue(state.itemsFromCache) // 事实不变：这批数据依旧来自磁盘
+        assertFalse(state.showingCache) // 结论变了：不再是「更新中」
+
+        // 网络恢复后下拉刷新：新一代是网络数据，门放开
+        source.failNetworkRefresh = false
+        vm.refresh()
+        advanceUntilIdle()
+        assertEquals(listOf(Row(10)), vm.uiState.value.items)
+        assertFalse(vm.uiState.value.itemsFromCache)
+    }
+
+    @Test
     fun `cache restore failure falls through to network without crashing`() = runTest(dispatcher) {
         // loadFromCache（跑用户 mapper）在恢复态抛错，绝不能崩：必须被吞、照常走网络首屏
         val source = object : FeedSource<Int> {
