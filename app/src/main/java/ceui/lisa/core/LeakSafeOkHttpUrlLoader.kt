@@ -16,6 +16,8 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import java.io.IOException
 import java.io.InputStream
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 /**
  * 官方 okhttp3-integration `OkHttpUrlLoader` 的替代品，修复其 fetcher 的连接泄漏
@@ -62,13 +64,17 @@ class LeakSafeOkHttpUrlLoader(private val client: Call.Factory) : ModelLoader<Gl
 /**
  * 与上游 OkHttpStreamFetcher 行为对齐（含 [ContentLengthInputStream] 截断检测），
  * 仅额外做两件事：
- * - [cancel] 关闭已到达的 stream/body（见 [LeakSafeOkHttpUrlLoader] 的 bug 链说明）；
+ * - [cancel] 关闭已到达的 stream/body（见 [LeakSafeOkHttpUrlLoader] 的 bug 链说明），
+ *   关流在 [cleanupExecutor] 后台线程做——[cancel] 由 Glide.clear() 在主线程触发，
+ *   而关 OkHttp body 会读/写 socket（见 [cancel]），主线程直接关会 NetworkOnMainThreadException；
  * - cancel 之后才送达的响应直接关掉并按失败上报，不再把流交给已取消的引擎。
  */
 class LeakSafeOkHttpStreamFetcher(
     private val client: Call.Factory,
     private val url: String,
     private val headers: Map<String, String>,
+    // 关流需读/写 socket，只能后台执行；单测注入同线程 executor 保持关闭后可立即断言。
+    private val cleanupExecutor: Executor = CLEANUP_EXECUTOR,
 ) : DataFetcher<InputStream>, okhttp3.Callback {
 
     private val lock = Any()
@@ -137,11 +143,16 @@ class LeakSafeOkHttpStreamFetcher(
 
     override fun cancel() {
         isCancelled = true
+        // call.cancel() 是纯粹的 socket close（HTTP/2 走 closeLater），不触发主线程网络守卫，留在原线程。
         call?.cancel()
         // 上游遗漏的关键一步：响应已完整到达后取消，call.cancel() 是 no-op，
-        // 暂存在 SourceGenerator.dataToCache 里的流再无人问津 —— 就地关闭归还连接。
-        synchronized(lock) {
-            closeLocked()
+        // 暂存在 SourceGenerator.dataToCache 里的流再无人问津 —— 关闭它归还连接。
+        // 但关 body 会 drain 剩余字节（HTTP/1）或发 RST_STREAM（HTTP/2）以复用/释放连接，都是 socket I/O；
+        // cancel() 由 Glide.clear() 在主线程调用，直接关会抛 NetworkOnMainThreadException，故挪后台关。
+        cleanupExecutor.execute {
+            synchronized(lock) {
+                closeLocked()
+            }
         }
     }
 
@@ -159,4 +170,14 @@ class LeakSafeOkHttpStreamFetcher(
     override fun getDataClass(): Class<InputStream> = InputStream::class.java
 
     override fun getDataSource(): DataSource = DataSource.REMOTE
+
+    companion object {
+        /**
+         * cancel() 的后台关流线程池：cached 池吸收 fling 时的取消风暴、空闲即回收，
+         * daemon 线程不拖住 JVM 退出。全 app 共享一份（loader 无状态、每次加载新建 fetcher）。
+         */
+        private val CLEANUP_EXECUTOR: Executor = Executors.newCachedThreadPool { runnable ->
+            Thread(runnable, "glide-cancel-cleanup").apply { isDaemon = true }
+        }
+    }
 }

@@ -14,6 +14,7 @@ import org.junit.Before
 import org.junit.Test
 import java.io.InputStream
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
@@ -46,6 +47,8 @@ class LeakSafeOkHttpStreamFetcherTest {
             client,
             server.url("/img/test.jpg").toString(),
             mapOf("Referer" to "https://app-api.pixiv.net/"),
+            // cancel() 现在把关流挪到后台线程；单测用同线程 executor 保持关闭后可立即断言
+            Executor { it.run() },
         )
     }
 
@@ -105,6 +108,37 @@ class LeakSafeOkHttpStreamFetcherTest {
             "cancel 后流必须已被关闭（读取应抛异常），否则连接泄漏",
             readAfterCancel.isFailure,
         )
+    }
+
+    /**
+     * 回归 NetworkOnMainThreadException：cancel() 关 OkHttp body 会读/写 socket，必须挪出调用线程
+     * （生产里 cancel() 由 Glide.clear() 在主线程触发）。这里用「只捕获不执行」的 executor 验证
+     * cancel() 没有在调用线程同步关流，且任务真正跑起来后流才被关闭。
+     */
+    @Test
+    fun `取消时关流交给 executor - 不在调用线程同步关闭`() {
+        server.enqueue(MockResponse().setBody("0123456789"))
+        var pending: Runnable? = null
+        val fetcher = LeakSafeOkHttpStreamFetcher(
+            client,
+            server.url("/img/test.jpg").toString(),
+            emptyMap(),
+            Executor { pending = it },
+        )
+        val callback = ParkingCallback()
+
+        fetcher.loadData(Priority.NORMAL, callback)
+        assertTrue(callback.ready.await(5, TimeUnit.SECONDS))
+        val stream = checkNotNull(callback.stream)
+
+        fetcher.cancel()
+        // 关流被提交给 executor 但尚未执行 —— 调用线程（主线程语义）没有碰 socket
+        assertNotNull("cancel() 必须把关流提交给 executor，不能在调用线程同步关闭", pending)
+        assertTrue("executor 未执行前流不应被关闭", runCatching { stream.read() }.isSuccess)
+
+        // 后台任务真正执行后，流才关闭
+        pending!!.run()
+        assertTrue("关流任务执行后流应已关闭", runCatching { stream.read() }.isFailure)
     }
 
     @Test
