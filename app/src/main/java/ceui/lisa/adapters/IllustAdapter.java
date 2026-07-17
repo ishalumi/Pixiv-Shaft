@@ -89,6 +89,16 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
     private volatile boolean localScanRunning = false;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    /**
+     * 页码 -> 已解析的整宽大图高度(px)。多 P 的第 2 张起、以及无尺寸兜底的首图,高度不是绑定时
+     * 就能算出的:它由 {@link UniformScaleTransformation#onResourceReady} 在图片解码完成后异步
+     * 写进 layoutParams。滑到底再惯性滑回顶时,外层瀑布流会回收又重绑这些页;若重绑时不先把高度
+     * 摆好,条目会先按「复用来的旧高 / 布局默认 240dp」量一次,图一到又跳成自然高 → 顶部大图上下
+     * 抖动(见反馈录屏)。这里在图片就绪时记住每页的解析高度,重绑时立刻套用,让首帧就量在终值上,
+     * 消除这一跳。仅对 changeSize 页(异步定高)生效;首图带有效尺寸时高度本就确定,不进此表。
+     */
+    private final Map<Integer, Integer> resolvedPageHeight = new ConcurrentHashMap<>();
+
     public IllustAdapter(FragmentActivity activity, Fragment fragment, IllustsBean illustsBean, int maxHeight, boolean isForceOriginal) {
         Common.showLog("IllustAdapter maxHeight " + maxHeight);
         mActivity = activity;
@@ -119,6 +129,7 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         released = true;
         pageStatusListener = null;
         localPagesChangedListener = null;
+        resolvedPageHeight.clear();
         mainHandler.removeCallbacksAndMessages(null);
     }
 
@@ -248,7 +259,11 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             String branchTag;
             if (!hasValidDims) {
                 scaleType = ImageView.ScaleType.FIT_CENTER;
-                targetHeight = maxHeight > 0 ? maxHeight : holder.baseBind.illust.getLayoutParams().height;
+                // 尺寸未知时高度靠图片就绪后异步定;重绑先套用上次解析高,避免「兜底高→自然高」那一跳。
+                Integer cachedHeight = resolvedPageHeight.get(position);
+                targetHeight = (cachedHeight != null && cachedHeight > 0)
+                        ? cachedHeight
+                        : (maxHeight > 0 ? maxHeight : holder.baseBind.illust.getLayoutParams().height);
                 changeSize = true;
                 branchTag = "fallback(noValidDims)";
             } else {
@@ -282,9 +297,19 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             holder.baseBind.illust.setLayoutParams(params);
             loadIllust(holder, position, changeSize);
         } else {
+            // 多 P 第 2 张起:高度由图片就绪后异步定(changeSize=true)。回收重绑时先把上次解析出的
+            // 高度摆好,首帧就量在终值上——否则会先按复用来的旧高布局、图一到再跳,顶部大图上下抖动。
+            Integer cachedHeight = resolvedPageHeight.get(position);
+            if (cachedHeight != null && cachedHeight > 0) {
+                ViewGroup.LayoutParams params = holder.baseBind.illust.getLayoutParams();
+                if (params.height != cachedHeight) {
+                    params.height = cachedHeight;
+                    holder.baseBind.illust.setLayoutParams(params);
+                }
+            }
             Timber.tag("V3MultiP").d(
-                "[IllustAdapter.bind pos=%d] non-first page, illustId=%d",
-                position, allIllust.getId()
+                "[IllustAdapter.bind pos=%d] non-first page, illustId=%d, cachedHeight=%s",
+                position, allIllust.getId(), cachedHeight
             );
             holder.baseBind.illust.setScaleType(ImageView.ScaleType.CENTER_CROP);
             loadIllust(holder, position, true);
@@ -385,11 +410,14 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                             Object model, String guardUrl, boolean isFinal) {
         String shortUrl = guardUrl.substring(guardUrl.lastIndexOf('/') + 1);
         RequestManager requestManager = mFragment != null ? Glide.with(mFragment) : Glide.with(mContext);
+        // 底层 large 不做 crossFade:它是「秒显占位」,命中内存/磁盘缓存时本应瞬间出图。带 crossFade
+        // 时,滑到底再滑回顶、这页被回收清图后重绑,large 会从灰底 loading_placeholder 淡入 → 一闪。
+        // 去掉过渡让缓存命中直接贴图,零闪;真·原图仍由 renderOverlay 的 crossFade 淡入盖上,观感不减。
         requestManager
                 .asBitmap()
                 .load(model)
                 .transform(new LargeBitmapScaleTransformer())
-                .transition(BitmapTransitionOptions.withCrossFade())
+                .dontAnimate()
                 .listener(new RequestListener<Bitmap>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object m, Target<Bitmap> target, boolean isFirstResource) {
@@ -410,10 +438,31 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         if (isFinal) {
                             holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
                         }
+                        rememberResolvedHeight(holder, position, changeSize, resource);
                         return false;
                     }
                 })
                 .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
+    }
+
+    /**
+     * 记住 changeSize 页图片就绪后被 {@link UniformScaleTransformation} 定下的高度,供下次回收重绑时
+     * 首帧直接套用(见 {@link #resolvedPageHeight})。用与 transformer 同一套公式(以 ImageView 实测宽
+     * 为基准等比缩放),量得的值即它即将写入 layoutParams 的值 → 重绑不再有「旧高→自然高」的跳。
+     */
+    private void rememberResolvedHeight(ViewHolder<RecyIllustDetailBinding> holder, int position,
+                                        boolean changeSize, Bitmap resource) {
+        if (!changeSize || resource == null || resource.getWidth() <= 0) {
+            return;
+        }
+        int viewWidth = holder.baseBind.illust.getWidth();
+        if (viewWidth <= 0) {
+            viewWidth = imageSize; // 尚未测量时退回屏宽(与 UniformScaleTransformation 的取值一致)
+        }
+        int resolved = (int) ((long) resource.getHeight() * viewWidth / resource.getWidth());
+        if (resolved > 0) {
+            resolvedPageHeight.put(position, resolved);
+        }
     }
 
     /**
@@ -484,11 +533,12 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         holder.baseBind.reload.setOnClickListener(v -> loadIllust(holder, position, changeSize));
 
         RequestManager requestManager = mFragment != null ? Glide.with(mFragment) : Glide.with(mContext);
+        // 本地文件同样去掉 crossFade:回收重绑时直接贴图,不从灰底淡入(与 renderBase 一致,消除一闪)。
         requestManager
                 .asBitmap()
                 .load(localUri)
                 .transform(new LargeBitmapScaleTransformer())
-                .transition(BitmapTransitionOptions.withCrossFade())
+                .dontAnimate()
                 .listener(new RequestListener<Bitmap>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Bitmap> target, boolean isFirstResource) {
@@ -517,6 +567,7 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
                         holder.baseBind.reload.setVisibility(View.GONE);
                         holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+                        rememberResolvedHeight(holder, position, changeSize, resource);
                         return false;
                     }
                 })
