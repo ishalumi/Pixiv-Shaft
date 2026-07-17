@@ -4,113 +4,186 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.graphics.Rect
 import android.os.Bundle
 import android.view.View
 import android.widget.FrameLayout
+import androidx.annotation.ColorInt
+import androidx.annotation.DrawableRes
 import androidx.core.view.ViewCompat
-import androidx.core.view.isVisible
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import androidx.viewbinding.ViewBinding
 import ceui.lisa.R
 import ceui.lisa.activities.Shaft
-import ceui.lisa.adapters.IAdapter
+import ceui.lisa.activities.TemplateActivity
+import ceui.lisa.adapters.IllustAdapter
+import ceui.lisa.adapters.ViewHolder
 import ceui.lisa.databinding.FragmentArtworkV3Binding
+import ceui.lisa.databinding.RecyIllustDetailBinding
 import ceui.lisa.dialogs.MuteDialog
 import ceui.lisa.download.IllustDownload
-import ceui.lisa.fragments.BaseFragment
+import ceui.lisa.helper.StaggeredManager
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Dev
 import ceui.lisa.utils.Params
 import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.ShareIllust
+import ceui.lisa.utils.V3Palette
+import ceui.lisa.core.Mapper
+import ceui.loxia.Client
 import ceui.loxia.ObjectPool
-import ceui.loxia.isFullDetail
+import ceui.loxia.ObjectType
 import ceui.loxia.requireNetworkStateManager
-import android.content.res.ColorStateList
-import android.graphics.Color
-import androidx.annotation.ColorInt
-import androidx.annotation.DrawableRes
+import ceui.pixiv.chat.base.panel.PanelState
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.FeedViewModel
+import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.feeds.updateItems
+import ceui.pixiv.ui.comments.CommentComposerController
+import ceui.pixiv.ui.comments.CommentComposerPresentation
+import ceui.pixiv.ui.comments.CommentTarget
+import ceui.pixiv.ui.comments.CommentsComposerViewModel
+import ceui.pixiv.ui.comments.SentComment
+import ceui.pixiv.ui.common.IllustFeedFragment
+import ceui.pixiv.ui.common.staggerIllustRenderer
 import ceui.pixiv.ui.share.shareFirstImage
 import ceui.pixiv.ui.task.PageLoadRetryController
 import ceui.pixiv.ui.task.renderImageLoadStatusBanner
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog
-import com.scwang.smart.refresh.header.MaterialHeader
-import timber.log.Timber
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import ceui.loxia.ObjectType
-import ceui.pixiv.chat.base.panel.PanelState
-import ceui.pixiv.ui.comments.CommentComposerController
-import ceui.pixiv.ui.comments.CommentComposerPresentation
-import ceui.pixiv.ui.comments.CommentTarget
-import ceui.pixiv.ui.comments.CommentsComposerViewModel
-import ceui.pixiv.ui.comments.SentComment
 
-class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
+/**
+ * 插画详情页(feeds 框架版)。整页 = 一张异构瀑布流:顶部大图页 + header 区块(全 fullSpan)+
+ * 相关作品瀑布流。列表 / 分页 / 空错态 / DiffUtil 归框架;chrome(toolbar / 悬浮下载收藏胶囊 /
+ * 折叠胶囊 / 内联评论输入栏)浮在列表之上,由本 Fragment 直接管理。
+ *
+ * 顶部大图:每页是一个 [ArtworkPageItem](外层瀑布流回收),bind/recycle **委托**给本页持有的
+ * 那一个 [IllustAdapter]/[CollapsibleIllustAdapter] 实例(见 [ensurePageAdapter] /
+ * [ArtworkV3Fragment.artworkPageRenderer]),尺寸 / 折叠 / 取图规则与 legacy 逐字一致。
+ *
+ * 数据源见 [ArtworkV3FeedSource];下载 FAB / 收藏态归 [ArtworkV3ViewModel]。无下拉刷新
+ *([refreshEnabled] = false)。
+ */
+class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
 
-    private val safeArgs by lazy { IllustArgs(requireArguments()) }
-
-    private class IllustArgs(b: Bundle) {
-        val illustId: Int = b.getInt("illust_id")
+    private val illustId: Long by lazy(LazyThreadSafetyMode.NONE) {
+        requireArguments().getInt("illust_id").toLong()
     }
 
-    private val viewModel by viewModels<ArtworkV3ViewModel> {
-        object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                @Suppress("UNCHECKED_CAST")
-                return ArtworkV3ViewModel(safeArgs.illustId.toLong()) as T
-            }
-        }
+    override val feedViewModel by feedViewModels(autoLoad = false) {
+        // 零捕获:只把 id 读进局部值交给长命 VM 持有的数据源,不钉 Fragment。
+        val id = requireArguments().getInt("illust_id").toLong()
+        ArtworkV3FeedSource(id)
     }
 
-    // 底部内联评论输入栏复用独立于导航参数的评论目标与 composer VM。
+    private val artworkViewModel by viewModels<ArtworkV3ViewModel> {
+        viewModelFactory { initializer { ArtworkV3ViewModel(illustId) } }
+    }
+
+    /** 底部内联评论输入栏的 composer VM(独立于列表)。 */
     private val composer by viewModels<CommentsComposerViewModel> {
         viewModelFactory {
-            initializer {
-                CommentsComposerViewModel(CommentTarget(safeArgs.illustId.toLong(), ObjectType.ILLUST))
-            }
+            initializer { CommentsComposerViewModel(CommentTarget(illustId, ObjectType.ILLUST)) }
         }
     }
 
-    /** View-lifecycle scoped; the shared module owns all editor/panel implementation details. */
-    private var commentComposer: CommentComposerController? = null
-    /** 内联输入栏正浮着(键盘或面板展开中):此时禁止滚动监听把悬浮胶囊放回来。 */
-    private var composerActive = false
-    private var illustAdapter: ceui.lisa.adapters.IllustAdapter? = null
+    internal val palette: V3Palette by lazy(LazyThreadSafetyMode.NONE) { V3Palette.from(requireContext()) }
 
-    // ugoira 走独立的内联播放 adapter,不复用 IllustAdapter(illustAdapter 保持 null),
-    // 所以另立一个 guard 防止 illust observer 多次 fire 时重复 addAdapter。
-    private var ugoiraAttached = false
-    private lateinit var headerAdapter: ArtworkDetailAdapter
-    private lateinit var relatedAdapter: IAdapter
-    private lateinit var loadingFooter: LoadingFooterAdapter
-    private val relatedList = mutableListOf<IllustsBean>()
-    private var pendingHeaderItems: List<ArtworkDetailItem>? = null
-
+    // 顶部大图页共享的那一个 adapter(所有页 bind 都委托给它)。isGif 时不建(走 ugoira renderer)。
+    private var pageAdapter: IllustAdapter? = null
     private lateinit var retryController: PageLoadRetryController
 
-    override fun initLayout() {
-        mLayoutID = R.layout.fragment_artwork_v3
+    // chrome
+    private var _chromeBind: FragmentArtworkV3Binding? = null
+    private val chromeBind get() = checkNotNull(_chromeBind) { "view 尚未创建或已销毁" }
+
+    private var commentComposer: CommentComposerController? = null
+    private var composerActive = false
+    private var fabShown = true
+
+    private var sectionLoader: SectionLoader? = null
+    private var artistObservedUserId: Long = 0L
+
+    /** 详情面板展开态归 Fragment(而非 cell tag):滚走再滚回不会被重绑重置(对齐 legacy VH 字段)。 */
+    internal var detailPanelExpanded = true
+
+    // 关闭下拉刷新(详情页 feeds 版不支持)
+    override val refreshEnabled: Boolean = false
+
+    // ── 列表装配 ────────────────────────────────────────────────────────────
+
+    override fun onCreateRenderers(): List<FeedRenderer<out FeedItem, out ViewBinding>> {
+        return listOf(
+            artworkPageRenderer(),
+            artworkUgoiraRenderer(),
+            heroRenderer(),
+            seriesRenderer(),
+            descRenderer(),
+            statsRenderer(),
+            tagsRenderer(),
+            artistRenderer(),
+            detailPanelRenderer(),
+            commentsRenderer(),
+            authorWorksRenderer(),
+            relatedHeaderRenderer(),
+            staggerIllustRenderer(),
+        )
     }
 
-    override fun initView() {
-        val illustId = safeArgs.illustId.toLong()
+    override fun onCreateLayoutManager(): RecyclerView.LayoutManager {
+        // 带整行 header 的瀑布流:GAP_HANDLING_NONE 对齐 legacy(开 gap 策略回滚时重排跳动)
+        return StaggeredManager(Shaft.sSettings.lineCount, RecyclerView.VERTICAL).apply {
+            gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_NONE
+        }
+    }
+
+    override fun onListReady(listView: RecyclerView) {
+        val spanCount = Shaft.sSettings.lineCount.coerceAtLeast(1)
+        // 相关作品瀑布流间距对齐外面的推荐插画流(SpacesItemDecoration 也是 8dp);列数跟随设置。
+        listView.addItemDecoration(RelatedOnlySpaceDecoration(8.ppppx, spanCount))
+        // header 区块(fullSpan)在 notifyItemChanged 时的默认变更动画会打乱 SGLM 的 fullSpan 追踪。
+        listView.itemAnimator = null
+    }
+
+    // 详情页首屏是大图 + header,不是瀑布流网格——瀑布流骨架图会误导。用居中转圈圈(对齐 legacy)。
+    override fun onCreateSkeletonView(
+        layoutManager: RecyclerView.LayoutManager,
+    ): ceui.pixiv.feeds.FeedSkeletonView? = null
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        _chromeBind = FragmentArtworkV3Binding.bind(view)
+        sectionLoader = SectionLoader(illustId, feedViewModel, viewLifecycleOwner)
+
+        // 旋转 / 视图重建:feedViewModel 的列表存活(可能是展开态),但 pageAdapter 会重建为
+        // 折叠态。二者不一致会出「p0 顶着展开胶囊、p1/p2 却已显示」的矛盾 UI。对齐 legacy(旋转即
+        // 折叠):在任何页绑定前(此刻 uiState 尚未 render)把多出的页收回,保持与新 adapter 一致。
+        ObjectPool.get<IllustsBean>(illustId).value?.let { illust ->
+            if (CollapsibleIllustAdapter.shouldCollapse(illust.page_count)) {
+                feedViewModel.removeItems { it is ArtworkPageItem && it.pageIndex > 0 }
+            }
+        }
 
         retryController = PageLoadRetryController(
             lifecycleOwner = viewLifecycleOwner,
             networkStateManager = requireNetworkStateManager(),
             urlAtIndex = { idx ->
-                val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@PageLoadRetryController null
+                val illust = ObjectPool.get<IllustsBean>(illustId).value
+                    ?: return@PageLoadRetryController null
                 if (idx < 0 || idx >= illust.page_count) return@PageLoadRetryController null
                 val resolution = if (Shaft.sSettings.isShowOriginalPreviewImage)
                     Params.IMAGE_RESOLUTION_ORIGINAL
@@ -121,397 +194,220 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             totalPages = { ObjectPool.get<IllustsBean>(illustId).value?.page_count ?: 0 },
             onSummaryChanged = { loaded, total, failed ->
                 renderImageLoadStatusBanner(
-                    baseBind.pageStatusRow, baseBind.pageStatusText,
-                    loaded, total, failed,
+                    chromeBind.pageStatusRow, chromeBind.pageStatusText, loaded, total, failed,
                 )
             },
-            onRetryAt = { idx -> illustAdapter?.notifyItemChanged(idx) },
-        )
-        baseBind.pageStatusRetry.setOnClickListener { retryController.retryAllFailed() }
-
-        headerAdapter = ArtworkDetailAdapter(this)
-        headerAdapter.onCommentsVisible = { viewModel.loadComments() }
-        headerAdapter.onAuthorWorksVisible = { viewModel.loadAuthorWorks() }
-        headerAdapter.onRelatedVisible = { viewModel.loadRelated() }
-        headerAdapter.onClickAddComment = { showComposer() }
-
-        relatedAdapter = IAdapter(relatedList, mContext).apply {
-            setUuid("artwork_v3_related_$illustId")
-        }
-        loadingFooter = LoadingFooterAdapter()
-
-        val concatConfig = ConcatAdapter.Config.Builder().setIsolateViewTypes(true).build()
-        val concatAdapter = ConcatAdapter(
-            concatConfig,
-            headerAdapter,
-            relatedAdapter,
-            loadingFooter
-        )
-
-        // Honour the global "列数" setting (FragmentSettings → 首页/作者页推荐流列数)。
-        // Hardcoded 2 here ignored the user's preference — see issue #851.
-        val spanCount = Shaft.sSettings.lineCount.coerceAtLeast(1)
-        val layoutManager = StaggeredGridLayoutManager(spanCount, StaggeredGridLayoutManager.VERTICAL)
-        // Disable span-shuffle on gap — the header has many fullSpan items above an
-        // N-column grid; default MOVE_ITEMS_BETWEEN_SPANS causes jank as items
-        // re-layout during scroll.
-        layoutManager.gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_NONE
-        baseBind.recyclerView.layoutManager = layoutManager
-        baseBind.recyclerView.adapter = concatAdapter
-        baseBind.recyclerView.addItemDecoration(RelatedOnlySpaceDecoration(4.ppppx, spanCount))
-        // Header items are all fullSpan — DefaultItemAnimator's change animation on
-        // notifyItemChanged (fired when ObjectPool pushes the updated UserBean after
-        // returning from UActivity) scrambles SGLM's fullSpan tracking and makes the
-        // Artist card snap flush with its upper neighbor. No useful animation to lose.
-        baseBind.recyclerView.itemAnimator = null
-
-        // Infinite scroll trigger near list end. Buffer is per-span so it must
-        // match the layout's spanCount, not be hardcoded to 2.
-        baseBind.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            private val lastVisiblePositions = IntArray(spanCount)
-
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                if (dy > 0) {
-                    val lm = recyclerView.layoutManager as StaggeredGridLayoutManager
-                    lm.findLastVisibleItemPositions(lastVisiblePositions)
-                    var lastVisible = RecyclerView.NO_POSITION
-                    for (p in lastVisiblePositions) if (p > lastVisible) lastVisible = p
-                    if (lastVisible >= lm.itemCount - 4 && viewModel.hasMoreRelated) {
-                        viewModel.loadMoreRelated()
-                    }
+            onRetryAt = { idx ->
+                val fa = feedAdapter ?: return@PageLoadRetryController
+                val pos = fa.currentList.indexOfFirst {
+                    it is ArtworkPageItem && it.pageIndex == idx
                 }
-            }
-        })
+                if (pos >= 0) fa.notifyItemChanged(pos)
+            },
+        )
+        chromeBind.pageStatusRetry.setOnClickListener { retryController.retryAllFailed() }
 
-        // Hide/show floating action bar on scroll
-        baseBind.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        setupFabBar()
+        setupNavBar()
+        handleSystemInsets()
+        setupComposer()
+
+        // 隐藏 / 显示悬浮胶囊(滚动)
+        feedBinding.feedListView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (dy > 8) hideFabBar() else if (dy < -8) showFabBar()
             }
         })
 
-        // 手动下拉刷新:只重新拉取 illust 详情本身(标题/标签/收藏数等),
-        // 评论、作者其他作品、相关作品等区块不动。Header 跟随 V3 主题色。
-        baseBind.refreshLayout.setRefreshHeader(MaterialHeader(requireContext()).apply {
-            setColorSchemeColors(headerAdapter.palette.textAccent)
-        })
-        baseBind.refreshLayout.setOnRefreshListener { viewModel.refreshIllustDetail() }
-        baseBind.loadingFullDetail.setIndicatorColor(headerAdapter.palette.textAccent)
-        viewModel.isRefreshingDetail.observe(viewLifecycleOwner) { refreshing ->
-            if (refreshing == false) {
-                baseBind.refreshLayout.finishRefresh()
-            }
-            // 居中转圈圈只在「还没有内容」时显示——即数据不完整、VM 正回 API 拉完整版的初始阶段。
-            // 手动下拉刷新时内容已在(illustAdapter != null),只走 SmartRefreshLayout 自带的下拉转圈,
-            // 不再叠一个居中圈。用 SmartRefreshLayout 程序化 autoRefresh 会导致转圈停不下来,故弃用。
-            baseBind.loadingFullDetail.isVisible =
-                refreshing == true && illustAdapter == null && !ugoiraAttached
-        }
-
-        setupNavBar(illustId)
-        handleSystemInsets()
-        commentComposer = CommentComposerController.attach(
-            fragment = this,
-            view = baseBind.commentComposer,
-            panelRoot = baseBind.composerRoot,
-            // The coordinator consumes only a confirmed tap (not a scroll) while a bottom surface
-            // is open, so the first content tap dismisses without activating the underlying item.
-            panelContentView = baseBind.recyclerView,
-            palette = headerAdapter.palette,
-            presentation = CommentComposerPresentation.ON_DEMAND_OVERLAY,
-            composer = composer,
-            onSent = ::applySentComment,
-            onPanelStateChanged = ::onComposerStateChanged,
-            // The keyboard needs a temporary host scrim while visible. Release it as soon as its
-            // real Insets exit begins; the custom panel owns its own surface and never needs it.
-            onPanelDismissStarted = { closingState ->
-                // IME already owns the navigation-bar surface while it moves. Releasing our scrim
-                // avoids an empty black input-row placeholder after the input row has faded out.
-                if (closingState == PanelState.KEYBOARD) {
-                    baseBind.composerRoot.background = null
-                }
-            },
-            onPanelDismissCancelled = ::onComposerStateChanged,
-        )
-
-        Timber.tag("V3MultiP").d(
-            "[Fragment.initView] illustId=$illustId, " +
-                "displayMetrics=${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}, " +
-                "density=${resources.displayMetrics.density}, " +
-                "concatHasIsolateViewTypes=true, sglmGapHandling=NONE"
-        )
-
-        // When illust data arrives, insert IllustAdapter at the front. For heavy
-        // multi-page works (e.g. 50P manga) collapse all but the first few pages so
-        // the reader can reach tags / comments / related works without a huge scroll;
-        // the ExpandPagesAdapter card sits right after and reveals the rest on tap.
-        var observerEmissionCount = 0
+        // 关注态:观察作者 UserBean,变更后重算 Artist 条目(关注切换只这条重绑)
         ObjectPool.get<IllustsBean>(illustId).observe(viewLifecycleOwner) { illust ->
-            observerEmissionCount++
-            if (illust == null) {
-                Timber.tag("V3MultiP").w("[Fragment.observe] emission #$observerEmissionCount: illust=NULL, illustId=$illustId")
-                return@observe
-            }
-            // 精简/网页来源 bean 缺分页图(meta_pages/meta_single_page),建多图分页会残缺。
-            // 等 VM 回 API 拉到完整版再次 fire 时才建;拉取失败/已删时(detailFetchFailed)放行,
-            // 用现有数据降级建封面,避免整页空白。(issue #569)
-            if (!illust.isFullDetail() && viewModel.detailFetchFailed.value != true) {
-                Timber.tag("V3MultiP").d("[Fragment.observe] incomplete bean, wait for full detail (illustId=$illustId)")
-                return@observe
-            }
-            // 逐次 emission 的 meta 探针日志只在 debug 包跑(release 里 Timber 照样 plant,
-            // 这些字符串拼接每次 observer fire 都白执行)。
-            if (ceui.lisa.BuildConfig.IS_DEBUG_MODE) {
-                val metaPagesInfo = try {
-                    val mp = illust.meta_pages
-                    if (mp == null) "null" else "size=${mp.size}"
-                } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
-                val metaSingleInfo = try {
-                    if (illust.meta_single_page == null) "null"
-                    else "original=${illust.meta_single_page.original_image_url?.take(80) ?: "null"}"
-                } catch (e: Throwable) { "throws ${e.javaClass.simpleName}" }
-                Timber.tag("V3MultiP").d(
-                    "[Fragment.observe] emission #$observerEmissionCount, " +
-                        "illustId=$illustId, page_count=${illust.page_count}, " +
-                        "width=${illust.width}, height=${illust.height}, " +
-                        "meta_pages=$metaPagesInfo, meta_single_page=$metaSingleInfo, " +
-                        "image_urls.large=${illust.image_urls?.large?.take(80) ?: "null"}, " +
-                        "adapterAlreadyCreated=${illustAdapter != null}"
-                )
-            }
-            if (illustAdapter == null) {
-                // Dump the full illust JSON once per page open — for debugging
-                // server-side shape changes / missing fields. Tag: V3IllustJson.
-                // 只在 debug 包做:Timber 是无条件 plant 的,release 里这段会把整个 illust
-                // (多P作品几十KB)在主线程全量 Gson 序列化再分块打日志,每次开页白烧一遍。
-                if (ceui.lisa.BuildConfig.IS_DEBUG_MODE) runCatching {
-                    val json = Shaft.sGson.toJson(illust)
-                    // Logcat truncates each line around 4k chars; chunk so multi-page
-                    // works with long tag arrays still show in full.
-                    json.chunked(3500).forEachIndexed { idx, chunk ->
-                        Timber.tag("V3IllustJson").d("[$illustId p${idx + 1}/${(json.length + 3499) / 3500}] $chunk")
-                    }
-                }.onFailure { Timber.tag("V3IllustJson").w(it, "toJson failed for illustId=$illustId") }
-
-                // Use 70% of screen height as max — not full screen, so single-page
-                // images don't stretch to fill the entire viewport
-                val maxHeight = (resources.displayMetrics.heightPixels * 0.7f).toInt()
-
-                // ugoira(动图)在这里第一次真正内联进 V3 详情页:换掉静态图 IllustAdapter,
-                // 用 UgoiraPlayerAdapter 自动拉数据→下载→解压→编码→asGif 播放。illustAdapter
-                // 保持 null,靠 ugoiraAttached 防重入。
-                if (illust.isGif()) {
-                    if (!ugoiraAttached) {
-                        ugoiraAttached = true
-                        concatAdapter.addAdapter(0, UgoiraPlayerAdapter(illust, viewLifecycleOwner, maxHeight))
-                        baseBind.loadingFullDetail.isVisible = false
-                    }
-                    return@observe
-                }
-
-                val willCollapse = CollapsibleIllustAdapter.shouldCollapse(illust.page_count)
-                Timber.tag("V3MultiP").d(
-                    "[Fragment.createAdapter] page_count=${illust.page_count}, " +
-                        "maxHeight=$maxHeight, willCollapse=$willCollapse, " +
-                        "adapterClass=${if (willCollapse) "CollapsibleIllustAdapter" else "IllustAdapter(anon)"}"
-                )
-                val comicReaderLauncher: () -> Unit = {
-                    val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
-                        putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "漫画阅读")
-                        putExtra(Params.ILLUST_ID, illustId)
-                    }
-                    startActivity(intent)
-                }
-                val adapter = if (willCollapse) {
-                    CollapsibleIllustAdapter(
-                        mActivity,
-                        this@ArtworkV3Fragment,
-                        illust,
-                        maxHeight,
-                        false,
-                        onComicReaderClick = comicReaderLauncher,
-                        onExpandedChanged = { isExpanded ->
-                            // Cross-fade with the adapter's scrim animation:
-                            //  - expand: scrim alpha 1→0 on pos 0, this pill 0→1
-                            //  - collapse: scrim alpha 0→1 on pos 0, this pill 1→0
-                            val pill = baseBind.collapsePill
-                            pill.animate().cancel()
-                            if (isExpanded) {
-                                pill.alpha = 0f
-                                pill.visibility = View.VISIBLE
-                                pill.animate().alpha(1f).setDuration(220).start()
-                            } else {
-                                pill.animate().alpha(0f).setDuration(220).withEndAction {
-                                    pill.visibility = View.GONE
-                                    pill.alpha = 1f
-                                }.start()
-                            }
-                        },
-                    )
-                } else {
-                    object : ceui.lisa.adapters.IllustAdapter(
-                        mActivity, this@ArtworkV3Fragment, illust, maxHeight, false
-                    ) {
-                        override fun onBindViewHolder(holder: ceui.lisa.adapters.ViewHolder<ceui.lisa.databinding.RecyIllustDetailBinding>, position: Int) {
-                            super.onBindViewHolder(holder, position)
-                            // 进入 V3 漫画阅读器（多 P 才有意义；单 P 走旧的全屏看图）
-                            if (illust.page_count > 1) {
-                                holder.baseBind.illust.setOnClickListener {
-                                    val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
-                                        putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "漫画阅读")
-                                        putExtra(Params.ILLUST_ID, illustId)
-                                    }
-                                    startActivity(intent)
-                                }
-                            }
-                        }
-                        override fun onViewAttachedToWindow(holder: ceui.lisa.adapters.ViewHolder<ceui.lisa.databinding.RecyIllustDetailBinding>) {
-                            super.onViewAttachedToWindow(holder)
-                            val lp = holder.itemView.layoutParams
-                            if (lp is StaggeredGridLayoutManager.LayoutParams && !lp.isFullSpan) {
-                                lp.isFullSpan = true
-                                holder.itemView.layoutParams = lp
-                            }
-                            Timber.tag("V3MultiP").d(
-                                "[Fragment.IllustAdapter.onAttach] pos=${holder.bindingAdapterPosition}, " +
-                                    "itemView=${holder.itemView.width}x${holder.itemView.height}, " +
-                                    "isFullSpan=${(lp as? StaggeredGridLayoutManager.LayoutParams)?.isFullSpan}"
-                            )
-                        }
-                    }
-                }
-                illustAdapter = adapter
-                if (adapter is CollapsibleIllustAdapter) {
-                    baseBind.collapsePill.setOnClickListener {
-                        adapter.collapse()
-                        // Snap to the top after the data shrinks so the user
-                        // doesn't get stranded in the now-empty space below.
-                        val lm = baseBind.recyclerView.layoutManager
-                        if (lm is StaggeredGridLayoutManager) {
-                            lm.scrollToPositionWithOffset(0, 0)
-                        } else {
-                            baseBind.recyclerView.scrollToPosition(0)
-                        }
-                    }
-                }
-                adapter.setPageStatusListener { position, status ->
-                    retryController.reportStatus(position, status)
-                }
-                retryController.refresh()
-                val adapterCount = adapter.itemCount
-                Timber.tag("V3MultiP").d(
-                    "[Fragment.addAdapter] inserting at index 0, " +
-                        "adapter.itemCount=$adapterCount, concatBeforeInsert=${concatAdapter.itemCount}"
-                )
-                concatAdapter.addAdapter(0, adapter)
-                Timber.tag("V3MultiP").d(
-                    "[Fragment.addAdapter] after insert, concatItemCount=${concatAdapter.itemCount}, " +
-                        "rvIsComputingLayout=${baseBind.recyclerView.isComputingLayout}, " +
-                        "rvIsAttached=${baseBind.recyclerView.isAttachedToWindow}"
-                )
-            }
+            val authorId = illust?.user?.id?.toLong() ?: return@observe
+            attachArtistFollowObserver(authorId)
         }
-
-        viewModel.headerItems.observe(viewLifecycleOwner) { items ->
-            headerAdapter.submitItems(items)
-        }
-
-        viewModel.relatedIllusts.observe(viewLifecycleOwner) { illusts ->
-            // Sync nextUrl so IAdapter's click handler can build PageData for VActivity
-            relatedAdapter.setNextUrl(viewModel.relatedNextUrl)
-            // Post to avoid notifying adapter during RecyclerView layout/scroll
-            baseBind.recyclerView.post {
-                val oldSize = relatedList.size
-                if (illusts.size > oldSize) {
-                    relatedList.addAll(illusts.subList(oldSize, illusts.size))
-                    relatedAdapter.notifyItemRangeInserted(oldSize, illusts.size - oldSize)
-                } else if (illusts.size != oldSize) {
-                    relatedList.clear()
-                    relatedList.addAll(illusts)
-                    relatedAdapter.notifyDataSetChanged()
-                }
-            }
-        }
-
-        viewModel.isLoadingRelated.observe(viewLifecycleOwner) { loading ->
-            if (loading) loadingFooter.show() else loadingFooter.hide()
-        }
-
-        // 悬浮操作胶囊底色跟随主题色（原 bg_v3_fab_bar 固定 #CC1A1A2E,切主题色不动）——
-        // 同 settings 卡片 tint,保留悬浮半透明。前景(图标/分隔线/进度环)不能写死白色:
-        // 浅色模式胶囊底是"带主题色调的白",白图标隐形,统一走 palette.floatingPillContent。
-        baseBind.fabBar.background = headerAdapter.palette.floatingPillBg(
-            999f * resources.displayMetrics.density
-        )
-        val pillContent = headerAdapter.palette.floatingPillContent
-        baseBind.fabDownload.imageTintList = ColorStateList.valueOf(pillContent)
-        baseBind.fabDivider.setBackgroundColor(
-            ceui.lisa.utils.V3Palette.withAlpha(pillContent, 0.20f)
-        )
-        baseBind.fabDownloadProgress.setIndicatorColor(pillContent)
-        baseBind.fabDownloadProgress.trackColor =
-            ceui.lisa.utils.V3Palette.withAlpha(pillContent, 0.20f)
-
-        viewModel.isBookmarked.observe(viewLifecycleOwner) { bookmarked ->
-            baseBind.fabBookmark.imageTintList = android.content.res.ColorStateList.valueOf(
-                if (bookmarked) mContext.getColor(R.color.has_bookmarked)
-                else pillContent
-            )
-        }
-
     }
-
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshDownloadFab()
+        artworkViewModel.refreshDownloadFab()
     }
 
     override fun onDestroyView() {
         commentComposer = null
-        // These flags describe the destroyed View tree, not Fragment/domain state.
         composerActive = false
         fabShown = true
+        pageAdapter = null
+        // 本视图生命周期内的一次性 guard 随视图销毁归零。否则同一 Fragment 实例视图重建(回退栈
+        // 重显等)后,旧 viewLifecycleOwner 上的观察已随视图销毁,而 artistObservedUserId 还钉着
+        // 旧值 → 关注更新不再触发。区块懒加载的去重集随 sectionLoader 一起丢弃、新视图重建。
+        artistObservedUserId = 0L
+        sectionLoader = null
+        _chromeBind = null
         super.onDestroyView()
+    }
+
+    // ── 顶部大图 adapter(委托目标)────────────────────────────────────────────
+
+    /** 供 [artworkPageRenderer] 在回收时用,不触发建 adapter。 */
+    internal fun pageAdapterOrNull(): IllustAdapter? = pageAdapter
+
+    /** 首次绑定顶部页时懒建那一个共享 adapter(尺寸 / 折叠 / 取图逻辑全在它里面)。 */
+    internal fun ensurePageAdapter(): IllustAdapter? {
+        pageAdapter?.let { return it }
+        if (view == null || !::retryController.isInitialized) return null
+        val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return null
+        if (illust.isGif()) return null // ugoira 走自己的 renderer
+        val maxHeight = (resources.displayMetrics.heightPixels * 0.7f).toInt()
+        val activity = requireActivity()
+        val adapter: IllustAdapter = if (CollapsibleIllustAdapter.shouldCollapse(illust.page_count)) {
+            val collapsible = CollapsibleIllustAdapter(
+                activity, this, illust, maxHeight, false,
+                onComicReaderClick = { openComicReader() },
+                onExpandedChanged = { expanded -> onPagesExpandedChanged(expanded) },
+            )
+            // 悬浮「收起」胶囊点击 → 折叠(collapse() 触发 onExpandedChanged(false) → 收回页 + 回顶 + 藏胶囊)
+            chromeBind.collapsePill.setOnClickListener { collapsible.collapse() }
+            collapsible
+        } else {
+            object : IllustAdapter(activity, this, illust, maxHeight, false) {
+                override fun onBindViewHolder(
+                    holder: ViewHolder<RecyIllustDetailBinding>,
+                    position: Int,
+                ) {
+                    super.onBindViewHolder(holder, position)
+                    // 多 P(非折叠,即 2P):点图进漫画阅读器(对齐 legacy 匿名子类)
+                    if (illust.page_count > 1) {
+                        holder.baseBind.illust.setOnClickListener { openComicReader() }
+                    }
+                }
+            }
+        }
+        adapter.setPageStatusListener { position, status ->
+            retryController.reportStatus(position, status)
+        }
+        retryController.refresh()
+        pageAdapter = adapter
+        return adapter
+    }
+
+    private fun openComicReader() {
+        startActivity(Intent(requireContext(), TemplateActivity::class.java).apply {
+            putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画阅读")
+            putExtra(Params.ILLUST_ID, illustId.toInt())
+        })
+    }
+
+    /** 折叠 adapter 的展开态回调:驱动 feed 列表增删剩余页 + 浮动「收起」胶囊。 */
+    private fun onPagesExpandedChanged(expanded: Boolean) {
+        val pill = chromeBind.collapsePill
+        pill.animate().cancel()
+        if (expanded) {
+            pill.alpha = 0f
+            pill.visibility = View.VISIBLE
+            pill.animate().alpha(1f).setDuration(220).start()
+            val pageCount = ObjectPool.get<IllustsBean>(illustId).value?.page_count ?: return
+            feedViewModel.mutateItems { items ->
+                val existing = items.filterIsInstance<ArtworkPageItem>().mapTo(HashSet()) { it.pageIndex }
+                val toAdd = (1 until pageCount)
+                    .filter { it !in existing }
+                    .map { ArtworkPageItem(illustId, it) }
+                if (toAdd.isEmpty()) return@mutateItems items
+                val insertAt = items.indexOfLast { it is ArtworkPageItem } + 1
+                items.subList(0, insertAt) + toAdd + items.subList(insertAt, items.size)
+            }
+        } else {
+            pill.animate().alpha(0f).setDuration(220).withEndAction {
+                pill.visibility = View.GONE
+                pill.alpha = 1f
+            }.start()
+            // 一次编辑同时:删掉隐藏页 + bump 首页 rebindTick(强制 DiffUtil 原地重绑 p0,
+            // 让「展开剩余 X 张」覆盖层重现)。不用 notifyItemChanged/post,避免与在飞的 diff 抢。
+            feedViewModel.mutateItems { items ->
+                items.mapNotNull { item ->
+                    when {
+                        item is ArtworkPageItem && item.pageIndex > 0 -> null
+                        item is ArtworkPageItem && item.pageIndex == 0 ->
+                            item.copy(rebindTick = item.rebindTick + 1)
+                        else -> item
+                    }
+                }
+            }
+            val lm = feedBinding.feedListView.layoutManager
+            if (lm is StaggeredGridLayoutManager) lm.scrollToPositionWithOffset(0, 0)
+            else feedBinding.feedListView.scrollToPosition(0)
+        }
+    }
+
+    // ── 懒加载区块 ───────────────────────────────────────────────────────────
+    // 各区块「怎么拉 + 怎么把数据落回条目」全在 [ArtworkSection];这里只把 renderer 的
+    // 「区块可见」信号转给 [SectionLoader](去重 + 单飞 + 视图作用域)。进页时区块还没
+    // 滚到,一律不触发——池里已有完整 illust 时点进详情不会发任何多余请求。
+
+    /** renderer onBind 里数据仍空时调用:区块首次可见触发一次懒加载。 */
+    internal fun onSectionVisible(section: ArtworkSection) {
+        sectionLoader?.onVisible(section)
+    }
+
+    private fun attachArtistFollowObserver(authorId: Long) {
+        if (authorId <= 0L || authorId == artistObservedUserId) return
+        artistObservedUserId = authorId
+        ObjectPool.get<ceui.lisa.models.UserBean>(authorId).observe(viewLifecycleOwner) {
+            feedViewModel.updateItems<ArtworkArtistItem> { item ->
+                val fresh = ArtworkArtistItem.resolveIsFollowed(item.illust)
+                if (item.isFollowed == fresh) item else ArtworkArtistItem(item.illust, fresh)
+            }
+        }
+    }
+
+    // ── 悬浮下载 / 收藏胶囊 ─────────────────────────────────────────────────────
+
+    private fun setupFabBar() {
+        val density = resources.displayMetrics.density
+        chromeBind.fabBar.background = palette.floatingPillBg(999f * density)
+        val pillContent = palette.floatingPillContent
+        chromeBind.fabDownload.imageTintList = ColorStateList.valueOf(pillContent)
+        chromeBind.fabDivider.setBackgroundColor(V3Palette.withAlpha(pillContent, 0.20f))
+        chromeBind.fabDownloadProgress.setIndicatorColor(pillContent)
+        chromeBind.fabDownloadProgress.trackColor = V3Palette.withAlpha(pillContent, 0.20f)
+
+        artworkViewModel.isBookmarked.observe(viewLifecycleOwner) { bookmarked ->
+            chromeBind.fabBookmark.imageTintList = ColorStateList.valueOf(
+                if (bookmarked) requireContext().getColor(R.color.has_bookmarked) else pillContent,
+            )
+        }
+        artworkViewModel.downloadFabState.observe(viewLifecycleOwner) { renderDownloadFab(it) }
     }
 
     private fun renderDownloadFab(state: DownloadFab) {
         if (view == null) return
         when (state) {
             DownloadFab.Idle ->
-                paintFab(
-                    R.drawable.ic_file_download_black_24dp,
-                    headerAdapter.palette.floatingPillContent,
-                )
+                paintFab(R.drawable.ic_file_download_black_24dp, palette.floatingPillContent)
+
             DownloadFab.Done ->
-                paintFab(R.drawable.ic_file_download_done_24dp, mContext.getColor(R.color.has_downloaded))
+                paintFab(R.drawable.ic_file_download_done_24dp, requireContext().getColor(R.color.has_downloaded))
+
             is DownloadFab.Downloading -> {
-                baseBind.fabDownload.visibility = View.INVISIBLE
-                baseBind.fabDownloadProgress.visibility = View.VISIBLE
-                baseBind.fabDownloadProgress.setProgressCompat(state.percent, true)
+                chromeBind.fabDownload.visibility = View.INVISIBLE
+                chromeBind.fabDownloadProgress.visibility = View.VISIBLE
+                chromeBind.fabDownloadProgress.setProgressCompat(state.percent, true)
             }
         }
     }
 
     private fun paintFab(@DrawableRes iconRes: Int, @ColorInt tint: Int) {
-        baseBind.fabDownloadProgress.visibility = View.GONE
-        baseBind.fabDownload.visibility = View.VISIBLE
-        baseBind.fabDownload.setImageResource(iconRes)
-        baseBind.fabDownload.imageTintList = ColorStateList.valueOf(tint)
+        chromeBind.fabDownloadProgress.visibility = View.GONE
+        chromeBind.fabDownload.visibility = View.VISIBLE
+        chromeBind.fabDownload.setImageResource(iconRes)
+        chromeBind.fabDownload.imageTintList = ColorStateList.valueOf(tint)
     }
-
-    private var fabShown = true
 
     private fun hideFabBar(immediate: Boolean = false) {
         if (!fabShown && !immediate) return
         fabShown = false
-        val fabBar = baseBind.fabBar
+        val fabBar = chromeBind.fabBar
         fabBar.animate().cancel()
         val hiddenTranslation = fabBar.height + 100f
         if (immediate) {
-            // Entering editor starts an IME resize in the same frame. A still-running FAB exit
-            // would be repositioned above the keyboard before it fades, so retire it atomically
-            // before requesting the IME instead of reusing the scroll-only transition.
             fabBar.translationY = hiddenTranslation
             fabBar.alpha = 0f
             fabBar.visibility = View.INVISIBLE
@@ -521,39 +417,46 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
                 .translationY(hiddenTranslation)
                 .alpha(0f)
                 .setDuration(FAB_ANIMATION_DURATION_MS)
-                .withEndAction {
-                    if (!fabShown) fabBar.visibility = View.INVISIBLE
-                }
+                .withEndAction { if (!fabShown) fabBar.visibility = View.INVISIBLE }
                 .start()
         }
     }
 
     private fun showFabBar() {
-        // 内联输入栏浮着时不让滚动监听把胶囊放回来(它会挡住键盘上方的输入栏)
-        if (composerActive) return
+        if (composerActive) return // 内联输入栏浮着时不放回胶囊
         if (fabShown) return
         fabShown = true
-        baseBind.fabBar.animate().cancel()
-        baseBind.fabBar.visibility = View.VISIBLE
-        baseBind.fabBar.animate()
-            .translationY(0f)
-            .alpha(1f)
-            .setDuration(FAB_ANIMATION_DURATION_MS)
-            .start()
+        val fabBar = chromeBind.fabBar
+        fabBar.animate().cancel()
+        fabBar.visibility = View.VISIBLE
+        fabBar.animate().translationY(0f).alpha(1f).setDuration(FAB_ANIMATION_DURATION_MS).start()
     }
 
-    // ── 底部内联评论输入栏 ──────────────────────────────────────────────
-    // 平时不常驻(composer_root 透明、输入栏 GONE);点评论区「留下你的评论吧」入口才浮出。
-    // 键盘/表情面板的互斥 + 等高切换全交给 BottomPanelCoordinator(评论详情页同款 attachBottomPanel)。
-    // 这里只发顶层评论,回复走完整评论列表页。
+    // ── 底部内联评论输入栏 ─────────────────────────────────────────────────────
 
-    /** 点「留下你的评论吧」入口:浮出输入栏 + 弹键盘,并藏起收藏/下载胶囊。 */
-    private fun showComposer() {
-        // The IME path temporarily needs the host to cover its navigation inset. Switching to the
-        // custom panel clears this again because that panel owns and animates the inset itself.
-        baseBind.composerRoot.setBackgroundColor(mContext.getColor(R.color.v3_bg))
-        // 已在编辑态时重复点入口做成幂等:只在键盘意外被收起时补弹一次,绝不重跑整条 show 流程。
-        // 重跑会跟在途的键盘动画抢——旧版正是这里出「再点一次入口,键盘还在但顶部输入栏没了」的 bug。
+    private fun setupComposer() {
+        commentComposer = CommentComposerController.attach(
+            fragment = this,
+            view = chromeBind.commentComposer,
+            panelRoot = chromeBind.composerRoot,
+            panelContentView = feedBinding.feedListView,
+            palette = palette,
+            presentation = CommentComposerPresentation.ON_DEMAND_OVERLAY,
+            composer = composer,
+            onSent = ::applySentComment,
+            onPanelStateChanged = ::onComposerStateChanged,
+            onPanelDismissStarted = { closingState ->
+                if (closingState == PanelState.KEYBOARD) {
+                    chromeBind.composerRoot.background = null
+                }
+            },
+            onPanelDismissCancelled = ::onComposerStateChanged,
+        )
+    }
+
+    /** 评论区「留下你的评论吧」入口(由 commentsRenderer 调)。 */
+    internal fun showComposer() {
+        chromeBind.composerRoot.setBackgroundColor(requireContext().getColor(R.color.v3_bg))
         if (composerActive) {
             commentComposer?.showKeyboard()
             return
@@ -563,36 +466,28 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
         commentComposer?.showKeyboard()
     }
 
-    /** 键盘/面板都收起且输入框为空:整条浮层退场,收藏/下载胶囊归位。 */
     private fun hideComposerBar() {
         composerActive = false
         commentComposer?.hide()
-        baseBind.composerRoot.background = null
+        chromeBind.composerRoot.background = null
         showFabBar()
     }
 
     private fun onComposerStateChanged(state: PanelState) {
+        if (view == null) return // 面板/IME 回调若在视图销毁后到达,别碰 chromeBind(与 renderDownloadFab 对齐)
         if (state == PanelState.NONE) {
-            // 键盘/面板真收起且输入框为空才退场。isVisible(ime) 兜底:个别宿主(HyperOS)会在键盘
-            // 仍在时把 coordinator 短暂误判成 NONE,此刻别拆输入栏(否则「键盘还在、输入栏却没了」),
-            // 等键盘真收起那次再退场。
-            val imeUp = ViewCompat.getRootWindowInsets(baseBind.composerRoot)
+            val imeUp = ViewCompat.getRootWindowInsets(chromeBind.composerRoot)
                 ?.isVisible(WindowInsetsCompat.Type.ime()) == true
             if (!imeUp && commentComposer?.isEmpty == true) {
                 hideComposerBar()
             } else if (!imeUp) {
-                // A non-empty draft intentionally keeps the input row, but no closed surface needs
-                // the navigation-inset scrim anymore.
-                baseBind.composerRoot.background = null
+                chromeBind.composerRoot.background = null
             }
         } else {
-            // 键盘或面板展开:藏起收藏/下载胶囊,让出底部
             if (state == PanelState.KEYBOARD) {
-                baseBind.composerRoot.setBackgroundColor(mContext.getColor(R.color.v3_bg))
+                chromeBind.composerRoot.setBackgroundColor(requireContext().getColor(R.color.v3_bg))
             } else {
-                // The custom panel owns its opaque surface including the navigation inset. Keeping
-                // a root-sized scrim here would leave a large block that disappears at NONE.
-                baseBind.composerRoot.background = null
+                chromeBind.composerRoot.background = null
             }
             hideFabBar()
         }
@@ -600,235 +495,202 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
 
     private fun applySentComment(result: SentComment) {
         val (parentCommentId, comment) = result
-        // 内联只发顶层评论;插到预览区最前让用户立刻看到自己刚发的评论。
-        if (parentCommentId <= 0L) viewModel.prependComment(comment)
-        // 收键盘/面板 → 动画回调进 NONE 态,此时输入框已空,onComposerStateChanged 收浮层 + 复位胶囊。
+        // 内联只发顶层评论;插到预览区最前
+        if (parentCommentId <= 0L) {
+            feedViewModel.updateItems<ArtworkCommentsItem> { it.prepend(comment) }
+        }
         commentComposer?.dismiss()
     }
 
+    // ── inset ──────────────────────────────────────────────────────────────
+
     private fun handleSystemInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(baseBind.toolbar) { v, windowInsets ->
+        ViewCompat.setOnApplyWindowInsetsListener(chromeBind.toolbar) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
             v.setPadding(v.paddingLeft, insets.top, v.paddingRight, v.paddingBottom)
             windowInsets
         }
-        ViewCompat.setOnApplyWindowInsetsListener(baseBind.fabBar) { v, windowInsets ->
+        ViewCompat.setOnApplyWindowInsetsListener(chromeBind.fabBar) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
             val lp = v.layoutParams as FrameLayout.LayoutParams
             lp.bottomMargin = insets.bottom + 24.ppppx
             v.layoutParams = lp
             windowInsets
         }
-        // RV 自己 match_parent 延伸到屏幕最底(背景填满 safe area),滚动时通过
-        // clipToPadding=false + bottomPadding=navBar inset 让最后一个 item 停在
-        // 系统导航栏之上,不被遮挡。
-        baseBind.recyclerView.clipToPadding = false
-        ViewCompat.setOnApplyWindowInsetsListener(baseBind.recyclerView) { v, windowInsets ->
+        // 列表铺到屏幕最底,底 padding = navBar inset 让末条停在导航栏之上(clipToPadding=false 已设)
+        val listView = feedBinding.feedListView
+        listView.clipToPadding = false
+        ViewCompat.setOnApplyWindowInsetsListener(listView) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
             v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, insets.bottom)
             windowInsets
         }
-        // Pin the floating "收起" pill just below the top overlay column
-        // (toolbar + optional retry banner). Driving the margin from the
-        // column's actual bottom keeps the pill clear of the banner when it
-        // appears — see issue #881.
+        // 折叠「收起」胶囊钉在顶栏(toolbar + 可选重试横幅)之下(见 #881)
         val pillGap = 8.ppppx
-        baseBind.topOverlayColumn.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
-            if (bottom == oldBottom) return@addOnLayoutChangeListener
-            val pill = baseBind.collapsePill
+        chromeBind.topOverlayColumn.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom == oldBottom || _chromeBind == null) return@addOnLayoutChangeListener
+            val pill = chromeBind.collapsePill
             val lp = pill.layoutParams as FrameLayout.LayoutParams
             val target = bottom + pillGap
             if (lp.topMargin != target) {
                 lp.topMargin = target
                 pill.layoutParams = lp
             }
-            // 下拉刷新的转圈圈也从 toolbar(+重试横幅)之下开始,
-            // 不顶着透明状态栏/toolbar 区域。
-            baseBind.refreshLayout.setHeaderInsetStartPx(bottom)
         }
     }
 
-    private fun setupNavBar(illustId: Long) {
-        baseBind.toolbar.setNavigationOnClickListener { mActivity.finish() }
+    // ── toolbar / 悬浮胶囊点击 / more 菜单 ──────────────────────────────────────
 
-        // Apply download/bookmark order preference
+    private fun setupNavBar() {
+        chromeBind.toolbar.setNavigationOnClickListener { requireActivity().finish() }
+
+        // 下载 / 收藏顺序偏好
         if (!Shaft.sSettings.isArtworkV3FabDownloadOnLeft) {
-            val bar = baseBind.fabBar
-            val download = baseBind.fabDownloadContainer
-            val bookmark = baseBind.fabBookmark
+            val bar = chromeBind.fabBar
+            val download = chromeBind.fabDownloadContainer
+            val bookmark = chromeBind.fabBookmark
             bar.removeView(download)
             bar.removeView(bookmark)
             bar.addView(bookmark, 0)
             bar.addView(download)
         }
 
-        // Floating action bar — downloads go through the shared TaskPool so
-        // the Glide cache warmed here gives 二级详情页 instant display.
-        baseBind.fabDownloadContainer.setOnClick {
+        chromeBind.fabDownloadContainer.setOnClick {
             val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@setOnClick
-            viewModel.triggerDownload()
+            artworkViewModel.triggerDownload()
             if (Shaft.sSettings.isAutoPostLikeWhenDownload && !illust.isIs_bookmarked) {
-                // 下载触发的自动收藏也要立刻点亮收藏 FAB,否则要退出重进才显示已收藏
-                // (V3 页无 LIKED_ILLUST 接收器,FAB 仅靠 ObjectPool 重发刷新)。同用户主动收藏路径。
-                baseBind.fabBookmark.imageTintList = android.content.res.ColorStateList.valueOf(
-                    mContext.getColor(R.color.has_bookmarked)
+                chromeBind.fabBookmark.imageTintList = ColorStateList.valueOf(
+                    requireContext().getColor(R.color.has_bookmarked),
                 )
                 PixivOperate.postLikeDefaultStarType(illust)
             }
         }
-        baseBind.fabDownloadContainer.setOnLongClickListener {
-            val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@setOnLongClickListener true
-            val baseAct = mActivity as? ceui.lisa.activities.BaseActivity<*>
+        chromeBind.fabDownloadContainer.setOnLongClickListener {
+            val illust = ObjectPool.get<IllustsBean>(illustId).value
+                ?: return@setOnLongClickListener true
+            val baseAct = requireActivity() as? ceui.lisa.activities.BaseActivity<*>
             val resNames = arrayOf(
                 getString(R.string.resolution_original),
                 getString(R.string.resolution_large),
                 getString(R.string.resolution_medium),
-                getString(R.string.resolution_square_medium)
+                getString(R.string.resolution_square_medium),
             )
             val resValues = arrayOf(
                 Params.IMAGE_RESOLUTION_ORIGINAL,
                 Params.IMAGE_RESOLUTION_LARGE,
                 Params.IMAGE_RESOLUTION_MEDIUM,
-                Params.IMAGE_RESOLUTION_SQUARE_MEDIUM
+                Params.IMAGE_RESOLUTION_SQUARE_MEDIUM,
             )
-            QMUIDialog.MenuDialogBuilder(mContext)
+            QMUIDialog.MenuDialogBuilder(requireContext())
                 .addItems(resNames) { dialog, which ->
                     if (illust.page_count == 1) {
                         IllustDownload.downloadIllustFirstPageWithResolution(illust, resValues[which], baseAct)
                     } else {
                         IllustDownload.downloadIllustAllPagesWithResolution(illust, resValues[which], baseAct)
                     }
-                    viewModel.refreshDownloadFab()
+                    artworkViewModel.refreshDownloadFab()
                     dialog.dismiss()
                 }
                 .show()
             true
         }
-        viewModel.downloadFabState.observe(viewLifecycleOwner) { renderDownloadFab(it) }
 
-        // 监听 Manager 下载完成广播，刷新 FAB 状态。
-        // 轮询期间不干扰（轮询自己会检测队列清空并设 Done）。
+        // Manager 下载完成广播 → 刷新 FAB(轮询期间不干扰)
         val downloadFinishReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (!viewModel.isPollingProgress) {
-                    viewModel.refreshDownloadFab()
+                if (!artworkViewModel.isPollingProgress) {
+                    artworkViewModel.refreshDownloadFab()
                 }
             }
         }
-        LocalBroadcastManager.getInstance(mContext).registerReceiver(
-            downloadFinishReceiver, IntentFilter(Params.DOWNLOAD_FINISH)
+        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
+            downloadFinishReceiver, IntentFilter(Params.DOWNLOAD_FINISH),
         )
-        viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
-            override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
-                LocalBroadcastManager.getInstance(mContext).unregisterReceiver(downloadFinishReceiver)
+        viewLifecycleOwner.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                LocalBroadcastManager.getInstance(requireContext())
+                    .unregisterReceiver(downloadFinishReceiver)
             }
         })
 
-        baseBind.fabBookmark.setOnClick {
+        chromeBind.fabBookmark.setOnClick {
             val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@setOnClick
-            // Optimistic UI: toggle icon immediately
             val willBookmark = !illust.isIs_bookmarked
-            baseBind.fabBookmark.imageTintList = android.content.res.ColorStateList.valueOf(
-                if (willBookmark) mContext.getColor(R.color.has_bookmarked) else android.graphics.Color.WHITE
+            chromeBind.fabBookmark.imageTintList = ColorStateList.valueOf(
+                if (willBookmark) requireContext().getColor(R.color.has_bookmarked)
+                else android.graphics.Color.WHITE,
             )
             PixivOperate.postLikeDefaultStarType(illust)
-            // 收藏后自动下载只在用户主动收藏(非取消)时触发,避免和"下载时自动收藏"循环联动(issue #880)。
             if (willBookmark && Shaft.sSettings.isAutoDownloadAfterStar) {
                 IllustDownload.downloadIllustAllPages(illust)
             }
         }
 
-        baseBind.fabBookmark.setOnLongClickListener {
-            val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@setOnLongClickListener true
-            val intent = Intent(mContext, ceui.lisa.activities.TemplateActivity::class.java).apply {
+        chromeBind.fabBookmark.setOnLongClickListener {
+            val illust = ObjectPool.get<IllustsBean>(illustId).value
+                ?: return@setOnLongClickListener true
+            startActivity(Intent(requireContext(), TemplateActivity::class.java).apply {
                 putExtra(Params.ILLUST_ID, illust.id)
                 putExtra(Params.DATA_TYPE, Params.TYPE_ILLUST)
                 putExtra(Params.TAG_NAMES, illust.tagNames)
-                putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "按标签收藏")
-            }
-            startActivity(intent)
+                putExtra(TemplateActivity.EXTRA_FRAGMENT, "按标签收藏")
+            })
             true
         }
 
-        // More menu
-        baseBind.navMore.setOnClick {
-            val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return@setOnClick
-            showV3Menu {
-                item(getString(R.string.share), R.drawable.ic_share_black_24dp) {
-                    object : ShareIllust(mContext, illust) {
-                        override fun onPrepare() {}
-                    }.execute()
-                }
-                item(getString(R.string.string_454), R.drawable.ic_share_black_24dp) {
-                    shareFirstImage(illust)
-                }
-                item(getString(R.string.string_355_2), R.drawable.ic_baseline_launch_24) {
-                    Common.copy(mContext, ShareIllust.URL_Head + illust.id)
-                }
-                item(getString(R.string.string_1), R.drawable.ic_baseline_settings_24) {
-                    MuteDialog.newInstance(illust)
-                        .show(this@ArtworkV3Fragment.childFragmentManager, "MuteDialog")
-                }
-                item(getString(R.string.string_355), R.drawable.ic_visibility_off_black_24dp) {
-                    PixivOperate.muteIllust(illust)
-                }
-                item(getString(R.string.flag_post), R.drawable.ic_baseline_flag_24) {
-                    val intent = android.content.Intent(
-                        mContext,
-                        ceui.lisa.activities.TemplateActivity::class.java
-                    )
+        chromeBind.navMore.setOnClick { showMoreMenu() }
+    }
+
+    private fun showMoreMenu() {
+        val illust = ObjectPool.get<IllustsBean>(illustId).value ?: return
+        showV3Menu {
+            item(getString(R.string.share), R.drawable.ic_share_black_24dp) {
+                object : ShareIllust(requireContext(), illust) {
+                    override fun onPrepare() {}
+                }.execute()
+            }
+            item(getString(R.string.string_454), R.drawable.ic_share_black_24dp) {
+                shareFirstImage(illust)
+            }
+            item(getString(R.string.string_355_2), R.drawable.ic_baseline_launch_24) {
+                Common.copy(requireContext(), ShareIllust.URL_Head + illust.id)
+            }
+            item(getString(R.string.string_1), R.drawable.ic_baseline_settings_24) {
+                MuteDialog.newInstance(illust).show(childFragmentManager, "MuteDialog")
+            }
+            item(getString(R.string.string_355), R.drawable.ic_visibility_off_black_24dp) {
+                PixivOperate.muteIllust(illust)
+            }
+            item(getString(R.string.flag_post), R.drawable.ic_baseline_flag_24) {
+                val intent = Intent(requireContext(), TemplateActivity::class.java)
+                intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "举报插画")
+                intent.putExtra(ceui.loxia.flag.FlagDescFragment.FlagObjectIdKey, illust.id.toLong())
+                intent.putExtra(
+                    ceui.loxia.flag.FlagDescFragment.FlagObjectTypeKey,
+                    ceui.lisa.models.ObjectSpec.POST,
+                )
+                startActivity(intent)
+            }
+            item(getString(R.string.string_ai_upscale), R.drawable.ic_upscale_add_photo) {
+                ceui.pixiv.ui.upscale.ModelPickerDialog.pickOrUseDefault(childFragmentManager) { }
+            }
+            if (Dev.showPlazaShareInArtwork) {
+                item(getString(R.string.plaza_share_illust_to_plaza), R.drawable.ic_plaza_forum_24) {
+                    val intent = Intent(requireContext(), TemplateActivity::class.java)
+                    intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "发帖")
                     intent.putExtra(
-                        ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT,
-                        "举报插画"
-                    )
-                    // illust 是 ObjectPool.get<IllustsBean> 取出的 Int id 字段；TemplateActivity
-                    // 读这个 extra 走 getLongExtra，必须显式转 Long，否则又是一次 Int/Long extra
-                    // 类型不匹配，读回来静默变 0（刚在真机复测出来:提交的 illust_id=0 被服务端拒绝）。
-                    intent.putExtra(ceui.loxia.flag.FlagDescFragment.FlagObjectIdKey, illust.id.toLong())
-                    intent.putExtra(
-                        ceui.loxia.flag.FlagDescFragment.FlagObjectTypeKey,
-                        ceui.lisa.models.ObjectSpec.POST
+                        ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID,
+                        illust.id.toLong(),
                     )
                     startActivity(intent)
-                }
-                item(getString(R.string.string_ai_upscale), R.drawable.ic_upscale_add_photo) {
-                    ceui.pixiv.ui.upscale.ModelPickerDialog.pickOrUseDefault(
-                        this@ArtworkV3Fragment.childFragmentManager
-                    ) { model ->
-                        // AI upscale requires IllustAiHelper
-                    }
-                }
-                if (Dev.showPlazaShareInArtwork) {
-                    item(
-                        getString(R.string.plaza_share_illust_to_plaza),
-                        R.drawable.ic_plaza_forum_24,
-                    ) {
-                        val intent = Intent(mContext, ceui.lisa.activities.TemplateActivity::class.java)
-                        intent.putExtra(
-                            ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "发帖"
-                        )
-                        intent.putExtra(
-                            ceui.pixiv.plaza.ui.PlazaComposeFragment.ARG_PREFILL_ILLUST_ID,
-                            illust.id.toLong(),
-                        )
-                        startActivity(intent)
-                    }
                 }
             }
         }
     }
 
-
-    override fun vertical() {}
-
     /**
-     * Spacing decoration that only applies to non-fullSpan items (IAdapter's related cards).
-     * Header items and loading footer are fullSpan and get zero offset.
-     *
-     * Distributes [space] gutters evenly for any [spanCount] >= 1: full gutter
-     * outside the leftmost / rightmost columns, half gutter on the inner sides.
-     * For spanCount=2 this matches the previous hardcoded behavior; for 3+ it
-     * keeps the middle columns from collapsing against either neighbor.
+     * 只给非 fullSpan 条目(相关卡片)加间距;顶部大图页 + header 区块(fullSpan)零 offset。
+     * 对齐 legacy 的 RelatedOnlySpaceDecoration。
      */
     private class RelatedOnlySpaceDecoration(
         private val space: Int,
@@ -838,11 +700,10 @@ class ArtworkV3Fragment : BaseFragment<FragmentArtworkV3Binding>() {
             outRect: Rect,
             view: View,
             parent: RecyclerView,
-            state: RecyclerView.State
+            state: RecyclerView.State,
         ) {
             val lp = view.layoutParams
             if (lp !is StaggeredGridLayoutManager.LayoutParams || lp.isFullSpan) return
-
             outRect.bottom = space
             val spanIndex = lp.spanIndex
             outRect.left = if (spanIndex == 0) space else space / 2

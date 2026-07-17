@@ -18,7 +18,10 @@ public class LAdapter extends BaseAdapter<IllustsBean, RecyCardIllustBinding> {
 
     public LAdapter(List<IllustsBean> targetList, Context context) {
         super(targetList, context);
-        imageSize = mContext.getResources().getDisplayMetrics().widthPixels / 3;
+        // 作者其他作品横向条:让 3 张卡在「区块 12dp 内边距 + 卡间 8dp 间隔」内正好排满,首卡与
+        // 标题左对齐、末卡不被屏幕边裁成细条(见反馈)。48dp = 两侧 12dp 容器内边距 + 卡间 8dp×3。
+        android.util.DisplayMetrics dm = mContext.getResources().getDisplayMetrics();
+        imageSize = (dm.widthPixels - (int) (48 * dm.density)) / 3;
     }
 
     public int getImageSize() {

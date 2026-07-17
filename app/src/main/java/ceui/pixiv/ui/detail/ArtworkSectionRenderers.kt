@@ -1,0 +1,687 @@
+package ceui.pixiv.ui.detail
+
+import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
+import android.text.TextUtils
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import ceui.lisa.R
+import ceui.lisa.activities.TemplateActivity
+import ceui.lisa.activities.UActivity
+import ceui.lisa.activities.VActivity
+import ceui.lisa.activities.followUser
+import ceui.lisa.activities.unfollowUser
+import ceui.lisa.adapters.LAdapter
+import ceui.lisa.core.Container
+import ceui.lisa.core.PageData
+import ceui.lisa.databinding.CellCommentPreviewBinding
+import ceui.lisa.databinding.SectionV3ArtistBinding
+import ceui.lisa.databinding.SectionV3AuthorWorksBinding
+import ceui.lisa.databinding.SectionV3CommentsBinding
+import ceui.lisa.databinding.SectionV3DescriptionBinding
+import ceui.lisa.databinding.SectionV3DetailPanelBinding
+import ceui.lisa.databinding.SectionV3HeroBinding
+import ceui.lisa.databinding.SectionV3RelatedHeaderBinding
+import ceui.lisa.databinding.SectionV3SeriesBinding
+import ceui.lisa.databinding.SectionV3StatsBinding
+import ceui.lisa.databinding.SectionV3TagsBinding
+import ceui.lisa.models.IllustsBean
+import ceui.lisa.models.TagsBean
+import ceui.lisa.models.UserBean
+import ceui.lisa.utils.ClipBoardUtils
+import ceui.lisa.utils.Common
+import ceui.lisa.utils.GlideUrlChild
+import ceui.lisa.utils.GlideUtil
+import ceui.lisa.utils.Params
+import ceui.lisa.utils.PixivOperate
+import ceui.lisa.utils.SearchTypeUtil
+import ceui.loxia.Comment
+import ceui.loxia.ObjectPool
+import ceui.loxia.ProgressTextButton
+import ceui.pixiv.feeds.FeedCell
+import ceui.pixiv.feeds.FeedItem
+import ceui.pixiv.feeds.FeedRenderer
+import ceui.pixiv.feeds.feedRenderer
+import ceui.pixiv.session.SessionManager
+import ceui.pixiv.ui.comments.CommentEmojiSpanner
+import ceui.pixiv.ui.comments.translateCommentToChinese
+import ceui.pixiv.ui.user.binding_loadUserIcon
+import ceui.pixiv.utils.buildPinnedTagPreviewJson
+import ceui.pixiv.utils.ppppx
+import ceui.pixiv.utils.setOnClick
+import java.text.NumberFormat
+
+/**
+ * ArtworkV3 详情页的 header 区块 —— 从 legacy [ArtworkDetailAdapter] 的 10 个 inner ViewHolder
+ * 逐个搬成 feeds 的 fullSpan [FeedRenderer]。数据（[FeedItem]）与展示（Renderer）分离,
+ * 复用同一批 `SectionV3*` 布局,bind 逻辑近乎逐字对齐旧 VH。
+ *
+ * 懒加载区块（评论 / 作者其他作品）走 data-in-item(UDF):条目携带数据本身(null=加载中),
+ * 首见 null 时回调 Fragment 触发拉取,拉到后经 `feedViewModel.updateItems` 换新条目(数据住
+ * FeedViewModel,旋转存活)。相关作品头随初始页一并产出,只有「有 / 无」两态,无独立加载态。
+ *
+ * 监听器在 `bind` 内注册(而非 [ceui.pixiv.ui.common.staggerIllustRenderer] 那种 `create`):
+ * 这些区块每种在整页里**只有一条**(单例 fullSpan header,不是快滚网格的热路径),一次开页只
+ * bind 一两次,per-bind 的 lambda 分配可忽略;且关注按钮 / 详情面板折叠等本就是**按当前态**
+ * 换绑监听,放 `create` 反而要额外读状态。与被替换的 legacy `ArtworkDetailAdapter` 各 VH 的
+ * `onBindViewHolder` 一致。真正的热路径(相关瀑布流卡)仍走 `create`。
+ */
+
+// ── 区块条目 ────────────────────────────────────────────────────────────────
+
+class ArtworkHeroItem(val illust: IllustsBean) : FeedItem {
+    override val feedKey: Any get() = "artwork_hero"
+    override fun equals(other: Any?) = other is ArtworkHeroItem && other.illust === illust
+    override fun hashCode() = System.identityHashCode(illust)
+}
+
+class ArtworkSeriesItem(val illust: IllustsBean) : FeedItem {
+    override val feedKey: Any get() = "artwork_series"
+    override fun equals(other: Any?) = other is ArtworkSeriesItem && other.illust === illust
+    override fun hashCode() = System.identityHashCode(illust)
+}
+
+data class ArtworkDescItem(val caption: String) : FeedItem {
+    override val feedKey: Any get() = "artwork_desc"
+}
+
+class ArtworkStatsItem(val illust: IllustsBean) : FeedItem {
+    override val feedKey: Any get() = "artwork_stats"
+    override fun equals(other: Any?) = other is ArtworkStatsItem && other.illust === illust
+    override fun hashCode() = System.identityHashCode(illust)
+}
+
+class ArtworkTagsItem(val illust: IllustsBean) : FeedItem {
+    override val feedKey: Any get() = "artwork_tags"
+    override fun equals(other: Any?) = other is ArtworkTagsItem && other.illust === illust
+    override fun hashCode() = System.identityHashCode(illust)
+}
+
+/** 关注态参与相等性:关注切换时只这条重绑。 */
+class ArtworkArtistItem(
+    val illust: IllustsBean,
+    val isFollowed: Boolean = resolveIsFollowed(illust),
+) : FeedItem {
+    override val feedKey: Any get() = "artwork_artist"
+    override fun equals(other: Any?) =
+        other is ArtworkArtistItem && other.illust === illust && other.isFollowed == isFollowed
+
+    override fun hashCode() = System.identityHashCode(illust) * 31 + isFollowed.hashCode()
+
+    companion object {
+        // illust.user 只是快照。作者主页打开会 ObjectPool.updateUser 换掉池条目, illust.user 变孤儿。
+        // 权威关注态先读池,池空再退回快照。对齐 legacy ArtworkDetailItem.Artist.resolveIsFollowed。
+        fun resolveIsFollowed(illust: IllustsBean): Boolean {
+            val user = illust.user ?: return false
+            return ObjectPool.get<UserBean>(user.id.toLong()).value?.isIs_followed
+                ?: user.isIs_followed
+        }
+    }
+}
+
+class ArtworkDetailPanelItem(val illust: IllustsBean) : FeedItem {
+    override val feedKey: Any get() = "artwork_detail_panel"
+    override fun equals(other: Any?) = other is ArtworkDetailPanelItem && other.illust === illust
+    override fun hashCode() = System.identityHashCode(illust)
+}
+
+/** 评论预览(懒):comments == null 表示还没拉。 */
+data class ArtworkCommentsItem(
+    val illustId: Int,
+    val illustTitle: String,
+    val illustAuthorId: Int,
+    val comments: List<Comment>? = null,
+) : FeedItem {
+    override val feedKey: Any get() = "artwork_comments"
+
+    /** 懒加载拉到的评论并入(本地已发的排前,按 id 去重)。 */
+    fun withComments(loaded: List<Comment>) =
+        copy(comments = ((comments ?: emptyList()) + loaded).distinctBy { it.id })
+
+    /** 本地新发的顶层评论插到最前(按 id 去重)。 */
+    fun prepend(comment: Comment) =
+        copy(comments = (listOf(comment) + (comments ?: emptyList())).distinctBy { it.id })
+}
+
+/** 作者其他作品(懒):works == null 表示还没拉。 */
+data class ArtworkAuthorWorksItem(
+    val authorName: String,
+    val userId: Int,
+    val works: List<IllustsBean>? = null,
+) : FeedItem {
+    override val feedKey: Any get() = "artwork_author_works"
+    override fun equals(other: Any?) =
+        other is ArtworkAuthorWorksItem && other.userId == userId && other.works === works
+
+    override fun hashCode() = userId * 31 + System.identityHashCode(works)
+}
+
+/** 相关作品头:滚到可见才懒加载(见 [ArtworkSection.RELATED]),加载态 / 空态 / 有相关三态。 */
+data class ArtworkRelatedHeaderItem(
+    val illustId: Int,
+    val illustTitle: String,
+    /** null=还没滚到这里(未加载,显加载态) / false=无相关(空态) / true=有相关(显「查看更多」)。 */
+    val state: Boolean? = null,
+) : FeedItem {
+    override val feedKey: Any get() = "artwork_related_header"
+}
+
+// ── Renderer ────────────────────────────────────────────────────────────────
+
+internal fun ArtworkV3Fragment.heroRenderer() =
+    feedRenderer<ArtworkHeroItem, SectionV3HeroBinding>(
+        inflate = SectionV3HeroBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val illust = cell.item.illust
+        val ctx = requireContext()
+        val b = cell.binding
+        b.heroTitle.text = illust.title
+        b.heroTitle.setOnLongClickListener { Common.copy(ctx, illust.title.orEmpty()); true }
+        b.metaType.text = when (illust.type) {
+            "manga" -> ctx.getString(R.string.v3_type_manga)
+            "ugoira" -> ctx.getString(R.string.v3_type_ugoira)
+            else -> ctx.getString(R.string.v3_type_illustration)
+        }
+        val ext = page0Extension(illust)
+        b.metaExt.isVisible = ext != null
+        b.metaExtSep.isVisible = ext != null
+        if (ext != null) b.metaExt.text = ext
+        b.metaDate.text = Common.getLocalYYYYMMDDHHMMString(illust.create_date)
+        b.metaPages.text = if (illust.page_count == 1) ctx.getString(R.string.v3_page_count_one)
+        else ctx.getString(R.string.v3_page_count_many, illust.page_count)
+    }
+
+internal fun ArtworkV3Fragment.seriesRenderer() =
+    feedRenderer<ArtworkSeriesItem, SectionV3SeriesBinding>(
+        inflate = SectionV3SeriesBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val illust = cell.item.illust
+        val ctx = requireContext()
+        val b = cell.binding
+        val series = illust.series ?: return@feedRenderer
+        b.seriesName.text = series.title
+        val d = ctx.resources.displayMetrics.density
+        b.seriesStrip.background = palette.seriesStripBg(20f * d)
+        b.seriesIcon.background = palette.seriesIconBg(10f * d)
+        b.seriesName.setTextColor(palette.seriesStripText)
+        b.seriesLabel.setTextColor(palette.seriesStripText)
+        b.seriesChevron.setTextColor(palette.seriesStripText)
+        b.root.setOnClickListener {
+            val intent = Intent(ctx, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "漫画系列详情")
+            intent.putExtra(Params.MANGA_SERIES_ID, series.id)
+            ctx.startActivity(intent)
+        }
+        applyTouchScale(b.root)
+    }
+
+internal fun ArtworkV3Fragment.descRenderer() =
+    feedRenderer<ArtworkDescItem, SectionV3DescriptionBinding>(
+        inflate = SectionV3DescriptionBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        // HTML 解析对长 caption 不便宜;caption 不变(滚动来回重绑)就跳过重解析。
+        val b = cell.binding
+        if (b.description.tag != cell.item.caption) {
+            b.description.tag = cell.item.caption
+            b.description.setHtml(cell.item.caption)
+        }
+    }
+
+internal fun ArtworkV3Fragment.statsRenderer() =
+    feedRenderer<ArtworkStatsItem, SectionV3StatsBinding>(
+        inflate = SectionV3StatsBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val illust = cell.item.illust
+        val fmt = NumberFormat.getNumberInstance()
+        cell.binding.statViews.text = fmt.format(illust.total_view)
+        cell.binding.statBookmarks.text = fmt.format(illust.total_bookmarks)
+    }
+
+internal fun ArtworkV3Fragment.tagsRenderer() =
+    feedRenderer<ArtworkTagsItem, SectionV3TagsBinding>(
+        inflate = SectionV3TagsBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val illust = cell.item.illust
+        val b = cell.binding
+        b.tagsFlow.searchIndex = 0 // illust tab
+        b.tagsFlow.setJavaTags(illust.tags.orEmpty())
+        b.synonymMatch.setWorkTags(illust.tags.orEmpty())
+        b.tagsFlow.onPinTag = { name, translated, newPinned ->
+            val tagBean = TagsBean().apply {
+                this.name = name
+                this.translated_name = translated
+            }
+            val previewJson = if (newPinned) buildPinnedTagPreviewJson(tagBean, illust) else null
+            PixivOperate.insertPinnedSearchHistory(
+                name, SearchTypeUtil.SEARCH_TYPE_DB_KEYWORD, newPinned, previewJson,
+            )
+            Common.showToast(R.string.operate_success)
+        }
+    }
+
+internal fun ArtworkV3Fragment.artistRenderer() =
+    feedRenderer<ArtworkArtistItem, SectionV3ArtistBinding>(
+        inflate = SectionV3ArtistBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val illust = cell.item.illust
+        val ctx = requireContext()
+        val b = cell.binding
+        val user = illust.user ?: return@feedRenderer
+        b.artistName.text = user.name
+        b.artistHandle.text = "@${user.account ?: ""}"
+
+        val openUser = View.OnClickListener {
+            val intent = Intent(ctx, UActivity::class.java)
+            intent.putExtra(Params.USER_ID, user.id)
+            ctx.startActivity(intent)
+        }
+        b.artistCard.setOnClickListener(openUser)
+        b.artistName.setOnClickListener(openUser)
+        b.artistName.setOnLongClickListener { Common.copy(ctx, user.name.orEmpty()); true }
+        b.artistHandle.setOnClickListener(openUser)
+        b.artistHandle.setOnLongClickListener {
+            Common.copy(ctx, b.artistHandle.text?.toString().orEmpty()); true
+        }
+        illustGlide.load(GlideUtil.getUrl(user.profile_image_urls?.medium))
+            .error(R.drawable.no_profile)
+            .into(b.artistAvatar)
+
+        applyTouchScale(b.artistCard)
+
+        bindArtistFollowState(b, user)
+        b.artistBio.isVisible = !user.comment.isNullOrBlank()
+        if (b.artistBio.isVisible) b.artistBio.text = user.comment
+    }
+
+private fun ArtworkV3Fragment.bindArtistFollowState(b: SectionV3ArtistBinding, user: UserBean) {
+    val ctx = requireContext()
+    val isFollowed = ObjectPool.get<UserBean>(user.id.toLong()).value?.isIs_followed
+        ?: user.isIs_followed
+    if (isFollowed) {
+        b.followBtn.text = ctx.getString(R.string.unfollow)
+        palette.applyUnfollowBtn(b.followBtn)
+        b.followBtn.setOnClick { unfollowUser(it as ProgressTextButton, user.id) }
+        b.followBtn.setOnLongClickListener(null)
+        b.followBtn.isLongClickable = false
+    } else {
+        b.followBtn.text = ctx.getString(R.string.follow)
+        palette.applyFollowBtn(b.followBtn)
+        b.followBtn.setTextColor(Color.WHITE)
+        b.followBtn.setOnClick { followUser(it as ProgressTextButton, user.id, Params.TYPE_PUBLIC) }
+        b.followBtn.setOnLongClickListener {
+            followUser(b.followBtn, user.id, Params.TYPE_PRIVATE); true
+        }
+    }
+}
+
+internal fun ArtworkV3Fragment.detailPanelRenderer() =
+    feedRenderer<ArtworkDetailPanelItem, SectionV3DetailPanelBinding>(
+        inflate = SectionV3DetailPanelBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val illust = cell.item.illust
+        val b = cell.binding
+        // 只在换了作品时重建 chips(~30 个 view + 一堆 getString);单例 header,滚动来回重绑不重建。
+        if (b.detailGrid.tag !== illust) {
+            b.detailGrid.tag = illust
+            b.detailGrid.removeAllViews()
+            buildDetailChips(b, illust)
+        }
+        // 展开态归 Fragment 字段(滚走再滚回不重置);绑定时按当前态还原,不放动画。
+        b.detailGrid.isVisible = detailPanelExpanded
+        b.detailArrow.rotation = if (detailPanelExpanded) 0f else 180f
+        b.detailHeader.setOnClickListener {
+            val next = !detailPanelExpanded
+            detailPanelExpanded = next
+            val grid = b.detailGrid
+            val arrow = b.detailArrow
+            if (!next) {
+                grid.animate().alpha(0f).translationY(-12.ppppx.toFloat()).setDuration(250)
+                    .setInterpolator(DecelerateInterpolator(2f))
+                    .withEndAction { grid.isVisible = false; grid.translationY = 0f }.start()
+                arrow.animate().rotation(180f).setDuration(300).start()
+            } else {
+                grid.alpha = 0f; grid.translationY = -12.ppppx.toFloat(); grid.isVisible = true
+                grid.animate().alpha(1f).translationY(0f).setDuration(350)
+                    .setInterpolator(DecelerateInterpolator(2f)).start()
+                arrow.animate().rotation(0f).setDuration(300).start()
+            }
+        }
+    }
+
+private fun ArtworkV3Fragment.buildDetailChips(b: SectionV3DetailPanelBinding, illust: IllustsBean) {
+    val ctx = requireContext()
+    fun s(resId: Int) = ctx.getString(resId)
+    val chips = listOf(
+        s(R.string.v3_detail_artwork_id) to illust.id.toString(),
+        s(R.string.v3_detail_user_id) to (illust.user?.id?.toString() ?: "--"),
+        s(R.string.v3_detail_type) to when (illust.type) {
+            "manga" -> s(R.string.v3_type_manga)
+            "ugoira" -> s(R.string.v3_type_ugoira)
+            else -> s(R.string.v3_type_illustration)
+        },
+        s(R.string.v3_detail_resolution) to "${illust.width} × ${illust.height}",
+        s(R.string.v3_detail_pages) to illust.page_count.toString(),
+        s(R.string.v3_detail_ai) to if (illust.illust_ai_type == 2) s(R.string.v3_detail_ai_yes)
+        else s(R.string.v3_detail_ai_no),
+        s(R.string.v3_detail_restriction) to when {
+            illust.x_restrict == 1 -> "R-18"
+            illust.x_restrict == 2 -> "R-18G"
+            else -> s(R.string.v3_detail_all_ages)
+        },
+        s(R.string.v3_detail_published) to Common.getLocalYYYYMMDDHHMMString(illust.create_date),
+    )
+    for (i in chips.indices step 2) {
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            if (i > 0) layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = 8.ppppx }
+        }
+        row.addView(createDetailChip(ctx, chips[i].first, chips[i].second, illust))
+        if (i + 1 < chips.size) {
+            row.addView(View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(8.ppppx, 1)
+            })
+            row.addView(createDetailChip(ctx, chips[i + 1].first, chips[i + 1].second, illust))
+        }
+        b.detailGrid.addView(row)
+    }
+}
+
+private fun ArtworkV3Fragment.createDetailChip(
+    ctx: android.content.Context,
+    label: String,
+    value: String,
+    illust: IllustsBean,
+): LinearLayout {
+    return LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        setBackgroundResource(R.drawable.v3_detail_chip_bg)
+        setPadding(12.ppppx, 10.ppppx, 12.ppppx, 10.ppppx)
+        layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        addView(TextView(ctx).apply {
+            text = label.uppercase(); textSize = 9f
+            setTextColor(ctx.getColor(R.color.v3_text_3)); letterSpacing = 0.08f; alpha = 0.7f
+        })
+        val artworkIdLabel = ctx.getString(R.string.v3_detail_artwork_id)
+        val userIdLabel = ctx.getString(R.string.v3_detail_user_id)
+        val aiLabel = ctx.getString(R.string.v3_detail_ai)
+        val restrictionLabel = ctx.getString(R.string.v3_detail_restriction)
+        addView(TextView(ctx).apply {
+            text = value; textSize = 13f; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+            setTypeface(
+                if (label == artworkIdLabel || label == userIdLabel) Typeface.MONOSPACE else typeface,
+                Typeface.BOLD,
+            )
+            setTextColor(
+                when {
+                    label == artworkIdLabel || label == userIdLabel -> palette.textAccent
+                    label == aiLabel && illust.illust_ai_type == 2 -> ctx.getColor(R.color.v3_purple)
+                    label == aiLabel -> ctx.getColor(R.color.v3_green)
+                    label == restrictionLabel && illust.x_restrict > 0 -> ctx.getColor(R.color.v3_pink)
+                    label == restrictionLabel -> ctx.getColor(R.color.v3_blue)
+                    else -> ctx.getColor(R.color.v3_text_1)
+                },
+            )
+            alpha = if (label == artworkIdLabel || label == userIdLabel) 1f else 0.8f
+        })
+        setOnClickListener { Common.copy(ctx, value) }
+    }
+}
+
+internal fun ArtworkV3Fragment.commentsRenderer() =
+    feedRenderer<ArtworkCommentsItem, SectionV3CommentsBinding>(
+        inflate = SectionV3CommentsBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val item = cell.item
+        val ctx = requireContext()
+        val b = cell.binding
+
+        fun openCommentList() {
+            val intent = Intent(ctx, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "相关评论")
+            intent.putExtra(Params.ILLUST_ID, item.illustId)
+            intent.putExtra(Params.ILLUST_TITLE, item.illustTitle)
+            ctx.startActivity(intent)
+        }
+
+        b.commentsMore.setTextColor(palette.textAccent)
+        b.commentsMore.setOnClick { openCommentList() }
+
+        val density = ctx.resources.displayMetrics.density
+        b.addCommentEntry.background = palette.settingsCardBg(22f * density, (1 * density).toInt())
+        b.addCommentAvatar.binding_loadUserIcon(SessionManager.loggedInUser)
+        b.addCommentEntry.setOnClick { showComposer() }
+
+        // 首见 null(评论区滚到可见)才触发拉取;拉到后经 updateItems 换新条目再渲染
+        if (item.comments == null) {
+            onSectionVisible(ArtworkSection.COMMENTS)
+        }
+        renderCommentsPreview(b, item.comments, item.illustAuthorId)
+    }
+
+private fun ArtworkV3Fragment.renderCommentsPreview(
+    b: SectionV3CommentsBinding,
+    comments: List<Comment>?,
+    illustAuthorId: Int,
+) {
+    val ctx = requireContext()
+    val isLoading = comments == null
+    b.commentsLoading.isVisible = isLoading
+    b.commentsList.isVisible = !isLoading
+    if (isLoading) {
+        b.commentsEmpty.isVisible = false
+        return
+    }
+    b.commentsEmpty.isVisible = comments!!.isEmpty()
+
+    // 评论列表实例不变(滚动来回重绑)就跳过重新 inflate 三张预览卡;发新评论 / 首次拉到会换实例。
+    if (b.commentsList.tag === comments) return
+    b.commentsList.tag = comments
+
+    b.commentsList.removeAllViews()
+
+    val inflater = android.view.LayoutInflater.from(ctx)
+    val accent = palette.textAccent
+    comments.forEach { comment ->
+        val cellB = CellCommentPreviewBinding.inflate(inflater, b.commentsList, false)
+        (cellB.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin =
+            if (b.commentsList.childCount > 0) 8.ppppx else 0
+
+        cellB.userName.text = comment.user.name
+        cellB.commentTime.text = comment.displayCommentDate()
+
+        val isArthur = illustAuthorId.toLong() == comment.user.id
+        cellB.arthurLabel.isVisible = isArthur
+        if (isArthur) {
+            cellB.arthurLabel.backgroundTintList = ColorStateList.valueOf(palette.alpha15)
+            cellB.arthurLabel.setTextColor(accent)
+        }
+        cellB.userIcon.borderColor =
+            if (isArthur) accent else ctx.getColor(R.color.v3_border_2)
+        comment.user.profile_image_urls?.medium?.let {
+            illustGlide.load(GlideUrlChild(it)).circleCrop().into(cellB.userIcon)
+        }
+
+        val stampUrl = comment.stamp?.stamp_url
+        cellB.commentStamp.isVisible = stampUrl != null
+        cellB.commentContent.isVisible = stampUrl == null
+        if (stampUrl != null) {
+            illustGlide.load(GlideUrlChild(stampUrl)).into(cellB.commentStamp)
+        } else {
+            cellB.commentContent.text = CommentEmojiSpanner.format(
+                ctx, comment.comment, cellB.commentContent.textSize.toInt(),
+            )
+        }
+
+        cellB.root.setOnLongClickListener {
+            val text = comment.comment
+            showV3Menu("PreviewCommentMenu") {
+                if (!text.isNullOrBlank()) {
+                    item(ctx.getString(R.string.string_173), R.drawable.baseline_content_copy_24) {
+                        ClipBoardUtils.putTextIntoClipboard(ctx, text)
+                    }
+                    item(ctx.getString(R.string.comment_translate_to_zh), R.drawable.ic_baseline_translate_24) {
+                        translateCommentToChinese(text)
+                    }
+                }
+                item(ctx.getString(R.string.string_174), R.drawable.ic_supervisor_account_black_24dp) {
+                    val intent = Intent(ctx, UActivity::class.java)
+                    intent.putExtra(Params.USER_ID, comment.user.id.toInt())
+                    ctx.startActivity(intent)
+                }
+            }
+            true
+        }
+
+        b.commentsList.addView(cellB.root)
+    }
+}
+
+internal fun ArtworkV3Fragment.authorWorksRenderer() =
+    feedRenderer<ArtworkAuthorWorksItem, SectionV3AuthorWorksBinding>(
+        inflate = SectionV3AuthorWorksBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val item = cell.item
+        val ctx = requireContext()
+        val b = cell.binding
+        b.authorWorksLabel.text =
+            ctx.getString(R.string.v3_author_works, item.authorName).uppercase()
+        b.authorWorksSeeAll.setTextColor(palette.textAccent)
+        b.authorWorksSeeAll.setOnClickListener {
+            val intent = Intent(ctx, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "插画作品")
+            intent.putExtra(Params.USER_ID, item.userId)
+            ctx.startActivity(intent)
+        }
+        if (item.works == null) {
+            onSectionVisible(ArtworkSection.AUTHOR_WORKS)
+        }
+        renderAuthorWorks(b, item.works)
+    }
+
+private fun ArtworkV3Fragment.renderAuthorWorks(
+    b: SectionV3AuthorWorksBinding,
+    works: List<IllustsBean>?,
+) {
+    val ctx = requireContext()
+    if (works == null) {
+        b.authorWorksLoading.isVisible = true
+        b.authorWorksRv.isVisible = false
+        b.authorWorksSeeAll.isVisible = false
+        return
+    }
+    b.authorWorksLoading.isVisible = false
+    if (works.isEmpty()) {
+        b.authorWorksLabel.isVisible = false
+        b.authorWorksRv.isVisible = false
+        b.authorWorksSeeAll.isVisible = false
+        return
+    }
+    b.authorWorksLabel.isVisible = true
+    b.authorWorksRv.isVisible = true
+    b.authorWorksSeeAll.isVisible = true
+
+    if (b.authorWorksRv.tag !== works) {
+        b.authorWorksRv.tag = works
+        if (b.authorWorksRv.layoutManager == null) {
+            b.authorWorksRv.layoutManager =
+                LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+            b.authorWorksRv.addItemDecoration(object : RecyclerView.ItemDecoration() {
+                override fun getItemOffsets(
+                    outRect: android.graphics.Rect, view: View,
+                    parent: RecyclerView, state: RecyclerView.State,
+                ) {
+                    outRect.right = 8.ppppx
+                }
+            })
+        }
+        val worksList = works.toMutableList()
+        val lAdapter = LAdapter(worksList, ctx)
+        lAdapter.setOnItemClickListener { _, position, _ ->
+            val pageData = PageData(worksList)
+            Container.get().addPageToMap(pageData)
+            val intent = Intent(ctx, VActivity::class.java)
+            intent.putExtra(Params.POSITION, position)
+            intent.putExtra(Params.PAGE_UUID, pageData.uuid)
+            ctx.startActivity(intent)
+        }
+        b.authorWorksRv.adapter = lAdapter
+        val lp = b.authorWorksRv.layoutParams
+        lp.height = lAdapter.imageSize + ctx.resources.getDimensionPixelSize(R.dimen.sixteen_dp)
+        b.authorWorksRv.layoutParams = lp
+    }
+}
+
+internal fun ArtworkV3Fragment.relatedHeaderRenderer() =
+    feedRenderer<ArtworkRelatedHeaderItem, SectionV3RelatedHeaderBinding>(
+        inflate = SectionV3RelatedHeaderBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val item = cell.item
+        val ctx = requireContext()
+        val b = cell.binding
+        b.relatedSeeMore.setTextColor(palette.textAccent)
+        b.relatedSeeMore.setOnClick {
+            val intent = Intent(ctx, TemplateActivity::class.java)
+            intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "相关作品")
+            intent.putExtra(Params.ILLUST_ID, item.illustId)
+            intent.putExtra(Params.ILLUST_TITLE, item.illustTitle)
+            ctx.startActivity(intent)
+        }
+        // 首见 null(「相关作品」区块刚滚到可见)才拉第 1 页;拉到前显加载态,不在进页时就发请求。
+        if (item.state == null) {
+            onSectionVisible(ArtworkSection.RELATED)
+        }
+        b.relatedLoadingContainer.isVisible = item.state == null
+        b.relatedSeeMore.isVisible = item.state == true
+        b.relatedEmpty.isVisible = item.state == false
+    }
+
+// ── helpers ───────────────────────────────────────────────────────────────
+
+/** 第 0 P 原图 URL 的文件后缀(大写,如 PNG / JPG);拿不到返回 null。对齐旧 VH。 */
+private fun page0Extension(illust: IllustsBean): String? {
+    val url = if (illust.page_count <= 1) {
+        illust.meta_single_page?.original_image_url
+    } else {
+        illust.meta_pages?.getOrNull(0)?.image_urls?.original
+    }
+    val clean = url?.substringBefore('?')?.substringBefore('#') ?: return null
+    val dot = clean.lastIndexOf('.')
+    if (dot < 0 || dot == clean.length - 1) return null
+    val ext = clean.substring(dot + 1)
+    if (ext.length > 5 || ext.contains('/')) return null
+    return ext.uppercase()
+}
+
+private fun applyTouchScale(view: View, scale: Float = 0.97f) {
+    view.setOnTouchListener { v, event ->
+        when (event.action) {
+            MotionEvent.ACTION_DOWN ->
+                v.animate().scaleX(scale).scaleY(scale).setDuration(200).start()
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                v.animate().scaleX(1f).scaleY(1f).setDuration(200).start()
+        }
+        false
+    }
+}

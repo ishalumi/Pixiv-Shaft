@@ -44,13 +44,12 @@
         android:indeterminateTint="@color/v3_text_3"
         android:visibility="gone" />
 
+    <!-- 卡片左对齐区块内容(12dp),不再用 -8dp bleed 把首/尾卡顶到屏幕边被裁切;右侧自然 peek 表示可横滑。 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/author_works_rv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="-8dp"
         android:clipToPadding="false"
         android:nestedScrollingEnabled="false"
-        android:overScrollMode="never"
-        android:paddingHorizontal="8dp" />
+        android:overScrollMode="never" />
 </LinearLayout>

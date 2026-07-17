@@ -1,233 +1,208 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  ArtworkV3 详情页(feeds 框架版):列表本体走 <include feed_root=fragment_feed>(SwipeRefresh +
+  RecyclerView + 骨架 + 空/错态),chrome(toolbar / 页状态横幅 / 折叠胶囊 / 悬浮下载收藏胶囊 /
+  内联评论输入栏)浮在列表之上。无 <layout> 数据绑定——用 ViewBinding,Fragment(contentLayoutId)
+  普通 inflate 后 FragmentArtworkV3Binding.bind(view)。下拉刷新已关闭(refreshEnabled=false)。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/v3_bg">
 
-    <FrameLayout
+    <include
+        android:id="@+id/feed_root"
+        layout="@layout/fragment_feed"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/v3_bg">
+        android:layout_height="match_parent" />
 
-        <!-- 手动下拉刷新:只重新拉取 illust 详情本身,懒加载区块(评论/作者其他作品/相关作品)不动。
-             加载更多由 RecyclerView 的滚动监听负责,这里关掉 SmartRefreshLayout 自带的 footer 手势。 -->
-        <com.scwang.smart.refresh.layout.SmartRefreshLayout
-            android:id="@+id/refresh_layout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:srlEnableLoadMore="false">
+    <LinearLayout
+        android:id="@+id/top_overlay_column"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler_view"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:overScrollMode="never" />
-        </com.scwang.smart.refresh.layout.SmartRefreshLayout>
-
-        <LinearLayout
-            android:id="@+id/top_overlay_column"
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_collapseMode="pin"
-                app:navigationIcon="@drawable/ic_arrow_back_white_shadow">
-
-                <TextView
-                    android:id="@+id/toolbar_title"
-                    style="@style/textMontserratBold"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:alpha="0.0"
-                    android:ellipsize="end"
-                    android:singleLine="true"
-                    android:textColor="@color/v3_text_1"
-                    android:textSize="18sp" />
-
-                <ImageView
-                    android:id="@+id/nav_more"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_gravity="end"
-                    android:layout_marginEnd="8dp"
-                    android:contentDescription="@null"
-                    android:padding="10dp"
-                    android:src="@drawable/ic_more_vert_black_24dp"
-                    app:tint="@color/v3_text_1" />
-            </androidx.appcompat.widget.Toolbar>
-
-            <LinearLayout
-                android:id="@+id/page_status_row"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#CCFF6B6B"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="6dp"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/page_status_text"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/page_status_retry"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/selectableItemBackground"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="6dp"
-                    android:text="@string/image_load_status_retry_all"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Floating "收起" pill: anchored top-end, visible only while the
-             multi-page illust is expanded. topMargin is driven at runtime
-             from top_overlay_column.bottom so the pill stays clear of the
-             retry banner (see issue #881). -->
-        <LinearLayout
-            android:id="@+id/collapse_pill"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top|end"
-            android:layout_marginEnd="12dp"
-            android:background="@drawable/bg_v3_expand_pill"
-            android:clickable="true"
-            android:elevation="8dp"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="12dp"
-            android:paddingEnd="14dp"
-            android:paddingTop="7dp"
-            android:paddingBottom="7dp"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_marginEnd="6dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_keyboard_arrow_up_black_24dp"
-                app:tint="#FFFFFF" />
+            app:layout_collapseMode="pin"
+            app:navigationIcon="@drawable/ic_arrow_back_white_shadow">
 
             <TextView
+                android:id="@+id/toolbar_title"
+                style="@style/textMontserratBold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.02"
-                android:text="@string/v3_collapse_pages_title"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- Floating action bar (download + bookmark + private bookmark) -->
-        <LinearLayout
-            android:id="@+id/fab_bar"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="24dp"
-            android:background="@drawable/bg_v3_fab_bar"
-            android:elevation="12dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="6dp">
-
-            <FrameLayout
-                android:id="@+id/fab_download_container"
-                android:layout_width="60dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless">
-
-                <ImageView
-                    android:id="@+id/fab_download"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clickable="false"
-                    android:contentDescription="@null"
-                    android:focusable="false"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_file_download_black_24dp"
-                    app:tint="@color/white" />
-
-                <com.google.android.material.progressindicator.CircularProgressIndicator
-                    android:id="@+id/fab_download_progress"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:indeterminate="false"
-                    android:visibility="gone"
-                    app:indicatorColor="@color/white"
-                    app:indicatorSize="24dp"
-                    app:trackColor="@color/voice_record_track_color"
-                    app:trackCornerRadius="4dp"
-                    app:trackThickness="3dp" />
-            </FrameLayout>
-
-            <!-- 颜色只是深色模式默认值,浅色模式下由 ArtworkV3Fragment 按 palette.floatingPillContent 重刷 -->
-            <View
-                android:id="@+id/fab_divider"
-                android:layout_width="1dp"
-                android:layout_height="24dp"
-                android:layout_marginHorizontal="2dp"
-                android:background="#33FFFFFF" />
+                android:layout_gravity="center"
+                android:alpha="0.0"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/v3_text_1"
+                android:textSize="18sp" />
 
             <ImageView
-                android:id="@+id/fab_bookmark"
-                android:layout_width="60dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:id="@+id/nav_more"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="end"
+                android:layout_marginEnd="8dp"
                 android:contentDescription="@null"
-                android:padding="8dp"
-                android:src="@drawable/ic_favorite_black_24dp"
-                app:tint="@color/white" />
+                android:padding="10dp"
+                android:src="@drawable/ic_more_vert_black_24dp"
+                app:tint="@color/v3_text_1" />
+        </androidx.appcompat.widget.Toolbar>
 
-        </LinearLayout>
-
-        <!-- issue #569: 详情数据不完整(网页精简来源)时回 API 拉完整版,期间居中转圈圈 -->
-        <com.google.android.material.progressindicator.CircularProgressIndicator
-            android:id="@+id/loading_full_detail"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:indeterminate="true"
-            android:visibility="gone"
-            app:indicatorSize="44dp"
-            app:trackThickness="4dp" />
-
-        <!-- 评论输入浮层:平时不常驻(整条透明、输入栏 GONE),点评论区「留下你的评论吧」入口才浮出
-             (见 ArtworkV3Fragment.showComposer)。整条 LinearLayout 是 BottomPanelCoordinator 的
-             panelRoot——键盘显示时由 root bottom padding 抬起输入栏；自定义面板显示时导航栏 inset
-             转交给不透明 panel 自身，使 panel 的完整表面参与同一段高度动画，结束帧不再靠 root 背景
-             兜底。跟评论详情页复用同一套 attachBottomPanel，只是这里只发顶层评论。 -->
         <LinearLayout
-            android:id="@+id/composer_root"
+            android:id="@+id/page_status_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:orientation="vertical">
+            android:background="#CCFF6B6B"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:visibility="gone">
 
-            <ceui.pixiv.ui.comments.CommentComposerView
-                android:id="@+id/comment_composer"
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/page_status_text"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                tools:visibility="visible" />
+                android:layout_weight="1"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/page_status_retry"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:text="@string/image_load_status_retry_all"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
         </LinearLayout>
+    </LinearLayout>
 
-    </FrameLayout>
+    <!-- Floating "收起" pill: 仅多图展开中可见。topMargin 运行时由 top_overlay_column.bottom 驱动。 -->
+    <LinearLayout
+        android:id="@+id/collapse_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_v3_expand_pill"
+        android:clickable="true"
+        android:elevation="8dp"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="7dp"
+        android:paddingBottom="7dp"
+        android:visibility="gone">
 
-</layout>
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginEnd="6dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_keyboard_arrow_up_black_24dp"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.02"
+            android:text="@string/v3_collapse_pages_title"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Floating action bar (download + bookmark) -->
+    <LinearLayout
+        android:id="@+id/fab_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/bg_v3_fab_bar"
+        android:elevation="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp">
+
+        <FrameLayout
+            android:id="@+id/fab_download_container"
+            android:layout_width="60dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless">
+
+            <ImageView
+                android:id="@+id/fab_download"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clickable="false"
+                android:contentDescription="@null"
+                android:focusable="false"
+                android:padding="8dp"
+                android:src="@drawable/ic_file_download_black_24dp"
+                app:tint="@color/white" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/fab_download_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:indeterminate="false"
+                android:visibility="gone"
+                app:indicatorColor="@color/white"
+                app:indicatorSize="24dp"
+                app:trackColor="@color/voice_record_track_color"
+                app:trackCornerRadius="4dp"
+                app:trackThickness="3dp" />
+        </FrameLayout>
+
+        <!-- 颜色只是深色模式默认值,浅色模式由 ArtworkV3Fragment 按 palette.floatingPillContent 重刷 -->
+        <View
+            android:id="@+id/fab_divider"
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_marginHorizontal="2dp"
+            android:background="#33FFFFFF" />
+
+        <ImageView
+            android:id="@+id/fab_bookmark"
+            android:layout_width="60dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@null"
+            android:padding="8dp"
+            android:src="@drawable/ic_favorite_black_24dp"
+            app:tint="@color/white" />
+
+    </LinearLayout>
+
+    <!-- 评论输入浮层:平时不常驻(整条透明、输入栏 GONE),点评论区「留下你的评论吧」入口才浮出。 -->
+    <LinearLayout
+        android:id="@+id/composer_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical">
+
+        <ceui.pixiv.ui.comments.CommentComposerView
+            android:id="@+id/comment_composer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+</FrameLayout>
