@@ -17,6 +17,8 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import ceui.lisa.utils.V3Palette
 import com.google.android.material.progressindicator.CircularProgressIndicator
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
@@ -65,6 +67,9 @@ class UgoiraPlayerView @JvmOverloads constructor(
     private val imageView = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_CENTER
     }
+    // 构造时拿一次 RequestManager；回收可能发生在 View 已 detach 之后，此时再 Glide.with(view)
+    // 会重复做 ViewTree/lifecycle 查找，极端销毁时序下还可能命中已销毁 Activity。
+    private val glide = Glide.with(context)
 
     // 进度环复用 item_progress(与插画列表加载圈同款 donut 环,Material CircularProgressIndicator)。
     // determinate,靠 plain setProgress 直接跳到目标值,**不带进度变化的补间动画**(用户要求);
@@ -160,6 +165,22 @@ class UgoiraPlayerView @JvmOverloads constructor(
     }
 
     private var job: Job? = null
+    private var playbackActive = false
+    private var boundOwner: LifecycleOwner? = null
+    private var boundIllust: IllustsBean? = null
+    private val lifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onResume(owner: LifecycleOwner) {
+            resumePlayback()
+        }
+
+        override fun onPause(owner: LifecycleOwner) {
+            pausePlayback()
+        }
+
+        override fun onDestroy(owner: LifecycleOwner) {
+            recycle()
+        }
+    }
 
     init {
         addView(imageView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
@@ -175,6 +196,15 @@ class UgoiraPlayerView @JvmOverloads constructor(
 
     /** 绑定一条 ugoira。进入即自动拉数据 → 下载 → 解压 → 编码 → 播放。 */
     fun bind(owner: LifecycleOwner, illust: IllustsBean, maxHeight: Int) {
+        if (boundIllust?.id != illust.id) {
+            pausePlayback()
+        }
+        if (boundOwner !== owner) {
+            boundOwner?.lifecycle?.removeObserver(lifecycleObserver)
+            boundOwner = owner
+            owner.lifecycle.addObserver(lifecycleObserver)
+        }
+        boundIllust = illust
         // 高度按原图宽高比 * 屏宽,封顶 maxHeight —— 和 IllustAdapter / 老 ugora 页一致。
         val w = illust.width.coerceAtLeast(1)
         val h = illust.height.coerceAtLeast(1)
@@ -183,15 +213,70 @@ class UgoiraPlayerView @JvmOverloads constructor(
         if (maxHeight > 0 && targetH > maxHeight) targetH = maxHeight
         imageView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, targetH)
 
-        // 预览图打底(拿到 gif 前先显示首帧/大图)。
-        Glide.with(this).load(GlideUtil.getLargeImage(illust)).into(imageView)
+        // 预览图打底(拿到 gif 前先显示首帧/大图)。同一 holder 的无关重绑不能把正在播的 GIF
+        // 又替换回预览图。
+        if (!playbackActive) {
+            glide.load(GlideUtil.getLargeImage(illust)).into(imageView)
+        }
 
         Timber.tag(UGOIRA_LOG_TAG).i("[player] illust=%d bind %dx%d", illust.id, illust.width, illust.height)
-        retryButton.setOnClickListener { startLoad(owner, illust) }
-        startLoad(owner, illust)
+        retryButton.setOnClickListener {
+            pausePlayback()
+            startLoad(owner, illust)
+        }
+        resumePlayback()
+    }
+
+    /** RecyclerView attach/detach 比 recycle 更及时：刚滚出屏幕就停，不等 holder 进回收池。 */
+    fun onFeedAttached() = resumePlayback()
+
+    fun onFeedDetached() = pausePlayback()
+
+    /**
+     * RecyclerView 回收时立即停止本 View 的收集与 Glide GIF。底层 UgoiraEngine 的共享任务按设计
+     * 继续完成并落缓存，但已离屏的 View 不再持有 owner/bitmap，也不再消耗 GIF 解码帧。
+     */
+    fun recycle() {
+        pausePlayback()
+        boundOwner?.lifecycle?.removeObserver(lifecycleObserver)
+        boundOwner = null
+        boundIllust = null
+        retryButton.setOnClickListener(null)
+        retryButton.isVisible = false
+        glide.clear(imageView)
+        imageView.setImageDrawable(null)
+    }
+
+    private fun pausePlayback() {
+        playbackActive = false
+        job?.cancel()
+        job = null
+        // RequestManager 跟宿主 Activity；ViewPager 只把相邻 Fragment 降到 STARTED，Activity 仍
+        // RESUMED，单纯 GifDrawable.stop 可能被晚到的 Glide 回调再次启动。clear 才能彻底截断。
+        glide.clear(imageView)
+        imageView.setImageDrawable(null)
+        hideOverlay()
+    }
+
+    private fun resumePlayback() {
+        val owner = boundOwner ?: return
+        val illust = boundIllust ?: return
+        if (playbackActive) return
+        if (!isAttachedToWindow ||
+            !owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        ) return
+        val drawable = imageView.drawable
+        if (drawable is GifDrawable) {
+            drawable.start()
+            playbackActive = true
+        } else {
+            glide.load(GlideUtil.getLargeImage(illust)).into(imageView)
+            startLoad(owner, illust)
+        }
     }
 
     private fun startLoad(owner: LifecycleOwner, illust: IllustsBean) {
+        playbackActive = true
         job?.cancel()
         retryButton.isVisible = false
         // 秒开:内存已有编好的 gif 就直接播,不起协程、不显示浮层、不碰文件系统(主线程零 IO,不绕远路)。
@@ -222,6 +307,7 @@ class UgoiraPlayerView @JvmOverloads constructor(
                 throw c
             } catch (t: Throwable) {
                 progressJob.cancel()
+                playbackActive = false
                 hideOverlay()
                 retryButton.isVisible = true
                 Timber.tag(UGOIRA_LOG_TAG).w(t, "[player] illust=%d 加载失败,显示重试", illust.id)
@@ -232,7 +318,7 @@ class UgoiraPlayerView @JvmOverloads constructor(
     /** Glide asGif 播放 + 失败自愈:文件被系统清了缓存目录 → invalidate 内存记录 + 显示重试
      *  (重试走完整 pipeline 重下重编)。也是 loadPlayableGif 不做主线程 stat 的安全网。 */
     private fun playGif(illust: IllustsBean, file: File) {
-        Glide.with(this)
+        glide
             .asGif()
             .load(file)
             .placeholder(imageView.drawable) // 保留预览图当占位,不闪白
@@ -241,6 +327,7 @@ class UgoiraPlayerView @JvmOverloads constructor(
                     e: GlideException?, model: Any?, target: Target<GifDrawable>, isFirstResource: Boolean,
                 ): Boolean {
                     Timber.tag(UGOIRA_LOG_TAG).w(e, "[player] illust=%d gif 加载失败(疑似缓存被清),invalidate+显示重试", illust.id)
+                    playbackActive = false
                     UgoiraEngine.invalidate(illust.id)
                     hideOverlay()
                     retryButton.isVisible = true
@@ -310,6 +397,17 @@ class UgoiraPlayerAdapter(
             lp.isFullSpan = true
             holder.itemView.layoutParams = lp
         }
+        holder.player.onFeedAttached()
+    }
+
+    override fun onViewDetachedFromWindow(holder: VH) {
+        holder.player.onFeedDetached()
+        super.onViewDetachedFromWindow(holder)
+    }
+
+    override fun onViewRecycled(holder: VH) {
+        holder.player.recycle()
+        super.onViewRecycled(holder)
     }
 
     override fun getItemCount(): Int = 1

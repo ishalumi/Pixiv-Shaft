@@ -99,6 +99,16 @@ class FeedAdapter(
         renderers[cell.itemViewType].onRecycled(cell)
     }
 
+    override fun onViewAttachedToWindow(cell: FeedCell<FeedItem, ViewBinding>) {
+        super.onViewAttachedToWindow(cell)
+        renderers[cell.itemViewType].onAttached(cell)
+    }
+
+    override fun onViewDetachedFromWindow(cell: FeedCell<FeedItem, ViewBinding>) {
+        renderers[cell.itemViewType].onDetached(cell)
+        super.onViewDetachedFromWindow(cell)
+    }
+
     /** 给 GridLayoutManager 的 SpanSizeLookup 用。 */
     fun spanSizeAt(position: Int, spanCount: Int): Int {
         if (position !in 0 until itemCount) return 1

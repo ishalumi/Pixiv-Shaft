@@ -449,6 +449,9 @@ internal fun ArtworkV3Fragment.commentsRenderer() =
     feedRenderer<ArtworkCommentsItem, SectionV3CommentsBinding>(
         inflate = SectionV3CommentsBinding::inflate,
         fullSpan = true,
+        attach = { cell ->
+            if (cell.item.comments == null) onSectionVisible(ArtworkSection.COMMENTS)
+        },
     ) { cell ->
         val item = cell.item
         val ctx = requireContext()
@@ -470,10 +473,6 @@ internal fun ArtworkV3Fragment.commentsRenderer() =
         b.addCommentAvatar.binding_loadUserIcon(SessionManager.loggedInUser)
         b.addCommentEntry.setOnClick { showComposer() }
 
-        // 首见 null(评论区滚到可见)才触发拉取;拉到后经 updateItems 换新条目再渲染
-        if (item.comments == null) {
-            onSectionVisible(ArtworkSection.COMMENTS)
-        }
         renderCommentsPreview(b, item.comments, item.illustAuthorId)
     }
 
@@ -559,6 +558,9 @@ internal fun ArtworkV3Fragment.authorWorksRenderer() =
     feedRenderer<ArtworkAuthorWorksItem, SectionV3AuthorWorksBinding>(
         inflate = SectionV3AuthorWorksBinding::inflate,
         fullSpan = true,
+        attach = { cell ->
+            if (cell.item.works == null) onSectionVisible(ArtworkSection.AUTHOR_WORKS)
+        },
     ) { cell ->
         val item = cell.item
         val ctx = requireContext()
@@ -571,9 +573,6 @@ internal fun ArtworkV3Fragment.authorWorksRenderer() =
             intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "插画作品")
             intent.putExtra(Params.USER_ID, item.userId)
             ctx.startActivity(intent)
-        }
-        if (item.works == null) {
-            onSectionVisible(ArtworkSection.AUTHOR_WORKS)
         }
         renderAuthorWorks(b, item.works)
     }
@@ -638,6 +637,9 @@ internal fun ArtworkV3Fragment.relatedHeaderRenderer() =
     feedRenderer<ArtworkRelatedHeaderItem, SectionV3RelatedHeaderBinding>(
         inflate = SectionV3RelatedHeaderBinding::inflate,
         fullSpan = true,
+        attach = { cell ->
+            if (cell.item.state == null) onSectionVisible(ArtworkSection.RELATED)
+        },
     ) { cell ->
         val item = cell.item
         val ctx = requireContext()
@@ -649,10 +651,6 @@ internal fun ArtworkV3Fragment.relatedHeaderRenderer() =
             intent.putExtra(Params.ILLUST_ID, item.illustId)
             intent.putExtra(Params.ILLUST_TITLE, item.illustTitle)
             ctx.startActivity(intent)
-        }
-        // 首见 null(「相关作品」区块刚滚到可见)才拉第 1 页;拉到前显加载态,不在进页时就发请求。
-        if (item.state == null) {
-            onSectionVisible(ArtworkSection.RELATED)
         }
         b.relatedLoadingContainer.isVisible = item.state == null
         b.relatedSeeMore.isVisible = item.state == true

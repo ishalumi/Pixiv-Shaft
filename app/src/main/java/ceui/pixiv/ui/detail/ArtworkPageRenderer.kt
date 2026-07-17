@@ -1,5 +1,7 @@
 package ceui.pixiv.ui.detail
 
+import ceui.lisa.R
+import ceui.lisa.adapters.IllustAdapter
 import ceui.lisa.adapters.ViewHolder
 import ceui.lisa.databinding.ItemArtworkUgoiraBinding
 import ceui.lisa.databinding.RecyIllustDetailBinding
@@ -50,11 +52,15 @@ internal fun ArtworkV3Fragment.artworkPageRenderer() =
         fullSpan = true,
         recycle = { cell ->
             // 委托给同一个 adapter 清理(detach observer + clear Glide)。ViewHolder 只是薄壳,
-            // 读的是 itemView tag,新建一个包住同一 binding 即可。
-            pageAdapterOrNull()?.onViewRecycled(ViewHolder(cell.binding))
+            // 读的是 itemView tag,新建一个包住同一 binding 即可。delegate 存在 cell tag 上，
+            // 即使 Fragment.onDestroyView 已释放/清空 pageAdapter，晚到的回收仍能完整清理。
+            val delegate = cell.itemView.getTag(R.id.tag_artwork_page_adapter) as? IllustAdapter
+            delegate?.onViewRecycled(ViewHolder(cell.binding))
+            cell.itemView.setTag(R.id.tag_artwork_page_adapter, null)
         },
     ) { cell ->
         val adapter = ensurePageAdapter() ?: return@feedRenderer
+        cell.itemView.setTag(R.id.tag_artwork_page_adapter, adapter)
         adapter.onBindViewHolder(ViewHolder(cell.binding), cell.item.pageIndex)
     }
 
@@ -62,6 +68,9 @@ internal fun ArtworkV3Fragment.artworkUgoiraRenderer() =
     feedRenderer<ArtworkUgoiraItem, ItemArtworkUgoiraBinding>(
         inflate = ItemArtworkUgoiraBinding::inflate,
         fullSpan = true,
+        attach = { cell -> cell.binding.root.onFeedAttached() },
+        detach = { cell -> cell.binding.root.onFeedDetached() },
+        recycle = { cell -> cell.binding.root.recycle() },
     ) { cell ->
         val illust: IllustsBean = ObjectPool.get<IllustsBean>(cell.item.illustId).value
             ?: return@feedRenderer

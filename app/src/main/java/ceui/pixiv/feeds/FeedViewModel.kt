@@ -245,6 +245,32 @@ class FeedViewModel<Cursor : Any>(
     }
 
     /**
+     * 原子地交接游标并编辑列表。详情页的“某区块首次可见 → 填区块状态 + 追加首批卡片 +
+     * 开启后续分页”必须作为一个状态提交，否则连续的 appendItems / adoptCursor /
+     * updateItems 会让 Fragment 连收三份 state、安排两轮无意义 diff。
+     */
+    fun adoptCursorAndMutateItems(
+        cursor: Cursor?,
+        edit: (List<FeedItem>) -> List<FeedItem>,
+    ) {
+        appendJob?.cancel()
+        nextCursor = cursor
+        _uiState.update { state ->
+            val next = edit(state.items)
+            state.copy(
+                items = next,
+                append = LoadState.Idle,
+                reachedEnd = cursor == null,
+                structureVersion = if (next !== state.items) {
+                    state.structureVersion + 1
+                } else {
+                    state.structureVersion
+                },
+            )
+        }
+    }
+
+    /**
      * 懒加载触发点：还没成功加载过首屏且当前没有在刷新时才发起加载。
      * `feedViewModels(autoLoad = false)` 的 VM 由 [FeedFragment.onResume] 自动调用，
      * 页面无需手写（约定闭环见 [feedViewModels] 文档）。

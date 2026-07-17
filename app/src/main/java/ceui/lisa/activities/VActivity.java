@@ -65,12 +65,13 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
             Container.get().addPageToMap(found);
         }
         final PageData pageData = found;
-        // [DEBUG-568] PageData 在 Container（进程级单例）或由 widget intent 重建 → 重建 ViewPager；
-        // 都没有（进程被杀且非 widget 入口）→ finish()，用户会被多弹回一级
-        timber.log.Timber.tag("DEBUG-568").w("VActivity initView pageUUID=%s pageDataFound=%s",
-                pageUUID, pageData != null);
         if (pageData != null) {
-            baseBind.viewPager.setAdapter(new FragmentStatePagerAdapter(getSupportFragmentManager(), 0) {
+            // ArtworkV3 的 feed 有意自动准备前后缓存页（池中已有完整详情时是纯内存组装）；
+            // 但只有当前页需要进入 RESUMED。这样相邻页可秒滑，同时下载状态 DB 探测、300ms
+            // 进度轮询和 ugoira 播放仍只在当前页运行。
+            baseBind.viewPager.setAdapter(new FragmentStatePagerAdapter(
+                    getSupportFragmentManager(),
+                    FragmentStatePagerAdapter.BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
                 @NonNull
                 @Override
                 public Fragment getItem(int position) {
@@ -109,9 +110,7 @@ public class VActivity extends BaseActivity<ActivityViewPagerBinding> {
                     return bundle;
                 }
             });
-            // offscreenPageLimit=1 keeps 3 fragments attached (prev/current/next) instead of
-            // 5. Each ArtworkV3Fragment init fires /v1/illust/detail on ObjectPool miss —
-            // 5 parallel fetches reliably trip Pixiv's per-IP 429 rate limit.
+            // 前后页保留 View 和 feed 数据以保证横滑手感，但 lifecycle 限制在 STARTED。
             baseBind.viewPager.setOffscreenPageLimit(1);
 
             ViewPager.OnPageChangeListener listener = new ViewPager.OnPageChangeListener() {

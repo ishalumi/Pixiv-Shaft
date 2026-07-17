@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,10 +66,19 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
     private final int maxHeight;
     private final FragmentActivity mActivity;
     private final Fragment mFragment;
+    /**
+     * 构造时 Fragment 一定已 attach，在这里拿到并复用其 RequestManager。View 销毁后的晚到
+     * recycle 只允许 clear 旧请求，不能再调用 Glide.with(fragment) 重新检索——Fragment 已
+     * detach 时后者会直接抛 IllegalArgumentException。
+     */
+    private final RequestManager fragmentRequestManager;
     private static final boolean longPressDownload = Shaft.sSettings.isIllustLongPressDownload();
 
     @Nullable
     private PageStatusListener pageStatusListener;
+    @Nullable
+    private Runnable localPagesChangedListener;
+    private volatile boolean released = false;
 
     /**
      * 页码 -> 已下载文件 Uri。后台扫一次 illust_download_table，命中的页在绑定时
@@ -88,11 +98,28 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         imageSize = mContext.getResources().getDisplayMetrics().widthPixels;
         this.isForceOriginal = isForceOriginal;
         this.mFragment = fragment;
+        this.fragmentRequestManager = Glide.with(fragment);
         scanLocalDownloads();
     }
 
     public void setPageStatusListener(@Nullable PageStatusListener listener) {
         this.pageStatusListener = listener;
+    }
+
+    /**
+     * delegate 模式（ArtworkV3 feeds）下本 adapter 没直接挂 RecyclerView，自己的
+     * notifyDataSetChanged 不会让外层 FeedAdapter 重绑；由宿主通过此回调提交一次条目更新。
+     */
+    public void setLocalPagesChangedListener(@Nullable Runnable listener) {
+        this.localPagesChangedListener = listener;
+    }
+
+    /** View 生命周期结束时断开回调，避免后台下载记录扫描把旧 Fragment/View 留到扫描完成。 */
+    public void release() {
+        released = true;
+        pageStatusListener = null;
+        localPagesChangedListener = null;
+        mainHandler.removeCallbacksAndMessages(null);
     }
 
     /**
@@ -103,7 +130,7 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
      */
     public void scanLocalDownloads() {
         final IllustsBean illust = allIllust;
-        if (illust == null || localScanRunning || illust.isGif()) {
+        if (released || illust == null || localScanRunning || illust.isGif()) {
             return;
         }
         final int pageCount = Math.max(illust.getPage_count(), 1);
@@ -113,12 +140,21 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             final Map<Integer, Uri> found = new HashMap<>();
             try {
                 DownloadDao dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao();
+                final List<String> fileNames = new ArrayList<>(pageCount);
+                final Map<String, Integer> pageByFileName = new HashMap<>(pageCount);
                 for (int i = 0; i < pageCount; i++) {
-                    // 页码 → 下载文件名(与写库时同源)→ 主键精确查。命中就记下本地 Uri。
-                    DownloadEntity e = dao.getDownloadByFileName(FileCreator.customFileName(illust, i));
+                    if (released) return;
+                    String fileName = FileCreator.customFileName(illust, i);
+                    fileNames.add(fileName);
+                    pageByFileName.put(fileName, i);
+                }
+                // 单次 IN 查询取代 N 次 Room 调用。Pixiv 多 P 上限远低于 SQLite 变量上限。
+                for (DownloadEntity e : dao.getDownloadsByFileNames(fileNames)) {
+                    if (released) return;
                     if (e != null && e.getFilePath() != null && !e.getFilePath().isEmpty()) {
                         try {
-                            found.put(i, Uri.parse(e.getFilePath()));
+                            Integer page = pageByFileName.get(e.getFileName());
+                            if (page != null) found.put(page, Uri.parse(e.getFilePath()));
                         } catch (Exception ignore) {
                             // 坏 URI 跳过，该页照常走网络
                         }
@@ -127,7 +163,9 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             } catch (Throwable t) {
                 Timber.w(t, "[IllustAdapter] scanLocalDownloads failed, id=%d", illustId);
             }
+            if (released) return;
             mainHandler.post(() -> {
+                if (released) return;
                 localScanRunning = false;
                 boolean changed = false;
                 for (Map.Entry<Integer, Uri> en : found.entrySet()) {
@@ -137,9 +175,11 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                 }
                 if (changed) {
                     notifyDataSetChanged();
+                    Runnable listener = localPagesChangedListener;
+                    if (listener != null) listener.run();
                 }
             });
-        }).start();
+        }, "illust-local-scan-" + illustId).start();
     }
 
     @NonNull
@@ -158,8 +198,8 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         detachTaskObservers(holder);
         // Cancel any in-flight Glide load targeting these ImageViews so a late-arriving
         // bitmap from the previous bind can't leak into the recycled holder.
-        Glide.with(mFragment).clear(holder.baseBind.illust);
-        Glide.with(mFragment).clear(holder.baseBind.illustHd);
+        fragmentRequestManager.clear(holder.baseBind.illust);
+        fragmentRequestManager.clear(holder.baseBind.illustHd);
         holder.baseBind.illustHd.setImageDrawable(null);
         holder.baseBind.illustHd.setVisibility(View.GONE);
         holder.baseBind.illust.setTag(R.id.tag_image_url, null);

@@ -120,6 +120,13 @@ public interface DownloadDao {
     @Query("SELECT * FROM illust_download_table WHERE fileName = :fileName LIMIT 1")
     DownloadEntity getDownloadByFileName(String fileName);
 
+    /**
+     * 详情页一次取回本作品所有候选页。fileName 是主键，IN 查询仍走主键索引；相比逐页调用
+     * {@link #getDownloadByFileName}，多 P 作品从 N 次 Room/SQLite 往返降为 1 次。
+     */
+    @Query("SELECT * FROM illust_download_table WHERE fileName IN (:fileNames)")
+    List<DownloadEntity> getDownloadsByFileNames(List<String> fileNames);
+
     @Query("SELECT * FROM illust_downloading_table")
     List<DownloadingEntity> getAllDownloading();
 

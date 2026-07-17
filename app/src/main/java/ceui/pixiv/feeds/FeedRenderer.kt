@@ -49,6 +49,15 @@ abstract class FeedRenderer<T : FeedItem, VB : ViewBinding>(
 
     /** ViewHolder 被回收时调用：释放图片请求、动画等。 */
     open fun onRecycled(cell: FeedCell<T, VB>) {}
+
+    /**
+     * ViewHolder 真正挂到 RecyclerView 窗口时调用。需要以“用户滚到该区块”为触发条件的懒加载
+     * 应放这里，而不是 [onBind]：GapWorker 会为预取提前 bind 尚未上屏的 holder。
+     */
+    open fun onAttached(cell: FeedCell<T, VB>) {}
+
+    /** ViewHolder 离开窗口时调用；用于暂停只应在屏幕内运行的播放器/动画。 */
+    open fun onDetached(cell: FeedCell<T, VB>) {}
 }
 
 /**
@@ -72,6 +81,8 @@ inline fun <reified T : FeedItem, VB : ViewBinding> feedRenderer(
     fullSpan: Boolean = false,
     noinline create: ((FeedCell<T, VB>) -> Unit)? = null,
     noinline recycle: ((FeedCell<T, VB>) -> Unit)? = null,
+    noinline attach: ((FeedCell<T, VB>) -> Unit)? = null,
+    noinline detach: ((FeedCell<T, VB>) -> Unit)? = null,
     noinline changePayload: ((oldItem: T, newItem: T) -> Any?)? = null,
     noinline bindPayloads: ((FeedCell<T, VB>, payloads: List<Any>) -> Boolean)? = null,
     noinline bind: (FeedCell<T, VB>) -> Unit,
@@ -104,6 +115,14 @@ inline fun <reified T : FeedItem, VB : ViewBinding> feedRenderer(
 
         override fun onRecycled(cell: FeedCell<T, VB>) {
             recycle?.invoke(cell)
+        }
+
+        override fun onAttached(cell: FeedCell<T, VB>) {
+            attach?.invoke(cell)
+        }
+
+        override fun onDetached(cell: FeedCell<T, VB>) {
+            detach?.invoke(cell)
         }
     }
 }

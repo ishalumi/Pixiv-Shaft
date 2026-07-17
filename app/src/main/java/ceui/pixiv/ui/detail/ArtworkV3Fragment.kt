@@ -16,6 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
 import androidx.lifecycle.viewmodel.initializer
@@ -84,7 +85,7 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
         requireArguments().getInt("illust_id").toLong()
     }
 
-    override val feedViewModel by feedViewModels(autoLoad = false) {
+    override val feedViewModel by feedViewModels {
         // 零捕获:只把 id 读进局部值交给长命 VM 持有的数据源,不钉 Fragment。
         val id = requireArguments().getInt("illust_id").toLong()
         ArtworkV3FeedSource(id)
@@ -231,10 +232,16 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
         artworkViewModel.refreshDownloadFab()
     }
 
+    override fun onPause() {
+        artworkViewModel.pauseDownloadFab()
+        super.onPause()
+    }
+
     override fun onDestroyView() {
         commentComposer = null
         composerActive = false
         fabShown = true
+        pageAdapter?.release()
         pageAdapter = null
         // 本视图生命周期内的一次性 guard 随视图销毁归零。否则同一 Fragment 实例视图重建(回退栈
         // 重显等)后,旧 viewLifecycleOwner 上的观察已随视图销毁,而 artistObservedUserId 还钉着
@@ -246,9 +253,6 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
     }
 
     // ── 顶部大图 adapter(委托目标)────────────────────────────────────────────
-
-    /** 供 [artworkPageRenderer] 在回收时用,不触发建 adapter。 */
-    internal fun pageAdapterOrNull(): IllustAdapter? = pageAdapter
 
     /** 首次绑定顶部页时懒建那一个共享 adapter(尺寸 / 折叠 / 取图逻辑全在它里面)。 */
     internal fun ensurePageAdapter(): IllustAdapter? {
@@ -283,6 +287,15 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
         }
         adapter.setPageStatusListener { position, status ->
             retryController.reportStatus(position, status)
+        }
+        adapter.setLocalPagesChangedListener {
+            // IllustAdapter 在 feeds 版只是 bind delegate，并未直接挂到 RecyclerView；它自己的
+            // notifyDataSetChanged 无效。下载记录扫描命中后 bump tick，让外层 FeedAdapter 重绑。
+            if (_chromeBind != null) {
+                feedViewModel.updateItems<ArtworkPageItem> {
+                    it.copy(rebindTick = it.rebindTick + 1)
+                }
+            }
         }
         retryController.refresh()
         pageAdapter = adapter
@@ -342,7 +355,7 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
     // 「区块可见」信号转给 [SectionLoader](去重 + 单飞 + 视图作用域)。进页时区块还没
     // 滚到,一律不触发——池里已有完整 illust 时点进详情不会发任何多余请求。
 
-    /** renderer onBind 里数据仍空时调用:区块首次可见触发一次懒加载。 */
+    /** renderer holder attach 且数据仍空时调用:区块首次上屏触发一次懒加载。 */
     internal fun onSectionVisible(section: ArtworkSection) {
         sectionLoader?.onVisible(section)
     }
@@ -598,7 +611,11 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
         // Manager 下载完成广播 → 刷新 FAB(轮询期间不干扰)
         val downloadFinishReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (!artworkViewModel.isPollingProgress) {
+                // ViewPager 的前后缓存页也注册了 receiver，但它们仅 STARTED；只让当前 RESUMED
+                // 页面查下载状态，避免一次完成广播唤醒三页 DB 探测。
+                if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+                    !artworkViewModel.isPollingProgress
+                ) {
                     artworkViewModel.refreshDownloadFab()
                 }
             }

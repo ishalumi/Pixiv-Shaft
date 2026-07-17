@@ -14,7 +14,9 @@ import ceui.lisa.download.IllustDownload
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.loxia.ObjectPool
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -40,20 +42,21 @@ class ArtworkV3ViewModel(
     private val illustBeanLiveData = ObjectPool.get<IllustsBean>(illustId)
 
     private val illustBeanObserver = Observer<IllustsBean> { bean ->
-        if (bean != null) {
-            illustBean = bean
-            _isBookmarked.value = bean.isIs_bookmarked
-            setupDownloadFab(bean)
+        illustBean = bean
+        _isBookmarked.value = bean.isIs_bookmarked
+        if (downloadFabActive && waitingForInitialBean) {
+            refreshDownloadFab()
         }
     }
 
     // ── download FAB state machine ──
     // 通过 Manager 队列串行下载;FAB 状态依赖 Manager 是否正在下载当前作品 + DB 是否已有下载记录。
-    private var downloadFabInitialized = false
+    private var downloadFabActive = false
+    private var waitingForInitialBean = false
     private val fabRefreshTick = MutableLiveData(0)
 
     private var downloadedCache: Boolean? = null
-    private var downloadCheckInFlight = false
+    private var downloadCheckJob: Job? = null
 
     private val _downloadFabState = MediatorLiveData<DownloadFab>().apply {
         value = DownloadFab.Idle
@@ -63,6 +66,7 @@ class ArtworkV3ViewModel(
 
     var isPollingProgress = false
         private set
+    private var progressPollingJob: Job? = null
 
     init {
         illustBeanLiveData.observeForever(illustBeanObserver)
@@ -74,6 +78,8 @@ class ArtworkV3ViewModel(
 
     fun triggerDownload() {
         val illust = illustBean ?: return
+        downloadCheckJob?.cancel()
+        downloadedCache = null
         IllustDownload.downloadIllustAllPages(illust)
         _downloadFabState.value = DownloadFab.Downloading(0)
         startProgressPolling(illust.page_count)
@@ -84,9 +90,9 @@ class ArtworkV3ViewModel(
      * 进度 = (已完成页 × 100 + 正在下载页的 nonius) / 总页数。
      */
     private fun startProgressPolling(pageCount: Int) {
-        if (isPollingProgress) return
+        if (progressPollingJob?.isActive == true) return
         isPollingProgress = true
-        viewModelScope.launch {
+        progressPollingJob = viewModelScope.launch {
             while (isPollingProgress) {
                 kotlinx.coroutines.delay(300)
                 // contentSnapshot() 是带 synchronized 的浅拷贝;直接 .content 拿 live list 会 CME。
@@ -96,7 +102,9 @@ class ArtworkV3ViewModel(
                     // 队列清空 = 下载完成,直接设 Done,避免经过 Idle 闪烁
                     isPollingProgress = false
                     downloadedCache = true
-                    _downloadFabState.postValue(DownloadFab.Done)
+                    // viewModelScope 在 Main 上；同步提交避免 postValue 排队期间被完成广播 /
+                    // ViewPager 横滑触发的 refresh 插入，随后旧 Done 又反向覆盖新状态。
+                    _downloadFabState.value = DownloadFab.Done
                     break
                 }
                 val remaining = myItems.size
@@ -114,25 +122,40 @@ class ArtworkV3ViewModel(
     }
 
     fun refreshDownloadFab() {
+        downloadFabActive = true
         isPollingProgress = false
+        progressPollingJob?.cancel()
+        downloadCheckJob?.cancel()
         downloadedCache = null
+        val bean = illustBean ?: run {
+            waitingForInitialBean = true
+            return
+        }
+        waitingForInitialBean = false
+        val hasQueuedPages = ceui.lisa.core.Manager.get().contentSnapshot()
+            .any { it.illust?.id == illustId.toInt() }
+        if (hasQueuedPages) {
+            // 从后台/其它页面回来时下载可能仍在队列：直接恢复轮询，不要先显示 Idle 再查 DB。
+            _downloadFabState.value = DownloadFab.Downloading(0)
+            startProgressPolling(bean.page_count)
+            return
+        }
         fabRefreshTick.value = (fabRefreshTick.value ?: 0) + 1
     }
 
-    private fun setupDownloadFab(illust: IllustsBean) {
-        if (downloadFabInitialized) return
-        downloadFabInitialized = true
-        val items = ceui.lisa.core.Manager.get().contentSnapshot()
-        val hasItems = items.any { it.illust?.id == illustId.toInt() }
-        if (hasItems) {
-            _downloadFabState.value = DownloadFab.Downloading(0)
-            startProgressPolling(illust.page_count)
-        } else {
-            recomputeFab()
-        }
+    /** ViewPager 切走/页面不可见时停掉 300ms 轮询和 DB 探测；恢复时 [refreshDownloadFab] 续上。 */
+    fun pauseDownloadFab() {
+        downloadFabActive = false
+        waitingForInitialBean = false
+        isPollingProgress = false
+        progressPollingJob?.cancel()
+        downloadCheckJob?.cancel()
     }
 
     private fun recomputeFab() {
+        // 被 ViewPager 降到 STARTED 后，即使某个已进入 IO 的旧探测以异常/结果返回，也不能
+        // 再从回调链启动下一次 DB 探测；当前页 onResume 会重新完整刷新。
+        if (!downloadFabActive) return
         val cached = downloadedCache
         if (cached != null) {
             _downloadFabState.value = if (cached) DownloadFab.Done else DownloadFab.Idle
@@ -145,26 +168,29 @@ class ArtworkV3ViewModel(
     }
 
     private fun triggerDownloadedCheck() {
-        if (downloadCheckInFlight) return
+        if (!downloadFabActive) return
+        if (downloadCheckJob?.isActive == true) return
         val bean = illustBean ?: return
-        downloadCheckInFlight = true
-        viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                try {
+        downloadCheckJob = viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
                     val dao = AppDatabase.getAppDatabase(Shaft.getContext()).downloadDao()
                     // hasDownloadRecord 走 v38 的 illustId 索引(O(log n));存量回填未完成时退回旧 LIKE 兜底。
                     Common.isIllustDownloaded(bean) ||
                             withContext(downloadProbeDispatcher) {
                                 dao.hasDownloadRecord(bean.id.toLong())
                             }
-                } catch (e: Exception) {
-                    Timber.e(e, "downloaded check failed")
-                    false
                 }
+                downloadedCache = result
+                recomputeFab()
+            } catch (ce: CancellationException) {
+                // ViewModel 清理时取消是控制流，不能吞成“未下载”再继续写 LiveData。
+                throw ce
+            } catch (e: Exception) {
+                Timber.e(e, "downloaded check failed")
+                downloadedCache = false
+                recomputeFab()
             }
-            downloadedCache = result
-            downloadCheckInFlight = false
-            recomputeFab()
         }
     }
 }

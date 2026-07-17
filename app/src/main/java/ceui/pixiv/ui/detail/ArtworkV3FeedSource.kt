@@ -20,6 +20,7 @@ import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.ui.common.IllustFeedItem
 import io.reactivex.Observable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -51,7 +52,7 @@ class ArtworkV3FeedSource(
 
         // 首屏只出「顶部大图 + header」;相关作品**不在此拉**——否则刚点进页面就立刻发 related
         // 请求(用户明明还没往下翻)。等「相关作品」区块真正滚到可见,ArtworkSection.RELATED 才拉
-        // 第 1 页并 appendItems + adoptCursor 重新开启分页。cursor=null 表示暂无下一页。
+        // 第 1 页并原子追加条目/交接游标，重新开启分页。cursor=null 表示暂无下一页。
         Timber.tag(ARTWORK_LAZY_TAG).d("进页 load(null) 开始 illustId=%d", illustId)
         val illust = resolveFullIllust() ?: return FeedPage(emptyList(), null)
         Timber.tag(ARTWORK_LAZY_TAG).d(
@@ -146,27 +147,21 @@ internal suspend fun fetchArtworkRelated(
     cursor: String?,
 ): Pair<List<FeedItem>, String?> = withContext(Dispatchers.IO) {
     Timber.tag(ARTWORK_LAZY_TAG).d("API 发出: 相关作品 illustId=%d cursor=%s", illustId, cursor)
-    try {
-        val url = cursor ?: "https://app-api.pixiv.net/v2/illust/related?illust_id=$illustId"
-        val body = Client.appApi.generalGet(url)
-        val parsed = Shaft.sGson.fromJson(body.string(), ListIllust::class.java)
-            ?: return@withContext emptyList<FeedItem>() to null
-        if (parsed.illusts != null) {
-            Mapper<ListIllust>().apply(parsed)
-        }
-        val items = parsed.list.orEmpty().mapNotNull { IllustFeedItem.rawFromBean(it) }
-        items to parsed.next_url
-    } catch (e: Exception) {
-        Timber.e(e, "fetchArtworkRelated failed illustId=%d cursor=%s", illustId, cursor)
-        emptyList<FeedItem>() to null
+    val url = cursor ?: "https://app-api.pixiv.net/v2/illust/related?illust_id=$illustId"
+    val body = Client.appApi.generalGet(url)
+    val parsed = Shaft.sGson.fromJson(body.string(), ListIllust::class.java)
+        ?: return@withContext emptyList<FeedItem>() to null
+    if (parsed.illusts != null) {
+        Mapper<ListIllust>().apply(parsed)
     }
+    val items = parsed.list.orEmpty().mapNotNull { IllustFeedItem.rawFromBean(it) }
+    items to parsed.next_url
 }
 
-/** 评论预览(前 3 条)。失败吞成空,由上层展示空态。main-safe。 */
+/** 评论预览(前 3 条)。错误交给 SectionLoader（可重试），取消必须透传。main-safe。 */
 internal suspend fun fetchArtworkComments(illustId: Long): List<Comment> = withContext(Dispatchers.IO) {
     Timber.tag(ARTWORK_LAZY_TAG).d("API 发出: 评论预览 illustId=%d", illustId)
-    runCatching { Client.appApi.getIllustComments(illustId).comments.take(3) }
-        .getOrElse { Timber.e(it); emptyList() }
+    Client.appApi.getIllustComments(illustId).comments.take(3)
 }
 
 /** 作者其他作品(前 10 条,排除当前作品)。走全局 Mapper 过滤。main-safe。 */
@@ -175,17 +170,23 @@ internal suspend fun fetchAuthorWorks(
     excludeIllustId: Long,
 ): List<IllustsBean> = withContext(Dispatchers.IO) {
     Timber.tag(ARTWORK_LAZY_TAG).d("API 发出: 作者其他作品 userId=%d", userId)
-    runCatching {
-        val resp = Retro.getAppApi().getUserSubmitIllust(userId, "illust").awaitFirstOrThrow()
-        if (resp.illusts != null) Mapper<ListIllust>().apply(resp)
-        resp.list?.filter { it.id != excludeIllustId.toInt() }?.take(10) ?: emptyList()
-    }.getOrElse { Timber.e(it); emptyList() }
+    val resp = Retro.getAppApi().getUserSubmitIllust(userId, "illust").awaitFirstOrThrow()
+    if (resp.illusts != null) Mapper<ListIllust>().apply(resp)
+    resp.list?.filter { it.id != excludeIllustId.toInt() }?.take(10) ?: emptyList()
 }
 
 /** Rx2 Observable → suspend(取首个)。作者其他作品接口仍是 legacy Observable,这里桥一下。 */
 private suspend fun <T : Any> Observable<T>.awaitFirstOrThrow(): T = suspendCancellableCoroutine { cont ->
     val disposable = subscribeOn(Schedulers.io())
         .firstOrError()
-        .subscribe({ cont.resume(it) }, { cont.resumeWithException(it) })
+        .subscribe(
+            { if (cont.isActive) cont.resume(it) },
+            { error ->
+                if (cont.isActive) {
+                    if (error is CancellationException) cont.cancel(error)
+                    else cont.resumeWithException(error)
+                }
+            },
+        )
     cont.invokeOnCancellation { disposable.dispose() }
 }

@@ -2,10 +2,10 @@ package ceui.pixiv.ui.detail
 
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import ceui.lisa.models.IllustsBean
-import ceui.loxia.ObjectPool
+import ceui.pixiv.feeds.FeedItem
 import ceui.pixiv.feeds.FeedViewModel
 import ceui.pixiv.feeds.updateItems
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -31,23 +31,50 @@ enum class ArtworkSection {
     /** 作者其他作品:横向卡片塞进 [ArtworkAuthorWorksItem]。 */
     AUTHOR_WORKS {
         override suspend fun load(illustId: Long, vm: FeedViewModel<String>) {
-            val userId = ObjectPool.get<IllustsBean>(illustId).value?.user?.id ?: return
+            // 直接读 Feed 条目携带的作者 id；详情 bean 可能来自离线兜底且未留在 ObjectPool，
+            // 再回池取会拿不到并让区块永久卡在 loading。
+            val userId = vm.uiState.value.items
+                .filterIsInstance<ArtworkAuthorWorksItem>()
+                .firstOrNull()
+                ?.userId
+                ?: return
+            if (userId <= 0) {
+                vm.updateItems<ArtworkAuthorWorksItem> { it.copy(works = emptyList()) }
+                return
+            }
             val works = fetchAuthorWorks(userId, illustId)
             vm.updateItems<ArtworkAuthorWorksItem> { it.copy(works = works) }
         }
     },
 
     /**
-     * 相关作品:第 1 页卡片 append 到列表尾(相关头之后)、[FeedViewModel.adoptCursor] 交接游标
-     * 开启后续分页(滚到底再 loadMore 拉第 2 页起),并把相关头 [ArtworkRelatedHeaderItem.state]
-     * 从 null 翻成有 / 无。
+     * 相关作品:第 1 页卡片 append 到列表尾(相关头之后)、交接游标开启后续分页(滚到底再
+     * loadMore 拉第 2 页起),并把相关头 [ArtworkRelatedHeaderItem.state] 从 null 翻成有 / 无。
+     * 三件事通过 [FeedViewModel.adoptCursorAndMutateItems] 一次提交。
      */
     RELATED {
         override suspend fun load(illustId: Long, vm: FeedViewModel<String>) {
             val (related, nextUrl) = fetchArtworkRelated(illustId, null)
-            vm.appendItems(related)
-            vm.adoptCursor(nextUrl)
-            vm.updateItems<ArtworkRelatedHeaderItem> { it.copy(state = related.isNotEmpty()) }
+            // header 状态 + 首批相关卡 + next cursor 一次提交，避免同一网络结果触发多轮 diff。
+            // 虽然新卡都追加在尾部，但 related header 也在同一次提交中换了实例；这不是“旧前缀
+            // 引用完全不变”的纯尾部追加，必须推进 structureVersion，避免增量消费者误判。
+            vm.adoptCursorAndMutateItems(nextUrl) { existing ->
+                val seen = existing.mapTo(HashSet()) { it.javaClass to it.feedKey }
+                val fresh = related.filter { seen.add(it.javaClass to it.feedKey) }
+                val hasRelated = related.isNotEmpty()
+                var changed = fresh.isNotEmpty()
+                val result = ArrayList<FeedItem>(existing.size + fresh.size)
+                existing.forEach { item ->
+                    if (item is ArtworkRelatedHeaderItem && item.state != hasRelated) {
+                        result += item.copy(state = hasRelated)
+                        changed = true
+                    } else {
+                        result += item
+                    }
+                }
+                if (fresh.isNotEmpty()) result.addAll(fresh)
+                if (changed) result else existing
+            }
         }
     };
 
@@ -66,11 +93,24 @@ class SectionLoader(
 ) {
     private val triggered = HashSet<ArtworkSection>()
 
-    /** 区块首次可见(renderer onBind 里,数据仍空)时调用。 */
+    /** 区块 holder 首次 attach 且数据仍空时调用。 */
     fun onVisible(section: ArtworkSection) {
         if (triggered.add(section)) {
             Timber.tag(ARTWORK_LAZY_TAG).d("区块滚到可见,首次触发懒加载: %s illustId=%d", section, illustId)
-            owner.lifecycleScope.launch { section.load(illustId, feedViewModel) }
+            owner.lifecycleScope.launch {
+                try {
+                    section.load(illustId, feedViewModel)
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (t: Throwable) {
+                    // lifecycleScope 的未捕获异常会直接交给主线程并崩进程。区块加载失败留在
+                    // loading 态，滚走再回来可重试；不要把网络/解析异常升级成详情页崩溃。
+                    triggered.remove(section)
+                    Timber.tag(ARTWORK_LAZY_TAG).e(
+                        t, "区块懒加载失败,允许再次可见时重试: %s illustId=%d", section, illustId,
+                    )
+                }
+            }
         } else {
             Timber.tag(ARTWORK_LAZY_TAG).v("区块再次可见(已加载/加载中,跳过): %s", section)
         }

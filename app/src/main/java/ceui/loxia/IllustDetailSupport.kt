@@ -4,6 +4,7 @@ import ceui.lisa.http.Retro
 import ceui.lisa.models.IllustsBean
 import io.reactivex.Observable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
 import kotlin.coroutines.resume
@@ -38,6 +39,8 @@ suspend fun fetchFullIllustDetail(illustId: Long): IllustsBean? {
         } else {
             null
         }
+    } catch (ce: CancellationException) {
+        throw ce
     } catch (e: Exception) {
         Timber.e(e, "fetchFullIllustDetail failed illustId=%d", illustId)
         null
@@ -49,8 +52,8 @@ private suspend fun <T : Any> Observable<T>.awaitFirstOrThrow(): T =
         val disposable = subscribeOn(Schedulers.io())
             .firstOrError()
             .subscribe(
-                { cont.resume(it) },
-                { cont.resumeWithException(it) }
+                { if (cont.isActive) cont.resume(it) },
+                { if (cont.isActive) cont.resumeWithException(it) },
             )
         cont.invokeOnCancellation { disposable.dispose() }
     }

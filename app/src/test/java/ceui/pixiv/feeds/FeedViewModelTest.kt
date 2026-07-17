@@ -185,8 +185,8 @@ class FeedViewModelTest {
         assertEquals(listOf(Row(1)), state.items)
         assertTrue(state.reachedEnd)
         assertEquals(LoadState.Idle, state.append)
-        // 追载止步于上限（5 跳），不会翻完全部 12 页
-        assertEquals(countAfterRefresh + 5, source.loadCount)
+        // 追载止步于当前上限（2 跳），不会翻完全部 12 页
+        assertEquals(countAfterRefresh + 2, source.loadCount)
     }
 
     @Test
@@ -214,8 +214,8 @@ class FeedViewModelTest {
         assertTrue(state.items.isEmpty())
         assertTrue(state.reachedEnd)
         assertTrue(state.showEmptyState)
-        // 首页 + 5 跳追载后收手
-        assertEquals(6, source.loadCount)
+        // 首页 + 2 跳追载后收手
+        assertEquals(3, source.loadCount)
     }
 
     @Test
@@ -350,6 +350,23 @@ class FeedViewModelTest {
 
         vm.removeItems { it.feedKey == 1 }
         assertEquals(listOf(Row(2, "liked")), vm.uiState.value.items)
+    }
+
+    @Test
+    fun `adoptCursorAndMutateItems commits cursor and structural edit together`() = runTest(dispatcher) {
+        val vm = FeedViewModel(FakeSource(listOf(listOf(Row(1, "loading")))))
+        advanceUntilIdle()
+        val versionBefore = vm.uiState.value.structureVersion
+
+        vm.adoptCursorAndMutateItems(cursor = 7) { rows ->
+            rows.map { (it as Row).copy(text = "loaded") } + Row(2, "related")
+        }
+
+        val state = vm.uiState.value
+        assertEquals(listOf(Row(1, "loaded"), Row(2, "related")), state.items)
+        assertFalse("新游标应重新开启分页", state.reachedEnd)
+        assertEquals("旧前缀条目被替换，必须推进结构版本", versionBefore + 1, state.structureVersion)
+        assertEquals(7, vm.currentCursor)
     }
 
     /**
