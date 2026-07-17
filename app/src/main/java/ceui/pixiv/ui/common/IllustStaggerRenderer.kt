@@ -147,7 +147,8 @@ internal fun IllustFeedFragment.staggerIllustRenderer():
             illustGlide
                 .load(imgUrl)
                 .override(columnWidth, columnHeight)
-                .placeholder(R.color.second_light_bg)
+                // 占位底色对齐白天骨架图（feed_skeleton_block），未加载卡不再白页糊一片
+                .placeholder(R.color.feed_skeleton_block)
                 .transition(DrawableTransitionOptions.withCrossFade())
                 .into(cell.binding.illustImage)
         }

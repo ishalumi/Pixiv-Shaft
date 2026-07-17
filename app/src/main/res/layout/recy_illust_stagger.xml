@@ -20,10 +20,12 @@
              锚定 parentBottom 的子 view，兄弟边对齐和 margin 都会在首趟测量时
              解析不可靠（之前爆发层跑到右上角、按钮 bottomMargin 失效都是它）；
              FrameLayout 的 gravity+margin 布局在最终尺寸上结算，行为可靠 -->
+        <!-- 未加载底色 = 骨架图同款（feed_skeleton_block），白天不再和白页糊成一片；
+             CardView 已把内容裁到 8dp 圆角，与首屏骨架块的 8dp 圆角一致 -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/white_and_black">
+            android:background="@color/feed_skeleton_block">
 
 
             <!-- 高度由 setHeightRatio 在 onMeasure 时按真实列宽算出：旋转/分屏后列宽变了
