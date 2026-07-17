@@ -21,8 +21,10 @@
             android:scaleType="fitCenter" />
 
         <!-- 顶层原图 overlay：底层 illust 先秒显 large(命中瀑布流缓存),原图下好后加载进这一层、
-             淡入盖住 large。底层 large 全程不被清 → 大图换原图零闪烁。四边对齐 illust 精确覆盖。 -->
-        <ImageView
+             淡入盖住 large。底层 large 全程不被清 → 大图换原图零闪烁。四边对齐 illust 精确覆盖。
+             与底层同为 DynamicHeightImageView:贴图前用「只读宽高」读出原图真尺寸,先把 ratio 同步到
+             底层 illust + 本层,再淡入 → 展示盒即原图真比,crossfade 盖上零 letterbox。 -->
+        <ceui.lisa.view.DynamicHeightImageView
             android:id="@+id/illust_hd"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

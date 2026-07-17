@@ -1,6 +1,7 @@
 package ceui.lisa.adapters;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.bumptech.glide.Glide;
@@ -103,6 +105,13 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
      */
     private final Map<Integer, Float> pageRatio = new ConcurrentHashMap<>();
 
+    /**
+     * 已用原图真尺寸校准过展示盒的页码。原图落盘后尺寸不变,故每页只需在 {@link #renderOverlay} 里
+     * 「只读宽高」一次;{@code stateObserver} 的 sticky LiveData 会在每次 rebind 重投 Success → renderOverlay
+     * 反复触发,若不去重就是每次回绑都在主线程重读一遍文件头。{@link #release()} 时清空。
+     */
+    private final Set<Integer> overlaySizedPages = ConcurrentHashMap.newKeySet();
+
     public IllustAdapter(FragmentActivity activity, Fragment fragment, IllustsBean illustsBean, int maxHeight, boolean isForceOriginal) {
         Common.showLog("IllustAdapter maxHeight " + maxHeight);
         mActivity = activity;
@@ -134,6 +143,7 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         pageStatusListener = null;
         localPagesChangedListener = null;
         pageRatio.clear();
+        overlaySizedPages.clear();
         mainHandler.removeCallbacksAndMessages(null);
     }
 
@@ -254,24 +264,10 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         holder.baseBind.illust.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
         boolean changeSize; // = ratio 未知,需等图解码后由 rememberDecodedRatio 定 ratio
-        if (position == 0) {
-            // 第一张:宽高来自 IllustsBean。单 P 扁图(自然高 < maxHeight)垫到 maxHeight 占位居中;
-            // 其余(单 P 高图 / 多 P 第一张)按真 ratio,不加 maxHeight 底 → 消上下黑边。
-            int iw = allIllust.getWidth();
-            int ih = allIllust.getHeight();
-            if (iw > 0 && ih > 0) {
-                float ratio = (float) ih / iw;
-                int naturalHeight = Math.round((float) imageSize * ratio);
-                if (allIllust.getPage_count() == 1 && maxHeight > 0 && naturalHeight < maxHeight) {
-                    setFixedHeight(holder, maxHeight);
-                } else {
-                    holder.baseBind.illust.setHeightRatio(ratio);
-                    pageRatio.put(position, ratio);
-                }
-                changeSize = false;
-            } else {
-                changeSize = applyRatioOrPlaceholder(holder, position);
-            }
+        if (position == 0 && allIllust.getWidth() > 0 && allIllust.getHeight() > 0) {
+            // 第一张:宽高来自 IllustsBean。单 P 扁图垫 maxHeight 居中、其余按真 ratio(见 applyPixelSize)。
+            applyPixelSize(holder, position, allIllust.getWidth(), allIllust.getHeight());
+            changeSize = false;
         } else {
             // 多 P 第 2 张起:ratio 已知(网页 ajax 预置 / 上次解码缓存)→ 首帧就量在终值;未知 → 占位高,
             // 等图解码后 rememberDecodedRatio 定 ratio。DynamicHeightImageView 用真实宽算高,回收重绑不抖。
@@ -310,6 +306,46 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             params.height = height;
             holder.baseBind.illust.setLayoutParams(params);
         }
+    }
+
+    /**
+     * 按该页真实像素宽高定展示盒,套到底层 {@code illust} 与顶层 {@code illust_hd}(布局四边对齐 illust、
+     * 同盒同比):pos0 单 P 扁图(自然高 < maxHeight)垫 maxHeight 居中,其余按真 ratio(高/宽)并存
+     * {@link #pageRatio} 供回收重绑首帧直接用。两处调用同一口径:绑定时用 {@link IllustsBean} 的宽高;
+     * {@link #renderOverlay} 贴原图前用「只读宽高」解码出的原图真尺寸再校准一次。
+     */
+    private void applyPixelSize(ViewHolder<RecyIllustDetailBinding> holder, int position, int w, int h) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        float ratio = (float) h / w;
+        int naturalHeight = Math.round((float) imageSize * ratio);
+        if (position == 0 && allIllust.getPage_count() == 1 && maxHeight > 0 && naturalHeight < maxHeight) {
+            setFixedHeight(holder, maxHeight);
+            holder.baseBind.illustHd.setHeightRatio(0f);
+        } else {
+            holder.baseBind.illust.setHeightRatio(ratio);
+            holder.baseBind.illustHd.setHeightRatio(ratio);
+            pageRatio.put(position, ratio);
+        }
+    }
+
+    /**
+     * 只读文件头拿宽高、不分配像素({@link BitmapFactory.Options#inJustDecodeBounds}=true,几乎零开销)。
+     * 返回 {@code {width, height}};读不出(文件缺失 / 非图 / 已损坏)返回 null。
+     */
+    @Nullable
+    private static int[] readImageBounds(@Nullable File file) {
+        if (file == null || !file.exists()) {
+            return null;
+        }
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+        if (options.outWidth <= 0 || options.outHeight <= 0) {
+            return null;
+        }
+        return new int[]{options.outWidth, options.outHeight};
     }
 
     /**
@@ -499,6 +535,16 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             SketchPreloader.warm(mContext, file);
         }
         String shortUrl = guardUrl.substring(guardUrl.lastIndexOf('/') + 1);
+        // 真正贴图前:首次为该页拿原图真尺寸(bounds-only 解码,不分配像素、只读文件头,几乎零开销),
+        // 先把展示盒 ratio 同步到原图真比(比 metadata / 网页 ajax 更准;setHeightRatio 内部判等,未变不 relayout),
+        // 再淡入原图 → 顶层 illust_hd 与底层 illust 同盒同比,crossfade 盖上时零 letterbox、零跳。
+        // 原图落盘后尺寸不变 → 每页只读一次,避免 sticky LiveData 每次 rebind 都在主线程重读文件头。
+        if (overlaySizedPages.add(position)) {
+            int[] bounds = readImageBounds(file);
+            if (bounds != null) {
+                applyPixelSize(holder, position, bounds[0], bounds[1]);
+            }
+        }
         // 关键:先置 INVISIBLE(不是 GONE)。GONE 视图不参与 measure/layout,尺寸为 0,Glide 的 ViewTarget
         // 拿不到尺寸会一直等、onResourceReady 永不触发;INVISIBLE 照常布局(拿得到 illust 的尺寸)、只是不绘制,
         // 底层 large 依旧透出来。就绪后再置 VISIBLE 淡入盖上。
