@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 
+import com.blankj.utilcode.util.BarUtils;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.gson.Gson;
 import com.hjq.toast.ToastUtils;
@@ -385,7 +386,7 @@ public class Shaft extends Application implements ServicesProvider {
 
         //Init Toast utils
         ToastUtils.init(this);
-        int bottomOffset = ceui.lisa.page.ScreenUtils.getNavigationBarHeight() + (int) (48 * getResources().getDisplayMetrics().density);
+        int bottomOffset = BarUtils.getNavBarHeight() + (int) (48 * getResources().getDisplayMetrics().density);
         ToastUtils.setGravity(Gravity.BOTTOM, 0, bottomOffset);
 
         try {
