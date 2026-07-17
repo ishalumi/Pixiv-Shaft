@@ -143,15 +143,27 @@ class LeakSafeOkHttpStreamFetcher(
 
     override fun cancel() {
         isCancelled = true
-        // call.cancel() 是纯粹的 socket close（HTTP/2 走 closeLater），不触发主线程网络守卫，留在原线程。
-        call?.cancel()
+        // call.cancel() 纯 socket close（HTTP/2 走 closeLater），不触发主线程网络守卫，留原线程；
+        // 兜底吞异常同下：取消是「加载已废弃后的 best-effort 清理」，任何清理异常都不该上抛。
+        try {
+            call?.cancel()
+        } catch (_: Throwable) {
+            // Ignored: best-effort
+        }
         // 上游遗漏的关键一步：响应已完整到达后取消，call.cancel() 是 no-op，
         // 暂存在 SourceGenerator.dataToCache 里的流再无人问津 —— 关闭它归还连接。
-        // 但关 body 会 drain 剩余字节（HTTP/1）或发 RST_STREAM（HTTP/2）以复用/释放连接，都是 socket I/O；
-        // cancel() 由 Glide.clear() 在主线程调用，直接关会抛 NetworkOnMainThreadException，故挪后台关。
+        // 但关 body 会 drain 剩余字节（HTTP/1）或发 RST_STREAM（HTTP/2）以复用/释放连接，都是 socket I/O：
+        // - cancel() 由 Glide.clear() 在主线程调用，主线程直接关会 NetworkOnMainThreadException，故挪后台；
+        // - 引擎可能同时在另一线程读同一条 okio source 写盘缓存，与关流撞车会从 AsyncTimeout 抛
+        //   IllegalStateException("Unbalanced enter/exit")。closeLocked 内部已按 close 逐个吞，这里再兜
+        //   一层 Throwable：cleanupExecutor 是裸线程池，任务里逃逸的异常会走 uncaughtHandler 崩掉进程。
         cleanupExecutor.execute {
-            synchronized(lock) {
-                closeLocked()
+            try {
+                synchronized(lock) {
+                    closeLocked()
+                }
+            } catch (_: Throwable) {
+                // Ignored: best-effort，绝不让清理异常崩掉 cleanupExecutor 线程
             }
         }
     }

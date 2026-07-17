@@ -133,11 +133,12 @@ class LeakSafeOkHttpStreamFetcherTest {
         val stream = checkNotNull(callback.stream)
 
         fetcher.cancel()
-        // 关流被提交给 executor 但尚未执行 —— 调用线程（主线程语义）没有碰 socket
+        // 关流（会读/写 socket 的 drain）被提交给 executor 而非在调用线程同步执行 —— 这就是不碰
+        // 主线程网络守卫的保证。（不用 stream.read() 反证「尚未关闭」：cancel() 里的 call.cancel()
+        // 是先行的非阻塞 socket close，小 body 未缓存时读本就会失败，与关流是否已执行无关。）
         assertNotNull("cancel() 必须把关流提交给 executor，不能在调用线程同步关闭", pending)
-        assertTrue("executor 未执行前流不应被关闭", runCatching { stream.read() }.isSuccess)
 
-        // 后台任务真正执行后，流才关闭
+        // 后台任务真正执行后，流被关闭
         pending!!.run()
         assertTrue("关流任务执行后流应已关闭", runCatching { stream.read() }.isFailure)
     }
