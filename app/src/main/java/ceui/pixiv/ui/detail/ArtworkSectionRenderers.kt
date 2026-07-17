@@ -610,7 +610,10 @@ private fun ArtworkV3Fragment.renderAuthorWorks(
                     outRect: android.graphics.Rect, view: View,
                     parent: RecyclerView, state: RecyclerView.State,
                 ) {
-                    outRect.right = 8.ppppx
+                    // 末卡不加尾距,滚到最右时正好停在 RV 的 12dp 内边距处
+                    if (parent.getChildAdapterPosition(view) < state.itemCount - 1) {
+                        outRect.right = 8.ppppx
+                    }
                 }
             })
         }
