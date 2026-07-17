@@ -43,7 +43,6 @@ import ceui.lisa.utils.PixivOperate
 import ceui.lisa.utils.ShareIllust
 import ceui.lisa.utils.V3Palette
 import ceui.lisa.core.Mapper
-import ceui.loxia.Client
 import ceui.loxia.ObjectPool
 import ceui.loxia.ObjectType
 import ceui.loxia.requireNetworkStateManager
@@ -298,6 +297,9 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
             }
         }
         retryController.refresh()
+        // 每页真实宽高由 [ArtworkV3ViewModel.pageDimensions] 承载(VM 多 P 时拉一次网页 ajax)。
+        // 这里把「已到」的值补给新建的 adapter;「后到」的值由 setup 处的观察者补上。
+        artworkViewModel.pageDimensions.value?.let { adapter.seedPageDimensions(it) }
         pageAdapter = adapter
         return adapter
     }
@@ -388,6 +390,11 @@ class ArtworkV3Fragment : IllustFeedFragment(R.layout.fragment_artwork_v3) {
             )
         }
         artworkViewModel.downloadFabState.observe(viewLifecycleOwner) { renderDownloadFab(it) }
+        // 网页 ajax 的每页真实宽高到达 → 喂给顶部大图 adapter,预置各页展示 ratio(下载前就摆准高度)。
+        // adapter 懒建:值先到就由 ensurePageAdapter 补,adapter 先建就由这里补——两序都覆盖。
+        artworkViewModel.pageDimensions.observe(viewLifecycleOwner) { dims ->
+            pageAdapter?.seedPageDimensions(dims)
+        }
     }
 
     private fun renderDownloadFab(state: DownloadFab) {

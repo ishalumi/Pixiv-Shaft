@@ -47,6 +47,35 @@ suspend fun fetchFullIllustDetail(illustId: Long): IllustsBean? {
     }
 }
 
+/**
+ * 网页 ajax `/ajax/illust/{id}/pages` 拉每一 P 的真实原图宽高（`[width, height]`,按页序）。
+ * app-api 的 meta_pages 只有 image_urls、不带宽高;详情页多 P 靠它在下载前预置每页展示 ratio,
+ * 消除「兜底高→自然高」的首帧跳(见 IllustAdapter.seedPageDimensions)。
+ *
+ * SFW 作品无 cookie 也能拿;R18 / 受限 / 删除作品或缺 cookie 时接口返回 error/空 → 返回 null,
+ * 调用方沿用「图片解码后异步定高」的兜底,**不影响使用**。协程取消照常向上抛,不吞。
+ */
+suspend fun fetchIllustPageDimensions(illustId: Long): List<IntArray>? {
+    return try {
+        val resp = Client.webApi.getIllustPages(illustId)
+        val pages = resp.body
+        if (resp.error == true || pages.isNullOrEmpty()) {
+            Timber.d(
+                "fetchIllustPageDimensions unavailable illust=%d error=%s size=%s",
+                illustId, resp.error, pages?.size
+            )
+            null
+        } else {
+            pages.map { intArrayOf(it.width, it.height) }
+        }
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (e: Exception) {
+        Timber.d(e, "fetchIllustPageDimensions failed illust=%d", illustId)
+        null
+    }
+}
+
 private suspend fun <T : Any> Observable<T>.awaitFirstOrThrow(): T =
     suspendCancellableCoroutine { cont ->
         val disposable = subscribeOn(Schedulers.io())

@@ -10,14 +10,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <ImageView
+        <!-- 高度由 setHeightRatio 在 onMeasure 里按真实宽算(对齐瀑布流 recy_illust_stagger):
+             ratio 已知(P1 靠 IllustsBean、多 P 靠网页 ajax、兜底靠解码位图)→ 首帧就量在终值,
+             不再有「兜底高→自然高」的跳。ratio 未设(=0)时退回下面的 240dp 占位高。 -->
+        <ceui.lisa.view.DynamicHeightImageView
             android:id="@+id/illust"
             android:layout_width="match_parent"
             android:layout_height="240dp"
             android:background="@color/loading_placeholder"
-            android:scaleType="fitCenter">
-
-        </ImageView>
+            android:scaleType="fitCenter" />
 
         <!-- 顶层原图 overlay：底层 illust 先秒显 large(命中瀑布流缓存),原图下好后加载进这一层、
              淡入盖住 large。底层 large 全程不被清 → 大图换原图零闪烁。四边对齐 illust 精确覆盖。 -->
@@ -31,6 +32,16 @@
             android:layout_alignEnd="@+id/illust"
             android:scaleType="fitCenter"
             android:visibility="gone" />
+
+        <!-- 多 P 页与页之间的分割线:上下留白 + 一条主题自适应细线,让堆叠的整幅大图看得出边界。
+             留白透出 feed 的 v3_bg,与页面的 loading_placeholder 底有色差;细线再明确一下界限。
+             单 P / 末页也会带一条,读作「图 → 资料区」的分隔,无害。 -->
+        <View
+            android:id="@+id/page_divider"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/hair_line_width"
+            android:layout_below="@id/illust"
+            android:background="@color/divider_color" />
 
         <include
             android:id="@+id/progress_layout"

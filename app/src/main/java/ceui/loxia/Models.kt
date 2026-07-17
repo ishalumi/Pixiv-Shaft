@@ -631,6 +631,14 @@ data class WebResponse<T> (
     val body: T? = null,
 ) : Serializable
 
+// 网页 ajax /ajax/illust/{id}/pages 的 body 元素:每一 P 的真实原图宽高。
+// app-api 的 meta_pages 每项只有 image_urls、不带宽高,这里补上,供详情页多 P 下载前预置展示高度。
+// 只取宽高(urls 等其余字段 gson 忽略)。见 IllustAdapter.seedPageDimensions。
+data class WebIllustPage(
+    val width: Int = 0,
+    val height: Int = 0,
+) : Serializable
+
 // issue #569: 网页版「按 Tag 筛选画师作品」接口 /ajax/user/{id}/illusts/tag 的响应体。
 // works 里是精简 work 对象(方图 url + 字符串 tags + 宽高),由 UserIllustByTagFeedSource.toIllustsBean 映射成 IllustsBean。
 data class UserTagIllustBody(

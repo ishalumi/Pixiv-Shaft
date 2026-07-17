@@ -90,14 +90,18 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     /**
-     * 页码 -> 已解析的整宽大图高度(px)。多 P 的第 2 张起、以及无尺寸兜底的首图,高度不是绑定时
-     * 就能算出的:它由 {@link UniformScaleTransformation#onResourceReady} 在图片解码完成后异步
-     * 写进 layoutParams。滑到底再惯性滑回顶时,外层瀑布流会回收又重绑这些页;若重绑时不先把高度
-     * 摆好,条目会先按「复用来的旧高 / 布局默认 240dp」量一次,图一到又跳成自然高 → 顶部大图上下
-     * 抖动(见反馈录屏)。这里在图片就绪时记住每页的解析高度,重绑时立刻套用,让首帧就量在终值上,
-     * 消除这一跳。仅对 changeSize 页(异步定高)生效;首图带有效尺寸时高度本就确定,不进此表。
+     * 页码 -> 该页展示 ratio(= 高/宽)。{@link ceui.lisa.view.DynamicHeightImageView} 在
+     * {@code onMeasure} 里用真实测量宽 × ratio 算高,故 ratio 一确定,该页首帧就量在终值上,
+     * 不再有「兜底高→自然高」的跳。ratio 三种来源,越早越好:
+     * <ul>
+     *   <li>P1:{@link IllustsBean#getWidth()}/{@code getHeight()},绑定即知;</li>
+     *   <li>多 P 第 2 张起:{@link #seedPageDimensions} 用网页 ajax 的每页真尺寸提前预置;</li>
+     *   <li>兜底(无 cookie / 精简 bean 无尺寸):图片解码后由 {@link #rememberDecodedRatio}
+     *       用位图宽高定下。</li>
+     * </ul>
+     * 缓存进此表 → 滑走再回、回收重绑时首帧直接套用,消除抖动;{@link #release()} 时清空。
      */
-    private final Map<Integer, Integer> resolvedPageHeight = new ConcurrentHashMap<>();
+    private final Map<Integer, Float> pageRatio = new ConcurrentHashMap<>();
 
     public IllustAdapter(FragmentActivity activity, Fragment fragment, IllustsBean illustsBean, int maxHeight, boolean isForceOriginal) {
         Common.showLog("IllustAdapter maxHeight " + maxHeight);
@@ -129,7 +133,7 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         released = true;
         pageStatusListener = null;
         localPagesChangedListener = null;
-        resolvedPageHeight.clear();
+        pageRatio.clear();
         mainHandler.removeCallbacksAndMessages(null);
     }
 
@@ -245,74 +249,66 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
             });
         }
 
+        // 统一 FIT_CENTER:有了每页真 ratio,展示盒与图同比,不letterbox也不裁切(旧代码后续页用
+        // CENTER_CROP 只是为掩盖「高度靠解码后才定」的临时错比,现在不需要)。
+        holder.baseBind.illust.setScaleType(ImageView.ScaleType.FIT_CENTER);
+
+        boolean changeSize; // = ratio 未知,需等图解码后由 rememberDecodedRatio 定 ratio
         if (position == 0) {
-            // 第一张图：宽 = 屏宽，FIT_CENTER 不裁切。
-            // 单 P：高 = max(自然高, maxHeight)，扁图保留 maxHeight 占位。
-            // 多 P（≥2P）：高 = 自然高，不施加 maxHeight 约束，消除上下黑边。
+            // 第一张:宽高来自 IllustsBean。单 P 扁图(自然高 < maxHeight)垫到 maxHeight 占位居中;
+            // 其余(单 P 高图 / 多 P 第一张)按真 ratio,不加 maxHeight 底 → 消上下黑边。
             int iw = allIllust.getWidth();
             int ih = allIllust.getHeight();
-            boolean hasValidDims = iw > 0 && ih > 0;
-
-            ImageView.ScaleType scaleType;
-            int targetHeight;
-            boolean changeSize;
-            String branchTag;
-            if (!hasValidDims) {
-                scaleType = ImageView.ScaleType.FIT_CENTER;
-                // 尺寸未知时高度靠图片就绪后异步定;重绑先套用上次解析高,避免「兜底高→自然高」那一跳。
-                Integer cachedHeight = resolvedPageHeight.get(position);
-                targetHeight = (cachedHeight != null && cachedHeight > 0)
-                        ? cachedHeight
-                        : (maxHeight > 0 ? maxHeight : holder.baseBind.illust.getLayoutParams().height);
-                changeSize = true;
-                branchTag = "fallback(noValidDims)";
-            } else {
-                int naturalHeight = Math.round((float) imageSize * ih / iw);
-                scaleType = ImageView.ScaleType.FIT_CENTER;
-                if (allIllust.getPage_count() >= 2) {
-                    // 多P：第一P 直接用自然高度，不施加 maxHeight 约束，消除上下黑边
-                    targetHeight = naturalHeight;
+            if (iw > 0 && ih > 0) {
+                float ratio = (float) ih / iw;
+                int naturalHeight = Math.round((float) imageSize * ratio);
+                if (allIllust.getPage_count() == 1 && maxHeight > 0 && naturalHeight < maxHeight) {
+                    setFixedHeight(holder, maxHeight);
                 } else {
-                    targetHeight = maxHeight > 0 ? Math.max(naturalHeight, maxHeight) : naturalHeight;
+                    holder.baseBind.illust.setHeightRatio(ratio);
+                    pageRatio.put(position, ratio);
                 }
                 changeSize = false;
-                boolean tall = maxHeight <= 0 || naturalHeight >= maxHeight;
-                branchTag = (allIllust.getPage_count() == 1 ? "single_" : "multiP_")
-                        + (tall ? "tall_natural" : "flat_padToMax");
+            } else {
+                changeSize = applyRatioOrPlaceholder(holder, position);
             }
-
-            int pageCount = allIllust.getPage_count();
-            Timber.tag("V3MultiP").d(
-                "[IllustAdapter.bind pos=0] illustId=%d, page_count=%d, iw=%d, ih=%d, " +
-                    "imageSize(=screenW)=%d, maxHeight=%d, branch=%s, targetHeight=%d, " +
-                    "scaleType=%s, changeSize=%b, adapterClass=%s, getItemCount=%d",
-                allIllust.getId(), pageCount, iw, ih, imageSize, maxHeight, branchTag,
-                targetHeight, scaleType, changeSize, this.getClass().getSimpleName(), getItemCount()
-            );
-
-            holder.baseBind.illust.setScaleType(scaleType);
-            ViewGroup.LayoutParams params = holder.baseBind.illust.getLayoutParams();
-            params.width = imageSize;
-            params.height = targetHeight;
-            holder.baseBind.illust.setLayoutParams(params);
-            loadIllust(holder, position, changeSize);
         } else {
-            // 多 P 第 2 张起:高度由图片就绪后异步定(changeSize=true)。回收重绑时先把上次解析出的
-            // 高度摆好,首帧就量在终值上——否则会先按复用来的旧高布局、图一到再跳,顶部大图上下抖动。
-            Integer cachedHeight = resolvedPageHeight.get(position);
-            if (cachedHeight != null && cachedHeight > 0) {
-                ViewGroup.LayoutParams params = holder.baseBind.illust.getLayoutParams();
-                if (params.height != cachedHeight) {
-                    params.height = cachedHeight;
-                    holder.baseBind.illust.setLayoutParams(params);
-                }
-            }
-            Timber.tag("V3MultiP").d(
-                "[IllustAdapter.bind pos=%d] non-first page, illustId=%d, cachedHeight=%s",
-                position, allIllust.getId(), cachedHeight
-            );
-            holder.baseBind.illust.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            loadIllust(holder, position, true);
+            // 多 P 第 2 张起:ratio 已知(网页 ajax 预置 / 上次解码缓存)→ 首帧就量在终值;未知 → 占位高,
+            // 等图解码后 rememberDecodedRatio 定 ratio。DynamicHeightImageView 用真实宽算高,回收重绑不抖。
+            changeSize = applyRatioOrPlaceholder(holder, position);
+        }
+
+        Timber.tag("V3MultiP").d(
+            "[IllustAdapter.bind pos=%d] illustId=%d, page_count=%d, ratio=%s, changeSize=%b, adapterClass=%s",
+            position, allIllust.getId(), allIllust.getPage_count(), pageRatio.get(position),
+            changeSize, this.getClass().getSimpleName()
+        );
+        loadIllust(holder, position, changeSize);
+    }
+
+    /**
+     * ratio 已知就套用(首帧即终值),未知就退回占位高({@code maxHeight} 或布局默认)并返回
+     * {@code changeSize=true} —— 让 {@link #loadIllust} 走「解码后定 ratio」的兜底路径。
+     * @return changeSize:true 表示 ratio 未知、需解码后定。
+     */
+    private boolean applyRatioOrPlaceholder(ViewHolder<RecyIllustDetailBinding> holder, int position) {
+        Float ratio = pageRatio.get(position);
+        if (ratio != null && ratio > 0f) {
+            holder.baseBind.illust.setHeightRatio(ratio);
+            return false;
+        }
+        int placeholder = maxHeight > 0 ? maxHeight : holder.baseBind.illust.getLayoutParams().height;
+        setFixedHeight(holder, placeholder);
+        return true;
+    }
+
+    /** 关掉 ratio 自measure、改用固定像素高(扁图垫底 / 尺寸未知的占位)。FIT_CENTER 居中不裁。 */
+    private void setFixedHeight(ViewHolder<RecyIllustDetailBinding> holder, int height) {
+        holder.baseBind.illust.setHeightRatio(0f);
+        ViewGroup.LayoutParams params = holder.baseBind.illust.getLayoutParams();
+        if (params != null && height > 0 && params.height != height) {
+            params.height = height;
+            holder.baseBind.illust.setLayoutParams(params);
         }
     }
 
@@ -438,30 +434,57 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         if (isFinal) {
                             holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
                         }
-                        rememberResolvedHeight(holder, position, changeSize, resource);
+                        rememberDecodedRatio(holder, position, changeSize, resource);
                         return false;
                     }
                 })
-                .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
+                .into(new UniformScaleTransformation(holder.baseBind.illust, false));
     }
 
     /**
-     * 记住 changeSize 页图片就绪后被 {@link UniformScaleTransformation} 定下的高度,供下次回收重绑时
-     * 首帧直接套用(见 {@link #resolvedPageHeight})。用与 transformer 同一套公式(以 ImageView 实测宽
-     * 为基准等比缩放),量得的值即它即将写入 layoutParams 的值 → 重绑不再有「旧高→自然高」的跳。
+     * 兜底路径:该页 ratio 事先未知(无网页 ajax 尺寸、精简 bean 无有效 meta 宽高)时,图片解码完成后
+     * 用位图宽高定下并缓存该页展示 ratio,并即时套到 {@link ceui.lisa.view.DynamicHeightImageView}。
+     * 缓存进 {@link #pageRatio} → 回收重绑首帧直接套用,不再「占位高→自然高」跳。仅 {@code changeSize}
+     * (ratio 未知)页生效;ratio 已知的页高度绑定时就摆正,不进此路径。
      */
-    private void rememberResolvedHeight(ViewHolder<RecyIllustDetailBinding> holder, int position,
-                                        boolean changeSize, Bitmap resource) {
-        if (!changeSize || resource == null || resource.getWidth() <= 0) {
+    private void rememberDecodedRatio(ViewHolder<RecyIllustDetailBinding> holder, int position,
+                                      boolean changeSize, Bitmap resource) {
+        if (!changeSize || resource == null || resource.getWidth() <= 0 || resource.getHeight() <= 0) {
             return;
         }
-        int viewWidth = holder.baseBind.illust.getWidth();
-        if (viewWidth <= 0) {
-            viewWidth = imageSize; // 尚未测量时退回屏宽(与 UniformScaleTransformation 的取值一致)
+        float ratio = (float) resource.getHeight() / resource.getWidth();
+        if (ratio > 0f) {
+            pageRatio.put(position, ratio);
+            holder.baseBind.illust.setHeightRatio(ratio);
         }
-        int resolved = (int) ((long) resource.getHeight() * viewWidth / resource.getWidth());
-        if (resolved > 0) {
-            resolvedPageHeight.put(position, resolved);
+    }
+
+    /**
+     * 用网页 ajax {@code /ajax/illust/{id}/pages} 拿到的「每 P 真实原图宽高」预置各页展示 ratio。
+     * <p>多 P 第 2 张起 ratio 本来要等图片解码完才由 {@link #rememberDecodedRatio} 定(先按占位高
+     * 布局、图一到再跳);这里提前把真尺寸换算成 ratio(高/宽)塞进 {@link #pageRatio}。折叠页展开 /
+     * 后续页首次绑定时,{@link ceui.lisa.view.DynamicHeightImageView} 用真实宽 × ratio 算高,首帧就量
+     * 在终值上,消除那一跳。ratio 与解码兜底同一套口径,不会二次跳。
+     * <p>{@code dims} 按页序:{@code dims.get(i) = {width, height}} 对应第 i 页。cookie 缺失 / 接口
+     * 失败时上层根本不会调用它 → 保持解码后定 ratio 的兜底行为。<b>静默写表、不 notify</b>:已在屏的页
+     * 保留各自的解码兜底(强行 rebind 会闪),尚未绑定的页(折叠 3P+ 展开、上滑新上屏)自然读表命中——
+     * 正是首帧跳最明显的场景。
+     */
+    public void seedPageDimensions(@Nullable List<int[]> dims) {
+        if (released || dims == null || dims.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < dims.size(); i++) {
+            int[] wh = dims.get(i);
+            if (wh == null || wh.length < 2) {
+                continue;
+            }
+            int w = wh[0];
+            int h = wh[1];
+            if (w <= 0 || h <= 0) {
+                continue;
+            }
+            pageRatio.put(i, (float) h / w);
         }
     }
 
@@ -567,10 +590,10 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                         if (!imageUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
                         holder.baseBind.reload.setVisibility(View.GONE);
                         holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
-                        rememberResolvedHeight(holder, position, changeSize, resource);
+                        rememberDecodedRatio(holder, position, changeSize, resource);
                         return false;
                     }
                 })
-                .into(new UniformScaleTransformation(holder.baseBind.illust, changeSize));
+                .into(new UniformScaleTransformation(holder.baseBind.illust, false));
     }
 }

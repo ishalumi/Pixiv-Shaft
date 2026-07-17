@@ -17,6 +17,16 @@ interface PixivWebApi {
     @GET("/ajax/illust/{illust_id}")
     suspend fun getWebIllust(@Path("illust_id") illust_id: Long)
 
+    /**
+     * 每一 P 的真实原图宽高(app-api 的 meta_pages 只给 image_urls、不带宽高)。详情页多 P 用它在
+     * 下载前就把后续页展示高度摆准,消除首帧「兜底高→自然高」的跳。需要网页 cookie;缺失时接口
+     * 会 error/403,调用方静默降级到图片就绪后的异步定高。见 IllustAdapter.seedPageDimensions。
+     */
+    @GET("/ajax/illust/{illust_id}/pages?lang=zh")
+    suspend fun getIllustPages(
+        @Path("illust_id") illust_id: Long,
+    ): WebResponse<List<WebIllustPage>>
+
     @GET("/ajax/tags/frequent/illust")
     suspend fun getFrequentTags(
         @Query("ids[]") ids: List<Long>,

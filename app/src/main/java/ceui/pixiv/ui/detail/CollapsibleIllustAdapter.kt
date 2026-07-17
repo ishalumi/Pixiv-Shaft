@@ -100,13 +100,19 @@ class CollapsibleIllustAdapter(
      */
     private fun floorCoverHeight(holder: ViewHolder<RecyIllustDetailBinding>) {
         val image = holder.baseBind.illust
-        val lp = image.layoutParams ?: return
-        val natural = lp.height
+        val w = illust.width
+        val h = illust.height
+        if (w <= 0 || h <= 0) return
+        // ratio 驱动下 layoutParams.height 只是占位(240dp),真实自然高 = 屏宽 × 高/宽。
+        // imageSize 由 super(AbstractIllustAdapter) 持有(protected)。
+        val natural = (imageSize.toLong() * h / w).toInt()
         // 自然高度已能让胶囊落在顶栏之下 → 保持贴顶无黑边的默认观感,不动。
         if (natural <= 0 || natural >= coverToolbarClearance()) return
-        // 否则按单图封面处理:拔到 maxHeight,FIT_CENTER 居中,给足上黑边托住 toolbar。
+        // 极端宽封面:关掉 ratio 自 measure,拔到 maxHeight 固定高、FIT_CENTER 居中,给足上黑边托住 toolbar。
         val target = if (coverMaxHeight > 0) coverMaxHeight else coverToolbarClearance()
-        if (natural != target) {
+        image.setHeightRatio(0f)
+        val lp = image.layoutParams ?: return
+        if (lp.height != target) {
             lp.height = target
             image.layoutParams = lp
         }

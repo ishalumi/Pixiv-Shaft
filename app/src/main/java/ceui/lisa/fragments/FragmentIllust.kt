@@ -116,6 +116,11 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 if (downloaded) R.string.string_337 else R.string.string_72
             )
         }
+        // 网页 ajax 的每页真实宽高到达 → 喂给当前大图 adapter,预置各页展示 ratio(下载前摆准高度)。
+        // adapter 建得比数据晚就由这里补,数据比 adapter 晚就由建处 seed(见 IllustAdapter 建处)。
+        vm.pageDimensions.observe(viewLifecycleOwner) { dims ->
+            (baseBind.recyclerView.adapter as? IllustAdapter)?.seedPageDimensions(dims)
+        }
         val userId = illustLiveData.value?.user?.id ?: return
         val userLiveData = ObjectPool.get<UserBean>(userId.toLong())
         userLiveData.observe(viewLifecycleOwner) { user ->
@@ -312,9 +317,11 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                     true
                 }
                 R.id.action_show_original -> {
-                    baseBind.recyclerView.adapter = IllustAdapter(
+                    val adapter = IllustAdapter(
                         mActivity, this@FragmentIllust, illust, recyHeight, true
                     )
+                    baseBind.recyclerView.adapter = adapter
+                    vm.pageDimensions.value?.let { adapter.seedPageDimensions(it) }
                     true
                 }
                 R.id.action_mute_illust -> {
@@ -488,6 +495,7 @@ class FragmentIllust : SwipeFragment<FragmentIllustBinding>() {
                 } else {
                     val adapter = IllustAdapter(mActivity, this@FragmentIllust, illust, recyHeight, false)
                     baseBind.recyclerView.adapter = adapter
+                    vm.pageDimensions.value?.let { adapter.seedPageDimensions(it) }
                 }
                 baseBind.coreLinear.viewTreeObserver.removeOnGlobalLayoutListener(this)
             }

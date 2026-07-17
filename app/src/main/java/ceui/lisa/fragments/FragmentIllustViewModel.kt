@@ -3,6 +3,7 @@ package ceui.lisa.fragments
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,7 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.loxia.ObjectPool
 import ceui.loxia.fetchFullIllustDetail
+import ceui.loxia.fetchIllustPageDimensions
 import ceui.loxia.isFullDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,6 +33,19 @@ class FragmentIllustViewModel(private val illustId: Long) : ViewModel() {
     private val _hasDownload = MutableLiveData<Boolean>()
     val hasDownload: LiveData<Boolean> = _hasDownload
 
+    // ── 每页真实宽高(网页 ajax /ajax/illust/{id}/pages)──
+    // 与 ArtworkV3ViewModel 同一套:多 P 时提前拿到每页宽高,让顶部大图下载前就按真 ratio 摆准高度。
+    // Fragment 观察 [pageDimensions] 喂给 IllustAdapter.seedPageDimensions;缺 cookie/失败静默降级。
+    private val _pageDimensions = MutableLiveData<List<IntArray>>()
+
+    /** 每一 P 的 [width, height],按页序;拉不到则不发射(沿用解码后异步定高,不影响使用)。 */
+    val pageDimensions: LiveData<List<IntArray>> = _pageDimensions
+
+    private var pageDimsRequested = false
+
+    private val illustBeanLiveData = ObjectPool.get<IllustsBean>(illustId)
+    private val illustBeanObserver = Observer<IllustsBean> { bean -> ensurePageDimensions(bean) }
+
     init {
         // issue #569: 从「按 Tag 筛选」等精简来源进来时,池里的 bean 缺分页图/原图。后台回 API 拉完整版,
         // 整体覆盖 ObjectPool 后,FragmentIllust 的 illust observer 会带完整数据再次 fire、自动重建图片区。
@@ -40,6 +55,21 @@ class FragmentIllustViewModel(private val illustId: Long) : ViewModel() {
             if (cur == null || !cur.isFullDetail()) {
                 fetchFullIllustDetail(illustId)
             }
+        }
+        // 完整 bean 落地(page_count 可信)时触发一次每页宽高拉取。
+        illustBeanLiveData.observeForever(illustBeanObserver)
+    }
+
+    override fun onCleared() {
+        illustBeanLiveData.removeObserver(illustBeanObserver)
+    }
+
+    /** 多 P 首次拿到 bean 时拉一次每页真实宽高(单 P 无需、只拉一次)。缺 cookie/失败静默降级。 */
+    private fun ensurePageDimensions(bean: IllustsBean) {
+        if (pageDimsRequested || bean.page_count < 2) return
+        pageDimsRequested = true
+        viewModelScope.launch {
+            fetchIllustPageDimensions(illustId)?.let { _pageDimensions.value = it }
         }
     }
 

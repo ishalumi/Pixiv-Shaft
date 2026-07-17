@@ -14,6 +14,7 @@ import ceui.lisa.download.IllustDownload
 import ceui.lisa.models.IllustsBean
 import ceui.lisa.utils.Common
 import ceui.loxia.ObjectPool
+import ceui.loxia.fetchIllustPageDimensions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,8 +45,28 @@ class ArtworkV3ViewModel(
     private val illustBeanObserver = Observer<IllustsBean> { bean ->
         illustBean = bean
         _isBookmarked.value = bean.isIs_bookmarked
+        ensurePageDimensions(bean)
         if (downloadFabActive && waitingForInitialBean) {
             refreshDownloadFab()
+        }
+    }
+
+    // ── 每页真实宽高(网页 ajax /ajax/illust/{id}/pages)──
+    // app-api 的 meta_pages 不带每 P 宽高;这里补上,供顶部大图在下载前按真 ratio 预置各页高度,
+    // 消除多 P 首帧「兜底高→自然高」的跳。Fragment 观察 [pageDimensions] 喂给 IllustAdapter。
+    private val _pageDimensions = MutableLiveData<List<IntArray>>()
+
+    /** 每一 P 的 [width, height],按页序;缺 cookie / 接口失败则不发射(沿用解码后异步定高)。 */
+    val pageDimensions: LiveData<List<IntArray>> = _pageDimensions
+
+    private var pageDimsRequested = false
+
+    /** 多 P 首次拿到 bean 时拉一次每页真实宽高(单 P 无需、只拉一次)。缺 cookie/失败静默降级。 */
+    private fun ensurePageDimensions(bean: IllustsBean) {
+        if (pageDimsRequested || bean.page_count < 2) return
+        pageDimsRequested = true
+        viewModelScope.launch {
+            fetchIllustPageDimensions(illustId)?.let { _pageDimensions.value = it }
         }
     }
 
