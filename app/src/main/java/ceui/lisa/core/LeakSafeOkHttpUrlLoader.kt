@@ -34,8 +34,8 @@ import java.util.concurrent.Executors
  *    被永久遗弃，GC 后 OkHttp 报 "A connection to https://i.pximg.net/ was leaked"。
  *
  * 修复：[LeakSafeOkHttpStreamFetcher.cancel] 时把已到达的 stream/body 一并关掉。
- * 取消后的加载结果本来就会被整体丢弃；极小概率 cancel 撞上写盘缓存正在读流，
- * 也只是让这次（反正已取消的）写入失败，DecodeJob 对失败路径全兜底。
+ * 取消后的加载结果本来就会被整体丢弃；cancel 撞上引擎写盘缓存正在读同一条流时，
+ * 关流的 drain 会抛 "Unbalanced enter/exit"，由 [LeakSafeOkHttpStreamFetcher.closeLocked] 就地吞掉。
  */
 class LeakSafeOkHttpUrlLoader(private val client: Call.Factory) : ModelLoader<GlideUrl, InputStream> {
 
@@ -157,12 +157,22 @@ class LeakSafeOkHttpStreamFetcher(
     }
 
     private fun closeLocked() {
+        // stream 与 responseBody 共用同一条 okhttp source。cancel() 关流与引擎写盘缓存可能并发：
+        // 引擎在另一线程读 stream 写缓存的同时，这里关流触发的 drain（Util.discard → skipAll →
+        // read）会 enter() 那条正被读着的 AsyncTimeout，抛 IllegalStateException("Unbalanced
+        // enter/exit")。这次加载已取消、结果整体丢弃，连接也由 cancel() 里的 call.cancel() 负责拆掉，
+        // 关流纯属 best-effort —— 两处 close 都就地吞掉，否则异常会从 cleanupExecutor 线程逃逸崩掉进程
+        // （历史上在主线程同步关流时，它更会顺着 Glide 的 onStop 生命周期观察者崩掉 Activity.onStop）。
         try {
             stream?.close()
-        } catch (_: IOException) {
+        } catch (_: Exception) {
             // Ignored
         }
-        responseBody?.close()
+        try {
+            responseBody?.close()
+        } catch (_: Exception) {
+            // Ignored
+        }
         stream = null
         responseBody = null
     }

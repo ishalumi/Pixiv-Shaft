@@ -10,6 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.io.InputStream
@@ -139,6 +140,61 @@ class LeakSafeOkHttpStreamFetcherTest {
         // 后台任务真正执行后，流才关闭
         pending!!.run()
         assertTrue("关流任务执行后流应已关闭", runCatching { stream.read() }.isFailure)
+    }
+
+    /**
+     * 回归「Unbalanced enter/exit」崩溃：引擎在另一线程读同一条流写盘缓存的同时 cancel()，
+     * 关流的 drain（Util.discard → skipAll → read）与正在进行的 read 撞上同一条 okio source 的
+     * AsyncTimeout。修复前 [LeakSafeOkHttpStreamFetcher.closeLocked] 不吞这个 IllegalStateException，
+     * 它会从 cancel()（生产里在后台 cleanupExecutor 线程）逃逸直接崩掉进程。
+     * 用同线程 executor 让 cancel() 在本测试线程同步关流，直接断言它不抛出。
+     */
+    @Test
+    fun `取消撞上引擎正在读同一条流 - 关流 drain 不抛崩溃`() {
+        repeat(30) { round ->
+            server.enqueue(
+                MockResponse()
+                    // 够大：一次读不完，读会阻塞在节流的 socket read 上（AsyncTimeout entered）
+                    .setBody("x".repeat(64 * 1024))
+                    .throttleBody(4 * 1024, 5, TimeUnit.MILLISECONDS),
+            )
+            val fetcher = LeakSafeOkHttpStreamFetcher(
+                client,
+                server.url("/img/test.jpg").toString(),
+                emptyMap(),
+                // 同线程关流：closeLocked 的异常若没吞，会直接在本测试线程抛出
+                Executor { it.run() },
+            )
+            val callback = ParkingCallback()
+            fetcher.loadData(Priority.NORMAL, callback)
+            assertTrue(callback.ready.await(5, TimeUnit.SECONDS))
+            val stream = checkNotNull(callback.stream)
+
+            // 引擎视角：另一线程持续读流写盘缓存
+            val reading = CountDownLatch(1)
+            val reader = Thread {
+                val buf = ByteArray(8 * 1024)
+                reading.countDown()
+                try {
+                    while (stream.read(buf) != -1) { /* 写盘缓存：持续读到 socket 阻塞 */ }
+                } catch (_: Throwable) {
+                    // cancel() 关掉 socket 后读会抛，属预期
+                }
+            }
+            reader.start()
+            assertTrue(reading.await(5, TimeUnit.SECONDS))
+            Thread.sleep(15) // 让 read 真正进入阻塞的 socket read
+
+            val thrown = runCatching {
+                fetcher.cancel() // 修复前：这里抛 IllegalStateException("Unbalanced enter/exit")
+            }.exceptionOrNull()
+            // 无论断言成败都收好 reader，别把孤儿线程/半开连接漏进下一个用例
+            reader.interrupt()
+            reader.join(5_000)
+            if (thrown != null) {
+                fail("第 $round 轮 cancel() 不应抛出（关流 drain 撞并发读）：${thrown.stackTraceToString()}")
+            }
+        }
     }
 
     @Test
