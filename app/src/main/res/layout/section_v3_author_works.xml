@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  作者其他作品横向条。关键:横向 RecyclerView 全出血(match_parent、外层容器不加横向 padding)+ 自带
+  12dp 内边距 + clipToPadding=true(默认)。这样卡片被裁在内容边距(12dp,与标题对齐)处,而不是被裁
+  到屏幕最边(见反馈:clipToPadding=false 会让卡画进 padding 一直顶到屏幕边,正是之前的 bleed 根因)。
+  首卡与标题左对齐,滚动时首/尾卡干净地切在 12dp / 屏宽-12dp 处。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingHorizontal="12dp"
     android:paddingBottom="18dp">
 
     <LinearLayout
@@ -12,7 +17,8 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp">
 
         <TextView
             android:id="@+id/author_works_label"
@@ -44,12 +50,12 @@
         android:indeterminateTint="@color/v3_text_3"
         android:visibility="gone" />
 
-    <!-- 卡片左对齐区块内容(12dp),不再用 -8dp bleed 把首/尾卡顶到屏幕边被裁切;右侧自然 peek 表示可横滑。 -->
+    <!-- clipToPadding 默认 true:卡片切在 12dp 内边距处(不画进 padding),不再顶到屏幕边。 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/author_works_rv"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
         android:nestedScrollingEnabled="false"
-        android:overScrollMode="never" />
+        android:overScrollMode="never"
+        android:paddingHorizontal="12dp" />
 </LinearLayout>
