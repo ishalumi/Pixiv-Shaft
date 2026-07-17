@@ -384,18 +384,26 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
         holder.baseBind.reload.setVisibility(View.GONE);
         holder.baseBind.reload.setOnClickListener(v -> loadIllust(holder, position, changeSize));
 
-        // 总是先用 large 秒显 —— 命中外面瀑布流 A 已加载的 Glide 内存/磁盘缓存(同 url 同 key,立即出图)。
-        // 「仅 large」模式下它就是最终图;「原图」模式下它是即时占位,原图下好再覆盖上去。
         holder.baseBind.progressLayout.donutProgress.setVisibility(View.VISIBLE);
         holder.baseBind.progressLayout.donutProgress.setProgress(0);
-        renderBase(holder, position, changeSize, new GlideUrlChild(largeUrl), targetUrl, /*isFinal=*/!loadOriginal);
 
         if (!loadOriginal) {
-            // 设置没开加载原图 → 停在 large:不建 imageloader 任务、不下原图。
+            // 仅 large 模式:large 就是最终图,每页都要真正下下来展示。
+            renderBase(holder, position, changeSize, new GlideUrlChild(largeUrl), targetUrl, /*isFinal=*/true);
             return;
         }
 
-        // 设置开了 → 在 large 占位之上再加载原图(imageloader 共享任务,与大图页 C 复用同一次下载/进度/结果)。
+        // 原图模式:large 只是占位,且【只有首图 pos 0】的 large 被外面瀑布流预热进缓存、能真正秒显。
+        // 展开的多 P 页(pos>0)的 large 从没在列表出现过、不在缓存,拿它当占位既不能秒显、下好又被原图
+        // 立刻盖掉 → 白下一轮 large,纯浪费流量与时延。所以多 P 一律【不发 large 请求】,直接等原图。
+        // 连 pos 0 也在 renderBase 里走 onlyRetrieveFromCache:真命中才秒显,极少见的没命中(如 deeplink
+        // 直进详情、large 未预热)也直接等原图、不白下 large。
+        if (position == 0) {
+            renderBase(holder, position, changeSize, new GlideUrlChild(largeUrl), targetUrl, /*isFinal=*/false);
+        }
+
+        // 设置开了 → 加载原图(imageloader 共享任务,与大图页 C 复用同一次下载/进度/结果):pos 0 盖在
+        // large 占位之上,多 P 则直接盖在灰底占位上。原图下好淡入 illust_hd,底层从不被清 → 零闪烁。
         String shortUrl = targetUrl.substring(targetUrl.lastIndexOf('/') + 1);
         ImageLoadTask task = ImageLoaderV3.obtain(targetUrl);
         // 已失败的任务在(重新)绑定时强制重来一次(对齐旧 TaskPool「rebind 即重下」+ 让重试横幅生效)。
@@ -449,15 +457,23 @@ public class IllustAdapter extends AbstractIllustAdapter<ViewHolder<RecyIllustDe
                 .asBitmap()
                 .load(model)
                 .transform(new LargeBitmapScaleTransformer())
+                // isFinal=false 时 large 只是原图占位(调用点已保证仅 pos 0 才走到这里,多 P 根本不发 large)
+                // → onlyRetrieveFromCache:只在 large 已被外面瀑布流预热进内存/磁盘缓存时秒显,没命中就立即
+                // 失败、不为占位单独走网络下 large(兜住「pos 0 但 large 未预热」的极少数入口)。
+                // isFinal=true(仅 large 模式,large 就是最终图)→ 允许走网络,必须真正下下来展示。
+                .onlyRetrieveFromCache(!isFinal)
                 .dontAnimate()
                 .listener(new RequestListener<Bitmap>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object m, Target<Bitmap> target, boolean isFirstResource) {
                         if (!guardUrl.equals(holder.baseBind.illust.getTag(R.id.tag_image_url))) return false;
-                        Timber.w(e, "[IllustAdapter] base(large) FAIL pos=%d, isFinal=%b, url=%s", position, isFinal, shortUrl);
                         if (isFinal) {
+                            Timber.w(e, "[IllustAdapter] base(large) FAIL pos=%d, url=%s", position, shortUrl);
                             holder.baseBind.reload.setVisibility(View.VISIBLE);
                             holder.baseBind.progressLayout.donutProgress.setVisibility(View.GONE);
+                        } else {
+                            // 占位 large 缓存未命中是预期路径(原图正在下、下好即盖上),不算错误、不亮重载、不动进度环。
+                            Timber.d("[IllustAdapter] base(large) cache-miss placeholder skipped pos=%d, url=%s", position, shortUrl);
                         }
                         return false;
                     }
