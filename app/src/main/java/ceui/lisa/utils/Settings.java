@@ -183,6 +183,9 @@ public class Settings {
     //作品详情使用V3沉浸式页面
     private boolean useArtworkV3 = false;
 
+    //小说列表点击 item 直接进 V3 正文（略过详情页），默认关闭
+    private boolean novelListDirectToReader = false;
+
     private String illustPath = "";
 
     private String novelPath = "";
@@ -482,6 +485,14 @@ public class Settings {
 
     public void setUseArtworkV3(boolean useArtworkV3) {
         this.useArtworkV3 = useArtworkV3;
+    }
+
+    public boolean isNovelListDirectToReader() {
+        return novelListDirectToReader;
+    }
+
+    public void setNovelListDirectToReader(boolean novelListDirectToReader) {
+        this.novelListDirectToReader = novelListDirectToReader;
     }
 
     public boolean isViewHistoryAnimate() {

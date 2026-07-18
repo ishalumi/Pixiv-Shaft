@@ -30,6 +30,7 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
+import ceui.pixiv.ui.common.tryOpenNovelReaderDirect
 import ceui.pixiv.utils.ppppx
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
@@ -191,6 +192,7 @@ class MutedObjectsFeedFragment : FeedFragment(), Toolbar.OnMenuItemClickListener
     private fun openNovelDetail(novel: NovelBean?) {
         val ctx = context ?: return
         val target = novel ?: return
+        if (ctx.tryOpenNovelReaderDirect(target.id.toLong())) return
         val intent = Intent(ctx, TemplateActivity::class.java).apply {
             putExtra(Params.CONTENT, target)
             putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")

@@ -157,6 +157,8 @@
     <string name="custom_file_name">ファイル名の形式の編集</string>
     <string name="illust_detail">作品詳細ページで新しいUIを使用</string>
     <string name="illust_detail_v3">作品詳細に V3 の没入型 UI を使用</string>
+    <string name="novel_direct_reader">小説一覧のタップで本文へ直接移動</string>
+    <string name="novel_direct_reader_desc">詳細ページを省略して本文を直接開きます。本文右上の「その他」メニューから詳細を開けます</string>
     <string name="user_detail">ユーザーページで新しいUIを使用</string>
     <string name="file_name_type">ファイル名の書式</string>
     <string name="download_path">ダウンロードするフォルダー</string>

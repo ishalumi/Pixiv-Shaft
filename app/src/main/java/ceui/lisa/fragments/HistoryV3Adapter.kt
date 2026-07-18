@@ -22,6 +22,7 @@ import ceui.lisa.models.IllustsBean
 import ceui.lisa.models.NovelBean
 import ceui.lisa.utils.GlideUtil
 import ceui.lisa.utils.Params
+import ceui.pixiv.ui.common.tryOpenNovelReaderDirect
 import com.bumptech.glide.Glide
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -200,6 +201,7 @@ class HistoryV3Adapter(
     }
 
     private fun openNovel(novel: NovelBean) {
+        if (context.tryOpenNovelReaderDirect(novel.id.toLong())) return
         val intent = Intent(context, TemplateActivity::class.java).apply {
             putExtra(Params.CONTENT, novel)
             putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")

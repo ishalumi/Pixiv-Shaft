@@ -49,6 +49,18 @@ public class FragmentSettingsViewing extends SettingsPageFragment<FragmentSettin
         });
         baseBind.illustDetailV3Rela.setOnClickListener(v -> baseBind.illustDetailV3.performClick());
 
+        // 小说列表点击 item 直接进 V3 正文（略过详情页），默认关闭
+        baseBind.novelDirectReader.setChecked(Shaft.sSettings.isNovelListDirectToReader());
+        baseBind.novelDirectReader.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Shaft.sSettings.setNovelListDirectToReader(isChecked);
+                Common.showToast(getString(R.string.string_428));
+                Local.setSettings(Shaft.sSettings);
+            }
+        });
+        baseBind.novelDirectReaderRela.setOnClickListener(v -> baseBind.novelDirectReader.performClick());
+
         // V3详情页 下载/收藏按钮顺序
         updateArtworkV3FabOrderLabel();
         baseBind.artworkV3FabOrderSelect.setOnClickListener(v -> {

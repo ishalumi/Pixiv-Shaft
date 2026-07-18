@@ -24,6 +24,7 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.session.SessionManager
+import ceui.pixiv.ui.common.tryOpenNovelReaderDirect
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -353,7 +354,7 @@ fun FragmentHistoryList.historyNovelRenderer(): FeedRenderer<HistoryNovelFeedIte
                 val item = cell.itemOrNull ?: return@setOnClickListener
                 if (item.isSelectionMode) {
                     toggleHistorySelect(item.entity)
-                } else {
+                } else if (!v.context.tryOpenNovelReaderDirect(item.novel.id.toLong())) {
                     v.context.startActivity(Intent(v.context, TemplateActivity::class.java).apply {
                         putExtra(Params.CONTENT, item.novel)
                         putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")

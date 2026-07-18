@@ -31,6 +31,7 @@ import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.feeds.feedViewModels
 import ceui.pixiv.ui.common.awaitFirstValue
 import ceui.pixiv.ui.common.setUpToolbar
+import ceui.pixiv.ui.common.tryOpenNovelReaderDirect
 import ceui.pixiv.ui.common.viewBinding
 import ceui.pixiv.utils.ppppx
 import ceui.pixiv.utils.setOnClick
@@ -135,6 +136,7 @@ class NovelMarkersFeedFragment : FeedFragment(R.layout.fragment_toolbar_feed) {
 
     /** 整卡点击：进小说详情（携带整份 NovelBean，隐藏状态栏），与 legacy itemView 点击一字不差。 */
     private fun openNovel(marker: MarkedNovelItem) {
+        if (requireContext().tryOpenNovelReaderDirect(marker.novel.id.toLong())) return
         val intent = Intent(requireContext(), TemplateActivity::class.java)
         intent.putExtra(Params.CONTENT, marker.novel)
         intent.putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")

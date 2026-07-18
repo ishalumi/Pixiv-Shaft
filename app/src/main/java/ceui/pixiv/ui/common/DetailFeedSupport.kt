@@ -1,6 +1,7 @@
 package ceui.pixiv.ui.common
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.TextView
@@ -77,10 +78,29 @@ fun Fragment.openUserActivity(userId: Long) {
 }
 
 fun Fragment.openNovelDetail(novelId: Long) {
+    if (requireContext().tryOpenNovelReaderDirect(novelId)) return
     startActivity(Intent(requireContext(), TemplateActivity::class.java).apply {
         putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说详情")
         putExtra(Params.NOVEL_ID, novelId)
     })
+}
+
+/**
+ * 「小说列表点击直接进正文」总开关（[Settings.novelListDirectToReader]，设置页可开，默认关）。
+ *
+ * 开着：直接跳进 V3 正文（"小说正文"，略过详情页），返回 true。关着：什么都不做返回 false，
+ * 由调用方走各自原有的「进详情」跳转。正文页右上角「更多」菜单里始终有「作品详情」入口可回详情。
+ *
+ * 所有小说列表 item 的整卡点击都必须先经这里判定，避免某个列表自成一派
+ * （见 memory「用户设置必须全局适配」）。
+ */
+fun Context.tryOpenNovelReaderDirect(novelId: Long): Boolean {
+    if (!Shaft.sSettings.isNovelListDirectToReader) return false
+    startActivity(Intent(this, TemplateActivity::class.java).apply {
+        putExtra(TemplateActivity.EXTRA_FRAGMENT, "小说正文")
+        putExtra(Params.NOVEL_ID, novelId)
+    })
+    return true
 }
 
 /** 把一组插画塞进 [VActivity] 查看器并定位到 [position]（经 [Container]/[PageData] 传递）。 */

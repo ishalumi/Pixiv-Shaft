@@ -576,6 +576,17 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
     private fun currentThemeIsDark(): Boolean =
         ReaderTheme.findPresetById(ReaderSettings.themeId)?.isDark == true
 
+    /** 进作品（小说）详情页，供顶栏「更多」菜单的「作品详情」项调用。 */
+    private fun openNovelDetailPage() {
+        val novelId = resolveNovelId()
+        if (novelId == 0L) return
+        val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
+            putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "小说详情")
+            putExtra(Params.NOVEL_ID, novelId)
+        }
+        startActivity(intent)
+    }
+
     private fun showTopMoreMenu() {
         if (isLocalSource) {
             // 本地 txt 没有作品详情 / 评论 / 分享链接，只留「复制正文」一项。
@@ -603,11 +614,7 @@ class NovelReaderV3Fragment : Fragment(R.layout.fragment_novel_reader_v3),
                 // 从下载管理直接进二级正文时,back stack 里没有一级详情;
                 // 这里提供回到作品详情的入口,普通路径下也能当快捷跳转。
                 item(getString(R.string.v3_label_artwork_details), R.drawable.ic_baseline_menu_book_24) {
-                    val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {
-                        putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "小说详情")
-                        putExtra(Params.NOVEL_ID, novelId)
-                    }
-                    startActivity(intent)
+                    openNovelDetailPage()
                 }
                 item(getString(R.string.view_comments), R.drawable.ic_baseline_comment_24) {
                     val intent = Intent(requireContext(), ceui.lisa.activities.TemplateActivity::class.java).apply {

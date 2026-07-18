@@ -157,6 +157,8 @@
     <string name="custom_file_name">自訂下載檔名</string>
     <string name="illust_detail">作品詳情使用新介面</string>
     <string name="illust_detail_v3">作品詳情使用 V3 沉浸式介面</string>
+    <string name="novel_direct_reader">小說列表點擊直接進正文</string>
+    <string name="novel_direct_reader_desc">略過小說詳情頁直接進正文；正文頁右上角「更多」選單裡仍可開啟詳情</string>
     <string name="user_detail">個人中心使用新介面</string>
     <string name="file_name_type">檔案命名格式</string>
     <string name="download_path">下載路徑</string>
