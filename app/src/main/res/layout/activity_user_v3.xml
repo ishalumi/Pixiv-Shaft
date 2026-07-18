@@ -36,8 +36,7 @@
                     app:statusBarScrim="@android:color/transparent"
                     app:titleEnabled="false">
 
-                    <!-- 身份区:banner 矮条 + 头像下凸 + 名字 + 内联统计,一起随 CTL collapse。
-                         clipChildren=false 让头像能下凸画到 banner 之外。 -->
+                    <!-- 身份区:banner 矮条 + 头像 + 名字 + 内联统计,一起随 CTL collapse。 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -45,38 +44,49 @@
                         android:clipToPadding="false"
                         android:orientation="vertical">
 
-                        <!-- Banner 矮条 190dp,头像/关注按钮压在其下沿 -->
+                        <!-- Banner 区:视觉层固定 190dp + 头像/按钮下凸 42dp。
+                             整块高度 = 190 + 42 = 232dp,让下凸的头像/关注按钮落在自身触摸
+                             边界内。之前用 -42dp 负 margin 把它们画到 190dp 父边界之外:负
+                             margin 只影响绘制、不影响命中测试,点击会被下方 profile_header
+                             吃掉,导致关注按钮点了没反应。 -->
                         <FrameLayout
                             android:layout_width="match_parent"
-                            android:layout_height="190dp"
+                            android:layout_height="232dp"
                             android:clipChildren="false">
 
-                            <View
-                                android:id="@+id/banner_placeholder"
+                            <!-- 视觉层:底图 + banner + 底部渐变,固定 190dp 顶对齐 -->
+                            <FrameLayout
                                 android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:background="@drawable/bg_v3_banner_placeholder" />
+                                android:layout_height="190dp"
+                                android:layout_gravity="top">
 
-                            <ImageView
-                                android:id="@+id/banner_image"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent"
-                                android:scaleType="centerCrop"
-                                android:visibility="gone" />
+                                <View
+                                    android:id="@+id/banner_placeholder"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:background="@drawable/bg_v3_banner_placeholder" />
 
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="120dp"
-                                android:layout_gravity="bottom"
-                                android:background="@drawable/bg_v3_banner_gradient" />
+                                <ImageView
+                                    android:id="@+id/banner_image"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:scaleType="centerCrop"
+                                    android:visibility="gone" />
 
-                            <!-- Avatar (premium ring) 左下,下凸 42dp 压 banner 下沿 -->
+                                <View
+                                    android:layout_width="match_parent"
+                                    android:layout_height="120dp"
+                                    android:layout_gravity="bottom"
+                                    android:background="@drawable/bg_v3_banner_gradient" />
+                            </FrameLayout>
+
+                            <!-- Avatar (premium ring) 左下,底边压 banner 下沿:bottom gravity
+                                 对齐到 232dp 基线,不再用负 margin(否则点击落到 profile_header)。 -->
                             <FrameLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="bottom|start"
-                                android:layout_marginStart="20dp"
-                                android:layout_marginBottom="-42dp">
+                                android:layout_marginStart="20dp">
 
                                 <View
                                     android:id="@+id/premium_ring"
@@ -113,13 +123,13 @@
                                 </FrameLayout>
                             </FrameLayout>
 
-                            <!-- 私信 + 关注 右下,底边下沉到与头像同一基线(跟 avatar 一样下凸 42dp) -->
+                            <!-- 私信 + 关注 右下,底边与头像同一 232dp 基线:bottom gravity,
+                                 不再用负 margin —— 负 margin 会把按钮画到父边界外导致点不动。 -->
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="bottom|end"
                                 android:layout_marginEnd="20dp"
-                                android:layout_marginBottom="-42dp"
                                 android:gravity="center_vertical"
                                 android:orientation="horizontal">
 
@@ -172,14 +182,14 @@
                             </LinearLayout>
                         </FrameLayout>
 
-                        <!-- Profile 文本区:banner 之下,顶部留白避让下凸的头像 -->
+                        <!-- Profile 文本区:紧贴 banner 区(已含 42dp 下凸)之下,小留白起步 -->
                         <LinearLayout
                             android:id="@+id/profile_header"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
                             android:paddingStart="20dp"
-                            android:paddingTop="52dp"
+                            android:paddingTop="10dp"
                             android:paddingEnd="20dp"
                             android:paddingBottom="18dp">
 
