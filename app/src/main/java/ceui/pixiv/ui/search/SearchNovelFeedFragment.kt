@@ -115,16 +115,19 @@ class SearchNovelFeedSource(
         val r = repo ?: SearchNovelRepo(null, null, null, null, null, null, null, null).also { repo = it }
         syncV3IntoSearchModel()
         val floor = resolveBookmarkFloor()
-        // 有门槛时：首屏最多连拉几页凑到可滚动；翻页不再连拉，避免 rate limit
+        // 小说搜索始终开 spam 过滤（乱码作者 + teach.link 传送门）。
+        // 首屏适度连拉凑可滚动列表；翻页只滤当前页，避免 rate limit。
         val isRefresh = cursor == null
-        val minKeep = if (floor > 0 && isRefresh) 8 else 1
-        val maxPages = if (floor > 0 && isRefresh) 4 else 1
+        val needFill = isRefresh // spam 过滤总会丢一批，首屏需要补
+        val minKeep = if (needFill) 10 else 1
+        val maxPages = if (needFill) 6 else 1
 
         val acc = ArrayList<NovelFeedItem>()
         var next: String? = null
         var pageCursor = cursor
         var pages = 0
-        var dropped = 0
+        var droppedStar = 0
+        var droppedSpam = 0
 
         while (true) {
             val isFirst = pageCursor == null && pages == 0 && cursor == null
@@ -147,8 +150,12 @@ class SearchNovelFeedSource(
                 val filtered = (r.mapper() as Function<ListNovel, ListNovel>).apply(list)
                 val kept = ArrayList<NovelFeedItem>()
                 for (bean in filtered.list.orEmpty()) {
+                    if (SpamNovelFilter.isSpam(bean)) {
+                        droppedSpam++
+                        continue
+                    }
                     if (floor > 0 && bean.total_bookmarks < floor) {
-                        dropped++
+                        droppedStar++
                         continue
                     }
                     rawNovelItem(bean)?.let { kept.add(it) }
@@ -159,20 +166,17 @@ class SearchNovelFeedSource(
             next = list.nextUrl?.takeIf { it.isNotEmpty() }
             pages++
 
-            if (floor <= 0 || acc.size >= minKeep || next.isNullOrEmpty() || pages >= maxPages) {
+            if (acc.size >= minKeep || next.isNullOrEmpty() || pages >= maxPages) {
                 break
             }
-            // 页间喘口气，避免一次 burst 撞 rate limit
-            delay(350)
+            delay(400)
             pageCursor = next
         }
 
-        if (floor > 0) {
-            Timber.d(
-                "isha-star-filter-novel: done floor=%d kept=%d dropped=%d pages=%d",
-                floor, acc.size, dropped, pages,
-            )
-        }
+        Timber.d(
+            "isha-novel-filter: floor=%d kept=%d spam=%d star=%d pages=%d",
+            floor, acc.size, droppedSpam, droppedStar, pages,
+        )
         return FeedPage(acc, next)
     }
 
