@@ -89,32 +89,70 @@ class SearchIllustFeedSource(private val searchModel: SearchModel) : FeedSource<
 
     private var repo: SearchIllustRepo? = null
 
+    /**
+     * 喜欢！数 / users入り 门槛：bookmarkMin 与 starSize 取 max。
+     * Feed 层再硬滤一遍 total_bookmarks —— 不信任 FilterMapper 是否写进实例。
+     */
+    private fun resolveBookmarkFloor(): Int {
+        val fromQuery = searchModel.bookmarkMin.value ?: 0
+        val star = searchModel.starSize.value.orEmpty()
+        val fromStar = Regex("""\d+""").find(star)?.value?.toIntOrNull() ?: 0
+        return maxOf(fromQuery, fromStar)
+    }
+
     override suspend fun load(cursor: String?): FeedPage<String> {
-        // 8 个必填参数先给 null，全部由 update(searchModel) 填；构造时 super 已建好 FilterMapper。
+        // 8 个必填参数先给 null，全部由 update(searchModel) 填
         val r = repo ?: SearchIllustRepo(null, null, null, null, null, null, null, null).also { repo = it }
-        val list: ListIllust = if (cursor == null) {
-            // initApi() 必须切 IO：在「内置热门榜」档位会同步读 assets + gson 全量解析整包 illust。
-            // 而 FeedSource.load 由 viewModelScope(Dispatchers.Main.immediate)发起，在第一个
-            // 真正的挂起点(awaitFirstValue 里的 subscribeOn(io))之前一直跑在主线程，这段重活不切 IO
-            // 就会静默卡主线程。（搜索历史写入已上移到 SearchActivity，update 不再做 Room I/O。）
-            val api = withContext(Dispatchers.IO) {
-                r.update(searchModel) // 读最新参数 + 配置 FilterMapper
-                r.initApi()
+        val floor = resolveBookmarkFloor()
+        val minKeep = if (floor > 0) 12 else 1 // 有门槛时尽量凑满一屏
+        val maxExtraPages = if (floor > 0) 8 else 0
+
+        val acc = ArrayList<IllustFeedItem>()
+        var next: String? = null
+        var pageCursor = cursor
+        var pages = 0
+
+        while (true) {
+            val list: ListIllust = if (pageCursor == null && pages == 0 && cursor == null) {
+                val api = withContext(Dispatchers.IO) {
+                    r.update(searchModel) // 读最新参数 + 配置 FilterMapper
+                    r.initApi()
+                }
+                api.awaitFirstValue()
+            } else {
+                val useCursor = pageCursor ?: break
+                val api = withContext(Dispatchers.IO) {
+                    // 翻页也同步一次门槛，防止 repo 状态漂移
+                    if (pages == 0) r.update(searchModel)
+                    r.setNextUrl(useCursor)
+                    r.initNextApi()
+                }
+                api.awaitFirstValue()
             }
-            api.awaitFirstValue()
-        } else {
-            val api = withContext(Dispatchers.IO) {
-                r.setNextUrl(cursor)
-                r.initNextApi()
+
+            val pageItems = withContext(Dispatchers.Default) {
+                @Suppress("UNCHECKED_CAST")
+                val filtered = (r.mapper() as Function<ListIllust, ListIllust>).apply(list)
+                // 1) FilterMapper 过滤  2) Feed 层按 total_bookmarks 再硬滤（isha）
+                filtered.list.orEmpty()
+                    .asSequence()
+                    .filter { floor <= 0 || it.total_bookmarks >= floor }
+                    .mapNotNull { IllustFeedItem.rawFromBean(it) }
+                    .toList()
             }
-            api.awaitFirstValue()
+            acc.addAll(pageItems)
+            next = list.nextUrl?.takeIf { it.isNotEmpty() }
+            pages++
+
+            // 无门槛 / 已够数 / 没有下一页 / 额外页用尽 → 停
+            if (floor <= 0 || acc.size >= minKeep || next.isNullOrEmpty() || pages > maxExtraPages) {
+                break
+            }
+            // 用户主动翻页（cursor != null）只处理这一页，不自动连翻
+            if (cursor != null) break
+            pageCursor = next
         }
-        val items = withContext(Dispatchers.Default) {
-            @Suppress("UNCHECKED_CAST")
-            val filtered = (r.mapper() as Function<ListIllust, ListIllust>).apply(list)
-            // FilterMapper 已做完全部搜索专属过滤 → 直接建条目，不再过滤（否则仅看 AI 误删 AI）。
-            filtered.list.orEmpty().mapNotNull { IllustFeedItem.rawFromBean(it) }
-        }
-        return FeedPage(items, list.nextUrl?.takeIf { it.isNotEmpty() })
+
+        return FeedPage(acc, next)
     }
 }
