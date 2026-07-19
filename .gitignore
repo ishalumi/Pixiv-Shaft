@@ -16,3 +16,7 @@
 ncnn.zip
 .kotlin/
 .claude/scheduled_tasks.lock
+# ishalumi 自有签名，不进 git
+isha-shaft.jks
+/isha-shaft.jks
+*.jks.b64

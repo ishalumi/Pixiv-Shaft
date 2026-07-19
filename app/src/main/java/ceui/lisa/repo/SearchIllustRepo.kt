@@ -51,6 +51,8 @@ class SearchIllustRepo @JvmOverloads constructor(
 ) : RemoteRepo<ListIllust>() {
 
     private var filterMapper: FilterMapper? = null
+    /** 「仅看 AI」会话态——mapper() 每次请求前同步到 FilterMapper。 */
+    private var searchOnlyAi: Boolean = false
 
     override fun initApi(): Observable<ListIllust> {
         if (sortType == PixivSearchParamUtil.TRENDING_BUILTIN_SORT_VALUE) {
@@ -147,9 +149,15 @@ class SearchIllustRepo @JvmOverloads constructor(
     }
 
     override fun mapper(): Function<in ListIllust, ListIllust> {
+        // RemoteRepo 每次 getFirst/getNext 都会调 mapper()；在这里把当前门槛同步进
+        // FilterMapper，避免只依赖 update()（旧版构造期缓存 mapper 时 filterMapper 会被
+        // Kotlin 字段初始化清掉，导致喜欢！数本地过滤永远 starSizeLimit=0）。
         if (this.filterMapper == null) {
             this.filterMapper = FilterMapper().enableFilterStarSize()
         }
+        this.filterMapper!!.updateStarSizeLimit(this.getStarSizeLimit())
+        this.filterMapper!!.setSearchR18Restriction(r18Restriction ?: 0)
+        this.filterMapper!!.setSearchOnlyAi(searchOnlyAi)
         return this.filterMapper!!
     }
 
@@ -190,8 +198,10 @@ class SearchIllustRepo @JvmOverloads constructor(
         // AI：屏蔽走全局 isDeleteAIIllust → search_ai_type=1；「仅看 AI」会话态（issue #909）→
         // 服务端全返(search_ai_type=0)，再由 FilterMapper 客户端按 illust_ai_type==2 筛。
         val onlyAi = searchModel.onlyAi.value == true
+        searchOnlyAi = onlyAi
         searchAiType = if (onlyAi) 0 else if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
 
+        // 同步到已有 mapper 实例；即便 filterMapper 仍为 null，下次 mapper() 也会从字段重读
         this.filterMapper?.updateStarSizeLimit(this.getStarSizeLimit())
         // R18 三档（0=不限/1=仅安全/2=仅R-18）→ 客户端按 x_restrict 过滤
         this.filterMapper?.setSearchR18Restriction(r18Restriction ?: 0)

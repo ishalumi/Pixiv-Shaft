@@ -19,17 +19,15 @@ public abstract class RemoteRepo<Response extends ListShow<?>> extends BaseRepo 
      * extends Response: This part specifies that the type can be either the Response class itself or any class that inherits from Response. In other words, the Observable can emit objects of any type as long as that type is a subclass of Response.
      * */
     private Observable<? extends Response> mApi;
-    /**
-     * In the context of RxJava and Android, you'll likely not encounter ? super Response very often. It's a less common generic type compared to ? extends Response. Here's why:
-     * <p>
-     * ?: Similar to ? extends Response, this represents a wildcard but with a reversed relationship.
-     * super Response: This specifies that the type can be either the Response class itself or any class that is a superclass of Response. In simpler terms, the Observable can emit objects of any type as long as that type is an ancestor (parent class) in the inheritance hierarchy leading up to Response.
-     * */
-    private final Function<? super Response, Response> mFunction;
     protected String nextUrl = "";
 
     public RemoteRepo() {
-        mFunction = mapper();
+        // 不在构造器里缓存 mapper()。
+        // Kotlin 子类属性初始化（如 filterMapper = null）发生在 super() 之后，
+        // 若这里提前调用 mapper() 并把结果缓存，子类随后的字段初始化会把
+        // filterMapper 清回 null，导致 update() 里 filterMapper?.xxx 全部 no-op
+        // （「喜欢！数」本地 total_bookmarks 过滤失效，个位数仍显示）。
+        // 改为每次请求时调用 mapper()，让子类在完整构造后同步门槛。
     }
 
     /**
@@ -58,7 +56,7 @@ public abstract class RemoteRepo<Response extends ListShow<?>> extends BaseRepo 
         mApi = initApi();//mApi contains the response data
         if (mApi != null) {
             mApi.subscribeOn(Schedulers.newThread())
-                    .map(mFunction)
+                    .map(mapper())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(nullCtrl);
         }
@@ -68,7 +66,7 @@ public abstract class RemoteRepo<Response extends ListShow<?>> extends BaseRepo 
 //        mApi = initLofterApi();//mApi contains the response data
 //        if (mApi != null) {
 //            mApi.subscribeOn(Schedulers.newThread())
-//                    .map(mFunction)
+//                    .map(mapper())
 //                    .observeOn(AndroidSchedulers.mainThread())
 //                    .subscribe(nullCtrl);
 //        }
@@ -78,7 +76,7 @@ public abstract class RemoteRepo<Response extends ListShow<?>> extends BaseRepo 
         mApi = initNextApi();
         if (mApi != null) {
             mApi.subscribeOn(Schedulers.newThread())
-                    .map(mFunction)
+                    .map(mapper())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(nullCtrl);
         }

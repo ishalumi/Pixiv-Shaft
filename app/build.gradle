@@ -42,18 +42,42 @@ android {
     }
 
     signingConfigs {
+        // 优先 isha-shaft.jks（fork 自有签名）；否则回退上游 keystore.jks
+        def ishaKs = file("../isha-shaft.jks")
+        def useIsha = ishaKs.exists()
+        def ksPass = System.getenv("SHAFT_KEYSTORE_PASSWORD")
+        def keyAliasEnv = System.getenv("SHAFT_KEY_ALIAS") ?: "isha"
+        def keyPass = System.getenv("SHAFT_KEY_PASSWORD") ?: ksPass
+
         debug {
-            storeFile file("../keystore.jks")
-            storePassword "123456"
-            keyAlias 'CeuiLiSA'
-            keyPassword '123456'
+            if (useIsha) {
+                storeFile ishaKs
+                storePassword (ksPass ?: "local-dev-only")
+                keyAlias keyAliasEnv
+                keyPassword (keyPass ?: "local-dev-only")
+            } else {
+                storeFile file("../keystore.jks")
+                storePassword "123456"
+                keyAlias 'CeuiLiSA'
+                keyPassword '123456'
+            }
         }
 
         release {
-            storeFile file("../keystore.jks")
-            storePassword "123456"
-            keyAlias 'CeuiLiSA'
-            keyPassword '123456'
+            if (useIsha) {
+                if (ksPass == null || ksPass.isEmpty()) {
+                    throw new GradleException("SHAFT_KEYSTORE_PASSWORD required when isha-shaft.jks is present")
+                }
+                storeFile ishaKs
+                storePassword ksPass
+                keyAlias keyAliasEnv
+                keyPassword (keyPass ?: ksPass)
+            } else {
+                storeFile file("../keystore.jks")
+                storePassword "123456"
+                keyAlias 'CeuiLiSA'
+                keyPassword '123456'
+            }
         }
     }
 

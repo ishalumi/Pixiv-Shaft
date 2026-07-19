@@ -46,14 +46,16 @@ class SearchNovelRepo @JvmOverloads constructor(
 ) : RemoteRepo<ListNovel>() {
 
     private var filterMapper: Mapper<ListNovel>? = null
+    private var searchOnlyAi: Boolean = false
 
     // 复用基类 Mapper（已含屏蔽 tag/ID/用户 + 全局 R18 过滤）；额外承载搜索「R-18 限制」三档。
-    // 注意：mapper() 由 RemoteRepo 构造器调用，早于本类属性初始化，故这里不读 r18Restriction，
-    // 实际档位在 update() 里推给 mapper（与 SearchIllustRepo 的 FilterMapper 同套路）。
+    // RemoteRepo 每次请求都会调 mapper()，在这里同步 r18 / onlyAi。
     override fun mapper(): Function<in ListNovel, ListNovel> {
         if (filterMapper == null) {
             filterMapper = Mapper()
         }
+        filterMapper!!.setSearchR18Restriction(r18Restriction ?: 0)
+        filterMapper!!.setSearchOnlyAi(searchOnlyAi)
         return filterMapper!!
     }
 
@@ -156,6 +158,7 @@ class SearchNovelRepo @JvmOverloads constructor(
         // AI：屏蔽走全局 isDeleteAIIllust → search_ai_type=1；「仅看 AI」会话态（issue #909）→
         // 服务端全返(0)，再由 Mapper 客户端按 novel_ai_type==2 筛。
         val onlyAi = searchModel.onlyAi.value == true
+        searchOnlyAi = onlyAi
         searchAiType = if (onlyAi) 0 else if (Shaft.sSettings.isDeleteAIIllust) 1 else 0
         // null 让 retrofit 跳过 query；只有显式 true 才传，行为对齐 iOS（关闭时不带）
         isOriginalOnly = if (searchModel.isOriginalOnly.value == true) true else null
