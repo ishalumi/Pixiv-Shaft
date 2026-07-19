@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小说详情「相关作品」分区标题 + 加载/空态 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="4dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/related_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/related_artworks"
+        android:textColor="@color/v3_text_1"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/related_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:textColor="@color/v3_text_3"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="加载中…"
+        tools:visibility="visible" />
+</LinearLayout>

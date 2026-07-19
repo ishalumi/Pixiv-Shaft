@@ -1,5 +1,8 @@
 package ceui.pixiv.ui.novel
 
+import com.bumptech.glide.Glide
+import androidx.core.content.ContextCompat
+import ceui.lisa.utils.GlideUtil
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
@@ -23,6 +26,7 @@ import ceui.lisa.utils.V3Palette
 import ceui.loxia.Client
 import ceui.loxia.Novel
 import ceui.loxia.ObjectPool
+import ceui.loxia.WebNovelThumb
 import ceui.loxia.Series
 import ceui.loxia.User
 import ceui.loxia.findActionReceiverOrNull
@@ -33,6 +37,14 @@ import ceui.pixiv.feeds.FeedRenderer
 import ceui.pixiv.feeds.FeedSource
 import ceui.pixiv.feeds.feedRenderer
 import ceui.pixiv.ui.common.IllustCardActionReceiver
+import ceui.pixiv.ui.common.NovelFeedItem
+import ceui.lisa.databinding.CellNovelRelatedHeaderBinding
+import ceui.lisa.databinding.RecyNovelBinding
+import ceui.pixiv.ui.search.SpamNovelFilter
+import ceui.lisa.models.NovelBean
+import ceui.lisa.activities.Shaft
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ceui.pixiv.ui.common.NOVEL_URL_HEAD
 import ceui.pixiv.ui.common.bindCopyChip
 import ceui.pixiv.ui.common.bindCopyLinkChip
@@ -92,10 +104,19 @@ data class NovelCaptionFeedItem(val novelId: Long) : FeedItem {
     override val feedKey: Any get() = novelId
 }
 
+/** 相关作品分区头：state null=加载中, true=有数据, false=空/失败 */
+data class NovelRelatedHeaderFeedItem(
+    val novelId: Long,
+    val state: Boolean? = null,
+) : FeedItem {
+    override val feedKey: Any get() = "novel_related_header_$novelId"
+}
+
 // ── FeedSource：单页，无分页（一篇小说的固定 6 张卡）──────────────────────
 
 class NovelTextFeedSource(private val novelId: Long) : FeedSource<Int> {
     override suspend fun load(cursor: Int?): FeedPage<Int> {
+        // 首屏：详情固定卡 + 相关作品头(加载中) + 立刻拉一页相关
         val novel = Client.appApi.getNovel(novelId).novel?.also {
             ObjectPool.update(it)
             it.user?.let { user -> ObjectPool.update(user) }
@@ -109,9 +130,48 @@ class NovelTextFeedSource(private val novelId: Long) : FeedSource<Int> {
         items.add(NovelActionsFeedItem(novelId))
         items.add(NovelTagsFeedItem(novelId))
         items.add(NovelCaptionFeedItem(novelId))
+        items.add(NovelRelatedHeaderFeedItem(novelId, state = null))
+
+        // 网页「相关作品」：/ajax/novel/{id}/recommend/init（需 cookie，失败则空态）
+        val related = fetchRelatedNovels(novelId)
+        if (related.isEmpty()) {
+            // 把 header 标成空
+            items[items.lastIndex] = NovelRelatedHeaderFeedItem(novelId, state = false)
+            return FeedPage(items, null)
+        }
+        items[items.lastIndex] = NovelRelatedHeaderFeedItem(novelId, state = true)
+        items.addAll(related)
+        // 单页详情 + 相关一页；更多相关可后续接 nextIds
         return FeedPage(items, null)
     }
 }
+
+/** 网页 ajax 拉相关小说，映射为 NovelFeedItem；应用 spam 过滤。 */
+internal suspend fun fetchRelatedNovels(novelId: Long, limit: Int = 18): List<NovelFeedItem> =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val resp = Client.webApi.getNovelRecommend(novelId, limit = limit)
+            if (resp.error == true) {
+                Timber.w("novel recommend error: %s", resp.message)
+                return@runCatching emptyList()
+            }
+            val thumbs = resp.body?.novels.orEmpty()
+            thumbs.mapNotNull { thumb: WebNovelThumb ->
+                val n = thumb.toNovel() ?: return@mapNotNull null
+                ObjectPool.update(n)
+                n.user?.let { ObjectPool.update(it) }
+                // spam 过滤：把 Novel 桥成 NovelBean 做判断
+                val bean = runCatching {
+                    Shaft.sGson.fromJson(Shaft.sGson.toJsonTree(n), NovelBean::class.java)
+                }.getOrNull()
+                if (bean != null && SpamNovelFilter.isSpam(bean)) return@mapNotNull null
+                NovelFeedItem.of(n, skipR18Filter = false)
+            }
+        }.onFailure {
+            Timber.w(it, "fetchRelatedNovels failed novelId=%d", novelId)
+        }.getOrDefault(emptyList())
+    }
+
 
 // ── Renderers（复用旧 cell XML，bind 逻辑对齐旧 ViewHolder）──
 
@@ -361,3 +421,72 @@ fun novelCaptionRenderer(
         }
     }
 }
+
+/** 相关作品分区标题：加载中 / 空 / 有数据 */
+fun novelRelatedHeaderRenderer(): FeedRenderer<NovelRelatedHeaderFeedItem, CellNovelRelatedHeaderBinding> =
+    feedRenderer(
+        inflate = CellNovelRelatedHeaderBinding::inflate,
+        fullSpan = true,
+    ) { cell ->
+        val b = cell.binding
+        b.relatedTitle.setText(R.string.related_artworks)
+        when (cell.item.state) {
+            null -> {
+                b.relatedStatus.isVisible = true
+                b.relatedStatus.setText(R.string.loading_text)
+            }
+            true -> b.relatedStatus.isVisible = false
+            false -> {
+                b.relatedStatus.isVisible = true
+                b.relatedStatus.setText(R.string.v3_no_related_works)
+            }
+        }
+    }
+
+/** 相关作品小说卡（详情页底部，点击进另一本详情） */
+fun relatedNovelCardRenderer(): FeedRenderer<NovelFeedItem, RecyNovelBinding> =
+    feedRenderer(
+        inflate = RecyNovelBinding::inflate,
+        create = { cell ->
+            cell.binding.root.setOnClick {
+                val ctx = cell.binding.root.context
+                val id = cell.item.novel.id
+                ctx.startActivity(Intent(ctx, ceui.lisa.activities.TemplateActivity::class.java).apply {
+                    putExtra(ceui.lisa.activities.TemplateActivity.EXTRA_FRAGMENT, "小说详情")
+                    putExtra(ceui.lisa.utils.Params.NOVEL_ID, id)
+                })
+            }
+        },
+    ) { cell ->
+        val b = cell.binding
+        val novel = cell.item.novel
+        val ctx = b.root.context
+        b.title.text = novel.title ?: ""
+        b.author.text = novel.user?.name ?: ""
+        b.date.text = novel.create_date?.take(10) ?: ""
+        b.bookmarkCount.text = (novel.total_bookmarks ?: 0).toString()
+        val wordCount = novel.text_length ?: 0
+        b.howManyWord.text = ctx.getString(R.string.v3_novel_word_count, wordCount.toString())
+        b.badgeAi.isVisible = novel.novel_ai_type == 2
+        val series = novel.series
+        if (series != null && !series.title.isNullOrEmpty()) {
+            b.series.isVisible = true
+            b.series.text = ctx.getString(R.string.string_184, series.title)
+        } else {
+            b.series.isVisible = false
+        }
+        b.novelTag.isVisible = false
+        b.trendingScore.isVisible = false
+        val coverUrl = novel.image_urls?.let { it.large ?: it.medium ?: it.square_medium }
+        Glide.with(b.cover)
+            .load(GlideUtil.getUrl(coverUrl))
+            .placeholder(R.color.v3_surface_2)
+            .error(R.color.v3_surface_2)
+            .into(b.cover)
+        novel.user?.let {
+            Glide.with(b.userHead).load(GlideUtil.getHead(it)).into(b.userHead)
+        }
+        val liked = novel.is_bookmarked == true
+        val color = if (liked) R.color.has_bookmarked else R.color.not_bookmarked
+        b.like.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(ctx, color))
+    }

@@ -2330,4 +2330,5 @@
     <string name="search_filter_v3_spam_saved">已保存</string>
     <string name="search_filter_v3_spam_count">额外 %1$d 词</string>
 
+    <string name="novel_related_loading">相关作品加载中…</string>
 </resources>

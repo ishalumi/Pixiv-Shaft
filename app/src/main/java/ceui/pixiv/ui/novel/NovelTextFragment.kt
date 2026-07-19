@@ -89,6 +89,9 @@ class NovelTextFragment :
         novelActionsRenderer(),
         novelTagsRenderer(viewLifecycleOwner),
         novelCaptionRenderer(viewLifecycleOwner),
+        // 相关作品（网页 recommend/init）：标题 + 小说卡列表
+        novelRelatedHeaderRenderer(),
+        relatedNovelCardRenderer(),
     )
 
     override fun onListReady(listView: RecyclerView) {

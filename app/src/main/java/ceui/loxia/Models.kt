@@ -631,6 +631,69 @@ data class WebResponse<T> (
     val body: T? = null,
 ) : Serializable
 
+
+/** 网页 /ajax/novel/{id}/recommend/init 的 body。novels 为网页缩略对象（字段 camelCase）。 */
+data class NovelRecommendBody(
+    val novels: List<WebNovelThumb>? = null,
+    val nextIds: List<String>? = null,
+) : Serializable
+
+/**
+ * 网页小说缩略（recommend/init、搜索缩略等共用的精简结构）。
+ * 字段用 camelCase；与 app-api 的 [Novel] 不同，需映射后再进列表。
+ */
+data class WebNovelThumb(
+    val id: String? = null,
+    val title: String? = null,
+    val xRestrict: Int = 0,
+    val restrict: Int = 0,
+    val url: String? = null,
+    val tags: List<String>? = null,
+    val userId: String? = null,
+    val userName: String? = null,
+    val profileImageUrl: String? = null,
+    val textCount: Int = 0,
+    val wordCount: Int = 0,
+    val readingTime: Int = 0,
+    val bookmarkCount: Int = 0,
+    val isOriginal: Boolean = false,
+    val seriesId: String? = null,
+    val seriesTitle: String? = null,
+    val aiType: Int = 0,
+    val description: String? = null,
+    val createDate: String? = null,
+) : Serializable {
+    fun toNovel(): Novel? {
+        val nid = id?.toLongOrNull() ?: return null
+        val uid = userId?.toLongOrNull() ?: 0L
+        return Novel(
+            id = nid,
+            title = title,
+            caption = description,
+            create_date = createDate,
+            image_urls = ImageUrls(medium = url, square_medium = url),
+            is_bookmarked = false,
+            is_original = isOriginal,
+            is_x_restricted = xRestrict > 0,
+            page_count = 1,
+            restrict = restrict,
+            series = seriesId?.toLongOrNull()?.let { sid ->
+                Series(id = sid, title = seriesTitle)
+            },
+            tags = tags?.map { Tag(name = it) },
+            text_length = if (textCount > 0) textCount else wordCount,
+            total_bookmarks = bookmarkCount,
+            user = User(
+                id = uid,
+                name = userName,
+                profile_image_urls = ImageUrls(medium = profileImageUrl),
+            ),
+            x_restrict = xRestrict,
+            novel_ai_type = aiType,
+        )
+    }
+}
+
 // 网页 ajax /ajax/illust/{id}/pages 的 body 元素:每一 P 的真实原图宽高。
 // app-api 的 meta_pages 每项只有 image_urls、不带宽高,这里补上,供详情页多 P 下载前预置展示高度。
 // 只取宽高(urls 等其余字段 gson 忽略)。见 IllustAdapter.seedPageDimensions。

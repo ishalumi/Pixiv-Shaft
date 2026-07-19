@@ -74,4 +74,13 @@ interface PixivWebApi {
         @Header("x-csrf-token") csrfToken: String,
         @Body request: StreetRequest,
     ): StreetResponse
+
+    /** 网页版小说详情「相关作品」：/ajax/novel/{id}/recommend/init */
+    @GET("/ajax/novel/{novel_id}/recommend/init")
+    suspend fun getNovelRecommend(
+        @Path("novel_id") novelId: Long,
+        @Query("limit") limit: Int = 18,
+        @Query("lang") lang: String = "zh",
+    ): WebResponse<NovelRecommendBody>
+
 }
