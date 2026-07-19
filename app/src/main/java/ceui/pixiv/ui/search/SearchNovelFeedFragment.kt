@@ -21,6 +21,7 @@ import ceui.pixiv.ui.search.v3.R18Mode
 import ceui.pixiv.ui.search.v3.SearchFilterV3
 import io.reactivex.functions.Function
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -114,8 +115,10 @@ class SearchNovelFeedSource(
         val r = repo ?: SearchNovelRepo(null, null, null, null, null, null, null, null).also { repo = it }
         syncV3IntoSearchModel()
         val floor = resolveBookmarkFloor()
-        val minKeep = if (floor > 0) 24 else 1
-        val maxPages = if (floor > 0) 40 else 1
+        // 有门槛时：首屏最多连拉几页凑到可滚动；翻页不再连拉，避免 rate limit
+        val isRefresh = cursor == null
+        val minKeep = if (floor > 0 && isRefresh) 8 else 1
+        val maxPages = if (floor > 0 && isRefresh) 4 else 1
 
         val acc = ArrayList<NovelFeedItem>()
         var next: String? = null
@@ -159,7 +162,8 @@ class SearchNovelFeedSource(
             if (floor <= 0 || acc.size >= minKeep || next.isNullOrEmpty() || pages >= maxPages) {
                 break
             }
-            // 有门槛时首屏/翻页都连拉多页，避免列表太短滚不动触发不了 loadMore
+            // 页间喘口气，避免一次 burst 撞 rate limit
+            delay(350)
             pageCursor = next
         }
 
