@@ -371,11 +371,16 @@ class SearchFilterV3BottomSheet : V3BottomSheetBase() {
     }
 
     private fun triggerRefresh() {
+        // 先强制把当前 filter 写回 LiveData（确保 observer / Feed 能读到最新 bookmarkBucket）
+        val cur = currentFilter()
+        if (isNovel) searchViewModel.novelFilter.value = cur
+        else searchViewModel.illustFilter.value = cur
+        // legacy：bridge 会 observeEvent → applyToLegacy → nowGo
+        // 新版/feeds：SearchIllustFeedSource 自己从 SearchViewModel.illustFilter 读门槛
         val now = System.currentTimeMillis()
         if (isNovel) searchViewModel.triggerSearchNovelEvent(now)
         else searchViewModel.triggerSearchIllustMangaEvent(now)
-        // sort 可能从 trending_builtin 之类 radio 没有的项变了——同步 radio 索引（仅新版用）
-        val sortIndex = searchViewModel.sortToRadioIndex(currentFilter().sort)
+        val sortIndex = searchViewModel.sortToRadioIndex(cur.sort)
         if (isNovel) searchViewModel.novelSelectedRadioTabIndex.value = sortIndex
         else searchViewModel.illustSelectedRadioTabIndex.value = sortIndex
     }
