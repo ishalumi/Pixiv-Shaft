@@ -116,6 +116,13 @@ public class Settings {
     //屏蔽，不显示AI创作的作品，默认不屏蔽
     private boolean deleteAIIllust = false;
 
+    // 小说 AI 灌水/引流过滤（isha，移植 custom-filter 思路）
+    private boolean novelSpamFilterEnabled = true;
+    // 用户额外内容关键词，换行分隔；与内置词合并
+    private String novelSpamContentExtra = "";
+    // 用户额外作者关键词，换行分隔
+    private String novelSpamAuthorExtra = "";
+
     //是否开启直连模式，true 开启  false 自行代理
     @SerializedName("autoFuckChina")
     private boolean directConnect = false;
@@ -386,6 +393,30 @@ public class Settings {
 
     public void setDeleteAIIllust(boolean b) {
         deleteAIIllust = b;
+    }
+
+    public boolean isNovelSpamFilterEnabled() {
+        return novelSpamFilterEnabled;
+    }
+
+    public void setNovelSpamFilterEnabled(boolean novelSpamFilterEnabled) {
+        this.novelSpamFilterEnabled = novelSpamFilterEnabled;
+    }
+
+    public String getNovelSpamContentExtra() {
+        return novelSpamContentExtra == null ? "" : novelSpamContentExtra;
+    }
+
+    public void setNovelSpamContentExtra(String novelSpamContentExtra) {
+        this.novelSpamContentExtra = novelSpamContentExtra == null ? "" : novelSpamContentExtra;
+    }
+
+    public String getNovelSpamAuthorExtra() {
+        return novelSpamAuthorExtra == null ? "" : novelSpamAuthorExtra;
+    }
+
+    public void setNovelSpamAuthorExtra(String novelSpamAuthorExtra) {
+        this.novelSpamAuthorExtra = novelSpamAuthorExtra == null ? "" : novelSpamAuthorExtra;
     }
 
 

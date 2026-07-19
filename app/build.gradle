@@ -14,8 +14,8 @@ android {
         applicationId "ceui.pixiv"
         minSdkVersion 24
         targetSdkVersion 36
-        versionCode 41210
-        versionName "4.8.1-isha.10"
+        versionCode 41211
+        versionName "4.8.1-isha.11"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters 'arm64-v8a'

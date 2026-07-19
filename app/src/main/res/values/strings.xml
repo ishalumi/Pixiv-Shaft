@@ -2318,4 +2318,16 @@
     <string name="drawer_section_discover">浏览与发现</string>
     <string name="drawer_section_mine">我的</string>
     <string name="drawer_section_records">记录与管理</string>
+
+    <!-- isha: 小说 AI 灌水屏蔽（其他条件） -->
+    <string name="search_filter_v3_section_spam">小说垃圾过滤</string>
+    <string name="search_filter_v3_spam_enable">屏蔽 AI 灌水 / 引流小说</string>
+    <string name="search_filter_v3_spam_enable_desc">乱码作者、传送门、teach.link 等（可改词）</string>
+    <string name="search_filter_v3_spam_edit">编辑额外屏蔽词</string>
+    <string name="search_filter_v3_spam_edit_hint">内置词始终生效；此处为额外词，一行一个</string>
+    <string name="search_filter_v3_spam_content_label">内容关键词（标题/简介）</string>
+    <string name="search_filter_v3_spam_author_label">作者关键词</string>
+    <string name="search_filter_v3_spam_saved">已保存</string>
+    <string name="search_filter_v3_spam_count">额外 %1$d 词</string>
+
 </resources>

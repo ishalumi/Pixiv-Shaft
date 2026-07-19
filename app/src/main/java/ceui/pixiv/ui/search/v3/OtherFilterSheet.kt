@@ -1,6 +1,10 @@
 package ceui.pixiv.ui.search.v3
 
+import android.app.AlertDialog
 import android.content.res.ColorStateList
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,6 +19,7 @@ import ceui.lisa.databinding.CellSearchFilterSwitchRowBinding
 import ceui.lisa.databinding.DialogSearchFilterOtherBinding
 import ceui.lisa.utils.Common
 import ceui.lisa.utils.Local
+import ceui.pixiv.ui.search.SpamNovelFilter
 import ceui.pixiv.utils.setOnClick
 import java.io.Serializable
 
@@ -167,11 +172,105 @@ class OtherFilterSheet : V3BottomSheetBase() {
             ) { draftReplaceableOnly = it }
         }
 
+        // isha: 小说垃圾过滤（仅 novel 可见；全局 Settings，立即落盘）
+        binding.spamSectionSpace.isVisible = isNovel
+        binding.spamSectionCard.isVisible = isNovel
+        if (isNovel) {
+            bindSpamSection()
+        }
+
         // R-18 三选一
         bindR18Row(binding.rowR18All,  R18Mode.All,      R.string.search_filter_v3_r18_all)
         bindR18Row(binding.rowR18Safe, R18Mode.SafeOnly, R.string.search_filter_v3_r18_safe)
         bindR18Row(binding.rowR18Only, R18Mode.R18Only,  R.string.search_filter_v3_r18_only)
         renderR18Marks()
+    }
+
+    private fun bindSpamSection() {
+        val s = Shaft.sSettings
+        val row = binding.rowSpamEnable
+        row.switchTitle.setText(R.string.search_filter_v3_spam_enable)
+        row.switchSubtitle.setText(R.string.search_filter_v3_spam_enable_desc)
+        row.switchSubtitle.isVisible = true
+        row.switchToggle.thumbTintList = ColorStateList.valueOf(palette.primary)
+        row.switchToggle.isChecked = s.isNovelSpamFilterEnabled
+        row.switchToggle.setOnCheckedChangeListener { _, checked ->
+            s.isNovelSpamFilterEnabled = checked
+            Local.setSettings(s)
+            renderSpamEditRow()
+        }
+        binding.rowSpamEdit.rowValue.setTextColor(palette.textAccent)
+        renderSpamEditRow()
+        binding.rowSpamEdit.root.setOnClick { showSpamKeywordsEditor() }
+    }
+
+    private fun renderSpamEditRow() {
+        binding.rowSpamEdit.rowTitle.setText(R.string.search_filter_v3_spam_edit)
+        val n = SpamNovelFilter.extraContentCount() + SpamNovelFilter.extraAuthorCount()
+        binding.rowSpamEdit.rowValue.text =
+            if (n == 0) getString(R.string.search_filter_v3_spam_edit_hint)
+            else getString(R.string.search_filter_v3_spam_count, n)
+        binding.rowSpamEdit.root.isEnabled = Shaft.sSettings.isNovelSpamFilterEnabled
+        binding.rowSpamEdit.root.alpha =
+            if (Shaft.sSettings.isNovelSpamFilterEnabled) 1f else 0.45f
+    }
+
+    /** 弹窗编辑额外内容/作者屏蔽词（一行一个），立即写入 Settings。 */
+    private fun showSpamKeywordsEditor() {
+        val ctx = requireContext()
+        val density = resources.displayMetrics.density
+        val pad = (16 * density).toInt()
+        val container = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+        }
+        val hint = TextView(ctx).apply {
+            text = getString(R.string.search_filter_v3_spam_edit_hint)
+            textSize = 12f
+            setPadding(0, 0, 0, (8 * density).toInt())
+        }
+        val contentLabel = TextView(ctx).apply {
+            text = getString(R.string.search_filter_v3_spam_content_label)
+            textSize = 13f
+            setPadding(0, (4 * density).toInt(), 0, (4 * density).toInt())
+        }
+        val contentEdit = EditText(ctx).apply {
+            minLines = 5
+            maxLines = 10
+            setText(Shaft.sSettings.novelSpamContentExtra)
+            setHint("teach.link\n传送门\n...")
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        }
+        val authorLabel = TextView(ctx).apply {
+            text = getString(R.string.search_filter_v3_spam_author_label)
+            textSize = 13f
+            setPadding(0, (12 * density).toInt(), 0, (4 * density).toInt())
+        }
+        val authorEdit = EditText(ctx).apply {
+            minLines = 4
+            maxLines = 8
+            setText(Shaft.sSettings.novelSpamAuthorExtra)
+            setHint("dxtyjmg\ndrthbv\n...")
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        }
+        container.addView(hint)
+        container.addView(contentLabel)
+        container.addView(contentEdit)
+        container.addView(authorLabel)
+        container.addView(authorEdit)
+
+        AlertDialog.Builder(ctx)
+            .setTitle(R.string.search_filter_v3_spam_edit)
+            .setView(container)
+            .setNegativeButton(R.string.string_cancel, null)
+            .setPositiveButton(R.string.search_filter_v3_confirm) { _, _ ->
+                Shaft.sSettings.novelSpamContentExtra = contentEdit.text?.toString().orEmpty()
+                Shaft.sSettings.novelSpamAuthorExtra = authorEdit.text?.toString().orEmpty()
+                Local.setSettings(Shaft.sSettings)
+                renderSpamEditRow()
+                Common.showToast(getString(R.string.search_filter_v3_spam_saved))
+            }
+            .show()
     }
 
     private fun renderToolRow() {
