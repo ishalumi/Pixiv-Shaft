@@ -117,10 +117,10 @@ class SearchNovelFeedSource(
         val floor = resolveBookmarkFloor()
         // 小说搜索始终开 spam 过滤（乱码作者 + teach.link 传送门）。
         // 首屏适度连拉凑可滚动列表；翻页只滤当前页，避免 rate limit。
+        // 首屏凑一批；翻页时若本页全被滤空，继续连拉几页，否则列表“划不动”
         val isRefresh = cursor == null
-        val needFill = isRefresh // spam 过滤总会丢一批，首屏需要补
-        val minKeep = if (needFill) 10 else 1
-        val maxPages = if (needFill) 6 else 1
+        val minKeep = if (isRefresh) 10 else 1
+        val maxPages = if (isRefresh) 6 else 8
 
         val acc = ArrayList<NovelFeedItem>()
         var next: String? = null

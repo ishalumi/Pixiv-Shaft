@@ -109,9 +109,15 @@ class SearchIllustFeedSource(
         syncV3IntoSearchModel()
         val floor = resolveBookmarkFloor()
         // 有门槛时：首屏最多连拉几页凑到可滚动；翻页不再连拉，避免 rate limit
+        // 有 star 门槛时：首屏凑几条；翻页滤空则连拉，避免“下一页全不合格→划不动”
         val isRefresh = cursor == null
-        val minKeep = if (floor > 0 && isRefresh) 8 else 1
-        val maxPages = if (floor > 0 && isRefresh) 4 else 1
+        val filtering = floor > 0
+        val minKeep = if (filtering && isRefresh) 8 else 1
+        val maxPages = when {
+            filtering && isRefresh -> 4
+            filtering && !isRefresh -> 8  // loadMore 滤空补页
+            else -> 1
+        }
 
         val acc = ArrayList<IllustFeedItem>()
         var next: String? = null
