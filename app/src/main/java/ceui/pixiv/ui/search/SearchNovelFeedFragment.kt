@@ -114,8 +114,8 @@ class SearchNovelFeedSource(
         val r = repo ?: SearchNovelRepo(null, null, null, null, null, null, null, null).also { repo = it }
         syncV3IntoSearchModel()
         val floor = resolveBookmarkFloor()
-        val minKeep = if (floor > 0) 12 else 1
-        val maxExtraPages = if (floor > 0) 8 else 0
+        val minKeep = if (floor > 0) 24 else 1
+        val maxPages = if (floor > 0) 40 else 1
 
         val acc = ArrayList<NovelFeedItem>()
         var next: String? = null
@@ -156,10 +156,10 @@ class SearchNovelFeedSource(
             next = list.nextUrl?.takeIf { it.isNotEmpty() }
             pages++
 
-            if (floor <= 0 || acc.size >= minKeep || next.isNullOrEmpty() || pages > maxExtraPages) {
+            if (floor <= 0 || acc.size >= minKeep || next.isNullOrEmpty() || pages >= maxPages) {
                 break
             }
-            if (cursor != null) break
+            // 有门槛时首屏/翻页都连拉多页，避免列表太短滚不动触发不了 loadMore
             pageCursor = next
         }
 
